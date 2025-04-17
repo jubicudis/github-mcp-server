@@ -17,7 +17,7 @@ import (
 
 func Test_GetIssue(t *testing.T) {
 	// Verify tool definition once
-	mockClient := github.NewClient(nil)
+	mockClient := githubMCP.NewClient(nil)
 	tool, _ := GetIssue(stubGetClientFn(mockClient), translations.NullTranslationHelper)
 
 	assert.Equal(t, "get_issue", tool.Name)
@@ -29,11 +29,11 @@ func Test_GetIssue(t *testing.T) {
 
 	// Setup mock issue for success case
 	mockIssue := &github.Issue{
-		Number:  github.Ptr(42),
-		Title:   github.Ptr("Test Issue"),
-		Body:    github.Ptr("This is a test issue"),
-		State:   github.Ptr("open"),
-		HTMLURL: github.Ptr("https://github.com/owner/repo/issues/42"),
+		Number:  githubMCP.Ptr(42),
+		Title:   githubMCP.Ptr("Test Issue"),
+		Body:    githubMCP.Ptr("This is a test issue"),
+		State:   githubMCP.Ptr("open"),
+		HTMLURL: githubMCP.Ptr("https://github.com/owner/repo/issues/42"),
 	}
 
 	tests := []struct {
@@ -81,7 +81,7 @@ func Test_GetIssue(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
-			client := github.NewClient(tc.mockedClient)
+			client := githubMCP.NewClient(tc.mockedClient)
 			_, handler := GetIssue(stubGetClientFn(client), translations.NullTranslationHelper)
 
 			// Create call request
@@ -113,7 +113,7 @@ func Test_GetIssue(t *testing.T) {
 
 func Test_AddIssueComment(t *testing.T) {
 	// Verify tool definition once
-	mockClient := github.NewClient(nil)
+	mockClient := githubMCP.NewClient(nil)
 	tool, _ := AddIssueComment(stubGetClientFn(mockClient), translations.NullTranslationHelper)
 
 	assert.Equal(t, "add_issue_comment", tool.Name)
@@ -126,12 +126,12 @@ func Test_AddIssueComment(t *testing.T) {
 
 	// Setup mock comment for success case
 	mockComment := &github.IssueComment{
-		ID:   github.Ptr(int64(123)),
-		Body: github.Ptr("This is a test comment"),
+		ID:   githubMCP.Ptr(int64(123)),
+		Body: githubMCP.Ptr("This is a test comment"),
 		User: &github.User{
-			Login: github.Ptr("testuser"),
+			Login: githubMCP.Ptr("testuser"),
 		},
-		HTMLURL: github.Ptr("https://github.com/owner/repo/issues/42#issuecomment-123"),
+		HTMLURL: githubMCP.Ptr("https://github.com/owner/repo/issues/42#issuecomment-123"),
 	}
 
 	tests := []struct {
@@ -184,7 +184,7 @@ func Test_AddIssueComment(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
-			client := github.NewClient(tc.mockedClient)
+			client := githubMCP.NewClient(tc.mockedClient)
 			_, handler := AddIssueComment(stubGetClientFn(client), translations.NullTranslationHelper)
 
 			// Create call request
@@ -236,7 +236,7 @@ func Test_AddIssueComment(t *testing.T) {
 
 func Test_SearchIssues(t *testing.T) {
 	// Verify tool definition once
-	mockClient := github.NewClient(nil)
+	mockClient := githubMCP.NewClient(nil)
 	tool, _ := SearchIssues(stubGetClientFn(mockClient), translations.NullTranslationHelper)
 
 	assert.Equal(t, "search_issues", tool.Name)
@@ -250,29 +250,29 @@ func Test_SearchIssues(t *testing.T) {
 
 	// Setup mock search results
 	mockSearchResult := &github.IssuesSearchResult{
-		Total:             github.Ptr(2),
-		IncompleteResults: github.Ptr(false),
+		Total:             githubMCP.Ptr(2),
+		IncompleteResults: githubMCP.Ptr(false),
 		Issues: []*github.Issue{
 			{
-				Number:   github.Ptr(42),
-				Title:    github.Ptr("Bug: Something is broken"),
-				Body:     github.Ptr("This is a bug report"),
-				State:    github.Ptr("open"),
-				HTMLURL:  github.Ptr("https://github.com/owner/repo/issues/42"),
-				Comments: github.Ptr(5),
+				Number:   githubMCP.Ptr(42),
+				Title:    githubMCP.Ptr("Bug: Something is broken"),
+				Body:     githubMCP.Ptr("This is a bug report"),
+				State:    githubMCP.Ptr("open"),
+				HTMLURL:  githubMCP.Ptr("https://github.com/owner/repo/issues/42"),
+				Comments: githubMCP.Ptr(5),
 				User: &github.User{
-					Login: github.Ptr("user1"),
+					Login: githubMCP.Ptr("user1"),
 				},
 			},
 			{
-				Number:   github.Ptr(43),
-				Title:    github.Ptr("Feature: Add new functionality"),
-				Body:     github.Ptr("This is a feature request"),
-				State:    github.Ptr("open"),
-				HTMLURL:  github.Ptr("https://github.com/owner/repo/issues/43"),
-				Comments: github.Ptr(3),
+				Number:   githubMCP.Ptr(43),
+				Title:    githubMCP.Ptr("Feature: Add new functionality"),
+				Body:     githubMCP.Ptr("This is a feature request"),
+				State:    githubMCP.Ptr("open"),
+				HTMLURL:  githubMCP.Ptr("https://github.com/owner/repo/issues/43"),
+				Comments: githubMCP.Ptr(3),
 				User: &github.User{
-					Login: github.Ptr("user2"),
+					Login: githubMCP.Ptr("user2"),
 				},
 			},
 		},
@@ -351,7 +351,7 @@ func Test_SearchIssues(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
-			client := github.NewClient(tc.mockedClient)
+			client := githubMCP.NewClient(tc.mockedClient)
 			_, handler := SearchIssues(stubGetClientFn(client), translations.NullTranslationHelper)
 
 			// Create call request
@@ -392,7 +392,7 @@ func Test_SearchIssues(t *testing.T) {
 
 func Test_CreateIssue(t *testing.T) {
 	// Verify tool definition once
-	mockClient := github.NewClient(nil)
+	mockClient := githubMCP.NewClient(nil)
 	tool, _ := CreateIssue(stubGetClientFn(mockClient), translations.NullTranslationHelper)
 
 	assert.Equal(t, "create_issue", tool.Name)
@@ -408,14 +408,14 @@ func Test_CreateIssue(t *testing.T) {
 
 	// Setup mock issue for success case
 	mockIssue := &github.Issue{
-		Number:    github.Ptr(123),
-		Title:     github.Ptr("Test Issue"),
-		Body:      github.Ptr("This is a test issue"),
-		State:     github.Ptr("open"),
-		HTMLURL:   github.Ptr("https://github.com/owner/repo/issues/123"),
-		Assignees: []*github.User{{Login: github.Ptr("user1")}, {Login: github.Ptr("user2")}},
-		Labels:    []*github.Label{{Name: github.Ptr("bug")}, {Name: github.Ptr("help wanted")}},
-		Milestone: &github.Milestone{Number: github.Ptr(5)},
+		Number:    githubMCP.Ptr(123),
+		Title:     githubMCP.Ptr("Test Issue"),
+		Body:      githubMCP.Ptr("This is a test issue"),
+		State:     githubMCP.Ptr("open"),
+		HTMLURL:   githubMCP.Ptr("https://github.com/owner/repo/issues/123"),
+		Assignees: []*github.User{{Login: githubMCP.Ptr("user1")}, {Login: githubMCP.Ptr("user2")}},
+		Labels:    []*github.Label{{Name: githubMCP.Ptr("bug")}, {Name: githubMCP.Ptr("help wanted")}},
+		Milestone: &github.Milestone{Number: githubMCP.Ptr(5)},
 	}
 
 	tests := []struct {
@@ -460,10 +460,10 @@ func Test_CreateIssue(t *testing.T) {
 				mock.WithRequestMatchHandler(
 					mock.PostReposIssuesByOwnerByRepo,
 					mockResponse(t, http.StatusCreated, &github.Issue{
-						Number:  github.Ptr(124),
-						Title:   github.Ptr("Minimal Issue"),
-						HTMLURL: github.Ptr("https://github.com/owner/repo/issues/124"),
-						State:   github.Ptr("open"),
+						Number:  githubMCP.Ptr(124),
+						Title:   githubMCP.Ptr("Minimal Issue"),
+						HTMLURL: githubMCP.Ptr("https://github.com/owner/repo/issues/124"),
+						State:   githubMCP.Ptr("open"),
 					}),
 				),
 			),
@@ -475,10 +475,10 @@ func Test_CreateIssue(t *testing.T) {
 			},
 			expectError: false,
 			expectedIssue: &github.Issue{
-				Number:  github.Ptr(124),
-				Title:   github.Ptr("Minimal Issue"),
-				HTMLURL: github.Ptr("https://github.com/owner/repo/issues/124"),
-				State:   github.Ptr("open"),
+				Number:  githubMCP.Ptr(124),
+				Title:   githubMCP.Ptr("Minimal Issue"),
+				HTMLURL: githubMCP.Ptr("https://github.com/owner/repo/issues/124"),
+				State:   githubMCP.Ptr("open"),
 			},
 		},
 		{
@@ -505,7 +505,7 @@ func Test_CreateIssue(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
-			client := github.NewClient(tc.mockedClient)
+			client := githubMCP.NewClient(tc.mockedClient)
 			_, handler := CreateIssue(stubGetClientFn(client), translations.NullTranslationHelper)
 
 			// Create call request
@@ -566,7 +566,7 @@ func Test_CreateIssue(t *testing.T) {
 
 func Test_ListIssues(t *testing.T) {
 	// Verify tool definition
-	mockClient := github.NewClient(nil)
+	mockClient := githubMCP.NewClient(nil)
 	tool, _ := ListIssues(stubGetClientFn(mockClient), translations.NullTranslationHelper)
 
 	assert.Equal(t, "list_issues", tool.Name)
@@ -585,20 +585,20 @@ func Test_ListIssues(t *testing.T) {
 	// Setup mock issues for success case
 	mockIssues := []*github.Issue{
 		{
-			Number:    github.Ptr(123),
-			Title:     github.Ptr("First Issue"),
-			Body:      github.Ptr("This is the first test issue"),
-			State:     github.Ptr("open"),
-			HTMLURL:   github.Ptr("https://github.com/owner/repo/issues/123"),
+			Number:    githubMCP.Ptr(123),
+			Title:     githubMCP.Ptr("First Issue"),
+			Body:      githubMCP.Ptr("This is the first test issue"),
+			State:     githubMCP.Ptr("open"),
+			HTMLURL:   githubMCP.Ptr("https://github.com/owner/repo/issues/123"),
 			CreatedAt: &github.Timestamp{Time: time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)},
 		},
 		{
-			Number:    github.Ptr(456),
-			Title:     github.Ptr("Second Issue"),
-			Body:      github.Ptr("This is the second test issue"),
-			State:     github.Ptr("open"),
-			HTMLURL:   github.Ptr("https://github.com/owner/repo/issues/456"),
-			Labels:    []*github.Label{{Name: github.Ptr("bug")}},
+			Number:    githubMCP.Ptr(456),
+			Title:     githubMCP.Ptr("Second Issue"),
+			Body:      githubMCP.Ptr("This is the second test issue"),
+			State:     githubMCP.Ptr("open"),
+			HTMLURL:   githubMCP.Ptr("https://github.com/owner/repo/issues/456"),
+			Labels:    []*github.Label{{Name: githubMCP.Ptr("bug")}},
 			CreatedAt: &github.Timestamp{Time: time.Date(2023, 2, 1, 0, 0, 0, 0, time.UTC)},
 		},
 	}
@@ -697,7 +697,7 @@ func Test_ListIssues(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
-			client := github.NewClient(tc.mockedClient)
+			client := githubMCP.NewClient(tc.mockedClient)
 			_, handler := ListIssues(stubGetClientFn(client), translations.NullTranslationHelper)
 
 			// Create call request
@@ -742,7 +742,7 @@ func Test_ListIssues(t *testing.T) {
 
 func Test_UpdateIssue(t *testing.T) {
 	// Verify tool definition
-	mockClient := github.NewClient(nil)
+	mockClient := githubMCP.NewClient(nil)
 	tool, _ := UpdateIssue(stubGetClientFn(mockClient), translations.NullTranslationHelper)
 
 	assert.Equal(t, "update_issue", tool.Name)
@@ -760,14 +760,14 @@ func Test_UpdateIssue(t *testing.T) {
 
 	// Setup mock issue for success case
 	mockIssue := &github.Issue{
-		Number:    github.Ptr(123),
-		Title:     github.Ptr("Updated Issue Title"),
-		Body:      github.Ptr("Updated issue description"),
-		State:     github.Ptr("closed"),
-		HTMLURL:   github.Ptr("https://github.com/owner/repo/issues/123"),
-		Assignees: []*github.User{{Login: github.Ptr("assignee1")}, {Login: github.Ptr("assignee2")}},
-		Labels:    []*github.Label{{Name: github.Ptr("bug")}, {Name: github.Ptr("priority")}},
-		Milestone: &github.Milestone{Number: github.Ptr(5)},
+		Number:    githubMCP.Ptr(123),
+		Title:     githubMCP.Ptr("Updated Issue Title"),
+		Body:      githubMCP.Ptr("Updated issue description"),
+		State:     githubMCP.Ptr("closed"),
+		HTMLURL:   githubMCP.Ptr("https://github.com/owner/repo/issues/123"),
+		Assignees: []*github.User{{Login: githubMCP.Ptr("assignee1")}, {Login: githubMCP.Ptr("assignee2")}},
+		Labels:    []*github.Label{{Name: githubMCP.Ptr("bug")}, {Name: githubMCP.Ptr("priority")}},
+		Milestone: &github.Milestone{Number: githubMCP.Ptr(5)},
 	}
 
 	tests := []struct {
@@ -815,10 +815,10 @@ func Test_UpdateIssue(t *testing.T) {
 				mock.WithRequestMatchHandler(
 					mock.PatchReposIssuesByOwnerByRepoByIssueNumber,
 					mockResponse(t, http.StatusOK, &github.Issue{
-						Number:  github.Ptr(123),
-						Title:   github.Ptr("Only Title Updated"),
-						HTMLURL: github.Ptr("https://github.com/owner/repo/issues/123"),
-						State:   github.Ptr("open"),
+						Number:  githubMCP.Ptr(123),
+						Title:   githubMCP.Ptr("Only Title Updated"),
+						HTMLURL: githubMCP.Ptr("https://github.com/owner/repo/issues/123"),
+						State:   githubMCP.Ptr("open"),
 					}),
 				),
 			),
@@ -830,10 +830,10 @@ func Test_UpdateIssue(t *testing.T) {
 			},
 			expectError: false,
 			expectedIssue: &github.Issue{
-				Number:  github.Ptr(123),
-				Title:   github.Ptr("Only Title Updated"),
-				HTMLURL: github.Ptr("https://github.com/owner/repo/issues/123"),
-				State:   github.Ptr("open"),
+				Number:  githubMCP.Ptr(123),
+				Title:   githubMCP.Ptr("Only Title Updated"),
+				HTMLURL: githubMCP.Ptr("https://github.com/owner/repo/issues/123"),
+				State:   githubMCP.Ptr("open"),
 			},
 		},
 		{
@@ -881,7 +881,7 @@ func Test_UpdateIssue(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
-			client := github.NewClient(tc.mockedClient)
+			client := githubMCP.NewClient(tc.mockedClient)
 			_, handler := UpdateIssue(stubGetClientFn(client), translations.NullTranslationHelper)
 
 			// Create call request
@@ -999,7 +999,7 @@ func Test_ParseISOTimestamp(t *testing.T) {
 
 func Test_GetIssueComments(t *testing.T) {
 	// Verify tool definition once
-	mockClient := github.NewClient(nil)
+	mockClient := githubMCP.NewClient(nil)
 	tool, _ := GetIssueComments(stubGetClientFn(mockClient), translations.NullTranslationHelper)
 
 	assert.Equal(t, "get_issue_comments", tool.Name)
@@ -1014,18 +1014,18 @@ func Test_GetIssueComments(t *testing.T) {
 	// Setup mock comments for success case
 	mockComments := []*github.IssueComment{
 		{
-			ID:   github.Ptr(int64(123)),
-			Body: github.Ptr("This is the first comment"),
+			ID:   githubMCP.Ptr(int64(123)),
+			Body: githubMCP.Ptr("This is the first comment"),
 			User: &github.User{
-				Login: github.Ptr("user1"),
+				Login: githubMCP.Ptr("user1"),
 			},
 			CreatedAt: &github.Timestamp{Time: time.Now().Add(-time.Hour * 24)},
 		},
 		{
-			ID:   github.Ptr(int64(456)),
-			Body: github.Ptr("This is the second comment"),
+			ID:   githubMCP.Ptr(int64(456)),
+			Body: githubMCP.Ptr("This is the second comment"),
 			User: &github.User{
-				Login: github.Ptr("user2"),
+				Login: githubMCP.Ptr("user2"),
 			},
 			CreatedAt: &github.Timestamp{Time: time.Now().Add(-time.Hour)},
 		},
@@ -1099,7 +1099,7 @@ func Test_GetIssueComments(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
-			client := github.NewClient(tc.mockedClient)
+			client := githubMCP.NewClient(tc.mockedClient)
 			_, handler := GetIssueComments(stubGetClientFn(client), translations.NullTranslationHelper)
 
 			// Create call request
@@ -1130,3 +1130,4 @@ func Test_GetIssueComments(t *testing.T) {
 		})
 	}
 }
+

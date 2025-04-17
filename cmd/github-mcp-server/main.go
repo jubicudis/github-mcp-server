@@ -141,7 +141,7 @@ func runStdioServer(cfg runConfig) error {
 		return ghClient, nil // closing over client
 	}
 	// Create
-	ghServer := github.NewServer(getClient, version, cfg.readOnly, t)
+	ghServer := githubMCP.NewServer(getClient, version, cfg.readOnly, t)
 	stdioServer := server.NewStdioServer(ghServer)
 
 	stdLogger := stdlog.New(cfg.logger.Writer(), "stdioserver", 0)
@@ -187,3 +187,4 @@ func main() {
 		os.Exit(1)
 	}
 }
+

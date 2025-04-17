@@ -15,7 +15,7 @@ import (
 
 func Test_GetCodeScanningAlert(t *testing.T) {
 	// Verify tool definition once
-	mockClient := github.NewClient(nil)
+	mockClient := githubMCP.NewClient(nil)
 	tool, _ := GetCodeScanningAlert(stubGetClientFn(mockClient), translations.NullTranslationHelper)
 
 	assert.Equal(t, "get_code_scanning_alert", tool.Name)
@@ -27,10 +27,10 @@ func Test_GetCodeScanningAlert(t *testing.T) {
 
 	// Setup mock alert for success case
 	mockAlert := &github.Alert{
-		Number:  github.Ptr(42),
-		State:   github.Ptr("open"),
-		Rule:    &github.Rule{ID: github.Ptr("test-rule"), Description: github.Ptr("Test Rule Description")},
-		HTMLURL: github.Ptr("https://github.com/owner/repo/security/code-scanning/42"),
+		Number:  githubMCP.Ptr(42),
+		State:   githubMCP.Ptr("open"),
+		Rule:    &github.Rule{ID: githubMCP.Ptr("test-rule"), Description: githubMCP.Ptr("Test Rule Description")},
+		HTMLURL: githubMCP.Ptr("https://github.com/owner/repo/security/code-scanning/42"),
 	}
 
 	tests := []struct {
@@ -81,7 +81,7 @@ func Test_GetCodeScanningAlert(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
-			client := github.NewClient(tc.mockedClient)
+			client := githubMCP.NewClient(tc.mockedClient)
 			_, handler := GetCodeScanningAlert(stubGetClientFn(client), translations.NullTranslationHelper)
 
 			// Create call request
@@ -117,7 +117,7 @@ func Test_GetCodeScanningAlert(t *testing.T) {
 
 func Test_ListCodeScanningAlerts(t *testing.T) {
 	// Verify tool definition once
-	mockClient := github.NewClient(nil)
+	mockClient := githubMCP.NewClient(nil)
 	tool, _ := ListCodeScanningAlerts(stubGetClientFn(mockClient), translations.NullTranslationHelper)
 
 	assert.Equal(t, "list_code_scanning_alerts", tool.Name)
@@ -132,16 +132,16 @@ func Test_ListCodeScanningAlerts(t *testing.T) {
 	// Setup mock alerts for success case
 	mockAlerts := []*github.Alert{
 		{
-			Number:  github.Ptr(42),
-			State:   github.Ptr("open"),
-			Rule:    &github.Rule{ID: github.Ptr("test-rule-1"), Description: github.Ptr("Test Rule 1")},
-			HTMLURL: github.Ptr("https://github.com/owner/repo/security/code-scanning/42"),
+			Number:  githubMCP.Ptr(42),
+			State:   githubMCP.Ptr("open"),
+			Rule:    &github.Rule{ID: githubMCP.Ptr("test-rule-1"), Description: githubMCP.Ptr("Test Rule 1")},
+			HTMLURL: githubMCP.Ptr("https://github.com/owner/repo/security/code-scanning/42"),
 		},
 		{
-			Number:  github.Ptr(43),
-			State:   github.Ptr("fixed"),
-			Rule:    &github.Rule{ID: github.Ptr("test-rule-2"), Description: github.Ptr("Test Rule 2")},
-			HTMLURL: github.Ptr("https://github.com/owner/repo/security/code-scanning/43"),
+			Number:  githubMCP.Ptr(43),
+			State:   githubMCP.Ptr("fixed"),
+			Rule:    &github.Rule{ID: githubMCP.Ptr("test-rule-2"), Description: githubMCP.Ptr("Test Rule 2")},
+			HTMLURL: githubMCP.Ptr("https://github.com/owner/repo/security/code-scanning/43"),
 		},
 	}
 
@@ -200,7 +200,7 @@ func Test_ListCodeScanningAlerts(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
-			client := github.NewClient(tc.mockedClient)
+			client := githubMCP.NewClient(tc.mockedClient)
 			_, handler := ListCodeScanningAlerts(stubGetClientFn(client), translations.NullTranslationHelper)
 
 			// Create call request
@@ -235,3 +235,4 @@ func Test_ListCodeScanningAlerts(t *testing.T) {
 		})
 	}
 }
+

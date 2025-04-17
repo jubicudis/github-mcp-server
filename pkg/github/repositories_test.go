@@ -17,7 +17,7 @@ import (
 
 func Test_GetFileContents(t *testing.T) {
 	// Verify tool definition once
-	mockClient := github.NewClient(nil)
+	mockClient := githubMCP.NewClient(nil)
 	tool, _ := GetFileContents(stubGetClientFn(mockClient), translations.NullTranslationHelper)
 
 	assert.Equal(t, "get_file_contents", tool.Name)
@@ -30,32 +30,32 @@ func Test_GetFileContents(t *testing.T) {
 
 	// Setup mock file content for success case
 	mockFileContent := &github.RepositoryContent{
-		Type:        github.Ptr("file"),
-		Name:        github.Ptr("README.md"),
-		Path:        github.Ptr("README.md"),
-		Content:     github.Ptr("IyBUZXN0IFJlcG9zaXRvcnkKClRoaXMgaXMgYSB0ZXN0IHJlcG9zaXRvcnku"), // Base64 encoded "# Test Repository\n\nThis is a test repository."
-		SHA:         github.Ptr("abc123"),
-		Size:        github.Ptr(42),
-		HTMLURL:     github.Ptr("https://github.com/owner/repo/blob/main/README.md"),
-		DownloadURL: github.Ptr("https://raw.githubusercontent.com/owner/repo/main/README.md"),
+		Type:        githubMCP.Ptr("file"),
+		Name:        githubMCP.Ptr("README.md"),
+		Path:        githubMCP.Ptr("README.md"),
+		Content:     githubMCP.Ptr("IyBUZXN0IFJlcG9zaXRvcnkKClRoaXMgaXMgYSB0ZXN0IHJlcG9zaXRvcnku"), // Base64 encoded "# Test Repository\n\nThis is a test repository."
+		SHA:         githubMCP.Ptr("abc123"),
+		Size:        githubMCP.Ptr(42),
+		HTMLURL:     githubMCP.Ptr("https://github.com/owner/repo/blob/main/README.md"),
+		DownloadURL: githubMCP.Ptr("https://raw.githubusercontent.com/owner/repo/main/README.md"),
 	}
 
 	// Setup mock directory content for success case
 	mockDirContent := []*github.RepositoryContent{
 		{
-			Type:    github.Ptr("file"),
-			Name:    github.Ptr("README.md"),
-			Path:    github.Ptr("README.md"),
-			SHA:     github.Ptr("abc123"),
-			Size:    github.Ptr(42),
-			HTMLURL: github.Ptr("https://github.com/owner/repo/blob/main/README.md"),
+			Type:    githubMCP.Ptr("file"),
+			Name:    githubMCP.Ptr("README.md"),
+			Path:    githubMCP.Ptr("README.md"),
+			SHA:     githubMCP.Ptr("abc123"),
+			Size:    githubMCP.Ptr(42),
+			HTMLURL: githubMCP.Ptr("https://github.com/owner/repo/blob/main/README.md"),
 		},
 		{
-			Type:    github.Ptr("dir"),
-			Name:    github.Ptr("src"),
-			Path:    github.Ptr("src"),
-			SHA:     github.Ptr("def456"),
-			HTMLURL: github.Ptr("https://github.com/owner/repo/tree/main/src"),
+			Type:    githubMCP.Ptr("dir"),
+			Name:    githubMCP.Ptr("src"),
+			Path:    githubMCP.Ptr("src"),
+			SHA:     githubMCP.Ptr("def456"),
+			HTMLURL: githubMCP.Ptr("https://github.com/owner/repo/tree/main/src"),
 		},
 	}
 
@@ -131,7 +131,7 @@ func Test_GetFileContents(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
-			client := github.NewClient(tc.mockedClient)
+			client := githubMCP.NewClient(tc.mockedClient)
 			_, handler := GetFileContents(stubGetClientFn(client), translations.NullTranslationHelper)
 
 			// Create call request
@@ -188,7 +188,7 @@ func Test_GetFileContents(t *testing.T) {
 
 func Test_ForkRepository(t *testing.T) {
 	// Verify tool definition once
-	mockClient := github.NewClient(nil)
+	mockClient := githubMCP.NewClient(nil)
 	tool, _ := ForkRepository(stubGetClientFn(mockClient), translations.NullTranslationHelper)
 
 	assert.Equal(t, "fork_repository", tool.Name)
@@ -200,16 +200,16 @@ func Test_ForkRepository(t *testing.T) {
 
 	// Setup mock forked repo for success case
 	mockForkedRepo := &github.Repository{
-		ID:       github.Ptr(int64(123456)),
-		Name:     github.Ptr("repo"),
-		FullName: github.Ptr("new-owner/repo"),
+		ID:       githubMCP.Ptr(int64(123456)),
+		Name:     githubMCP.Ptr("repo"),
+		FullName: githubMCP.Ptr("new-owner/repo"),
 		Owner: &github.User{
-			Login: github.Ptr("new-owner"),
+			Login: githubMCP.Ptr("new-owner"),
 		},
-		HTMLURL:       github.Ptr("https://github.com/new-owner/repo"),
-		DefaultBranch: github.Ptr("main"),
-		Fork:          github.Ptr(true),
-		ForksCount:    github.Ptr(0),
+		HTMLURL:       githubMCP.Ptr("https://github.com/new-owner/repo"),
+		DefaultBranch: githubMCP.Ptr("main"),
+		Fork:          githubMCP.Ptr(true),
+		ForksCount:    githubMCP.Ptr(0),
 	}
 
 	tests := []struct {
@@ -258,7 +258,7 @@ func Test_ForkRepository(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
-			client := github.NewClient(tc.mockedClient)
+			client := githubMCP.NewClient(tc.mockedClient)
 			_, handler := ForkRepository(stubGetClientFn(client), translations.NullTranslationHelper)
 
 			// Create call request
@@ -286,7 +286,7 @@ func Test_ForkRepository(t *testing.T) {
 
 func Test_CreateBranch(t *testing.T) {
 	// Verify tool definition once
-	mockClient := github.NewClient(nil)
+	mockClient := githubMCP.NewClient(nil)
 	tool, _ := CreateBranch(stubGetClientFn(mockClient), translations.NullTranslationHelper)
 
 	assert.Equal(t, "create_branch", tool.Name)
@@ -299,22 +299,22 @@ func Test_CreateBranch(t *testing.T) {
 
 	// Setup mock repository for default branch test
 	mockRepo := &github.Repository{
-		DefaultBranch: github.Ptr("main"),
+		DefaultBranch: githubMCP.Ptr("main"),
 	}
 
 	// Setup mock reference for from_branch tests
 	mockSourceRef := &github.Reference{
-		Ref: github.Ptr("refs/heads/main"),
+		Ref: githubMCP.Ptr("refs/heads/main"),
 		Object: &github.GitObject{
-			SHA: github.Ptr("abc123def456"),
+			SHA: githubMCP.Ptr("abc123def456"),
 		},
 	}
 
 	// Setup mock created reference
 	mockCreatedRef := &github.Reference{
-		Ref: github.Ptr("refs/heads/new-feature"),
+		Ref: githubMCP.Ptr("refs/heads/new-feature"),
 		Object: &github.GitObject{
-			SHA: github.Ptr("abc123def456"),
+			SHA: githubMCP.Ptr("abc123def456"),
 		},
 	}
 
@@ -444,7 +444,7 @@ func Test_CreateBranch(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
-			client := github.NewClient(tc.mockedClient)
+			client := githubMCP.NewClient(tc.mockedClient)
 			_, handler := CreateBranch(stubGetClientFn(client), translations.NullTranslationHelper)
 
 			// Create call request
@@ -477,7 +477,7 @@ func Test_CreateBranch(t *testing.T) {
 
 func Test_GetCommit(t *testing.T) {
 	// Verify tool definition once
-	mockClient := github.NewClient(nil)
+	mockClient := githubMCP.NewClient(nil)
 	tool, _ := GetCommit(stubGetClientFn(mockClient), translations.NullTranslationHelper)
 
 	assert.Equal(t, "get_commit", tool.Name)
@@ -488,32 +488,32 @@ func Test_GetCommit(t *testing.T) {
 	assert.ElementsMatch(t, tool.InputSchema.Required, []string{"owner", "repo", "sha"})
 
 	mockCommit := &github.RepositoryCommit{
-		SHA: github.Ptr("abc123def456"),
+		SHA: githubMCP.Ptr("abc123def456"),
 		Commit: &github.Commit{
-			Message: github.Ptr("First commit"),
+			Message: githubMCP.Ptr("First commit"),
 			Author: &github.CommitAuthor{
-				Name:  github.Ptr("Test User"),
-				Email: github.Ptr("test@example.com"),
+				Name:  githubMCP.Ptr("Test User"),
+				Email: githubMCP.Ptr("test@example.com"),
 				Date:  &github.Timestamp{Time: time.Now().Add(-48 * time.Hour)},
 			},
 		},
 		Author: &github.User{
-			Login: github.Ptr("testuser"),
+			Login: githubMCP.Ptr("testuser"),
 		},
-		HTMLURL: github.Ptr("https://github.com/owner/repo/commit/abc123def456"),
+		HTMLURL: githubMCP.Ptr("https://github.com/owner/repo/commit/abc123def456"),
 		Stats: &github.CommitStats{
-			Additions: github.Ptr(10),
-			Deletions: github.Ptr(2),
-			Total:     github.Ptr(12),
+			Additions: githubMCP.Ptr(10),
+			Deletions: githubMCP.Ptr(2),
+			Total:     githubMCP.Ptr(12),
 		},
 		Files: []*github.CommitFile{
 			{
-				Filename:  github.Ptr("file1.go"),
-				Status:    github.Ptr("modified"),
-				Additions: github.Ptr(10),
-				Deletions: github.Ptr(2),
-				Changes:   github.Ptr(12),
-				Patch:     github.Ptr("@@ -1,2 +1,10 @@"),
+				Filename:  githubMCP.Ptr("file1.go"),
+				Status:    githubMCP.Ptr("modified"),
+				Additions: githubMCP.Ptr(10),
+				Deletions: githubMCP.Ptr(2),
+				Changes:   githubMCP.Ptr(12),
+				Patch:     githubMCP.Ptr("@@ -1,2 +1,10 @@"),
 			},
 		},
 	}
@@ -571,7 +571,7 @@ func Test_GetCommit(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
-			client := github.NewClient(tc.mockedClient)
+			client := githubMCP.NewClient(tc.mockedClient)
 			_, handler := GetCommit(stubGetClientFn(client), translations.NullTranslationHelper)
 
 			// Create call request
@@ -607,7 +607,7 @@ func Test_GetCommit(t *testing.T) {
 
 func Test_ListCommits(t *testing.T) {
 	// Verify tool definition once
-	mockClient := github.NewClient(nil)
+	mockClient := githubMCP.NewClient(nil)
 	tool, _ := ListCommits(stubGetClientFn(mockClient), translations.NullTranslationHelper)
 
 	assert.Equal(t, "list_commits", tool.Name)
@@ -622,34 +622,34 @@ func Test_ListCommits(t *testing.T) {
 	// Setup mock commits for success case
 	mockCommits := []*github.RepositoryCommit{
 		{
-			SHA: github.Ptr("abc123def456"),
+			SHA: githubMCP.Ptr("abc123def456"),
 			Commit: &github.Commit{
-				Message: github.Ptr("First commit"),
+				Message: githubMCP.Ptr("First commit"),
 				Author: &github.CommitAuthor{
-					Name:  github.Ptr("Test User"),
-					Email: github.Ptr("test@example.com"),
+					Name:  githubMCP.Ptr("Test User"),
+					Email: githubMCP.Ptr("test@example.com"),
 					Date:  &github.Timestamp{Time: time.Now().Add(-48 * time.Hour)},
 				},
 			},
 			Author: &github.User{
-				Login: github.Ptr("testuser"),
+				Login: githubMCP.Ptr("testuser"),
 			},
-			HTMLURL: github.Ptr("https://github.com/owner/repo/commit/abc123def456"),
+			HTMLURL: githubMCP.Ptr("https://github.com/owner/repo/commit/abc123def456"),
 		},
 		{
-			SHA: github.Ptr("def456abc789"),
+			SHA: githubMCP.Ptr("def456abc789"),
 			Commit: &github.Commit{
-				Message: github.Ptr("Second commit"),
+				Message: githubMCP.Ptr("Second commit"),
 				Author: &github.CommitAuthor{
-					Name:  github.Ptr("Another User"),
-					Email: github.Ptr("another@example.com"),
+					Name:  githubMCP.Ptr("Another User"),
+					Email: githubMCP.Ptr("another@example.com"),
 					Date:  &github.Timestamp{Time: time.Now().Add(-24 * time.Hour)},
 				},
 			},
 			Author: &github.User{
-				Login: github.Ptr("anotheruser"),
+				Login: githubMCP.Ptr("anotheruser"),
 			},
-			HTMLURL: github.Ptr("https://github.com/owner/repo/commit/def456abc789"),
+			HTMLURL: githubMCP.Ptr("https://github.com/owner/repo/commit/def456abc789"),
 		},
 	}
 
@@ -743,7 +743,7 @@ func Test_ListCommits(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
-			client := github.NewClient(tc.mockedClient)
+			client := githubMCP.NewClient(tc.mockedClient)
 			_, handler := ListCommits(stubGetClientFn(client), translations.NullTranslationHelper)
 
 			// Create call request
@@ -781,7 +781,7 @@ func Test_ListCommits(t *testing.T) {
 
 func Test_CreateOrUpdateFile(t *testing.T) {
 	// Verify tool definition once
-	mockClient := github.NewClient(nil)
+	mockClient := githubMCP.NewClient(nil)
 	tool, _ := CreateOrUpdateFile(stubGetClientFn(mockClient), translations.NullTranslationHelper)
 
 	assert.Equal(t, "create_or_update_file", tool.Name)
@@ -798,22 +798,22 @@ func Test_CreateOrUpdateFile(t *testing.T) {
 	// Setup mock file content response
 	mockFileResponse := &github.RepositoryContentResponse{
 		Content: &github.RepositoryContent{
-			Name:        github.Ptr("example.md"),
-			Path:        github.Ptr("docs/example.md"),
-			SHA:         github.Ptr("abc123def456"),
-			Size:        github.Ptr(42),
-			HTMLURL:     github.Ptr("https://github.com/owner/repo/blob/main/docs/example.md"),
-			DownloadURL: github.Ptr("https://raw.githubusercontent.com/owner/repo/main/docs/example.md"),
+			Name:        githubMCP.Ptr("example.md"),
+			Path:        githubMCP.Ptr("docs/example.md"),
+			SHA:         githubMCP.Ptr("abc123def456"),
+			Size:        githubMCP.Ptr(42),
+			HTMLURL:     githubMCP.Ptr("https://github.com/owner/repo/blob/main/docs/example.md"),
+			DownloadURL: githubMCP.Ptr("https://raw.githubusercontent.com/owner/repo/main/docs/example.md"),
 		},
 		Commit: github.Commit{
-			SHA:     github.Ptr("def456abc789"),
-			Message: github.Ptr("Add example file"),
+			SHA:     githubMCP.Ptr("def456abc789"),
+			Message: githubMCP.Ptr("Add example file"),
 			Author: &github.CommitAuthor{
-				Name:  github.Ptr("Test User"),
-				Email: github.Ptr("test@example.com"),
+				Name:  githubMCP.Ptr("Test User"),
+				Email: githubMCP.Ptr("test@example.com"),
 				Date:  &github.Timestamp{Time: time.Now()},
 			},
-			HTMLURL: github.Ptr("https://github.com/owner/repo/commit/def456abc789"),
+			HTMLURL: githubMCP.Ptr("https://github.com/owner/repo/commit/def456abc789"),
 		},
 	}
 
@@ -904,7 +904,7 @@ func Test_CreateOrUpdateFile(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
-			client := github.NewClient(tc.mockedClient)
+			client := githubMCP.NewClient(tc.mockedClient)
 			_, handler := CreateOrUpdateFile(stubGetClientFn(client), translations.NullTranslationHelper)
 
 			// Create call request
@@ -944,7 +944,7 @@ func Test_CreateOrUpdateFile(t *testing.T) {
 
 func Test_CreateRepository(t *testing.T) {
 	// Verify tool definition once
-	mockClient := github.NewClient(nil)
+	mockClient := githubMCP.NewClient(nil)
 	tool, _ := CreateRepository(stubGetClientFn(mockClient), translations.NullTranslationHelper)
 
 	assert.Equal(t, "create_repository", tool.Name)
@@ -957,14 +957,14 @@ func Test_CreateRepository(t *testing.T) {
 
 	// Setup mock repository response
 	mockRepo := &github.Repository{
-		Name:        github.Ptr("test-repo"),
-		Description: github.Ptr("Test repository"),
-		Private:     github.Ptr(true),
-		HTMLURL:     github.Ptr("https://github.com/testuser/test-repo"),
-		CloneURL:    github.Ptr("https://github.com/testuser/test-repo.git"),
+		Name:        githubMCP.Ptr("test-repo"),
+		Description: githubMCP.Ptr("Test repository"),
+		Private:     githubMCP.Ptr(true),
+		HTMLURL:     githubMCP.Ptr("https://github.com/testuser/test-repo"),
+		CloneURL:    githubMCP.Ptr("https://github.com/testuser/test-repo.git"),
 		CreatedAt:   &github.Timestamp{Time: time.Now()},
 		Owner: &github.User{
-			Login: github.Ptr("testuser"),
+			Login: githubMCP.Ptr("testuser"),
 		},
 	}
 
@@ -1052,7 +1052,7 @@ func Test_CreateRepository(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
-			client := github.NewClient(tc.mockedClient)
+			client := githubMCP.NewClient(tc.mockedClient)
 			_, handler := CreateRepository(stubGetClientFn(client), translations.NullTranslationHelper)
 
 			// Create call request
@@ -1090,7 +1090,7 @@ func Test_CreateRepository(t *testing.T) {
 
 func Test_PushFiles(t *testing.T) {
 	// Verify tool definition once
-	mockClient := github.NewClient(nil)
+	mockClient := githubMCP.NewClient(nil)
 	tool, _ := PushFiles(stubGetClientFn(mockClient), translations.NullTranslationHelper)
 
 	assert.Equal(t, "push_files", tool.Name)
@@ -1104,35 +1104,35 @@ func Test_PushFiles(t *testing.T) {
 
 	// Setup mock objects
 	mockRef := &github.Reference{
-		Ref: github.Ptr("refs/heads/main"),
+		Ref: githubMCP.Ptr("refs/heads/main"),
 		Object: &github.GitObject{
-			SHA: github.Ptr("abc123"),
-			URL: github.Ptr("https://api.github.com/repos/owner/repo/git/trees/abc123"),
+			SHA: githubMCP.Ptr("abc123"),
+			URL: githubMCP.Ptr("https://api.github.com/repos/owner/repo/git/trees/abc123"),
 		},
 	}
 
 	mockCommit := &github.Commit{
-		SHA: github.Ptr("abc123"),
+		SHA: githubMCP.Ptr("abc123"),
 		Tree: &github.Tree{
-			SHA: github.Ptr("def456"),
+			SHA: githubMCP.Ptr("def456"),
 		},
 	}
 
 	mockTree := &github.Tree{
-		SHA: github.Ptr("ghi789"),
+		SHA: githubMCP.Ptr("ghi789"),
 	}
 
 	mockNewCommit := &github.Commit{
-		SHA:     github.Ptr("jkl012"),
-		Message: github.Ptr("Update multiple files"),
-		HTMLURL: github.Ptr("https://github.com/owner/repo/commit/jkl012"),
+		SHA:     githubMCP.Ptr("jkl012"),
+		Message: githubMCP.Ptr("Update multiple files"),
+		HTMLURL: githubMCP.Ptr("https://github.com/owner/repo/commit/jkl012"),
 	}
 
 	mockUpdatedRef := &github.Reference{
-		Ref: github.Ptr("refs/heads/main"),
+		Ref: githubMCP.Ptr("refs/heads/main"),
 		Object: &github.GitObject{
-			SHA: github.Ptr("jkl012"),
-			URL: github.Ptr("https://api.github.com/repos/owner/repo/git/trees/jkl012"),
+			SHA: githubMCP.Ptr("jkl012"),
+			URL: githubMCP.Ptr("https://api.github.com/repos/owner/repo/git/trees/jkl012"),
 		},
 	}
 
@@ -1385,7 +1385,7 @@ func Test_PushFiles(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
-			client := github.NewClient(tc.mockedClient)
+			client := githubMCP.NewClient(tc.mockedClient)
 			_, handler := PushFiles(stubGetClientFn(client), translations.NullTranslationHelper)
 
 			// Create call request
@@ -1426,7 +1426,7 @@ func Test_PushFiles(t *testing.T) {
 
 func Test_ListBranches(t *testing.T) {
 	// Verify tool definition once
-	mockClient := github.NewClient(nil)
+	mockClient := githubMCP.NewClient(nil)
 	tool, _ := ListBranches(stubGetClientFn(mockClient), translations.NullTranslationHelper)
 
 	assert.Equal(t, "list_branches", tool.Name)
@@ -1440,12 +1440,12 @@ func Test_ListBranches(t *testing.T) {
 	// Setup mock branches for success case
 	mockBranches := []*github.Branch{
 		{
-			Name:   github.Ptr("main"),
-			Commit: &github.RepositoryCommit{SHA: github.Ptr("abc123")},
+			Name:   githubMCP.Ptr("main"),
+			Commit: &github.RepositoryCommit{SHA: githubMCP.Ptr("abc123")},
 		},
 		{
-			Name:   github.Ptr("develop"),
-			Commit: &github.RepositoryCommit{SHA: github.Ptr("def456")},
+			Name:   githubMCP.Ptr("develop"),
+			Commit: &github.RepositoryCommit{SHA: githubMCP.Ptr("def456")},
 		},
 	}
 
@@ -1495,7 +1495,7 @@ func Test_ListBranches(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create mock client
-			mockClient := github.NewClient(mock.NewMockedHTTPClient(tt.mockResponses...))
+			mockClient := githubMCP.NewClient(mock.NewMockedHTTPClient(tt.mockResponses...))
 			_, handler := ListBranches(stubGetClientFn(mockClient), translations.NullTranslationHelper)
 
 			// Create request
@@ -1533,3 +1533,4 @@ func Test_ListBranches(t *testing.T) {
 		})
 	}
 }
+

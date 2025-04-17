@@ -152,10 +152,10 @@ func TestCapabilities(t *testing.T) {
 	var anthropicInitializeResponse initializeResponse
 	require.NoError(t, anthropicServer.receive(&anthropicInitializeResponse))
 
-	require.NoError(t, githubServer.send(req))
+	require.NoError(t, githubMCP.send(req))
 
 	var ghInitializeResponse initializeResponse
-	require.NoError(t, githubServer.receive(&ghInitializeResponse))
+	require.NoError(t, githubMCP.receive(&ghInitializeResponse))
 
 	// Any capabilities in the anthropic response should be present in the github response
 	// (though the github response may have additional capabilities)
@@ -248,10 +248,10 @@ func TestListTools(t *testing.T) {
 	var anthropicListToolsResponse listToolsResponse
 	require.NoError(t, anthropicServer.receive(&anthropicListToolsResponse))
 
-	require.NoError(t, githubServer.send(req))
+	require.NoError(t, githubMCP.send(req))
 
 	var ghListToolsResponse listToolsResponse
-	require.NoError(t, githubServer.receive(&ghListToolsResponse))
+	require.NoError(t, githubMCP.receive(&ghListToolsResponse))
 
 	require.NoError(t, isToolListSubset(anthropicListToolsResponse.Result, ghListToolsResponse.Result), "expected the github list tools response to be a subset of the anthropic list tools response")
 }
@@ -433,3 +433,4 @@ type inputSchema struct {
 	Properties map[string]any `json:"properties,omitempty"`
 	Required   []string       `json:"required,omitempty"`
 }
+

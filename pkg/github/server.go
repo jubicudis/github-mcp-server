@@ -94,10 +94,10 @@ func NewServer(getClient GetClientFn, version string, readOnly bool, t translati
 
 // GetMe creates a tool to get details of the authenticated user.
 func GetMe(getClient GetClientFn, t translations.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
-	return mcp.NewTool("get_me",
-			mcp.WithDescription(t("TOOL_GET_ME_DESCRIPTION", "Get details of the authenticated GitHub user. Use this when a request include \"me\", \"my\"...")),
-			mcp.WithString("reason",
-				mcp.Description("Optional: reason the session was created"),
+	return githubMCP.NewTool("get_me",
+			githubMCP.WithDescription(t("TOOL_GET_ME_DESCRIPTION", "Get details of the authenticated GitHub user. Use this when a request include \"me\", \"my\"...")),
+			githubMCP.WithString("reason",
+				githubgithubgithubMCP.Description("Optional: reason the session was created"),
 			),
 		),
 		func(ctx context.Context, _ mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -116,7 +116,7 @@ func GetMe(getClient GetClientFn, t translations.TranslationHelperFunc) (tool mc
 				if err != nil {
 					return nil, fmt.Errorf("failed to read response body: %w", err)
 				}
-				return mcp.NewToolResultError(fmt.Sprintf("failed to get user: %s", string(body))), nil
+				return githubgithubMCP.NewToolResultError(fmt.Sprintf("failed to get user: %s", string(body))), nil
 			}
 
 			r, err := json.Marshal(user)
@@ -124,7 +124,7 @@ func GetMe(getClient GetClientFn, t translations.TranslationHelperFunc) (tool mc
 				return nil, fmt.Errorf("failed to marshal user: %w", err)
 			}
 
-			return mcp.NewToolResultText(string(r)), nil
+			return githubgithubMCP.NewToolResultText(string(r)), nil
 		}
 }
 
@@ -276,15 +276,15 @@ func OptionalStringArrayParam(r mcp.CallToolRequest, p string) ([]string, error)
 // The "page" parameter is optional, min 1. The "perPage" parameter is optional, min 1, max 100.
 func WithPagination() mcp.ToolOption {
 	return func(tool *mcp.Tool) {
-		mcp.WithNumber("page",
-			mcp.Description("Page number for pagination (min 1)"),
-			mcp.Min(1),
+		githubgithubMCP.WithNumber("page",
+			githubgithubgithubMCP.Description("Page number for pagination (min 1)"),
+			githubgithubMCP.Min(1),
 		)(tool)
 
-		mcp.WithNumber("perPage",
-			mcp.Description("Results per page for pagination (min 1, max 100)"),
-			mcp.Min(1),
-			mcp.Max(100),
+		githubgithubMCP.WithNumber("perPage",
+			githubgithubgithubMCP.Description("Results per page for pagination (min 1, max 100)"),
+			githubgithubMCP.Min(1),
+			githubMCP.Max(100),
 		)(tool)
 	}
 }
@@ -313,3 +313,4 @@ func OptionalPaginationParams(r mcp.CallToolRequest) (PaginationParams, error) {
 		perPage: perPage,
 	}, nil
 }
+
