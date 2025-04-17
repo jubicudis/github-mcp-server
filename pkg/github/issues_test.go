@@ -9,6 +9,7 @@ import (
 
 	"github.com/github/github-mcp-server/pkg/translations"
 	"github.com/google/go-github/v69/github"
+	githubMCP "github.com/google/go-github/v69/github"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/migueleliasweb/go-github-mock/src/mock"
 	"github.com/stretchr/testify/assert"
@@ -17,7 +18,7 @@ import (
 
 func Test_GetIssue(t *testing.T) {
 	// Verify tool definition once
-	mockClient := githubMCP.NewClient(nil)
+	mockClient := NewClient(nil)
 	tool, _ := GetIssue(stubGetClientFn(mockClient), translations.NullTranslationHelper)
 
 	assert.Equal(t, "get_issue", tool.Name)
@@ -29,11 +30,11 @@ func Test_GetIssue(t *testing.T) {
 
 	// Setup mock issue for success case
 	mockIssue := &github.Issue{
-		Number:  githubMCP.Ptr(42),
-		Title:   githubMCP.Ptr("Test Issue"),
-		Body:    githubMCP.Ptr("This is a test issue"),
-		State:   githubMCP.Ptr("open"),
-		HTMLURL: githubMCP.Ptr("https://github.com/owner/repo/issues/42"),
+		Number:  Ptr(42),
+		Title:   Ptr("Test Issue"),
+		Body:    Ptr("This is a test issue"),
+		State:   Ptr("open"),
+		HTMLURL: Ptr("https://github.com/owner/repo/issues/42"),
 	}
 
 	tests := []struct {
@@ -1130,4 +1131,3 @@ func Test_GetIssueComments(t *testing.T) {
 		})
 	}
 }
-

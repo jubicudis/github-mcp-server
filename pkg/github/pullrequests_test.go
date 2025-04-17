@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	githubMCP "github.com/github/github-mcp-server/pkg/github"
 	"github.com/github/github-mcp-server/pkg/translations"
 	"github.com/google/go-github/v69/github"
 	"github.com/migueleliasweb/go-github-mock/src/mock"
@@ -1719,4 +1720,3 @@ func Test_CreatePullRequest(t *testing.T) {
 		})
 	}
 }
-

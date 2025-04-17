@@ -13,6 +13,11 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
+// Ptr returns a pointer to the provided value.
+func Ptr[T any](v T) *T {
+	return &v
+}
+
 // GetPullRequest creates a tool to get details of a specific pull request.
 func GetPullRequest(getClient GetClientFn, t translations.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
 	return mcp.NewTool("get_pull_request",
@@ -120,35 +125,35 @@ func UpdatePullRequest(getClient GetClientFn, t translations.TranslationHelperFu
 
 			// Build the update struct only with provided fields
 			update := &github.PullRequest{}
-			updateNeeded := false
+				update.Title = Ptr(title)
 
 			if title, ok, err := OptionalParamOK[string](request, "title"); err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			} else if ok {
 				update.Title = mcp.Ptr(title)
 				updateNeeded = true
-			}
+				update.Body = Ptr(body)
 
 			if body, ok, err := OptionalParamOK[string](request, "body"); err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			} else if ok {
 				update.Body = mcp.Ptr(body)
 				updateNeeded = true
-			}
+				update.State = Ptr(state)
 
 			if state, ok, err := OptionalParamOK[string](request, "state"); err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			} else if ok {
 				update.State = mcp.Ptr(state)
 				updateNeeded = true
-			}
+				update.Base = &github.PullRequestBranch{Ref: Ptr(base)}
 
 			if base, ok, err := OptionalParamOK[string](request, "base"); err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			} else if ok {
 				update.Base = &github.PullRequestBranch{Ref: mcp.Ptr(base)}
 				updateNeeded = true
-			}
+				update.MaintainerCanModify = Ptr(maintainerCanModify)
 
 			if maintainerCanModify, ok, err := OptionalParamOK[bool](request, "maintainer_can_modify"); err != nil {
 				return mcp.NewToolResultError(err.Error()), nil

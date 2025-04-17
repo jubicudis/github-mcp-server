@@ -14,6 +14,11 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
+// Ptr returns a pointer to the provided value
+func Ptr[T any](v T) *T {
+	return &v
+}
+
 // GetIssue creates a tool to get details of a specific issue in a GitHub repository.
 func GetIssue(getClient GetClientFn, t translations.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
 	return mcp.NewTool("get_issue",
@@ -106,13 +111,14 @@ func AddIssueComment(getClient GetClientFn, t translations.TranslationHelperFunc
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
+
 			body, err := requiredParam[string](request, "body")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
 
 			comment := &github.IssueComment{
-				Body: mcp.Ptr(body),
+				Body: Ptr(body),
 			}
 
 			client, err := getClient(ctx)
@@ -303,18 +309,13 @@ func CreateIssue(getClient GetClientFn, t translations.TranslationHelperFunc) (t
 				return mcp.NewToolResultError(err.Error()), nil
 			}
 
-			var milestoneNum *int
-			if milestone != 0 {
-				milestoneNum = &milestone
-			}
-
 			// Create the issue request
 			issueRequest := &github.IssueRequest{
-				Title:     mcp.Ptr(title),
-				Body:      mcp.Ptr(body),
+				Title:     Ptr(title),
+				Body:      Ptr(body),
 				Assignees: &assignees,
 				Labels:    &labels,
-				Milestone: milestoneNum,
+				Milestone: Ptr(milestone),
 			}
 
 			client, err := getClient(ctx)
@@ -525,13 +526,12 @@ func UpdateIssue(getClient GetClientFn, t translations.TranslationHelperFunc) (t
 			// Create the issue request with only provided fields
 			issueRequest := &github.IssueRequest{}
 
-			// Set optional parameters if provided
 			title, err := OptionalParam[string](request, "title")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
 			if title != "" {
-				issueRequest.Title = mcp.Ptr(title)
+				issueRequest.Title = Ptr(title)
 			}
 
 			body, err := OptionalParam[string](request, "body")
@@ -539,7 +539,7 @@ func UpdateIssue(getClient GetClientFn, t translations.TranslationHelperFunc) (t
 				return mcp.NewToolResultError(err.Error()), nil
 			}
 			if body != "" {
-				issueRequest.Body = mcp.Ptr(body)
+				issueRequest.Body = Ptr(body)
 			}
 
 			state, err := OptionalParam[string](request, "state")
@@ -547,10 +547,9 @@ func UpdateIssue(getClient GetClientFn, t translations.TranslationHelperFunc) (t
 				return mcp.NewToolResultError(err.Error()), nil
 			}
 			if state != "" {
-				issueRequest.State = mcp.Ptr(state)
+				issueRequest.State = Ptr(state)
 			}
 
-			// Get labels
 			labels, err := OptionalStringArrayParam(request, "labels")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
@@ -558,8 +557,6 @@ func UpdateIssue(getClient GetClientFn, t translations.TranslationHelperFunc) (t
 			if len(labels) > 0 {
 				issueRequest.Labels = &labels
 			}
-
-			// Get assignees
 			assignees, err := OptionalStringArrayParam(request, "assignees")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil

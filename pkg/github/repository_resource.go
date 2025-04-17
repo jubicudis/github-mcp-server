@@ -19,7 +19,7 @@ import (
 
 // GetRepositoryResourceContent defines the resource template and handler for getting repository content.
 func GetRepositoryResourceContent(getClient GetClientFn, t translations.TranslationHelperFunc) (mcp.ResourceTemplate, server.ResourceTemplateHandlerFunc) {
-	return githubgithubgithubgithubgithubMCP.NewResourceTemplate(
+	return mcp.NewResourceTemplate(
 			"repo://{owner}/{repo}/contents{/path*}", // Resource template
 			t("RESOURCE_REPOSITORY_CONTENT_DESCRIPTION", "Repository Content"),
 		),
@@ -28,7 +28,7 @@ func GetRepositoryResourceContent(getClient GetClientFn, t translations.Translat
 
 // GetRepositoryResourceBranchContent defines the resource template and handler for getting repository content for a branch.
 func GetRepositoryResourceBranchContent(getClient GetClientFn, t translations.TranslationHelperFunc) (mcp.ResourceTemplate, server.ResourceTemplateHandlerFunc) {
-	return githubgithubgithubgithubgithubMCP.NewResourceTemplate(
+	return mcp.NewResourceTemplate(
 			"repo://{owner}/{repo}/refs/heads/{branch}/contents{/path*}", // Resource template
 			t("RESOURCE_REPOSITORY_CONTENT_BRANCH_DESCRIPTION", "Repository Content for specific branch"),
 		),
@@ -37,7 +37,7 @@ func GetRepositoryResourceBranchContent(getClient GetClientFn, t translations.Tr
 
 // GetRepositoryResourceCommitContent defines the resource template and handler for getting repository content for a commit.
 func GetRepositoryResourceCommitContent(getClient GetClientFn, t translations.TranslationHelperFunc) (mcp.ResourceTemplate, server.ResourceTemplateHandlerFunc) {
-	return githubgithubgithubgithubgithubMCP.NewResourceTemplate(
+	return mcp.NewResourceTemplate(
 			"repo://{owner}/{repo}/sha/{sha}/contents{/path*}", // Resource template
 			t("RESOURCE_REPOSITORY_CONTENT_COMMIT_DESCRIPTION", "Repository Content for specific commit"),
 		),
@@ -46,7 +46,7 @@ func GetRepositoryResourceCommitContent(getClient GetClientFn, t translations.Tr
 
 // GetRepositoryResourceTagContent defines the resource template and handler for getting repository content for a tag.
 func GetRepositoryResourceTagContent(getClient GetClientFn, t translations.TranslationHelperFunc) (mcp.ResourceTemplate, server.ResourceTemplateHandlerFunc) {
-	return githubgithubgithubgithubgithubMCP.NewResourceTemplate(
+	return mcp.NewResourceTemplate(
 			"repo://{owner}/{repo}/refs/tags/{tag}/contents{/path*}", // Resource template
 			t("RESOURCE_REPOSITORY_CONTENT_TAG_DESCRIPTION", "Repository Content for specific tag"),
 		),
@@ -55,7 +55,7 @@ func GetRepositoryResourceTagContent(getClient GetClientFn, t translations.Trans
 
 // GetRepositoryResourcePrContent defines the resource template and handler for getting repository content for a pull request.
 func GetRepositoryResourcePrContent(getClient GetClientFn, t translations.TranslationHelperFunc) (mcp.ResourceTemplate, server.ResourceTemplateHandlerFunc) {
-	return githubgithubgithubgithubgithubMCP.NewResourceTemplate(
+	return mcp.NewResourceTemplate(
 			"repo://{owner}/{repo}/refs/pull/{prNumber}/head/contents{/path*}", // Resource template
 			t("RESOURCE_REPOSITORY_CONTENT_PR_DESCRIPTION", "Repository Content for specific pull request"),
 		),
@@ -204,4 +204,3 @@ func RepositoryResourceContentsHandler(getClient GetClientFn) func(ctx context.C
 		return nil, errors.New("no repository resource content found")
 	}
 }
-

@@ -23,7 +23,7 @@ func stubGetClientFn(client *github.Client) GetClientFn {
 
 func Test_GetMe(t *testing.T) {
 	// Verify tool definition
-	mockClient := githubMCP.NewClient(nil)
+	mockClient := github.NewClient(nil)
 	tool, _ := GetMe(stubGetClientFn(mockClient), translations.NullTranslationHelper)
 
 	assert.Equal(t, "get_me", tool.Name)
@@ -33,17 +33,17 @@ func Test_GetMe(t *testing.T) {
 
 	// Setup mock user response
 	mockUser := &github.User{
-		Login:     githubMCP.Ptr("testuser"),
-		Name:      githubMCP.Ptr("Test User"),
-		Email:     githubMCP.Ptr("test@example.com"),
-		Bio:       githubMCP.Ptr("GitHub user for testing"),
-		Company:   githubMCP.Ptr("Test Company"),
-		Location:  githubMCP.Ptr("Test Location"),
-		HTMLURL:   githubMCP.Ptr("https://github.com/testuser"),
+		Login:     github.String("testuser"),
+		Name:      github.String("Test User"),
+		Email:     github.String("test@example.com"),
+		Bio:       github.String("GitHub user for testing"),
+		Company:   github.String("Test Company"),
+		Location:  github.String("Test Location"),
+		HTMLURL:   github.String("https://github.com/testuser"),
 		CreatedAt: &github.Timestamp{Time: time.Now().Add(-365 * 24 * time.Hour)},
-		Type:      githubMCP.Ptr("User"),
+		Type:      github.String("User"),
 		Plan: &github.Plan{
-			Name: githubMCP.Ptr("pro"),
+			Name: github.String("pro"),
 		},
 	}
 
@@ -101,7 +101,7 @@ func Test_GetMe(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
-			client := githubMCP.NewClient(tc.mockedClient)
+			client := github.NewClient(tc.mockedClient)
 			_, handler := GetMe(stubGetClientFn(client), translations.NullTranslationHelper)
 
 			// Create call request
@@ -640,4 +640,3 @@ func TestOptionalPaginationParams(t *testing.T) {
 		})
 	}
 }
-
