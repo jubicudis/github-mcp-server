@@ -203,7 +203,7 @@ func SearchIssues(getClient GetClientFn, t translations.TranslationHelperFunc) (
 			if err != nil {
 				return nil, fmt.Errorf("failed to get GitHub client: %w", err)
 			}
-			result, resp, err := client.Search.getIssue(ctx, query, opts)
+			result, resp, err := client.Search.Issues(ctx, query, opts)
 			if err != nil {
 				return nil, fmt.Errorf("failed to search issues: %w", err)
 			}
