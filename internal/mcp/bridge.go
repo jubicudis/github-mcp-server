@@ -17,7 +17,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/github/github-mcp-server/pkg/mcp"
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
@@ -204,7 +203,7 @@ func (b *TNOSMCPBridge) connectWithRetry() {
 
 		retries++
 		if b.config.DebugMode {
-			log.Printf("Connection attempt %d/%d failed, retrying in %v", 
+			log.Printf("Connection attempt %d/%d failed, retrying in %v",
 				retries, b.config.MaxRetries, b.config.ReconnectInterval)
 		}
 
@@ -235,7 +234,7 @@ func (b *TNOSMCPBridge) connect() error {
 
 	// For now, simulate a successful connection
 	b.isConnected = true
-	
+
 	if b.config.DebugMode {
 		log.Printf("Connected to TNOS MCP at %s", b.config.Endpoint)
 	}
@@ -272,7 +271,7 @@ func (b *TNOSMCPBridge) Disconnect() error {
 	}
 
 	b.isConnected = false
-	
+
 	if b.config.DebugMode {
 		log.Println("Disconnected from TNOS MCP")
 	}
@@ -296,7 +295,7 @@ func (b *TNOSMCPBridge) TranslateContext(githubContext map[string]interface{}) (
 	// Extract values from GitHub context with defaults
 	tnos7D.Who = extractStringWithDefault(githubContext, "identity", "System")
 	tnos7D.What = extractStringWithDefault(githubContext, "operation", "Process")
-	tnos7D.When = extractStringWithDefault(githubContext, "timestamp", 
+	tnos7D.When = extractStringWithDefault(githubContext, "timestamp",
 		time.Now().Format(time.RFC3339))
 	tnos7D.Where = "GitHub_MCP_Bridge"
 	tnos7D.Why = extractStringWithDefault(githubContext, "purpose", "Protocol_Compliance")
@@ -353,8 +352,8 @@ func (b *TNOSMCPBridge) SendRequest(req mcp.CallToolRequest) (*mcp.CallToolResul
 
 	// Extract GitHub context
 	githubContext := make(map[string]interface{})
-	if req.Context != nil {
-		githubContext = req.Context
+	if contextValue, ok := req.Params.Arguments["context"].(map[string]interface{}); ok {
+		githubContext = contextValue
 	}
 
 	// Translate to TNOS 7D context
@@ -365,14 +364,14 @@ func (b *TNOSMCPBridge) SendRequest(req mcp.CallToolRequest) (*mcp.CallToolResul
 
 	// Prepare request for TNOS MCP
 	tnosRequest := map[string]interface{}{
-		"tool":    req.Tool,
+		"tool":    req.Name,
 		"params":  req.Params,
 		"context": tnos7D,
 	}
 
 	// Simulate sending request to TNOS MCP
 	// In a real implementation, this would use HTTP, WebSockets, etc.
-	
+
 	if b.config.DebugMode {
 		reqJSON, _ := json.Marshal(tnosRequest)
 		log.Printf("Sending request to TNOS MCP: %s", string(reqJSON))
@@ -381,8 +380,12 @@ func (b *TNOSMCPBridge) SendRequest(req mcp.CallToolRequest) (*mcp.CallToolResul
 	// Simulate receiving response
 	// In a real implementation, this would parse the actual response
 	tnosResponse := &mcp.CallToolResult{
-		Type: "text",
-		Text: "Response from TNOS MCP",
+		Content: []mcp.Content{
+			mcp.Content{
+				Type: "text",
+				Text: "Response from TNOS MCP",
+			},
+		},
 	}
 
 	return tnosResponse, nil
