@@ -1,0 +1,189 @@
+{
+  "version": "1.0",
+  "name": "TNOS-Enhanced MCP Server",
+  "description": "GitHub MCP Server with TNOS integration",
+  "tools": [
+    {
+      "name": "tnos_formula_executor",
+      "description": "Executes TNOS formulas using the Formula Registry",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "formulaName": {
+            "type": "string",
+            "description": "Name of the formula to execute"
+          },
+          "parameters": {
+            "type": "object",
+            "description": "Parameters for the formula"
+          }
+        },
+        "required": [
+          "formulaName"
+        ]
+      }
+    },
+    {
+      "name": "tnos_context_query",
+      "description": "Queries the TNOS 7D context system for dimensional context information",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "dimension": {
+            "type": "string",
+            "enum": [
+              "WHO",
+              "WHAT",
+              "WHEN",
+              "WHERE/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/mcp
+              "WHY",
+              "HOW",
+              "TO_WHAT_EXTENT"
+            ],
+            "description": "The dimension to query in the 7D context system"
+          },
+          "query": {
+            "type": "string",
+            "description": "The query string to search for in the given dimension"
+          },
+          "recursive_depth": {
+            "type": "integer",
+            "description": "How deep to recursively search the context hierarchy",
+            "default": 3
+          }
+        },
+        "required": [
+          "dimension",
+          "query"
+        ]
+      }
+    },
+    {
+      "name": "tnos_mcp_bridge",
+      "description": "Sends messages directly to the TNOS MCP system",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "target_layer": {
+            "type": "integer",
+            "description": "The TNOS layer to send the message to (0-6)",
+            "minimum": 0,
+            "maximum": 6
+          },
+          "message_type": {
+            "type": "string",
+            "description": "Type of MCP message to send"
+          },
+          "payload": {
+            "type": "object",
+            "description": "The data payload to send to the TNOS MCP system"
+          }
+        },
+        "required": [
+          "target_layer",
+          "message_type",
+          "payload"
+        ]
+      }
+    },
+    {
+      "name": "mobius_compression",
+      "description": "Performs Möbius compression on data using the TNOS compression framework",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "input_data": {
+            "type": "string",
+            "description": "The data to compress (string or base64 encoded)"
+          },
+          "use_time_factor": {
+            "type": "boolean",
+            "description": "Whether to use the temporal decay factor",
+            "default": true
+          },
+          "use_energy_factor": {
+            "type": "boolean",
+            "description": "Whether to use the energy optimization factor",
+            "default": true
+          }
+        },
+        "required": [
+          "input_data"
+        ]
+      }
+    }
+  ],
+  "resources": [
+    {
+      "name": "tnos_formulas",
+      "description": "TNOS formula registry containing mathematical formulas and algorithms",
+      "uri": "file:///Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/config/formulas.json"
+    },
+    {
+      "name": "tnos_context",
+      "description": "TNOS 7D context framework resources",
+      "uri": "file:///Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/core/context_master.7d"
+    },
+    {
+      "name": "unified_architecture",
+      "description": "TNOS unified architecture documentation",
+      "uri": "file:///Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/docs/UNIFIED_ARCHITECTURE.md"
+    }
+  ],
+  "permissions": {
+    "allowedDirectories": [
+      "/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS"
+    ],
+    "disallowedDirectories": [
+      "/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/core/kernel/security",
+      "/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/config/secrets"
+    ],
+    "allowedCommands": [
+      "git",
+      "ls",
+      "python",
+      "node",
+      "java",
+      "cpp"
+    ]
+  },
+  "integrations": {
+    "tnos_mcp": {
+      "enabled": true,
+      "serverPath": "/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/mcp/server/mcp_server.py",
+      "protocolVersion": "1.0",
+      "bridgeScript": "/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/config/mcp/bridge.js",
+      "contextSync": true
+    },
+    "formulaRegistry": {
+      "enabled": true,
+      "path": "/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/config/formulas.json",
+      "bridgeScript": "/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/core/reactive/FormulaRegistry_layer2.js"
+    },
+    "dimensionalContext": {
+      "enabled": true,
+      "configPath": "/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/atl/context_config.json",
+      "mapping": {
+        "WHO": "user",
+        "WHAT": "subject",
+        "WHEN": "temporal",
+        "WHERE/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/mcp
+        "WHY": "rationale",
+        "HOW": "method",
+        "TO_WHAT_EXTENT": "scope"
+      }
+    }
+  },
+  "logging": {
+    "level": "info",
+    "file": "/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/logs/github_mcp.log",
+    "enableCommandLogging": true,
+    "logFormat": "json"
+  },
+  "security": {
+    "auditLog": "/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/logs/mcp_audit.log",
+    "requireConfirmationForSystemCommands": true,
+    "encryptSensitiveData": true
+  }
+}
+

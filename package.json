@@ -1,0 +1,92 @@
+{
+  "name": "tnos-vscode-integration",
+  "displayName": "TNOS Integration",
+  "description": "VS Code integration for Tranquility Neuro-OS (TNOS)",
+  "version": "0.1.0",
+  "publisher": "TNOS",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other",
+    "Programming Languages"
+  ],
+  "activationEvents": [
+    "onLanguage:javascript",
+    "onLanguage:typescript",
+    "onLanguage:python",
+    "onLanguage:java",
+    "onLanguage:cpp",
+    "onCommand:tnos.healthCheck",
+    "onCommand:tnos.compress",
+    "onCommand:tnos.analyzeContext"
+  ],
+  "main": "./src/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "tnos.healthCheck",
+        "title": "TNOS: Check Health Status",
+        "category": "TNOS"
+      },
+      {
+        "command": "tnos.compress",
+        "title": "TNOS: Compress Selected Text",
+        "category": "TNOS"
+      },
+      {
+        "command": "tnos.analyzeContext",
+        "title": "TNOS: Analyze 7D Context",
+        "category": "TNOS"
+      }
+    ],
+    "configuration": {
+      "title": "TNOS Integration",
+      "properties": {
+        "tnos.mcpBridgePort": {
+          "type": "number",
+          "default": 8080,
+          "description": "Port number for the TNOS MCP Bridge"
+        },
+        "tnos.mcpServerPort": {
+          "type": "number",
+          "default": 8888,
+          "description": "Port number for the TNOS MCP Server"
+        },
+        "tnos.enableCompression": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable Möbius Compression for data operations"
+        },
+        "tnos.logLevel": {
+          "type": "string",
+          "enum": [
+            "debug",
+            "info",
+            "warn",
+            "error"
+          ],
+          "default": "info",
+          "description": "Log level for TNOS extension"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "test": "node ./out/test/runTest.js"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^8.1.0",
+    "websocket": "^1.0.34"
+  },
+  "devDependencies": {
+    "@types/glob": "^8.1.0",
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "glob": "^10.3.10",
+    "typescript": "^5.3.3"
+  }
+}

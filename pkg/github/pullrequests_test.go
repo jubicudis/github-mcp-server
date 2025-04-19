@@ -1,4 +1,11 @@
-package github
+// WHO: GitHubMCPPullRequestTests
+// WHAT: Pull Request API Testing
+// WHEN: During test execution
+// WHERE: MCP Bridge Layer Testing
+// WHY: To verify PR functionality
+// HOW: By testing MCP protocol handlers
+// EXTENT: All PR operations
+package githubapi
 
 import (
 	"context"

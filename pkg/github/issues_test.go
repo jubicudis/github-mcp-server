@@ -1,4 +1,11 @@
-package github
+// WHO: GitHubMCPIssuesTests
+// WHAT: Issues API Testing
+// WHEN: During test execution
+// WHERE: MCP Bridge Layer Testing
+// WHY: To verify issue functionality
+// HOW: By testing MCP protocol handlers
+// EXTENT: All issue operations
+package githubapi
 
 import (
 	"context"

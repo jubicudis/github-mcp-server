@@ -1,4 +1,11 @@
-package github
+// WHO: GitHubMCPBridgeTest
+// WHAT: GitHub API Integration Package Tests
+// WHEN: During test execution
+// WHERE: MCP Bridge Layer Testing
+// WHY: To verify GitHub API integration
+// HOW: By testing MCP protocol handlers
+// EXTENT: Server functionality verification
+package githubapi
 
 import (
 	"context"

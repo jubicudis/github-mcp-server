@@ -1,4 +1,11 @@
-package github
+// WHO: GitHubMCPRepositoryResourceTests
+// WHAT: Repository Resource API Testing
+// WHEN: During test execution
+// WHERE: MCP Bridge Layer Testing
+// WHY: To verify repository file operations
+// HOW: By testing MCP protocol handlers
+// EXTENT: All repository resource operations
+package githubapi
 
 import (
 	"context"
@@ -7,6 +14,7 @@ import (
 
 	"github.com/github/github-mcp-server/pkg/translations"
 	"github.com/google/go-github/v69/github"
+	githubMCP "github.com/google/go-github/v69/github"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/migueleliasweb/go-github-mock/src/mock"
 	"github.com/stretchr/testify/require"
@@ -281,4 +289,3 @@ func Test_GetRepositoryResourcePrContent(t *testing.T) {
 	tmpl, _ := GetRepositoryResourcePrContent(nil, translations.NullTranslationHelper)
 	require.Equal(t, "repo://{owner}/{repo}/refs/pull/{prNumber}/head/contents{/path*}", tmpl.URITemplate.Raw())
 }
-

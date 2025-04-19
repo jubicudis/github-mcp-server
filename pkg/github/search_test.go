@@ -1,4 +1,11 @@
-package github
+// WHO: GitHubMCPSearchTests
+// WHAT: Search API Testing
+// WHEN: During test execution
+// WHERE: MCP Bridge Layer Testing
+// WHY: To verify search functionality
+// HOW: By testing MCP protocol handlers
+// EXTENT: All search operations
+package githubapi
 
 import (
 	"context"

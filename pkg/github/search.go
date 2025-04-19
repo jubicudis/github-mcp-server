@@ -1,4 +1,11 @@
-package github
+// WHO: GitHubMCPBridge
+// WHAT: GitHub API Integration Package
+// WHEN: MCP bridge initialization
+// WHERE: MCP Bridge Layer
+// WHY: To provide API access to GitHub
+// HOW: By implementing MCP protocol handlers
+// EXTENT: All GitHub API operations
+package githubapi
 
 import (
 	"context"
@@ -12,7 +19,13 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
-// SearchRepositories creates a tool to search for GitHub repositories.
+// WHO: SearchRepositoriesTool
+// WHAT: GitHub Repository Search
+// WHEN: Tool invocation
+// WHERE: GitHub MCP Server
+// WHY: To find repositories matching search criteria
+// HOW: By querying GitHub Search API
+// EXTENT: All public and authorized GitHub repositories
 func SearchRepositories(getClient GetClientFn, t translations.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
 	return mcp.NewTool("search_repositories",
 			mcp.WithDescription(t("TOOL_SEARCH_REPOSITORIES_DESCRIPTION", "Search for GitHub repositories")),

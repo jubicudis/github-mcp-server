@@ -1,4 +1,11 @@
-package github
+// WHO: GitHubMCPTestUtilities
+// WHAT: Test Helper Functions
+// WHEN: During test execution
+// WHERE: MCP Bridge Layer Testing
+// WHY: To provide reusable test utilities
+// HOW: By implementing common test functions
+// EXTENT: All test files
+package githubapi
 
 import (
 	"context"

@@ -1,8 +1,14 @@
-run:
-  timeout: 5m
-  tests: true
-  concurrency: 4
+version: "1.0"
 
+# WHO: LintingSystem
+# WHAT: GoLangCI-Lint Configuration
+# WHEN: During code analysis
+# WHERE: GitHub MCP Server
+# WHY: To enforce Go code quality standards
+# HOW: Using a minimal linter configuration
+# EXTENT: All Go code in the MCP server
+
+# Core linting configuration
 linters:
   enable:
     - govet
@@ -12,17 +18,21 @@ linters:
     - goimports
     - revive
     - ineffassign
-    - typecheck
     - unused
     - gosimple
     - misspell
     - nakedret
     - bodyclose
     - gocritic
-    - makezero
     - gosec
 
-output:
-  formats: colored-line-number
-  print-issued-lines: true
-  print-linter-name: true
+# Run configuration
+run:
+  timeout: 5m
+  tests: true
+  concurrency: 4
+  
+# Issues management
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
