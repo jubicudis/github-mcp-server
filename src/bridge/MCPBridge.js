@@ -10,16 +10,41 @@
  * This is a consolidated version that combines functionality from both bridge implementations.
  */
 
-const http = require('http');
+/**
+ * WHO: MCPBridge
+ * WHAT: Bridge between GitHub MCP and TNOS MCP
+ * WHEN: During IDE runtime and system operations
+ * WHERE: System Layer 6 (Integration)
+ * WHY: Enable communication between GitHub Copilot and TNOS
+ * HOW: WebSocket protocol with context translation
+ * EXTENT: All MCP communications
+ */
+
 const WebSocket = require('ws');
+const EventEmitter = require('events');
 const fs = require('fs');
 const path = require('path');
-const { exec } = require('child_process');
-const fetch = require('node-fetch'); // Added for compression API support
-const contextPersistence = require('../../src/utils/MCPContextPersistence.js');
+const http = require('http');
+const { promisify } = require('util');
+const fetch = require('node-fetch');
+const { ContextVector7D } = require('../context/ContextVector7D');
+
+// Import the official TNOS MobiusCompression implementation
+const { MobiusCompression } = require('../../src/main/javascript/MobiusCompression');
+
+const logger = require('../utils/logger')('MCPBridge');
+const contextPersistence = require('../utils/MCPContextPersistence.js');
 
 // Configuration
 const CONFIG = {
+  // WHO: ConfigManager
+  // WHAT: Configuration settings for MCP bridge
+  // WHEN: During initialization and runtime
+  // WHERE: System Layer 6 (Integration)
+  // WHY: To centralize bridge configuration parameters
+  // HOW: Using structured object with environment-aware settings
+  // EXTENT: All bridge component settings
+
   // GitHub MCP server configuration
   githubMcp: {
     host: 'localhost',
@@ -119,7 +144,7 @@ const messageQueue = {
   // HOW: Using persistent array queue with disk backup
   // EXTENT: All GitHub-bound messages
   queueForGithub(message) {
-    this.githubMCP.push({
+    this.github.push({
       message: message,
       timestamp: Date.now()
     });
@@ -158,7 +183,7 @@ const messageQueue = {
     // Filter out messages that are too old (over 1 hour)
     const now = Date.now();
     const maxAge = 60 * 60 * 1000; // 1 hour
-    this.github = this.githubMCP.filter(item => (now - item.timestamp) <= maxAge);
+    this.github = this.github.filter(item => (now - item.timestamp) <= maxAge);
 
     // Process remaining messages
     if (githubMcpSocket && githubMcpSocket.readyState === WebSocket.OPEN) {
@@ -379,9 +404,9 @@ function connectToGithubMcp() {
   // Clean up existing socket if any
   if (githubMcpSocket) {
     try {
-      githubMCP.terminate();
+      githubMcpSocket.terminate();
     } catch (error) {
-      // Ignore errors during cleanup
+      log('debug', `Error during socket cleanup: ${error.message}`);
     }
     githubMcpSocket = null;
   }
@@ -436,7 +461,7 @@ function connectToTnosMcp() {
     try {
       tnosMcpSocket.terminate();
     } catch (error) {
-      // Ignore errors during cleanup
+      log('debug', `Error during TNOS MCP socket cleanup: ${error.message}`);
     }
     tnosMcpSocket = null;
   }
@@ -556,7 +581,8 @@ async function executeFormula(params) {
               });
             }
           } catch (error) {
-            // Ignore errors in this handler
+            log('error', `Error processing formula response: ${error.message}`);
+            // Continue processing other messages
           }
         };
 
@@ -641,173 +667,105 @@ async function queryDimensionalContext(params) {
 }
 
 /**
- * Perform Möbius compression on data
+ * Perform Möbius compression on data by delegating to Layer 0
  * @param {Object} params - Compression parameters
- * @returns {Promise<Object>} - Compression result
+ * @returns {Object} - Compression result
  * 
- * # WHO: MCPBridge.performMobiusCompression
- * # WHAT: Möbius compression
- * # WHEN: When compression is requested through the MCP bridge
- * # WHERE: /Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/mcp
- * # WHY: To optimize data with compression-first approach
- * # HOW: Using dimensional compression with 7D context
- * # EXTENT: All data passing through MCP
+ * WHO: MCPBridge.performMobiusCompression
+ * WHAT: Compression request dispatcher
+ * WHEN: When compression is requested through MCP
+ * WHERE: System Layer 6 (Integration)
+ * WHY: To delegate compression to Layer 0
+ * HOW: Using formula registry and IPC
+ * EXTENT: All compression requests
  */
-async function performMobiusCompression(params) {
+function performMobiusCompression(params) {
   const { inputData, useTimeFactor = true, useEnergyFactor = true, context = {} } = params;
 
-  log('info', `Performing Möbius compression on ${inputData ? (typeof inputData === 'string' ? inputData.length : JSON.stringify(inputData).length) : 0} bytes of data`);
+  // Calculate data size for logging
+  let dataSize = 0;
+  if (inputData) {
+    dataSize = typeof inputData === 'string' ?
+      inputData.length :
+      JSON.stringify(inputData).length;
+  }
+  log('info', `Delegating Möbius compression of ${dataSize} bytes to Layer 0`);
 
   try {
-    // Convert to standard compression request format
-    const compressionRequest = {
-      operation: 'compress',
-      data: inputData,
-      context: {
-        who: context.who || 'MCPBridge',
-        what: context.what || 'DataCompression',
-        when: context.when || Date.now(),
-        where: /Users/Jubicudis / TNOS1 / Tranquility - Neuro - OS / mcp
-        why: context.why || 'OptimizeDataTransfer',
-        how: context.how || 'MobiusFormula',
-        extent: context.extent || 1.0
-      },
-      target_layer: 3, // Default to Python layer
-      session_id: context.sessionId || `mcp-bridge-${Date.now()}`
+    // Create standardized 7D context vector
+    const contextVector = {
+      who: context.who || 'MCPBridge',
+      what: context.what || 'DataCompression',
+      when: context.when || Date.now(),
+      where: context.where || 'System Layer 6 (Integration)',
+      why: context.why || 'OptimizeDataTransfer',
+      how: context.how || 'MobiusFormula',
+      extent: context.extent || 1.0
     };
 
-    // Add compression config if provided
-    if (useTimeFactor !== undefined || useEnergyFactor !== undefined) {
-      compressionRequest.compression_config = {
-        time_factor: useTimeFactor ? calculateTimeFactor() : 1.0,
-        energy_factor: useEnergyFactor ? calculateEnergyFactor(inputData) : 1.0,
-        preserve_structure: true
-      };
+    // Prepare IPC request for Layer 0
+    const requestId = `compression-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+    // Create temp files for formula execution
+    const tempDir = path.join(CONFIG.logging.logDir, 'temp');
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
     }
 
-    // Send compression request to the MCP server's dedicated compression handler
-    // Try both port configurations for compression endpoint
-    let response;
-    try {
-      response = await fetch(`http://${CONFIG.tnosMcp.host}:${CONFIG.tnosMcp.port}/compression`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(compressionRequest)
-      }).then(res => res.json());
-    } catch (error) {
-      // Try alternate port if main port fails
-      log('warn', `Compression request failed on port ${CONFIG.tnosMcp.port}, trying alternate port ${CONFIG.tnosMcp.altPort}`);
-      response = await fetch(`http://${CONFIG.tnosMcp.host}:${CONFIG.tnosMcp.altPort}/compression`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(compressionRequest)
-      }).then(res => res.json());
-    }
+    const inputFile = path.join(tempDir, `compression_input_${requestId}.json`);
+    const outputFile = path.join(tempDir, `compression_output_${requestId}.json`);
 
-    // If the request failed, throw an error
-    if (response.status === 'error') {
-      throw new Error(response.error || 'Unknown compression error');
-    }
+    // Write input data to file for Layer 0 processor
+    fs.writeFileSync(inputFile, JSON.stringify({
+      requestId,
+      data: inputData,
+      contextVector,
+      options: {
+        useTimeFactor,
+        useEnergyFactor,
+        algorithm: "mobius7d",
+        version: "1.0"
+      }
+    }));
 
-    // Return the compression result in the expected format
+    // Execute Layer 0 formula processor
+    const { execSync } = require('child_process');
+    const binaryPath = path.join(process.env.TNOS_ROOT || '/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS',
+      'bin/test_formula_compression');
+
+    execSync(`${binaryPath} --input=${inputFile} --output=${outputFile} --formula=mobius`);
+
+    // Read result from Layer 0 processor
+    const result = JSON.parse(fs.readFileSync(outputFile, 'utf8'));
+
+    // Clean up temp files
+    fs.unlinkSync(inputFile);
+    fs.unlinkSync(outputFile);
+
+    log('debug', `Layer 0 compression complete: ratio=${result.compressionRatio || 'N/A'}`);
+
+    // Return standard response with Layer 0 results
     return {
       success: true,
-      originalSize: response.metadata?.original_size || 0,
-      compressedSize: response.metadata?.compressed_size || 0,
-      compressionRatio: response.metadata?.compression_ratio || 1.0,
-      timeFactor: response.metadata?.time_factor || 1.0,
-      energyFactor: response.metadata?.energy_factor || 1.0,
-      data: response.data,
-      metadata: response.metadata,
+      originalSize: result.originalSize || dataSize,
+      compressedSize: result.compressedSize,
+      compressionRatio: result.compressionRatio,
+      energyFactor: result.energyFactor,
+      data: result.data,
+      metadata: result.metadata,
+      contextVector: contextVector,
       timestamp: new Date().toISOString()
     };
   } catch (error) {
-    log('error', `Error performing Möbius compression: ${error.message}`);
+    log('error', `Error delegating compression to Layer 0: ${error.message}`);
 
-    // Fall back to basic compression simulation if the server request fails
-    // This ensures the compression-first approach continues to work even if the 
-    // dedicated compression service is unavailable
-    const compressionRatio = 0.7; // Typical ratio for Möbius compression
+    // Return error response
     return {
       success: false,
-      originalSize: inputData ? (typeof inputData === 'string' ? inputData.length : JSON.stringify(inputData).length) : 0,
-      compressedSize: inputData ? Math.floor((typeof inputData === 'string' ? inputData.length : JSON.stringify(inputData).length) * compressionRatio) : 0,
-      compressionRatio,
-      error: error.message,
+      originalSize: dataSize,
+      error: `Compression delegation failed: ${error.message}`,
       timestamp: new Date().toISOString()
     };
-  }
-}
-
-/**
- * Calculate time factor for Möbius compression
- * @returns {number} - Time factor value between 0.5 and 1.0
- * 
- * # WHO: MCPBridge.calculateTimeFactor
- * # WHAT: Calculate time factor for compression
- * # WHEN: During Möbius compression
- * # WHERE: /Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/mcp
- * # WHY: To optimize compression based on temporal context
- * # HOW: Using temporal wave function calculation
- * # EXTENT: All compression operations
- */
-function calculateTimeFactor() {
-  // Use the fraction of the current second as a basis (0.0-1.0)
-  const now = new Date();
-  const baseFactor = now.getMilliseconds() / 1000;
-
-  // Apply 7D time factor formula: 0.5 + (value * 0.5)
-  // This ensures the time factor is between 0.5 and 1.0
-  return 0.5 + (baseFactor * 0.5);
-}
-
-/**
- * Calculate energy factor for Möbius compression based on data entropy
- * @param {*} data - The data to calculate energy factor for
- * @returns {number} - Energy factor value between 0.6 and 0.9
- * 
- * # WHO: MCPBridge.calculateEnergyFactor
- * # WHAT: Calculate energy factor based on data entropy
- * # WHEN: During Möbius compression
- * # WHERE: /Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/mcp
- * # WHY: To optimize compression efficiency based on data structure
- * # HOW: Using Shannon entropy calculation
- * # EXTENT: All compression operations
- */
-function calculateEnergyFactor(data) {
-  if (!data) return 0.8; // Default
-
-  try {
-    // Convert data to string for entropy calculation
-    const str = typeof data === 'string' ? data : JSON.stringify(data);
-
-    // Calculate Shannon entropy
-    const len = str.length;
-    const charCounts = {};
-
-    // Count character frequencies
-    for (let i = 0; i < len; i++) {
-      charCounts[str[i]] = (charCounts[str[i]] || 0) + 1;
-    }
-
-    // Calculate entropy
-    let entropy = 0;
-    for (const char in charCounts) {
-      const freq = charCounts[char] / len;
-      entropy -= freq * Math.log2(freq);
-    }
-
-    // Normalize entropy to energy factor (0.6-0.9)
-    // Higher entropy (more randomness) = lower compression benefit
-    const maxEntropy = 5; // Typical maximum for text data
-    const normalizedEntropy = Math.min(entropy, maxEntropy) / maxEntropy;
-    return 0.9 - (normalizedEntropy * 0.3);
-  } catch (e) {
-    return 0.8; // Default on error
   }
 }
 
@@ -1113,72 +1071,111 @@ async function startBridge() {
           const message = JSON.parse(data);
           log('debug', `Received message from client: ${JSON.stringify(message)}`);
 
-          // Handle special formula execution requests directly
-          if (message.type === 'execute_formula' || (message.target === 'tnos' && message.data && message.data.type === 'execute_formula')) {
-            const formulaParams = message.data || message.parameters || {};
-            executeFormula(formulaParams).then(result => {
-              ws.send(JSON.stringify({
-                type: 'formula_result',
-                requestId: message.requestId,
-                data: result
-              }));
-            }).catch(error => {
-              log('error', `Error executing formula: ${error.message}`);
-            });
-            return;
-          }
-
-          // Handle compression requests directly
-          if (message.type === 'compression' || (message.target === 'tnos' && message.data && message.data.type === 'compression')) {
-            const compressionParams = message.data || message.parameters || {};
-            performMobiusCompression(compressionParams).then(result => {
-              ws.send(JSON.stringify({
-                type: 'compression_result',
-                requestId: message.requestId,
-                data: result
-              }));
-            }).catch(error => {
-              log('error', `Error performing compression: ${error.message}`);
-            });
-            return;
-          }
-
-          // Determine target server and forward message
-          if (message.target === 'github') {
-            if (githubMcpSocket && githubMcpSocket.readyState === WebSocket.OPEN) {
-              githubMCP.send(JSON.stringify(message.data));
-              log('debug', `Forwarded message to GitHub MCP: ${JSON.stringify(message.data)}`);
-            } else {
-              // Queue message for later processing
-              messageQueue.queueForGithub(message.data);
-            }
-          } else if (message.target === 'tnos') {
-            if (tnosMcpSocket && tnosMcpSocket.readyState === WebSocket.OPEN) {
-              tnosMcpSocket.send(JSON.stringify(message.data));
-              log('debug', `Forwarded message to TNOS MCP: ${JSON.stringify(message.data)}`);
-            } else {
-              // Queue message for later processing
-              messageQueue.queueForTnos(message.data);
-            }
-          } else {
-            // Broadcast to both servers
-            if (githubMcpSocket && githubMcpSocket.readyState === WebSocket.OPEN) {
-              githubMCP.send(JSON.stringify(message.data));
-            } else {
-              // Queue message for later processing
-              messageQueue.queueForGithub(message.data);
-            }
-            if (tnosMcpSocket && tnosMcpSocket.readyState === WebSocket.OPEN) {
-              tnosMcpSocket.send(JSON.stringify(message.data));
-            } else {
-              // Queue message for later processing
-              messageQueue.queueForTnos(message.data);
-            }
-          }
+          // Handle message by type
+          handleClientMessage(ws, message);
         } catch (error) {
           log('error', `Error processing client message: ${error.message}`);
         }
       });
+
+      // WHO: MCPBridge.handleClientMessage
+      // WHAT: Process messages from bridge clients
+      // WHEN: When a client sends a message
+      // WHERE: Bridge WebSocket server
+      // WHY: To dispatch messages to appropriate handlers
+      // HOW: By examining message type and routing accordingly
+      // EXTENT: All client messages
+      function handleClientMessage(ws, message) {
+        // Handle formula execution requests
+        if (isFormulaExecutionRequest(message)) {
+          handleFormulaExecution(ws, message);
+          return;
+        }
+
+        // Handle compression requests
+        if (isCompressionRequest(message)) {
+          handleCompressionRequest(ws, message);
+          return;
+        }
+
+        // Forward message to appropriate target(s)
+        forwardClientMessage(message);
+      }
+
+      // Check if message is a formula execution request
+      function isFormulaExecutionRequest(message) {
+        return message.type === 'execute_formula' ||
+          (message.target === 'tnos' && message.data && message.data.type === 'execute_formula');
+      }
+
+      // Handle formula execution request
+      function handleFormulaExecution(ws, message) {
+        const formulaParams = message.data || message.parameters || {};
+        executeFormula(formulaParams).then(result => {
+          ws.send(JSON.stringify({
+            type: 'formula_result',
+            requestId: message.requestId,
+            data: result
+          }));
+        }).catch(error => {
+          log('error', `Error executing formula: ${error.message}`);
+        });
+      }
+
+      // Check if message is a compression request
+      function isCompressionRequest(message) {
+        return message.type === 'compression' ||
+          (message.target === 'tnos' && message.data && message.data.type === 'compression');
+      }
+
+      // Handle compression request
+      function handleCompressionRequest(ws, message) {
+        const compressionParams = message.data || message.parameters || {};
+        performMobiusCompression(compressionParams).then(result => {
+          ws.send(JSON.stringify({
+            type: 'compression_result',
+            requestId: message.requestId,
+            data: result
+          }));
+        }).catch(error => {
+          log('error', `Error performing compression: ${error.message}`);
+        });
+      }
+
+      // Forward client message to appropriate target(s)
+      function forwardClientMessage(message) {
+        if (message.target === 'github') {
+          sendToGithubMcp(message.data);
+        } else if (message.target === 'tnos') {
+          sendToTnosMcp(message.data);
+        } else {
+          // Broadcast to both servers
+          sendToGithubMcp(message.data);
+          sendToTnosMcp(message.data);
+        }
+      }
+
+      // Send message to GitHub MCP or queue if not available
+      function sendToGithubMcp(data) {
+        if (githubMcpSocket && githubMcpSocket.readyState === WebSocket.OPEN) {
+          githubMcpSocket.send(JSON.stringify(data));
+          log('debug', `Forwarded message to GitHub MCP: ${JSON.stringify(data)}`);
+        } else {
+          // Queue message for later processing
+          messageQueue.queueForGithub(data);
+        }
+      }
+
+      // Send message to TNOS MCP or queue if not available
+      function sendToTnosMcp(data) {
+        if (tnosMcpSocket && tnosMcpSocket.readyState === WebSocket.OPEN) {
+          tnosMcpSocket.send(JSON.stringify(data));
+          log('debug', `Forwarded message to TNOS MCP: ${JSON.stringify(data)}`);
+        } else {
+          // Queue message for later processing
+          messageQueue.queueForTnos(data);
+        }
+      }
 
       ws.on('close', () => {
         log('info', 'Client disconnected from bridge');
@@ -1203,14 +1200,14 @@ async function startBridge() {
     });
 
     // Set up periodic context sync with error handling
-    const contextSyncInterval = setInterval(() => {
+    setInterval(() => {
       syncContext().catch(error => {
         log('error', `Error in scheduled context sync: ${error.message}`);
       });
     }, CONFIG.bridge.contextSyncInterval);
 
     // Set up periodic health check with error handling
-    const healthCheckInterval = setInterval(() => {
+    setInterval(() => {
       healthCheck().catch(error => {
         log('error', `Error in scheduled health check: ${error.message}`);
       });
