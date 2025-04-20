@@ -24,9 +24,9 @@ import (
 func HelicalEncodeHandler(w http.ResponseWriter, r *http.Request, ctx context.Context) {
 	// Extract request parameters
 	var params struct {
-		Data       string                 `json:"data"`
+		Data        string                 `json:"data"`
 		StrandCount int                    `json:"strand_count,omitempty"`
-		Context    map[string]interface{} `json:"context,omitempty"`
+		Context     map[string]interface{} `json:"context,omitempty"`
 	}
 
 	err := json.NewDecoder(r.Body).Decode(&params)
@@ -51,7 +51,7 @@ func HelicalEncodeHandler(w http.ResponseWriter, r *http.Request, ctx context.Co
 	message := models.MCPMessage{
 		Tool: "helical_encode",
 		Parameters: map[string]interface{}{
-			"data":        rawData,
+			"data":         rawData,
 			"strand_count": params.StrandCount,
 		},
 		Context: params.Context,
@@ -173,8 +173,8 @@ func HelicalStoreHandler(w http.ResponseWriter, r *http.Request, ctx context.Con
 	message := models.MCPMessage{
 		Tool: "helical_store",
 		Parameters: map[string]interface{}{
-			"key":         params.Key,
-			"data":        rawData,
+			"key":          params.Key,
+			"data":         rawData,
 			"strand_count": params.StrandCount,
 		},
 		Context: params.Context,
