@@ -76,9 +76,9 @@ const CONFIG = {
     logFile: 'mcp_bridge.log',
     logLevel: 'info' // debug, info, warn, error
   },
-  // Formula registry path (imported from bridge.js)
+  // Formula registry path (updated to match the new system structure)
   formulaRegistry: {
-    path: '/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/config/formulas.json'
+    path: '/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/config/mcp/formulas.json'
   }
 };
 
