@@ -1,0 +1,134 @@
+{
+  "helical_encode": {
+    "description": "Encode data using the TNOS helical storage algorithm with 7D context integration",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "data": {
+          "type": "string",
+          "format": "binary",
+          "description": "Data to encode using helical algorithm"
+        },
+        "strand_count": {
+          "type": "integer",
+          "description": "Number of DNA-like strands to use for encoding",
+          "default": 2,
+          "minimum": 1,
+          "maximum": 8
+        },
+        "context": {
+          "type": "object",
+          "description": "Optional 7D context information for context-aware encoding",
+          "properties": {
+            "who": { "type": "string" },
+            "what": { "type": "string" },
+            "when": { "type": "string" },
+            "where": { "type": "string" },
+            "why": { "type": "string" },
+            "how": { "type": "string" },
+            "extent": { "type": "string" }
+          }
+        }
+      },
+      "required": ["data"]
+    }
+  },
+
+  "helical_decode": {
+    "description": "Decode data previously encoded with the TNOS helical storage algorithm",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "encoded_data": {
+          "type": "string",
+          "format": "binary",
+          "description": "Helically encoded data to decode"
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Metadata from the encoding process"
+        },
+        "context": {
+          "type": "object",
+          "description": "Optional 7D context information for context-aware decoding",
+          "properties": {
+            "who": { "type": "string" },
+            "what": { "type": "string" },
+            "when": { "type": "string" },
+            "where": { "type": "string" },
+            "why": { "type": "string" },
+            "how": { "type": "string" },
+            "extent": { "type": "string" }
+          }
+        }
+      },
+      "required": ["encoded_data", "metadata"]
+    }
+  },
+
+  "helical_store": {
+    "description": "Store data using helical encoding with a retrieval key",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string",
+          "description": "Key to associate with the stored data"
+        },
+        "data": {
+          "type": "string",
+          "format": "binary",
+          "description": "Data to store using helical encoding"
+        },
+        "strand_count": {
+          "type": "integer",
+          "description": "Number of DNA-like strands to use for encoding",
+          "default": 2,
+          "minimum": 1,
+          "maximum": 8
+        },
+        "context": {
+          "type": "object",
+          "description": "Optional 7D context information for context-aware storage",
+          "properties": {
+            "who": { "type": "string" },
+            "what": { "type": "string" },
+            "when": { "type": "string" },
+            "where": { "type": "string" },
+            "why": { "type": "string" },
+            "how": { "type": "string" },
+            "extent": { "type": "string" }
+          }
+        }
+      },
+      "required": ["key", "data"]
+    }
+  },
+
+  "helical_retrieve": {
+    "description": "Retrieve data previously stored using helical encoding",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string",
+          "description": "Key associated with the stored data"
+        },
+        "context": {
+          "type": "object",
+          "description": "Optional 7D context information for context-aware retrieval",
+          "properties": {
+            "who": { "type": "string" },
+            "what": { "type": "string" },
+            "when": { "type": "string" },
+            "where": { "type": "string" },
+            "why": { "type": "string" },
+            "how": { "type": "string" },
+            "extent": { "type": "string" }
+          }
+        }
+      },
+      "required": ["key"]
+    }
+  }
+}
