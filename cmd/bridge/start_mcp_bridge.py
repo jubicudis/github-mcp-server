@@ -49,19 +49,19 @@ import websockets
 try:
     project_root = Path(__file__).resolve().parent.parent.parent
     sys.path.insert(0, str(project_root))
-    
+
     # Import ATL for external communications
     from core.integration.atl import AdvancedTranslationLayer
-    
+
     # Import 7D context framework
     from systems.context.context_vector import ContextVector7D
-    
+
     # Import the MCP bridge with proper Layer 6 boundary respect
     from mcp.internal.bridge.github_mcp_bridge import GitHubTNOSBridge
-    
+
     # Import Layer 0 compression for compression-first approach
     from algorithms.compression.mobius_compression import MobiusCompression
-    
+
     # Import health monitoring
     from mcp.utils.health_monitor import MCPHealthMonitor
 except ImportError as e:
@@ -71,17 +71,37 @@ except ImportError as e:
 
 # Setup argument parsing
 parser = argparse.ArgumentParser(description="Start the GitHub-TNOS MCP Bridge")
-parser.add_argument("--github-port", type=int, default=8080, help="Port for the GitHub MCP server")
-parser.add_argument("--tnos-uri", type=str, default="ws://localhost:8888", help="URI for the TNOS MCP server")
+parser.add_argument(
+    "--github-port", type=int, default=8080, help="Port for the GitHub MCP server"
+)
+parser.add_argument(
+    "--tnos-uri",
+    type=str,
+    default="ws://localhost:8888",
+    help="URI for the TNOS MCP server",
+)
 parser.add_argument("--verbose", action="store_true", help="Enable verbose logging")
-parser.add_argument("--compression", action="store_true", help="Enable Möbius compression")
+parser.add_argument(
+    "--compression", action="store_true", help="Enable Möbius compression"
+)
 parser.add_argument("--debug", action="store_true", help="Enable debug mode")
 parser.add_argument("--config", type=str, help="Path to custom configuration file")
-parser.add_argument("--protocol", type=str, default="3.0", choices=["1.0", "2.0", "3.0"], 
-                    help="MCP protocol version to use")
+parser.add_argument(
+    "--protocol",
+    type=str,
+    default="3.0",
+    choices=["1.0", "2.0", "3.0"],
+    help="MCP protocol version to use",
+)
 parser.add_argument("--monitor", action="store_true", help="Enable health monitoring")
-parser.add_argument("--no-atl", action="store_true", help="Bypass Advanced Translation Layer (not recommended)")
-parser.add_argument("--context-file", type=str, help="Path to initial 7D context configuration")
+parser.add_argument(
+    "--no-atl",
+    action="store_true",
+    help="Bypass Advanced Translation Layer (not recommended)",
+)
+parser.add_argument(
+    "--context-file", type=str, help="Path to initial 7D context configuration"
+)
 
 args = parser.parse_args()
 
@@ -97,19 +117,27 @@ args = parser.parse_args()
 logs_dir = Path(project_root) / "logs"
 logs_dir.mkdir(exist_ok=True)
 
-log_level = logging.DEBUG if args.debug else (logging.INFO if args.verbose else logging.WARNING)
+log_level = (
+    logging.DEBUG if args.debug else (logging.INFO if args.verbose else logging.WARNING)
+)
+
 
 # Advanced formatter with 7D context awareness
 class ContextAwareFormatter(logging.Formatter):
     def format(self, record):
         # Add 7D context if available
-        if hasattr(record, 'context'):
+        if hasattr(record, "context"):
             context = record.context
-            context_str = f"[{context.who}|{context.what}|{context.where}|{context.why}]"
+            context_str = (
+                f"[{context.who}|{context.what}|{context.where}|{context.why}]"
+            )
             record.msg = f"{context_str} {record.msg}"
         return super().format(record)
 
-formatter = ContextAwareFormatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+
+formatter = ContextAwareFormatter(
+    "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 
 # Set up file handler
 file_handler = logging.FileHandler(str(logs_dir / "github_mcp_bridge.log"))
@@ -141,21 +169,23 @@ initial_context = ContextVector7D(
     who="MCPBridgeStarter",
     what="BridgeInitialization",
     when=time.time(),
-    where="SystemLayer6_Integration", 
+    where="SystemLayer6_Integration",
     why="EstablishMCPCommunication",
     how="WebSocketProtocol",
-    extent=1.0
+    extent=1.0,
 )
 
 # Load context from file if specified
 if args.context_file:
     try:
-        with open(args.context_file, 'r') as f:
+        with open(args.context_file, "r") as f:
             context_data = json.load(f)
             initial_context.update(context_data)
         logger.info("Loaded 7D context from file", extra={"context": initial_context})
     except Exception as e:
-        logger.error(f"Failed to load context file: {e}", extra={"context": initial_context})
+        logger.error(
+            f"Failed to load context file: {e}", extra={"context": initial_context}
+        )
 
 # Load configuration from file if specified
 config = {}
@@ -163,9 +193,14 @@ if args.config:
     try:
         with open(args.config, "r") as f:
             config = json.load(f)
-        logger.info(f"Loaded configuration from {args.config}", extra={"context": initial_context})
+        logger.info(
+            f"Loaded configuration from {args.config}",
+            extra={"context": initial_context},
+        )
     except Exception as e:
-        logger.error(f"Failed to load configuration: {e}", extra={"context": initial_context})
+        logger.error(
+            f"Failed to load configuration: {e}", extra={"context": initial_context}
+        )
         sys.exit(1)
 
 # Combine command line arguments with configuration
@@ -186,19 +221,21 @@ use_atl = not args.no_atl and not config.get("bypass_atl", False)
 # EXTENT: All MCP message transfer
 
 compression_context = initial_context.derive(
-    what="DataCompression",
-    why="OptimizeDataTransfer",
-    how="MobiusFormula"
+    what="DataCompression", why="OptimizeDataTransfer", how="MobiusFormula"
 )
 
 compression_manager = None
 if compression_enabled:
     try:
         compression_manager = MobiusCompression(context=compression_context)
-        logger.info("Initialized Möbius compression", extra={"context": compression_context})
+        logger.info(
+            "Initialized Möbius compression", extra={"context": compression_context}
+        )
     except Exception as e:
-        logger.warning(f"Failed to initialize compression: {e}. Continuing without compression.", 
-                     extra={"context": compression_context})
+        logger.warning(
+            f"Failed to initialize compression: {e}. Continuing without compression.",
+            extra={"context": compression_context},
+        )
 
 # Initialize ATL for external communications
 # WHO: ATLManager
@@ -212,22 +249,30 @@ if compression_enabled:
 atl_context = initial_context.derive(
     what="ExternalCommunication",
     why="SecureTranslation",
-    how="AdvancedTranslationLayer"
+    how="AdvancedTranslationLayer",
 )
 
 atl = None
 if use_atl:
     try:
-        atl = AdvancedTranslationLayer(protocol_version=protocol_version, context=atl_context)
-        logger.info(f"Initialized ATL with protocol version {protocol_version}", 
-                   extra={"context": atl_context})
+        atl = AdvancedTranslationLayer(
+            protocol_version=protocol_version, context=atl_context
+        )
+        logger.info(
+            f"Initialized ATL with protocol version {protocol_version}",
+            extra={"context": atl_context},
+        )
     except Exception as e:
-        logger.error(f"Failed to initialize ATL: {e}. This is a critical error.", 
-                    extra={"context": atl_context})
+        logger.error(
+            f"Failed to initialize ATL: {e}. This is a critical error.",
+            extra={"context": atl_context},
+        )
         sys.exit(1)
 else:
-    logger.warning("ATL bypassed! This is not recommended for production use.", 
-                  extra={"context": initial_context})
+    logger.warning(
+        "ATL bypassed! This is not recommended for production use.",
+        extra={"context": initial_context},
+    )
 
 # Initialize health monitor if enabled
 # WHO: HealthMonitor
@@ -239,9 +284,7 @@ else:
 # EXTENT: All bridge components
 
 health_context = initial_context.derive(
-    what="HealthMonitoring",
-    why="EnsureReliability",
-    how="StatusChecks"
+    what="HealthMonitoring", why="EnsureReliability", how="StatusChecks"
 )
 
 health_monitor = None
@@ -251,12 +294,14 @@ if health_monitoring:
             github_port=github_port,
             tnos_uri=tnos_uri,
             check_interval=config.get("health_check_interval", 30),
-            context=health_context
+            context=health_context,
         )
         logger.info("Initialized health monitoring", extra={"context": health_context})
     except Exception as e:
-        logger.warning(f"Failed to initialize health monitoring: {e}. Continuing without health checks.", 
-                     extra={"context": health_context})
+        logger.warning(
+            f"Failed to initialize health monitoring: {e}. Continuing without health checks.",
+            extra={"context": health_context},
+        )
 
 # Save PID file
 pid_file = str(logs_dir / "github_bridge.pid")
@@ -274,30 +319,33 @@ logger.info(f"Wrote PID to {pid_file}", extra={"context": initial_context})
 # EXTENT: All bridge components
 
 shutdown_context = initial_context.derive(
-    what="BridgeShutdown",
-    why="CleanTermination",
-    how="SignalHandling"
+    what="BridgeShutdown", why="CleanTermination", how="SignalHandling"
 )
+
 
 async def shutdown_bridge(bridge, sig_name="SIGTERM"):
     """Perform graceful bridge shutdown with proper context preservation"""
-    logger.info(f"Initiating graceful shutdown (signal: {sig_name})", 
-               extra={"context": shutdown_context})
-    
+    logger.info(
+        f"Initiating graceful shutdown (signal: {sig_name})",
+        extra={"context": shutdown_context},
+    )
+
     # Stop health monitoring if active
     if health_monitor:
         await health_monitor.stop()
         logger.info("Health monitor stopped", extra={"context": shutdown_context})
-    
+
     # Gracefully close the bridge
     if bridge:
         try:
             await bridge.stop()
             logger.info("Bridge stopped", extra={"context": shutdown_context})
         except Exception as e:
-            logger.error(f"Error during bridge shutdown: {e}", 
-                        extra={"context": shutdown_context})
-    
+            logger.error(
+                f"Error during bridge shutdown: {e}",
+                extra={"context": shutdown_context},
+            )
+
     # Clean up ATL if initialized
     if atl:
         try:
@@ -305,32 +353,35 @@ async def shutdown_bridge(bridge, sig_name="SIGTERM"):
             logger.info("ATL closed", extra={"context": shutdown_context})
         except Exception as e:
             logger.error(f"Error closing ATL: {e}", extra={"context": shutdown_context})
-    
+
     # Remove PID file
     if os.path.exists(pid_file):
         os.unlink(pid_file)
         logger.info(f"Removed PID file {pid_file}", extra={"context": shutdown_context})
-    
+
     logger.info("Shutdown complete", extra={"context": shutdown_context})
     return True
+
 
 def signal_handler(sig, frame):
     sig_name = signal.Signals(sig).name
     logger.info(f"Received {sig_name} signal", extra={"context": shutdown_context})
-    
+
     # Create a new event loop for the shutdown process
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
-    
+
     # Run shutdown coroutine
     shutdown_success = loop.run_until_complete(shutdown_bridge(None, sig_name))
     loop.close()
-    
+
     sys.exit(0 if shutdown_success else 1)
+
 
 # Register signal handlers
 signal.signal(signal.SIGINT, signal_handler)
 signal.signal(signal.SIGTERM, signal_handler)
+
 
 async def main():
     """
@@ -343,21 +394,26 @@ async def main():
     # EXTENT: Complete bridge lifecycle
     """
     bridge_context = initial_context.derive(
-        what="BridgeOperation",
-        why="RunMCPCommunication",
-        how="AsyncEventLoop"
+        what="BridgeOperation", why="RunMCPCommunication", how="AsyncEventLoop"
     )
-    
-    logger.info(f"Starting GitHub-TNOS MCP Bridge on port {github_port}", 
-               extra={"context": bridge_context})
-    logger.info(f"Connecting to TNOS MCP at {tnos_uri}", 
-               extra={"context": bridge_context})
-    logger.info(f"Using MCP protocol version {protocol_version}", 
-               extra={"context": bridge_context})
+
+    logger.info(
+        f"Starting GitHub-TNOS MCP Bridge on port {github_port}",
+        extra={"context": bridge_context},
+    )
+    logger.info(
+        f"Connecting to TNOS MCP at {tnos_uri}", extra={"context": bridge_context}
+    )
+    logger.info(
+        f"Using MCP protocol version {protocol_version}",
+        extra={"context": bridge_context},
+    )
 
     if compression_enabled:
-        logger.info("Möbius compression enabled for message transfer", 
-                   extra={"context": bridge_context})
+        logger.info(
+            "Möbius compression enabled for message transfer",
+            extra={"context": bridge_context},
+        )
 
     bridge = None
     try:
@@ -370,76 +426,88 @@ async def main():
             "compression_manager": compression_manager,
             "atl": atl,
             "health_monitor": health_monitor,
-            "config": config
+            "config": config,
         }
-        
+
         # Create the bridge with 7D context and compression-first approach
         bridge = GitHubTNOSBridge(**bridge_config)
-        
+
         # Register shutdown handler that includes the bridge instance
         original_sigint = signal.getsignal(signal.SIGINT)
         original_sigterm = signal.getsignal(signal.SIGTERM)
-        
+
         # Update signal handlers with bridge reference
         def enhanced_signal_handler(sig, frame):
             sig_name = signal.Signals(sig).name
-            logger.info(f"Received {sig_name} signal during bridge operation", 
-                       extra={"context": shutdown_context})
-            
+            logger.info(
+                f"Received {sig_name} signal during bridge operation",
+                extra={"context": shutdown_context},
+            )
+
             # Create a new event loop for the shutdown process
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
-            
+
             # Run shutdown coroutine with bridge reference
-            shutdown_success = loop.run_until_complete(shutdown_bridge(bridge, sig_name))
+            shutdown_success = loop.run_until_complete(
+                shutdown_bridge(bridge, sig_name)
+            )
             loop.close()
-            
+
             # Restore original handlers before exiting
             signal.signal(signal.SIGINT, original_sigint)
             signal.signal(signal.SIGTERM, original_sigterm)
-            
+
             sys.exit(0 if shutdown_success else 1)
-        
+
         # Register updated signal handlers
         signal.signal(signal.SIGINT, enhanced_signal_handler)
         signal.signal(signal.SIGTERM, enhanced_signal_handler)
-        
+
         # Start health monitoring if enabled
         if health_monitor:
             await health_monitor.start()
             logger.info("Health monitoring started", extra={"context": bridge_context})
-        
+
         # Perform protocol version negotiation
         protocol_context = bridge_context.derive(
             what="ProtocolNegotiation",
             why="VersionCompatibility",
-            how="MCP" + protocol_version
+            how="MCP" + protocol_version,
         )
-        
-        logger.info(f"Negotiating protocol version {protocol_version}", 
-                   extra={"context": protocol_context})
-        
+
+        logger.info(
+            f"Negotiating protocol version {protocol_version}",
+            extra={"context": protocol_context},
+        )
+
         negotiated_version = await bridge.negotiate_protocol_version(protocol_version)
-        
+
         if negotiated_version != protocol_version:
-            logger.warning(f"Protocol version negotiated down from {protocol_version} to {negotiated_version}", 
-                          extra={"context": protocol_context})
+            logger.warning(
+                f"Protocol version negotiated down from {protocol_version} to {negotiated_version}",
+                extra={"context": protocol_context},
+            )
         else:
-            logger.info(f"Protocol version {protocol_version} accepted", 
-                       extra={"context": protocol_context})
-        
+            logger.info(
+                f"Protocol version {protocol_version} accepted",
+                extra={"context": protocol_context},
+            )
+
         # Start the bridge with proper context
         logger.info("Starting MCP Bridge", extra={"context": bridge_context})
         await bridge.start()
-        
+
         # Keep the bridge running
         while True:
             try:
                 await asyncio.sleep(1)
             except asyncio.CancelledError:
-                logger.info("Bridge operation interrupted", extra={"context": bridge_context})
+                logger.info(
+                    "Bridge operation interrupted", extra={"context": bridge_context}
+                )
                 break
-    
+
     except KeyboardInterrupt:
         logger.info("Keyboard interrupt received", extra={"context": bridge_context})
     except Exception as e:
