@@ -180,8 +180,8 @@ if missing_packages:
 
 # Now import TNOS MCP components (only if all required packages are available)
 try:
-    from mcp.integration.mcp_integration  # Updated from: mcp.integration.mcp_integration to: mcp_integration  # Updated from: mcp.integration.mcp_integration to: mcp_integration  # Updated from: mcp.integration.mcp_integration to: mcp_integration import TNOSLayerIntegration
-    from mcp.protocol.mcp_protocol  # Updated from: mcp.protocol.mcp_protocol to: mcp_protocol  # Updated from: mcp.protocol.mcp_protocol to: mcp_protocol  # Updated from: mcp.protocol.mcp_protocol to: mcp_protocol import MCPContext, MCPMessage, MCPProtocolVersion
+    from mcp.integration.mcp_integration import TNOSLayerIntegration
+    from mcp.protocol.mcp_protocol import MCPContext, MCPMessage, MCPProtocolVersion
     from mcp.server.mcp_server import MCPServer
 except ImportError as e:
     logger.error(f"Failed to import TNOS MCP components: {e}")
