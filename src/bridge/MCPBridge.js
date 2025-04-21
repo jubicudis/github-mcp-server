@@ -1,20 +1,16 @@
 #!/usr/bin/env node
 
 /**
- * MCPBridge.js
+ * MCPBridge.js - Part 1: Core functionality
  * 
- * This script acts as a bridge between the GitHub MCP server and the TNOS MCP implementation.
- * It enables bidirectional communication and context sharing between the two systems,
- * allowing for seamless integration and interoperability.
- * 
- * This is a consolidated version that combines functionality from both bridge implementations.
+ * Bridge between GitHub MCP server and TNOS MCP implementation.
  */
 
 /**
  * WHO: MCPBridge
  * WHAT: Bridge between GitHub MCP and TNOS MCP
  * WHEN: During IDE runtime and system operations
- * WHERE: System Layer 6 (Integration)
+ * WHERE: System Layer 2 (Reactive)
  * WHY: Enable communication between GitHub Copilot and TNOS
  * HOW: WebSocket protocol with context translation
  * EXTENT: All MCP communications
@@ -26,24 +22,25 @@ const fs = require('fs');
 const path = require('path');
 const http = require('http');
 const { promisify } = require('util');
-const fetch = require('node-fetch');
-const { ContextVector7D } = require('../context/ContextVector7D');
 
-// Import the official TNOS MobiusCompression implementation
-const { MobiusCompression } = require('../../src/main/javascript/MobiusCompression');
+// Import the context modules
+const contextBridge = require('../utils/7DContextBridge');
+const contextPersistence = require('../utils/MCPContextPersistence');
 
-const logger = require('../utils/logger')('MCPBridge');
-const contextPersistence = require('../utils/MCPContextPersistence.js');
+// Import the compression module
+const { MobiusCompression } = require('./components/MobiusCompression');
 
 // Configuration
 const CONFIG = {
-  // WHO: ConfigManager
-  // WHAT: Configuration settings for MCP bridge
-  // WHEN: During initialization and runtime
-  // WHERE: System Layer 6 (Integration)
-  // WHY: To centralize bridge configuration parameters
-  // HOW: Using structured object with environment-aware settings
-  // EXTENT: All bridge component settings
+  /**
+   * WHO: ConfigManager
+   * WHAT: Configuration settings for MCP bridge
+   * WHEN: During initialization and runtime
+   * WHERE: System Layer 2 (Reactive)
+   * WHY: To centralize bridge configuration parameters
+   * HOW: Using structured object with environment-aware settings
+   * EXTENT: All bridge component settings
+   */
 
   // GitHub MCP server configuration
   githubMcp: {
@@ -52,16 +49,18 @@ const CONFIG = {
     wsEndpoint: 'ws://localhost:10617/ws',
     apiEndpoint: 'http://localhost:10617/api'
   },
-  // TNOS MCP server configuration (support both port configurations)
+
+  // TNOS MCP server configuration
   tnosMcp: {
     host: 'localhost',
-    port: process.env.TNOS_MCP_PORT || 8888, // Default to standard MCP port, can be overridden with env var
+    port: process.env.TNOS_MCP_PORT || 8888,
     wsEndpoint: `ws://localhost:${process.env.TNOS_MCP_PORT || 8888}/ws`,
     apiEndpoint: `http://localhost:${process.env.TNOS_MCP_PORT || 8888}/api`,
-    altPort: 10618, // Alternative port from the original MCPBridge.js
+    altPort: 10618,
     altWsEndpoint: 'ws://localhost:10618/ws',
     altApiEndpoint: 'http://localhost:10618/api'
   },
+
   // Bridge configuration
   bridge: {
     port: 10619,
@@ -70,15 +69,28 @@ const CONFIG = {
     reconnectAttempts: 5,
     reconnectDelay: 5000 // 5 seconds
   },
+
   // Logging configuration
   logging: {
-    logDir: '/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/logs',
+    logDir: process.env.TNOS_ROOT
+      ? path.join(process.env.TNOS_ROOT, 'logs')
+      : '/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/logs',
     logFile: 'mcp_bridge.log',
     logLevel: 'info' // debug, info, warn, error
   },
-  // Formula registry path (updated to match the new system structure)
+
+  // Formula registry path
   formulaRegistry: {
-    path: '/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/config/mcp/formulas.json'
+    path: process.env.TNOS_ROOT
+      ? path.join(process.env.TNOS_ROOT, 'config/mcp/formulas.json')
+      : '/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/config/mcp/formulas.json'
+  },
+
+  // Compression settings
+  compression: {
+    enabled: true,
+    level: 7,
+    preserveOriginal: false
   }
 };
 
@@ -97,6 +109,15 @@ if (!fs.existsSync(CONFIG.logging.logDir)) {
   fs.mkdirSync(CONFIG.logging.logDir, { recursive: true });
 }
 
+/**
+ * WHO: BridgeLogger
+ * WHAT: Log bridge events and errors
+ * WHEN: Throughout bridge operations
+ * WHERE: System Layer 2 (Reactive)
+ * WHY: To record bridge operation details
+ * HOW: Using structured logging with timestamps
+ * EXTENT: All bridge events and messages
+ */
 function log(level, message) {
   if (logLevels[level] >= logLevels[CONFIG.logging.logLevel]) {
     const timestamp = new Date().toISOString();
@@ -115,10 +136,7 @@ let githubMcpSocket = null;
 let tnosMcpSocket = null;
 let clientSockets = new Set();
 
-// Context bridge for 7D context mapping
-const contextBridge = require('../utils/7DContextBridge');
-
-// Load formula registry (imported from bridge.js)
+// Load formula registry
 let formulas = {};
 try {
   if (fs.existsSync(CONFIG.formulaRegistry.path)) {
@@ -131,18 +149,24 @@ try {
   log('error', `Error loading formula registry: ${error.message}`);
 }
 
-// Add queue storage for messages during disconnection
+/**
+ * MCPBridge.js - Part 2: Message Queue and Connection Management
+ */
+
+/**
+ * WHO: MessageQueue
+ * WHAT: Queue message system for reliable delivery
+ * WHEN: During connection interruptions
+ * WHERE: System Layer 2 (Reactive)
+ * WHY: To prevent message loss during disconnections
+ * HOW: Using persistent array queue with disk backup
+ * EXTENT: All messages during connection issues
+ */
 const messageQueue = {
   github: [],
   tnos: [],
 
-  // WHO: MessageQueue
-  // WHAT: Queue message for GitHub MCP server
-  // WHEN: During connection interruptions
-  // WHERE: /Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/mcp
-  // WHY: To prevent message loss during disconnections
-  // HOW: Using persistent array queue with disk backup
-  // EXTENT: All GitHub-bound messages
+  // Queue message for GitHub MCP server
   queueForGithub(message) {
     this.github.push({
       message: message,
@@ -152,13 +176,7 @@ const messageQueue = {
     log('info', `Message queued for GitHub MCP (queue size: ${this.github.length})`);
   },
 
-  // WHO: MessageQueue
-  // WHAT: Queue message for TNOS MCP server
-  // WHEN: During connection interruptions
-  // WHERE: /Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/mcp
-  // WHY: To prevent message loss during disconnections
-  // HOW: Using persistent array queue with disk backup
-  // EXTENT: All TNOS-bound messages
+  // Queue message for TNOS MCP server
   queueForTnos(message) {
     this.tnos.push({
       message: message,
@@ -168,13 +186,7 @@ const messageQueue = {
     log('info', `Message queued for TNOS MCP (queue size: ${this.tnos.length})`);
   },
 
-  // WHO: MessageQueue
-  // WHAT: Process queued messages for GitHub
-  // WHEN: After connection restoration
-  // WHERE: /Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/mcp
-  // WHY: To send stored messages after reconnection
-  // HOW: Using FIFO queue processing with age limits
-  // EXTENT: All queued GitHub messages
+  // Process queued messages for GitHub
   processGithubQueue() {
     if (this.github.length === 0) return;
 
@@ -195,7 +207,7 @@ const messageQueue = {
 
       messagesToProcess.forEach((item, index) => {
         try {
-          githubMCP.send(JSON.stringify(item.message));
+          githubMcpSocket.send(JSON.stringify(item.message));
           log('debug', `Sent queued message ${index + 1}/${messagesToProcess.length} to GitHub MCP`);
         } catch (error) {
           log('error', `Error sending queued message to GitHub MCP: ${error.message}`);
@@ -208,13 +220,7 @@ const messageQueue = {
     }
   },
 
-  // WHO: MessageQueue
-  // WHAT: Process queued messages for TNOS
-  // WHEN: After connection restoration
-  // WHERE: /Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/mcp
-  // WHY: To send stored messages after reconnection
-  // HOW: Using FIFO queue processing with age limits
-  // EXTENT: All queued TNOS messages
+  // Process queued messages for TNOS
   processTnosQueue() {
     if (this.tnos.length === 0) return;
 
@@ -247,13 +253,7 @@ const messageQueue = {
     }
   },
 
-  // WHO: MessageQueue
-  // WHAT: Persist message queues to disk
-  // WHEN: After queue modifications
-  // WHERE: /Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/mcp
-  // WHY: To ensure message durability across restarts
-  // HOW: Using filesystem storage with JSON serialization
-  // EXTENT: All queued messages
+  // Persist message queues to disk
   _persistQueues() {
     try {
       const queueData = {
@@ -269,13 +269,7 @@ const messageQueue = {
     }
   },
 
-  // WHO: MessageQueue
-  // WHAT: Load message queues from disk
-  // WHEN: During bridge initialization
-  // WHERE: /Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/mcp
-  // WHY: To recover messages after system restart
-  // HOW: Using filesystem storage with JSON parsing
-  // EXTENT: Previously stored message queues
+  // Load message queues from disk
   loadQueues() {
     try {
       const queueFile = path.join(CONFIG.logging.logDir, 'mcp_message_queue.json');
@@ -288,7 +282,7 @@ const messageQueue = {
         // Filter out messages that are too old (over 1 hour)
         const now = Date.now();
         const maxAge = 60 * 60 * 1000; // 1 hour
-        this.github = this.githubMCP.filter(item => (now - item.timestamp) <= maxAge);
+        this.github = this.github.filter(item => (now - item.timestamp) <= maxAge);
         this.tnos = this.tnos.filter(item => (now - item.timestamp) <= maxAge);
 
         log('info', `Loaded message queues: GitHub (${this.github.length}), TNOS (${this.tnos.length})`);
@@ -305,7 +299,15 @@ const messageQueue = {
   }
 };
 
-// Helper function to check if a server is running
+/**
+ * WHO: ServerMonitor
+ * WHAT: Check if a server is running
+ * WHEN: During health check operations
+ * WHERE: System Layer 2 (Reactive)
+ * WHY: To ensure MCP servers are available
+ * HOW: Using HTTP connection status check
+ * EXTENT: All MCP server endpoints
+ */
 function checkServerRunning(host, port) {
   return new Promise((resolve) => {
     const connection = http.get({
@@ -330,7 +332,15 @@ function checkServerRunning(host, port) {
   });
 }
 
-// Function to start servers if they're not running
+/**
+ * WHO: ServerEnsurer
+ * WHAT: Start MCP servers if not running
+ * WHEN: During bridge initialization and recovery
+ * WHERE: System Layer 2 (Reactive)
+ * WHY: To ensure required MCP servers are available
+ * HOW: Using available servers or starting new instances
+ * EXTENT: All MCP server instances
+ */
 async function ensureServersRunning() {
   log('info', 'Checking if MCP servers are running...');
 
@@ -342,8 +352,10 @@ async function ensureServersRunning() {
     log('info', 'Starting MCP servers...');
 
     return new Promise((resolve) => {
-      const startScript = path.join(__dirname, '../../scripts/start_mcp_servers.sh');
+      const tnosRoot = process.env.TNOS_ROOT || '/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS';
+      const startScript = path.join(tnosRoot, 'scripts/start_mcp_servers.sh');
 
+      const { exec } = require('child_process');
       exec(`bash ${startScript}`, (error, stdout, stderr) => {
         if (error) {
           log('error', `Failed to start MCP servers: ${error.message}`);
@@ -362,7 +374,15 @@ async function ensureServersRunning() {
   return true;
 }
 
-// Backoff strategies for reconnection
+/**
+ * WHO: ReconnectionStrategist
+ * WHAT: Manage reconnection attempts with exponential backoff
+ * WHEN: During connection failures
+ * WHERE: System Layer 2 (Reactive)
+ * WHY: To provide resilient connection recovery
+ * HOW: Using exponential delay between attempts
+ * EXTENT: All reconnection operations
+ */
 const backoffStrategies = {
   github: {
     attempts: 0,
@@ -397,7 +417,19 @@ const backoffStrategies = {
 // Flag to indicate if we're shutting down - prevent reconnection attempts during shutdown
 let shuttingDown = false;
 
-// Connect to GitHub MCP server
+/**
+ * MCPBridge.js - Part 3: Connection Functions
+ */
+
+/**
+ * WHO: GitHubMCPConnector
+ * WHAT: Connect to GitHub MCP server
+ * WHEN: During bridge initialization and reconnection
+ * WHERE: System Layer 2 (Reactive)
+ * WHY: To establish communication with GitHub MCP
+ * HOW: Using WebSocket protocol with error handling
+ * EXTENT: All GitHub MCP communications
+ */
 function connectToGithubMcp() {
   log('info', 'Connecting to GitHub MCP server...');
 
@@ -413,15 +445,15 @@ function connectToGithubMcp() {
 
   githubMcpSocket = new WebSocket(CONFIG.githubMcp.wsEndpoint);
 
-  githubMCP.on('open', () => {
+  githubMcpSocket.on('open', () => {
     log('info', 'Connected to GitHub MCP server');
     // Reset the backoff counter on successful connection
-    backoffStrategies.githubMCP.resetBackoff();
+    backoffStrategies.github.resetBackoff();
     // Process queued messages
     messageQueue.processGithubQueue();
   });
 
-  githubMCP.on('message', (data) => {
+  githubMcpSocket.on('message', (data) => {
     try {
       const message = JSON.parse(data);
       log('debug', `Received message from GitHub MCP: ${JSON.stringify(message)}`);
@@ -433,15 +465,15 @@ function connectToGithubMcp() {
     }
   });
 
-  githubMCP.on('error', (error) => {
+  githubMcpSocket.on('error', (error) => {
     log('error', `GitHub MCP WebSocket error: ${error.message}`);
   });
 
-  githubMCP.on('close', (code, reason) => {
+  githubMcpSocket.on('close', (code, reason) => {
     log('warn', `GitHub MCP WebSocket connection closed: Code ${code}${reason ? ', Reason: ' + reason : ''}`);
 
     // Try to reconnect using exponential backoff
-    const nextDelay = backoffStrategies.githubMCP.getNextBackoffDelay();
+    const nextDelay = backoffStrategies.github.getNextBackoffDelay();
     log('info', `Will attempt to reconnect to GitHub MCP server in ${nextDelay}ms (attempt ${backoffStrategies.github.attempts})`);
 
     setTimeout(() => {
@@ -452,7 +484,15 @@ function connectToGithubMcp() {
   });
 }
 
-// Connect to TNOS MCP server
+/**
+ * WHO: TNOSMCPConnector
+ * WHAT: Connect to TNOS MCP server
+ * WHEN: During bridge initialization and reconnection
+ * WHERE: System Layer 2 (Reactive)
+ * WHY: To establish communication with TNOS MCP
+ * HOW: Using WebSocket protocol with error handling and port fallback
+ * EXTENT: All TNOS MCP communications
+ */
 function connectToTnosMcp() {
   log('info', 'Connecting to TNOS MCP server...');
 
@@ -504,7 +544,15 @@ function connectToTnosMcp() {
   setupTnosMcpEventHandlers();
 }
 
-// Set up event handlers for TNOS MCP socket
+/**
+ * WHO: EventHandlerSetup
+ * WHAT: Set up event handlers for TNOS MCP socket
+ * WHEN: During TNOS MCP socket initialization
+ * WHERE: System Layer 2 (Reactive)
+ * WHY: To manage TNOS MCP message processing
+ * HOW: Using WebSocket event listeners
+ * EXTENT: All TNOS MCP message events
+ */
 function setupTnosMcpEventHandlers() {
   if (!tnosMcpSocket) return;
 
@@ -536,17 +584,17 @@ function setupTnosMcpEventHandlers() {
 }
 
 /**
- * Execute a formula from the TNOS Formula Registry
- * @param {Object} params - Formula execution parameters
- * @returns {Promise<Object>} - Formula execution result
- * 
- * # WHO: MCPBridge.executeFormula
- * # WHAT: Execute formulas from the TNOS Formula Registry
- * # WHEN: When formula execution is requested through MCP
- * # WHERE: /Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/mcp
- * # WHY: To provide formula execution capabilities
- * # HOW: Using formula registry and TNOS MCP
- * # EXTENT: All registered formulas
+ * MCPBridge.js - Part 4: Message Processing Functions
+ */
+
+/**
+ * WHO: FormulaExecutor
+ * WHAT: Execute formulas from the TNOS Formula Registry
+ * WHEN: When formula execution is requested through MCP
+ * WHERE: System Layer 2 (Reactive)
+ * WHY: To provide formula execution capabilities
+ * HOW: Using formula registry and TNOS MCP
+ * EXTENT: All registered formulas
  */
 async function executeFormula(params) {
   const { formulaName, parameters } = params;
@@ -636,17 +684,13 @@ async function executeFormula(params) {
 }
 
 /**
- * Query the TNOS 7D context system
- * @param {Object} params - Query parameters
- * @returns {Promise<Object>} - Query result
- * 
- * # WHO: MCPBridge.queryDimensionalContext
- * # WHAT: Query the TNOS 7D context system
- * # WHEN: When dimensional context queries are made
- * # WHERE: /Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/mcp
- * # WHY: To provide access to 7D context information
- * # HOW: Using context bridge with dimensional mapping
- * # EXTENT: All 7D context dimensions
+ * WHO: ContextQueryHandler
+ * WHAT: Query the TNOS 7D context system
+ * WHEN: When dimensional context queries are made
+ * WHERE: System Layer 2 (Reactive)
+ * WHY: To provide access to 7D context information
+ * HOW: Using context bridge with dimensional mapping
+ * EXTENT: All 7D context dimensions
  */
 async function queryDimensionalContext(params) {
   const { dimension, query, recursiveDepth = 3 } = params;
@@ -655,7 +699,7 @@ async function queryDimensionalContext(params) {
 
   try {
     // Use the 7D Context Bridge to query the context
-    const result = await contextBridge.queryDimensionalContext(dimension, query, recursiveDepth);
+    const result = await contextBridge.queryContext('tnos7d', dimension);
     return result;
   } catch (error) {
     log('error', `Error querying dimensional context: ${error.message}`);
@@ -667,16 +711,12 @@ async function queryDimensionalContext(params) {
 }
 
 /**
- * Perform Möbius compression on data by delegating to Layer 0
- * @param {Object} params - Compression parameters
- * @returns {Object} - Compression result
- * 
- * WHO: MCPBridge.performMobiusCompression
+ * WHO: MobiusCompressionHandler
  * WHAT: Compression request dispatcher
  * WHEN: When compression is requested through MCP
- * WHERE: System Layer 6 (Integration)
- * WHY: To delegate compression to Layer 0
- * HOW: Using formula registry and IPC
+ * WHERE: System Layer 2 (Reactive)
+ * WHY: To delegate compression operations
+ * HOW: Using MobiusCompression with context
  * EXTENT: All compression requests
  */
 function performMobiusCompression(params) {
@@ -689,7 +729,7 @@ function performMobiusCompression(params) {
       inputData.length :
       JSON.stringify(inputData).length;
   }
-  log('info', `Delegating Möbius compression of ${dataSize} bytes to Layer 0`);
+  log('info', `Performing Möbius compression of ${dataSize} bytes`);
 
   try {
     // Create standardized 7D context vector
@@ -697,88 +737,55 @@ function performMobiusCompression(params) {
       who: context.who || 'MCPBridge',
       what: context.what || 'DataCompression',
       when: context.when || Date.now(),
-      where: context.where || 'System Layer 6 (Integration)',
+      where: context.where || 'System Layer 2 (Reactive)',
       why: context.why || 'OptimizeDataTransfer',
       how: context.how || 'MobiusFormula',
       extent: context.extent || 1.0
     };
 
-    // Prepare IPC request for Layer 0
-    const requestId = `compression-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    // Perform compression
+    const compressionResult = MobiusCompression.compress(inputData, {
+      context: contextVector,
+      useTimeFactor,
+      useEnergyFactor
+    });
 
-    // Create temp files for formula execution
-    const tempDir = path.join(CONFIG.logging.logDir, 'temp');
-    if (!fs.existsSync(tempDir)) {
-      fs.mkdirSync(tempDir, { recursive: true });
-    }
+    log('debug', `Compression complete: ratio=${compressionResult.compressionRatio || 'N/A'}`);
 
-    const inputFile = path.join(tempDir, `compression_input_${requestId}.json`);
-    const outputFile = path.join(tempDir, `compression_output_${requestId}.json`);
-
-    // Write input data to file for Layer 0 processor
-    fs.writeFileSync(inputFile, JSON.stringify({
-      requestId,
-      data: inputData,
-      contextVector,
-      options: {
-        useTimeFactor,
-        useEnergyFactor,
-        algorithm: "mobius7d",
-        version: "1.0"
-      }
-    }));
-
-    // Execute Layer 0 formula processor
-    const { execSync } = require('child_process');
-    const binaryPath = path.join(process.env.TNOS_ROOT || '/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS',
-      'bin/test_formula_compression');
-
-    execSync(`${binaryPath} --input=${inputFile} --output=${outputFile} --formula=mobius`);
-
-    // Read result from Layer 0 processor
-    const result = JSON.parse(fs.readFileSync(outputFile, 'utf8'));
-
-    // Clean up temp files
-    fs.unlinkSync(inputFile);
-    fs.unlinkSync(outputFile);
-
-    log('debug', `Layer 0 compression complete: ratio=${result.compressionRatio || 'N/A'}`);
-
-    // Return standard response with Layer 0 results
+    // Return standard response with compression results
     return {
       success: true,
-      originalSize: result.originalSize || dataSize,
-      compressedSize: result.compressedSize,
-      compressionRatio: result.compressionRatio,
-      energyFactor: result.energyFactor,
-      data: result.data,
-      metadata: result.metadata,
+      originalSize: compressionResult.originalSize || dataSize,
+      compressedSize: compressionResult.compressedSize,
+      compressionRatio: compressionResult.compressionRatio,
+      data: compressionResult.data,
+      metadata: compressionResult.metadata,
       contextVector: contextVector,
       timestamp: new Date().toISOString()
     };
   } catch (error) {
-    log('error', `Error delegating compression to Layer 0: ${error.message}`);
+    log('error', `Error performing compression: ${error.message}`);
 
     // Return error response
     return {
       success: false,
       originalSize: dataSize,
-      error: `Compression delegation failed: ${error.message}`,
+      error: `Compression failed: ${error.message}`,
       timestamp: new Date().toISOString()
     };
   }
 }
 
-// Process message from GitHub MCP
+/**
+ * WHO: GitHubMessageProcessor
+ * WHAT: Process incoming messages from GitHub MCP
+ * WHEN: When messages arrive from GitHub MCP server
+ * WHERE: System Layer 2 (Reactive)
+ * WHY: To transform and forward GitHub messages to TNOS
+ * HOW: Using context transformation and reliable delivery
+ * EXTENT: All GitHub-to-TNOS message traffic
+ */
 function processGithubMcpMessage(message) {
-  // WHO: MCPBridge.processGithubMcpMessage
-  // WHAT: Process incoming messages from GitHub MCP
-  // WHEN: When messages arrive from GitHub MCP server
-  // WHERE: /Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/mcp
-  // WHY: To transform and forward GitHub messages to TNOS
-  // HOW: Using context transformation and reliable delivery
-  // EXTENT: All GitHub-to-TNOS message traffic
-
   // Check if the message is a formula execution request
   if (message.type === 'execute_formula' || (message.path && message.path.includes('formula'))) {
     const formulaParams = message.data || message.parameters || {};
@@ -787,7 +794,7 @@ function processGithubMcpMessage(message) {
     executeFormula(formulaParams).then(result => {
       // Send the result back to GitHub MCP
       if (githubMcpSocket && githubMcpSocket.readyState === WebSocket.OPEN) {
-        githubMCP.send(JSON.stringify({
+        githubMcpSocket.send(JSON.stringify({
           type: 'formula_result',
           requestId: message.requestId,
           data: result
@@ -796,25 +803,48 @@ function processGithubMcpMessage(message) {
     }).catch(error => {
       log('error', `Error executing formula: ${error.message}`);
     });
+
+    return; // Formula requests are handled separately
   }
 
   // Check if the message is a compression request
   else if (message.type === 'compression' || (message.path && message.path.includes('compression'))) {
     const compressionParams = message.data || message.parameters || {};
 
-    // Perform compression asynchronously
-    performMobiusCompression(compressionParams).then(result => {
+    // Perform compression
+    const result = performMobiusCompression(compressionParams);
+
+    // Send the result back to GitHub MCP
+    if (githubMcpSocket && githubMcpSocket.readyState === WebSocket.OPEN) {
+      githubMcpSocket.send(JSON.stringify({
+        type: 'compression_result',
+        requestId: message.requestId,
+        data: result
+      }));
+    }
+
+    return; // Compression requests are handled separately
+  }
+
+  // Check if the message is a context query
+  else if (message.type === 'query_context' || (message.path && message.path.includes('context'))) {
+    const queryParams = message.data || message.parameters || {};
+
+    // Query context
+    queryDimensionalContext(queryParams).then(result => {
       // Send the result back to GitHub MCP
       if (githubMcpSocket && githubMcpSocket.readyState === WebSocket.OPEN) {
-        githubMCP.send(JSON.stringify({
-          type: 'compression_result',
+        githubMcpSocket.send(JSON.stringify({
+          type: 'context_result',
           requestId: message.requestId,
           data: result
         }));
       }
     }).catch(error => {
-      log('error', `Error performing compression: ${error.message}`);
+      log('error', `Error querying context: ${error.message}`);
     });
+
+    return; // Context queries are handled separately
   }
 
   // Save context data to persistence
@@ -845,16 +875,16 @@ function processGithubMcpMessage(message) {
   broadcastToClients(message);
 }
 
-// Process message from TNOS MCP
+/**
+ * WHO: TNOSMessageProcessor
+ * WHAT: Process incoming messages from TNOS MCP
+ * WHEN: When messages arrive from TNOS MCP server
+ * WHERE: System Layer 2 (Reactive)
+ * WHY: To transform and forward TNOS messages to GitHub
+ * HOW: Using context transformation and reliable delivery
+ * EXTENT: All TNOS-to-GitHub message traffic
+ */
 function processTnosMcpMessage(message) {
-  // WHO: MCPBridge.processTnosMcpMessage
-  // WHAT: Process incoming messages from TNOS MCP
-  // WHEN: When messages arrive from TNOS MCP server
-  // WHERE: /Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/mcp
-  // WHY: To transform and forward TNOS messages to GitHub
-  // HOW: Using context transformation and reliable delivery
-  // EXTENT: All TNOS-to-GitHub message traffic
-
   // Save context data to persistence
   if (message.type === 'context' || (message.path && message.path === '/context')) {
     contextPersistence.mergeContext(message.data, 'tnos7d');
@@ -866,7 +896,7 @@ function processTnosMcpMessage(message) {
   // Forward to GitHub MCP with reliability
   if (githubMcpSocket && githubMcpSocket.readyState === WebSocket.OPEN) {
     try {
-      githubMCP.send(JSON.stringify(githubMessage));
+      githubMcpSocket.send(JSON.stringify(githubMessage));
       log('debug', `Forwarded message to GitHub MCP: ${JSON.stringify(githubMessage)}`);
     } catch (error) {
       log('error', `Error forwarding message to GitHub MCP: ${error.message}`);
@@ -883,7 +913,15 @@ function processTnosMcpMessage(message) {
   broadcastToClients(message);
 }
 
-// Broadcast message to all connected clients
+/**
+ * WHO: ClientBroadcaster
+ * WHAT: Broadcast messages to connected clients
+ * WHEN: After processing MCP messages
+ * WHERE: System Layer 2 (Reactive)
+ * WHY: To update monitoring clients with message status
+ * HOW: Using WebSocket broadcast to all clients
+ * EXTENT: All connected client sockets
+ */
 function broadcastToClients(message) {
   clientSockets.forEach((client) => {
     if (client.readyState === WebSocket.OPEN) {
@@ -892,7 +930,38 @@ function broadcastToClients(message) {
   });
 }
 
-// Sync context between the two servers
+// Update module exports
+module.exports = {
+  log,
+  CONFIG,
+  messageQueue,
+  checkServerRunning,
+  ensureServersRunning,
+  backoffStrategies,
+  connectToGithubMcp,
+  connectToTnosMcp,
+  setupTnosMcpEventHandlers,
+  executeFormula,
+  queryDimensionalContext,
+  performMobiusCompression,
+  processGithubMcpMessage,
+  processTnosMcpMessage,
+  broadcastToClients
+};
+
+/**
+ * MCPBridge.js - Part 5: Context Sync, Health Check, and Bridge Server
+ */
+
+/**
+ * WHO: ContextSynchronizer
+ * WHAT: Sync context between MCP servers
+ * WHEN: During context sync intervals
+ * WHERE: System Layer 2 (Reactive)
+ * WHY: To maintain context consistency
+ * HOW: Using bidirectional context transformation
+ * EXTENT: All context synchronization
+ */
 async function syncContext() {
   try {
     log('info', 'Syncing context between MCP servers...');
@@ -917,7 +986,7 @@ async function syncContext() {
     }
 
     if (githubMcpSocket && githubMcpSocket.readyState === WebSocket.OPEN) {
-      githubMCP.send(JSON.stringify({
+      githubMcpSocket.send(JSON.stringify({
         type: 'context',
         data: githubFormatted
       }));
@@ -930,7 +999,15 @@ async function syncContext() {
   }
 }
 
-// Perform health check on MCP servers
+/**
+ * WHO: HealthChecker
+ * WHAT: Perform health check on MCP servers
+ * WHEN: During health check intervals
+ * WHERE: System Layer 2 (Reactive)
+ * WHY: To ensure system reliability
+ * HOW: Using HTTP status checks with reconnection
+ * EXTENT: All MCP server instances
+ */
 async function healthCheck() {
   try {
     log('debug', 'Performing health check on MCP servers...');
@@ -944,7 +1021,7 @@ async function healthCheck() {
 
       // Try to reconnect WebSocket
       if (githubMcpSocket) {
-        githubMCP.terminate();
+        githubMcpSocket.terminate();
       }
       connectToGithubMcp();
     }
@@ -968,17 +1045,111 @@ async function healthCheck() {
   }
 }
 
-// Start the bridge server
+/**
+ * WHO: ClientCommandProcessor
+ * WHAT: Process commands from monitoring clients
+ * WHEN: When clients send command messages
+ * WHERE: System Layer 2 (Reactive)
+ * WHY: To allow bridge control and monitoring
+ * HOW: Using command pattern with response
+ * EXTENT: All bridge control commands
+ */
+function processClientCommand(message, ws) {
+  const { command, params } = message;
+
+  switch (command) {
+    case 'status':
+      ws.send(JSON.stringify({
+        type: 'response',
+        command: 'status',
+        status: {
+          githubConnection: githubMcpSocket && githubMcpSocket.readyState === WebSocket.OPEN ? 'connected' : 'disconnected',
+          tnosConnection: tnosMcpSocket && tnosMcpSocket.readyState === WebSocket.OPEN ? 'connected' : 'disconnected',
+          queuedMessages: {
+            github: messageQueue.github.length,
+            tnos: messageQueue.tnos.length
+          },
+          compressionStats: MobiusCompression.getStatistics(),
+          uptime: process.uptime(),
+          timestamp: Date.now()
+        }
+      }));
+      break;
+
+    case 'reconnect':
+      if (params && params.target === 'github') {
+        if (githubMcpSocket) githubMcpSocket.terminate();
+        connectToGithubMcp();
+        ws.send(JSON.stringify({
+          type: 'response',
+          command: 'reconnect',
+          status: 'reconnecting',
+          target: 'github'
+        }));
+      }
+      else if (params && params.target === 'tnos') {
+        if (tnosMcpSocket) tnosMcpSocket.terminate();
+        connectToTnosMcp();
+        ws.send(JSON.stringify({
+          type: 'response',
+          command: 'reconnect',
+          status: 'reconnecting',
+          target: 'tnos'
+        }));
+      }
+      else {
+        // Reconnect both
+        if (githubMcpSocket) githubMcpSocket.terminate();
+        if (tnosMcpSocket) tnosMcpSocket.terminate();
+        connectToGithubMcp();
+        connectToTnosMcp();
+        ws.send(JSON.stringify({
+          type: 'response',
+          command: 'reconnect',
+          status: 'reconnecting',
+          target: 'all'
+        }));
+      }
+      break;
+
+    case 'sync':
+      syncContext().then(() => {
+        ws.send(JSON.stringify({
+          type: 'response',
+          command: 'sync',
+          status: 'completed'
+        }));
+      }).catch(error => {
+        ws.send(JSON.stringify({
+          type: 'response',
+          command: 'sync',
+          status: 'error',
+          error: error.message
+        }));
+      });
+      break;
+
+    default:
+      ws.send(JSON.stringify({
+        type: 'response',
+        command: command,
+        status: 'unknown',
+        error: 'Unknown command'
+      }));
+  }
+}
+
+/**
+ * WHO: BridgeStarter
+ * WHAT: Initialize and start MCP bridge server
+ * WHEN: System startup or manual restart
+ * WHERE: System Layer 2 (Reactive)
+ * WHY: To establish reliable bidirectional communication
+ * HOW: Using WebSockets with resilient error handling
+ * EXTENT: All cross-system communication
+ */
 async function startBridge() {
   try {
-    // WHO: MCPBridge.startBridge
-    // WHAT: Initialize and start MCP bridge server
-    // WHEN: System startup or manual restart
-    // WHERE: /Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/mcp
-    // WHY: To establish reliable bidirectional communication
-    // HOW: Using WebSockets with resilient error handling
-    // EXTENT: All cross-system communication
-
     // Ensure MCP servers are running
     const serversRunning = await ensureServersRunning();
 
@@ -1064,118 +1235,61 @@ async function startBridge() {
 
     wss.on('connection', (ws) => {
       log('info', 'Client connected to bridge');
+
+      // Add to client set for broadcasting
       clientSockets.add(ws);
+
+      // Send initial status
+      ws.send(JSON.stringify({
+        type: 'status',
+        status: 'connected',
+        githubConnection: githubMcpSocket && githubMcpSocket.readyState === WebSocket.OPEN ? 'connected' : 'disconnected',
+        tnosConnection: tnosMcpSocket && tnosMcpSocket.readyState === WebSocket.OPEN ? 'connected' : 'disconnected',
+        timestamp: Date.now()
+      }));
 
       ws.on('message', (data) => {
         try {
           const message = JSON.parse(data);
-          log('debug', `Received message from client: ${JSON.stringify(message)}`);
 
-          // Handle message by type
-          handleClientMessage(ws, message);
+          // Process client command
+          if (message.type === 'command') {
+            processClientCommand(message, ws);
+          }
+
+          // Forward other messages based on target
+          else if (message.target === 'github') {
+            if (githubMcpSocket && githubMcpSocket.readyState === WebSocket.OPEN) {
+              githubMcpSocket.send(JSON.stringify(message.data));
+            } else {
+              messageQueue.queueForGithub(message.data);
+              ws.send(JSON.stringify({
+                type: 'response',
+                status: 'queued',
+                original: message
+              }));
+            }
+          }
+          else if (message.target === 'tnos') {
+            if (tnosMcpSocket && tnosMcpSocket.readyState === WebSocket.OPEN) {
+              tnosMcpSocket.send(JSON.stringify(message.data));
+            } else {
+              messageQueue.queueForTnos(message.data);
+              ws.send(JSON.stringify({
+                type: 'response',
+                status: 'queued',
+                original: message
+              }));
+            }
+          }
         } catch (error) {
           log('error', `Error processing client message: ${error.message}`);
+          ws.send(JSON.stringify({
+            type: 'error',
+            error: error.message
+          }));
         }
       });
-
-      // WHO: MCPBridge.handleClientMessage
-      // WHAT: Process messages from bridge clients
-      // WHEN: When a client sends a message
-      // WHERE: Bridge WebSocket server
-      // WHY: To dispatch messages to appropriate handlers
-      // HOW: By examining message type and routing accordingly
-      // EXTENT: All client messages
-      function handleClientMessage(ws, message) {
-        // Handle formula execution requests
-        if (isFormulaExecutionRequest(message)) {
-          handleFormulaExecution(ws, message);
-          return;
-        }
-
-        // Handle compression requests
-        if (isCompressionRequest(message)) {
-          handleCompressionRequest(ws, message);
-          return;
-        }
-
-        // Forward message to appropriate target(s)
-        forwardClientMessage(message);
-      }
-
-      // Check if message is a formula execution request
-      function isFormulaExecutionRequest(message) {
-        return message.type === 'execute_formula' ||
-          (message.target === 'tnos' && message.data && message.data.type === 'execute_formula');
-      }
-
-      // Handle formula execution request
-      function handleFormulaExecution(ws, message) {
-        const formulaParams = message.data || message.parameters || {};
-        executeFormula(formulaParams).then(result => {
-          ws.send(JSON.stringify({
-            type: 'formula_result',
-            requestId: message.requestId,
-            data: result
-          }));
-        }).catch(error => {
-          log('error', `Error executing formula: ${error.message}`);
-        });
-      }
-
-      // Check if message is a compression request
-      function isCompressionRequest(message) {
-        return message.type === 'compression' ||
-          (message.target === 'tnos' && message.data && message.data.type === 'compression');
-      }
-
-      // Handle compression request
-      function handleCompressionRequest(ws, message) {
-        const compressionParams = message.data || message.parameters || {};
-        performMobiusCompression(compressionParams).then(result => {
-          ws.send(JSON.stringify({
-            type: 'compression_result',
-            requestId: message.requestId,
-            data: result
-          }));
-        }).catch(error => {
-          log('error', `Error performing compression: ${error.message}`);
-        });
-      }
-
-      // Forward client message to appropriate target(s)
-      function forwardClientMessage(message) {
-        if (message.target === 'github') {
-          sendToGithubMcp(message.data);
-        } else if (message.target === 'tnos') {
-          sendToTnosMcp(message.data);
-        } else {
-          // Broadcast to both servers
-          sendToGithubMcp(message.data);
-          sendToTnosMcp(message.data);
-        }
-      }
-
-      // Send message to GitHub MCP or queue if not available
-      function sendToGithubMcp(data) {
-        if (githubMcpSocket && githubMcpSocket.readyState === WebSocket.OPEN) {
-          githubMcpSocket.send(JSON.stringify(data));
-          log('debug', `Forwarded message to GitHub MCP: ${JSON.stringify(data)}`);
-        } else {
-          // Queue message for later processing
-          messageQueue.queueForGithub(data);
-        }
-      }
-
-      // Send message to TNOS MCP or queue if not available
-      function sendToTnosMcp(data) {
-        if (tnosMcpSocket && tnosMcpSocket.readyState === WebSocket.OPEN) {
-          tnosMcpSocket.send(JSON.stringify(data));
-          log('debug', `Forwarded message to TNOS MCP: ${JSON.stringify(data)}`);
-        } else {
-          // Queue message for later processing
-          messageQueue.queueForTnos(data);
-        }
-      }
 
       ws.on('close', () => {
         log('info', 'Client disconnected from bridge');
@@ -1183,195 +1297,92 @@ async function startBridge() {
       });
 
       ws.on('error', (error) => {
-        log('error', `WebSocket client error: ${error.message}`);
-        // Remove problematic clients
+        log('error', `Client WebSocket error: ${error.message}`);
         clientSockets.delete(ws);
       });
     });
 
-    // Handle WebSocket server errors
-    wss.on('error', (error) => {
-      log('error', `WebSocket server error: ${error.message}`);
-    });
-
     // Start HTTP server
     server.listen(CONFIG.bridge.port, () => {
-      log('info', `MCP Bridge running on port ${CONFIG.bridge.port}`);
+      log('info', `MCP Bridge server running on port ${CONFIG.bridge.port}`);
     });
 
-    // Set up periodic context sync with error handling
-    setInterval(() => {
-      syncContext().catch(error => {
-        log('error', `Error in scheduled context sync: ${error.message}`);
+    // Setup interval for context synchronization
+    setInterval(syncContext, CONFIG.bridge.contextSyncInterval);
+
+    // Setup interval for health checks
+    setInterval(healthCheck, CONFIG.bridge.healthCheckInterval);
+
+    // Handle graceful shutdown
+    process.on('SIGINT', () => {
+      log('info', 'Received SIGINT, shutting down MCP bridge...');
+      shuttingDown = true;
+
+      // Close client connections
+      for (const client of clientSockets) {
+        client.close();
+      }
+
+      // Close server connections
+      if (githubMcpSocket) githubMcpSocket.close();
+      if (tnosMcpSocket) tnosMcpSocket.close();
+
+      // Close HTTP server
+      server.close(() => {
+        log('info', 'MCP Bridge shutdown complete');
+        process.exit(0);
       });
-    }, CONFIG.bridge.contextSyncInterval);
 
-    // Set up periodic health check with error handling
-    setInterval(() => {
-      healthCheck().catch(error => {
-        log('error', `Error in scheduled health check: ${error.message}`);
-      });
-    }, CONFIG.bridge.healthCheckInterval);
-
-    // Perform initial context sync after a short delay
-    setTimeout(() => {
-      syncContext().catch(error => {
-        log('error', `Error in initial context sync: ${error.message}`);
-      });
-    }, 5000);
-
-    // Handle process shutdown
-    process.on('SIGINT', shutdown);
-    process.on('SIGTERM', shutdown);
-
-    // Handle uncaught exceptions to prevent bridge from crashing
-    process.on('uncaughtException', (error) => {
-      log('error', `Uncaught exception: ${error.message}`);
-      log('error', error.stack);
-      // Don't exit process - try to keep the bridge running
+      // Force exit after timeout
+      setTimeout(() => {
+        log('warn', 'Forced exit due to shutdown timeout');
+        process.exit(1);
+      }, 5000);
     });
 
-    // Handle unhandled promise rejections
-    process.on('unhandledRejection', (reason, promise) => {
-      log('error', `Unhandled promise rejection: ${reason}`);
-      // Don't exit process - try to keep the bridge running
-    });
-
-    log('info', 'MCP Bridge started successfully');
+    return true;
   } catch (error) {
-    log('error', `Error starting MCP Bridge: ${error.message}`);
-    // Instead of exiting, schedule a retry
-    setTimeout(() => {
-      log('info', 'Retrying bridge startup...');
-      startBridge();
-    }, 10000); // Try again in 10 seconds
+    log('error', `Error starting MCP bridge: ${error.message}`);
+    return false;
   }
 }
 
-// Graceful shutdown
-async function shutdown() {
-  // WHO: MCPBridge.shutdown
-  // WHAT: Perform graceful shutdown of MCP Bridge
-  // WHEN: During system termination or manual restart
-  // WHERE: /Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/mcp
-  // WHY: To ensure clean termination without data loss
-  // HOW: Using orderly connection closure and persistence
-  // EXTENT: All Bridge components and connections
-
-  log('info', 'Shutting down MCP Bridge...');
-
-  // Set shutting down flag to prevent reconnection attempts during shutdown
-  shuttingDown = true;
-
-  // Persist any remaining queued messages
-  messageQueue._persistQueues();
-
-  // Final context sync attempt with error handling
-  try {
-    await syncContext();
-    log('info', 'Final context sync completed');
-  } catch (error) {
-    log('error', `Error in final context sync: ${error.message}`);
-  }
-
-  // Close WebSocket connections gracefully
-  if (githubMcpSocket) {
-    try {
-      githubMCP.close(1000, "Bridge shutting down");
-    } catch (error) {
-      log('warn', `Error closing GitHub MCP connection: ${error.message}`);
-    }
-  }
-
-  if (tnosMcpSocket) {
-    try {
-      tnosMcpSocket.close(1000, "Bridge shutting down");
-    } catch (error) {
-      log('warn', `Error closing TNOS MCP connection: ${error.message}`);
-    }
-  }
-
-  // Close client connections
-  let clientClosePromises = [];
-  clientSockets.forEach((client) => {
-    if (client.readyState === WebSocket.OPEN) {
-      const promise = new Promise((resolve) => {
-        client.once('close', resolve);
-        client.close(1000, "Bridge shutting down");
-        // Ensure we don't hang forever waiting for clients
-        setTimeout(resolve, 1000);
-      });
-      clientClosePromises.push(promise);
-    }
-  });
-
-  // Wait for all clients to close or timeout
-  if (clientClosePromises.length > 0) {
-    try {
-      await Promise.all(clientClosePromises);
-      log('info', 'All client connections closed');
-    } catch (error) {
-      log('warn', `Error waiting for client connections to close: ${error.message}`);
-    }
-  }
-
-  log('info', 'MCP Bridge shut down gracefully');
-  process.exit(0);
-}
-
-// Export the functions that were in bridge.js for compatibility
+// Final module exports
 module.exports = {
+  log,
+  CONFIG,
+  messageQueue,
+  checkServerRunning,
+  ensureServersRunning,
+  backoffStrategies,
+  connectToGithubMcp,
+  connectToTnosMcp,
+  setupTnosMcpEventHandlers,
   executeFormula,
   queryDimensionalContext,
   performMobiusCompression,
-  syncContext: synchronizeContext,
-  initialize: startBridge,
-  // Legacy function renamed to match new implementation
-  synchronizeContext: syncContext,
-  sendTnosMcpMessage: function (params) {
-    const { targetLayer, messageType, payload } = params;
-    if (tnosMcpSocket && tnosMcpSocket.readyState === WebSocket.OPEN) {
-      try {
-        tnosMcpSocket.send(JSON.stringify({
-          type: 'layer_message',
-          data: {
-            targetLayer,
-            messageType,
-            payload
-          }
-        }));
-        return {
-          success: true,
-          message: `Message sent to Layer ${targetLayer}`,
-          timestamp: new Date().toISOString()
-        };
-      } catch (error) {
-        log('error', `Error sending message to TNOS MCP: ${error.message}`);
-        return {
-          error: `Error sending message to TNOS MCP: ${error.message}`,
-          success: false
-        };
-      }
-    } else {
-      messageQueue.queueForTnos({
-        type: 'layer_message',
-        data: {
-          targetLayer,
-          messageType,
-          payload
-        }
-      });
-      return {
-        success: true,
-        message: `Message queued for Layer ${targetLayer}`,
-        timestamp: new Date().toISOString()
-      };
-    }
-  }
+  processGithubMcpMessage,
+  processTnosMcpMessage,
+  broadcastToClients,
+  syncContext,
+  healthCheck,
+  processClientCommand,
+  startBridge
 };
 
-// Start the bridge
-startBridge();
+// Start the bridge when executed directly
+if (require.main === module) {
+  log('info', 'Starting MCP Bridge...');
+  startBridge().then(success => {
+    if (!success) {
+      log('error', 'Failed to start MCP Bridge');
+      process.exit(1);
+    }
+  }).catch(error => {
+    log('error', `Error in MCP Bridge startup: ${error.message}`);
+    process.exit(1);
+  });
+}
 
 
 

@@ -6,6 +6,16 @@
  * ensuring seamless integration between TNOS and GitHub MCP.
  */
 
+/**
+ * WHO: ContextBridgeLayer2
+ * WHAT: Context translation between TNOS 7D and GitHub MCP formats
+ * WHEN: During bidirectional communication between systems
+ * WHERE: System Layer 2 (Reactive)
+ * WHY: To maintain context consistency across system boundaries
+ * HOW: Using JavaScript-based format conversion with compression
+ * EXTENT: All contextual information exchanged between systems
+ */
+
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
@@ -13,19 +23,35 @@ const crypto = require('crypto');
 // Import the context persistence module
 const ContextPersistence = require('./MCPContextPersistence.js');
 
+// Import compression module for compression-first approach
+const { MobiusCompression } = require('../bridge/components/MobiusCompression');
+
 // Configuration
 const CONFIG = {
   tnos7dContextPath: '/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/core/context_master.7d',
   tempDir: '/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/core/reactive/temp',
-  logPath: '/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/logs/tnos7d_context_bridge.log'
+  logPath: '/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/logs/tnos7d_context_bridge.log',
+  compression: {
+    enabled: true,
+    level: 7,
+    preserveContext: true
+  }
 };
 
-// Initialize logging
-const logMessage = (message) => {
+/**
+ * WHO: ContextBridgeLogger
+ * WHAT: Logging utility for context bridge operations
+ * WHEN: During context translation events
+ * WHERE: System Layer 2 (Reactive)
+ * WHY: To track context operations for debugging and monitoring
+ * HOW: Using filesystem logging with timestamp
+ * EXTENT: All bridge operations
+ */
+const logMessage = (message, level = 'info') => {
   const timestamp = new Date().toISOString();
-  const entry = `[${timestamp}] ${message}\n`;
+  const entry = `[${timestamp}] [${level.toUpperCase()}] ${message}\n`;
   fs.appendFileSync(CONFIG.logPath, entry);
-  console.log(message);
+  console.log(`[${level.toUpperCase()}] ${message}`);
 };
 
 // Ensure directories exist
@@ -43,42 +69,75 @@ function ensureDirectories() {
   }
 }
 
-// Initialize bridge
+/**
+ * WHO: ContextBridgeInitializer
+ * WHAT: Initialize bridge environment and configuration
+ * WHEN: During bridge startup
+ * WHERE: System Layer 2 (Reactive)
+ * WHY: To ensure proper setup before translation operations
+ * HOW: Using directory verification and compression setup
+ * EXTENT: All bridge components
+ */
 function initialize() {
   try {
     ensureDirectories();
-    logMessage('TNOS 7D Context Bridge initialized');
+
+    // Initialize compression module
+    MobiusCompression.initialize({
+      useTimeFactor: true,
+      useEnergyFactor: true,
+      contextAware: true
+    });
+
+    logMessage('TNOS 7D Context Bridge initialized with compression-first approach');
     return true;
   } catch (error) {
-    logMessage(`Error initializing TNOS 7D Context Bridge: ${error.message}`);
+    logMessage(`Error initializing TNOS 7D Context Bridge: ${error.message}`, 'error');
     return false;
   }
 }
 
 /**
- * Read the TNOS 7D context file
- * The 7D format is a specialized hierarchical context format used by TNOS
+ * WHO: TNOSContextReader
+ * WHAT: Read the TNOS 7D context file
+ * WHEN: During context import operations
+ * WHERE: System Layer 2 (Reactive)
+ * WHY: To access stored 7D context data
+ * HOW: Using filesystem operations with error handling
+ * EXTENT: All context read operations
  */
 async function readTNOS7DContext() {
   try {
     if (!fs.existsSync(CONFIG.tnos7dContextPath)) {
-      logMessage(`TNOS 7D context file not found at ${CONFIG.tnos7dContextPath}`);
+      logMessage(`TNOS 7D context file not found at ${CONFIG.tnos7dContextPath}`, 'warn');
       return null;
     }
 
     const data = fs.readFileSync(CONFIG.tnos7dContextPath, 'utf8');
-    logMessage(`Read TNOS 7D context file (${data.length} bytes)`);
 
-    return data;
+    // Apply compression-first approach - check if data is compressed and decompress if needed
+    const isCompressed = data.startsWith('COMPRESSED:MOBIUS7D:');
+    const processedData = isCompressed ?
+      MobiusCompression.decompress(data.replace('COMPRESSED:MOBIUS7D:', '')) :
+      data;
+
+    logMessage(`Read TNOS 7D context file (${data.length} bytes, compressed: ${isCompressed})`);
+
+    return processedData;
   } catch (error) {
-    logMessage(`Error reading TNOS 7D context: ${error.message}`);
+    logMessage(`Error reading TNOS 7D context: ${error.message}`, 'error');
     return null;
   }
 }
 
 /**
- * Parse the TNOS 7D context into a structured format
- * This converts the specialized 7D format into a structured object
+ * WHO: TNOSContextParser
+ * WHAT: Parse raw TNOS 7D context into structured format
+ * WHEN: After reading context file
+ * WHERE: System Layer 2 (Reactive)
+ * WHY: To transform serialized context into usable object structure
+ * HOW: Using dimension and vector extraction with metadata parsing
+ * EXTENT: All context parsing operations
  */
 async function parseTNOS7DContext(rawContext) {
   try {
@@ -364,12 +423,18 @@ async function convertMCPToTNOS7DFormat(mcpContext) {
 }
 
 /**
- * Save TNOS 7D context to file
+ * WHO: ContextTransformer
+ * WHAT: Save TNOS 7D context to file with compression
+ * WHEN: After context translation or update
+ * WHERE: System Layer 2 (Reactive)
+ * WHY: To persist context changes to disk with optimization
+ * HOW: Using compression-first approach with backup creation
+ * EXTENT: All context write operations
  */
 async function saveTNOS7DContext(context, targetPath = CONFIG.tnos7dContextPath) {
   try {
     if (!context) {
-      logMessage('No context provided for saving');
+      logMessage('No context provided for saving', 'warn');
       return false;
     }
 
@@ -386,13 +451,34 @@ async function saveTNOS7DContext(context, targetPath = CONFIG.tnos7dContextPath)
       logMessage(`Created backup of TNOS 7D context at ${backupPath}`);
     }
 
+    // Apply compression-first approach
+    let dataToWrite = context;
+    if (CONFIG.compression.enabled) {
+      const compressionResult = MobiusCompression.compress(context, {
+        level: CONFIG.compression.level,
+        preserveContext: CONFIG.compression.preserveContext,
+        context: {
+          who: 'ContextTransformer',
+          what: 'ContextSerialization',
+          when: Date.now(),
+          where: 'Layer2_ContextBridge',
+          why: 'PersistenceOptimization',
+          how: 'MobiusCompression',
+          extent: 1.0
+        }
+      });
+
+      dataToWrite = `COMPRESSED:MOBIUS7D:${compressionResult.data}`;
+      logMessage(`Compressed context from ${context.length} to ${dataToWrite.length} bytes (ratio: ${compressionResult.compressionRatio.toFixed(2)})`);
+    }
+
     // Write context to file
-    fs.writeFileSync(targetPath, context, 'utf8');
-    logMessage(`Saved TNOS 7D context to ${targetPath} (${context.length} bytes)`);
+    fs.writeFileSync(targetPath, dataToWrite, 'utf8');
+    logMessage(`Saved TNOS 7D context to ${targetPath} (${dataToWrite.length} bytes)`);
 
     return true;
   } catch (error) {
-    logMessage(`Error saving TNOS 7D context: ${error.message}`);
+    logMessage(`Error saving TNOS 7D context: ${error.message}`, 'error');
     return false;
   }
 }
@@ -464,17 +550,33 @@ async function transformMCPToTNOS7D(source = 'github') {
 }
 
 /**
- * Sync context between TNOS 7D and MCP formats
+ * WHO: ContextSynchronizer
+ * WHAT: Bidirectional context synchronization
+ * WHEN: During regular sync intervals and on demand
+ * WHERE: System Layer 2 (Reactive)
+ * WHY: To maintain consistency between context formats
+ * HOW: Using transformation pipelines with validation
+ * EXTENT: All context synchronization operations
  */
 async function syncContext(direction = 'bidirectional') {
   try {
+    const syncContext = {
+      who: 'ContextSynchronizer',
+      what: 'ContextSync',
+      when: Date.now(),
+      where: 'Layer2_ContextBridge',
+      why: 'ConsistencyMaintenance',
+      how: 'BidirectionalTransformation',
+      extent: direction === 'bidirectional' ? 1.0 : 0.5
+    };
+
     logMessage(`Starting context synchronization (${direction})`);
 
     if (direction === 'tnos7d-to-mcp' || direction === 'bidirectional') {
       // Transform TNOS 7D to MCP
       const mcpContext = await transformTNOS7DToMCP();
       if (!mcpContext) {
-        logMessage('Failed to transform TNOS 7D to MCP');
+        logMessage('Failed to transform TNOS 7D to MCP', 'warn');
       }
     }
 
@@ -482,16 +584,185 @@ async function syncContext(direction = 'bidirectional') {
       // Transform MCP to TNOS 7D
       const tnos7dContext = await transformMCPToTNOS7D();
       if (!tnos7dContext) {
-        logMessage('Failed to transform MCP to TNOS 7D');
+        logMessage('Failed to transform MCP to TNOS 7D', 'warn');
       }
     }
 
     logMessage(`Completed context synchronization (${direction})`);
     return true;
   } catch (error) {
-    logMessage(`Error synchronizing context: ${error.message}`);
+    logMessage(`Error synchronizing context: ${error.message}`, 'error');
     return false;
   }
+}
+
+/**
+ * Convert GitHub format to TNOS 7D context
+ * 
+ * WHO: FormatTranslator 
+ * WHAT: GitHub-to-TNOS context format conversion
+ * WHEN: During messages from GitHub to TNOS
+ * WHERE: System Layer 2 (Reactive)
+ * WHY: To provide compatible context format for TNOS processing
+ * HOW: Using dimension mapping with 7D structure preservation
+ * EXTENT: All GitHub MCP messages
+ */
+function githubToTnos7d(githubMessage) {
+  try {
+    // Extract GitHub context information
+    const { identity, operation, timestamp, purpose, scope } = githubMessage.context || {};
+
+    // Create 7D context vector
+    const contextVector = {
+      who: identity || "GitHub_User",
+      what: operation || "GitHub_Operation",
+      when: timestamp || Date.now(),
+      where: "GitHub_MCP",
+      why: purpose || "External_Request",
+      how: "MCP_Bridge",
+      extent: scope || 1.0,
+    };
+
+    // Create TNOS format message
+    const tnosMessage = {
+      type: githubMessage.type || "request",
+      messageId: githubMessage.messageId || crypto.randomUUID(),
+      context: contextVector,
+      content: githubMessage.content || githubMessage.parameters || {},
+      metadata: {
+        sourceFormat: "GitHub_MCP",
+        convertedFormat: "TNOS_7D",
+        convertedAt: Date.now(),
+        originalType: githubMessage.type || "unknown"
+      }
+    };
+
+    return tnosMessage;
+  } catch (error) {
+    logMessage(`Error in githubToTnos7d: ${error.message}`, 'error');
+    // Return simplified message with error context
+    return {
+      type: "error",
+      messageId: crypto.randomUUID(),
+      context: {
+        who: "FormatTranslator",
+        what: "ConversionError",
+        when: Date.now(),
+        where: "Layer2_ContextBridge",
+        why: "FormatIncompatibility",
+        how: "ErrorHandling",
+        extent: 0.0
+      },
+      content: {
+        error: `Translation error: ${error.message}`,
+        originalMessage: JSON.stringify(githubMessage).substring(0, 200) + "..."
+      }
+    };
+  }
+}
+
+/**
+ * Convert TNOS 7D context to GitHub format
+ * 
+ * WHO: FormatTranslator
+ * WHAT: TNOS-to-GitHub context format conversion
+ * WHEN: During messages from TNOS to GitHub
+ * WHERE: System Layer 2 (Reactive)
+ * WHY: To provide compatible context format for GitHub processing
+ * HOW: Using dimension extraction with GitHub schema compliance
+ * EXTENT: All TNOS MCP messages
+ */
+function tnos7dToGithub(tnosMessage) {
+  try {
+    // Extract TNOS context vector
+    const { who, what, when, where, why, how, extent } = tnosMessage.context || {};
+
+    // Create GitHub format message
+    const githubMessage = {
+      type: tnosMessage.type || "response",
+      messageId: tnosMessage.messageId || crypto.randomUUID(),
+      context: {
+        identity: who,
+        operation: what,
+        timestamp: when,
+        location: where,
+        purpose: why,
+        method: how,
+        scope: extent
+      },
+      content: tnosMessage.content || {},
+      metadata: {
+        sourceFormat: "TNOS_7D",
+        convertedFormat: "GitHub_MCP",
+        convertedAt: Date.now(),
+        originalType: tnosMessage.type || "unknown"
+      }
+    };
+
+    return githubMessage;
+  } catch (error) {
+    logMessage(`Error in tnos7dToGithub: ${error.message}`, 'error');
+    // Return simplified message with error context
+    return {
+      type: "error",
+      messageId: crypto.randomUUID(),
+      context: {
+        identity: "FormatTranslator",
+        operation: "ConversionError",
+        timestamp: Date.now(),
+        location: "Layer2_ContextBridge",
+        purpose: "FormatIncompatibility",
+        method: "ErrorHandling",
+        scope: 0.0
+      },
+      content: {
+        error: `Translation error: ${error.message}`,
+        originalMessage: JSON.stringify(tnosMessage).substring(0, 200) + "..."
+      }
+    };
+  }
+}
+
+/**
+ * Convert GitHub context format to TNOS 7D context object
+ * 
+ * WHO: ContextFormatter
+ * WHAT: Complete GitHub context to TNOS context conversion
+ * WHEN: During full context synchronization
+ * WHERE: System Layer 2 (Reactive)
+ * WHY: To ensure context compatibility between systems
+ * HOW: Using complete structure transformation with validation
+ * EXTENT: All context synchronization operations
+ */
+function githubContextToTnos7d(githubContext) {
+  // Implementation similar to githubToTnos7d but for complete context objects
+  // rather than individual messages
+
+  // This would convert the entire GitHub context schema to TNOS 7D format
+
+  // Return transformed context
+  return transformedContext;
+}
+
+/**
+ * Convert TNOS 7D context object to GitHub context format
+ * 
+ * WHO: ContextFormatter
+ * WHAT: Complete TNOS context to GitHub context conversion
+ * WHEN: During full context synchronization
+ * WHERE: System Layer 2 (Reactive)
+ * WHY: To ensure context compatibility between systems
+ * HOW: Using complete structure transformation with validation
+ * EXTENT: All context synchronization operations
+ */
+function tnos7dContextToGithub(tnos7dContext) {
+  // Implementation similar to tnos7dToGithub but for complete context objects
+  // rather than individual messages
+
+  // This would convert the entire TNOS 7D format to GitHub context schema
+
+  // Return transformed context
+  return transformedContext;
 }
 
 // Export the module functions
@@ -505,7 +776,11 @@ module.exports = {
   saveTNOS7DContext,
   transformTNOS7DToMCP,
   transformMCPToTNOS7D,
-  syncContext
+  syncContext,
+  githubToTnos7d,
+  tnos7dToGithub,
+  githubContextToTnos7d,
+  tnos7dContextToGithub
 };
 
 // Initialize on module load

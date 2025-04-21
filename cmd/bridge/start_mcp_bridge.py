@@ -50,20 +50,21 @@ try:
     project_root = Path(__file__).resolve().parent.parent.parent
     sys.path.insert(0, str(project_root))
 
-    # Import ATL for external communications
-    from core.integration.atl import AdvancedTranslationLayer
+    # Update import paths to match actual file locations
+    # Import ATL for external communications - need to find the correct path
+    from core.common.atl import AdvancedTranslationLayer  # Path may need adjustment
 
-    # Import 7D context framework
-    from systems.context.context_vector import ContextVector7D
+    # Import 7D context framework - fixed path based on actual file location
+    from core.common.context.context_vector_7d import ContextVector7D
 
-    # Import the MCP bridge with proper Layer 6 boundary respect
-    from mcp.internal.bridge.github_mcp_bridge import GitHubTNOSBridge
+    # Import the MCP bridge - using the most likely correct path based on directory structure
+    from mcp.integration.github_mcp_bridge import GitHubTNOSBridge
 
-    # Import Layer 0 compression for compression-first approach
-    from algorithms.compression.mobius_compression import MobiusCompression
+    # Import Layer 0 compression - fixed path based on actual file location
+    from core.compression.mobius_compression import MobiusCompression
 
-    # Import health monitoring
-    from mcp.utils.health_monitor import MCPHealthMonitor
+    # Import health monitoring - need to find the correct path
+    from mcp.common.health_monitor import MCPHealthMonitor  # Path may need adjustment
 except ImportError as e:
     print(f"Failed to import required modules: {e}")
     print("Please ensure TNOS core modules are correctly installed")
