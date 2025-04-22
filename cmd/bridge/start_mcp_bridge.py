@@ -43,8 +43,8 @@ import time
 from pathlib import Path
 
 # Third-party imports
-import websockets  # noqa: F401 - Used by the bridge for WebSocket connections
-import aiohttp  # noqa: F401 - Used by the bridge for HTTP client functionality
+import websockets
+import aiohttp
 
 # Add project root to Python path for module imports
 project_root = Path(__file__).resolve().parent.parent.parent
