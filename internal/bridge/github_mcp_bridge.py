@@ -1183,11 +1183,11 @@ class GitHubTNOSBridge:
 
         # WHEN: Current timestamp (set by MCPContext constructor)
 
-        # WHERE: /Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/mcp
+        # WHERE: Location context
         repo_info = f"{params.get('owner', '')}/{params.get('repo', '')}"
         if "path" in params:
             repo_info += f"/{params.get('path', '')}"
-        context.where /Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/mcp
+        context.where = "/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/mcp"
 
         # WHY: Purpose of the operation
         context.why = f"GitHub operation: {tool_name}"
@@ -1245,7 +1245,7 @@ class GitHubTNOSBridge:
                     "who": tnos_response.context.who,
                     "what": tnos_response.context.what,
                     "when": tnos_response.context.when,
-                    "where/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/mcp
+                    "where": tnos_response.context.where,
                     "why": tnos_response.context.why,
                     "how": tnos_response.context.how,
                     "extent": tnos_response.context.extent,
@@ -1684,12 +1684,12 @@ def register_tnos_tools_with_github_mcp():
                     "content": {"type": "string", "description": "Content to analyze"},
                     "dimensionFocus": {
                         "type": "string",
-                        "description": "Dimension to focus on (WHO, WHAT, WHEN, WHERE/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/mcp
+                        "description": "Dimension to focus on (WHO, WHAT, WHEN, WHERE, WHY, HOW, EXTENT)",
                         "enum": [
                             "WHO",
                             "WHAT",
                             "WHEN",
-                            "WHERE/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/mcp
+                            "WHERE",
                             "WHY",
                             "HOW",
                             "EXTENT",
@@ -1795,7 +1795,7 @@ def register_tnos_tools_with_github_mcp():
                                 "WHO",
                                 "WHAT",
                                 "WHEN",
-                                "WHERE/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/mcp
+                                "WHERE",
                                 "WHY",
                                 "HOW",
                                 "EXTENT",
@@ -1894,7 +1894,3 @@ if __name__ == "__main__":
         logger.error(f"Unexpected error: {e}")
         logger.exception("Detailed exception information:")
         sys.exit(1)
-
-
-
-

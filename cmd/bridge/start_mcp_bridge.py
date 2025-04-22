@@ -57,11 +57,13 @@ try:
     # Import 7D context framework
     from core.common.context.context_vector_7d import ContextVector7D
 
-    # Import the MCP bridge - updated path to match the actual location
+    # Import the MCP bridge - corrected import path for GitHubTNOSBridge
     from internal.bridge.github_mcp_bridge import GitHubTNOSBridge
 
-    # Import Layer 0 compression
-    from algorithms.compression.mobius_compression import MobiusCompression
+    # Import Layer 0 compression - using the correct MCP bridge for JavaScript interoperability
+    from mcp.integration.layer2.bridge.mobius_compression_bridge import (
+        MobiusCompression,
+    )
 
     # Import health monitoring
     from mcp.monitoring.health_monitor import MCPHealthMonitor
@@ -119,9 +121,14 @@ args = parser.parse_args()
 logs_dir = Path(project_root) / "logs"
 logs_dir.mkdir(exist_ok=True)
 
-log_level = (
-    logging.DEBUG if args.debug else (logging.INFO if args.verbose else logging.WARNING)
-)
+# Extract the nested conditional expression into independent statements
+# for better readability and maintainability
+if args.debug:
+    log_level = logging.DEBUG
+elif args.verbose:
+    log_level = logging.INFO
+else:
+    log_level = logging.WARNING
 
 
 # Advanced formatter with 7D context awareness

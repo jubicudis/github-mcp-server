@@ -240,7 +240,8 @@ class MobiusCompression {
           compressed = parsed.data || parsed.compressed;
           metadata = parsed.metadata;
         } catch (e) {
-          // Not JSON, treat as compressed string
+          // Not JSON, log the parsing error and treat as compressed string
+          console.debug(`[MobiusCompression] Input not valid JSON, treating as compressed string: ${e.message}`);
           compressed = compressedData;
           metadata = options.metadata || {};
         }
