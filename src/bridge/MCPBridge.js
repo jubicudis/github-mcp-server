@@ -693,7 +693,7 @@ async function executeFormula(params) {
  * EXTENT: All 7D context dimensions
  */
 async function queryDimensionalContext(params) {
-  const { dimension, query, recursiveDepth = 3 } = params;
+  const { dimension, query } = params;
 
   log('info', `Querying dimensional context: ${dimension} for "${query}"`);
 
@@ -777,81 +777,94 @@ function performMobiusCompression(params) {
 }
 
 /**
- * WHO: GitHubMessageProcessor
- * WHAT: Process incoming messages from GitHub MCP
- * WHEN: When messages arrive from GitHub MCP server
+ * WHO: FormulaMessageHandler
+ * WHAT: Handle formula execution requests from GitHub MCP
+ * WHEN: When formula messages arrive
  * WHERE: System Layer 2 (Reactive)
- * WHY: To transform and forward GitHub messages to TNOS
- * HOW: Using context transformation and reliable delivery
- * EXTENT: All GitHub-to-TNOS message traffic
+ * WHY: To execute formulas and return results
+ * HOW: Using formula execution with response handling
+ * EXTENT: All formula execution requests
  */
-function processGithubMcpMessage(message) {
-  // Check if the message is a formula execution request
-  if (message.type === 'execute_formula' || (message.path && message.path.includes('formula'))) {
-    const formulaParams = message.data || message.parameters || {};
+function handleFormulaMessage(message) {
+  const formulaParams = message.data || message.parameters || {};
 
-    // Execute the formula asynchronously
-    executeFormula(formulaParams).then(result => {
-      // Send the result back to GitHub MCP
-      if (githubMcpSocket && githubMcpSocket.readyState === WebSocket.OPEN) {
-        githubMcpSocket.send(JSON.stringify({
-          type: 'formula_result',
-          requestId: message.requestId,
-          data: result
-        }));
-      }
-    }).catch(error => {
-      log('error', `Error executing formula: ${error.message}`);
-    });
-
-    return; // Formula requests are handled separately
-  }
-
-  // Check if the message is a compression request
-  else if (message.type === 'compression' || (message.path && message.path.includes('compression'))) {
-    const compressionParams = message.data || message.parameters || {};
-
-    // Perform compression
-    const result = performMobiusCompression(compressionParams);
-
+  // Execute the formula asynchronously
+  executeFormula(formulaParams).then(result => {
     // Send the result back to GitHub MCP
     if (githubMcpSocket && githubMcpSocket.readyState === WebSocket.OPEN) {
       githubMcpSocket.send(JSON.stringify({
-        type: 'compression_result',
+        type: 'formula_result',
         requestId: message.requestId,
         data: result
       }));
     }
+  }).catch(error => {
+    log('error', `Error executing formula: ${error.message}`);
+  });
+}
 
-    return; // Compression requests are handled separately
+/**
+ * WHO: CompressionMessageHandler
+ * WHAT: Handle compression requests from GitHub MCP
+ * WHEN: When compression messages arrive
+ * WHERE: System Layer 2 (Reactive)
+ * WHY: To compress data and return results
+ * HOW: Using Mobius compression with response handling
+ * EXTENT: All compression requests
+ */
+function handleCompressionMessage(message) {
+  const compressionParams = message.data || message.parameters || {};
+
+  // Perform compression
+  const result = performMobiusCompression(compressionParams);
+
+  // Send the result back to GitHub MCP
+  if (githubMcpSocket && githubMcpSocket.readyState === WebSocket.OPEN) {
+    githubMcpSocket.send(JSON.stringify({
+      type: 'compression_result',
+      requestId: message.requestId,
+      data: result
+    }));
   }
+}
 
-  // Check if the message is a context query
-  else if (message.type === 'query_context' || (message.path && message.path.includes('context'))) {
-    const queryParams = message.data || message.parameters || {};
+/**
+ * WHO: ContextQueryMessageHandler
+ * WHAT: Handle context queries from GitHub MCP
+ * WHEN: When context query messages arrive
+ * WHERE: System Layer 2 (Reactive)
+ * WHY: To query context and return results
+ * HOW: Using dimensional context queries with response handling
+ * EXTENT: All context query requests
+ */
+function handleContextQueryMessage(message) {
+  const queryParams = message.data || message.parameters || {};
 
-    // Query context
-    queryDimensionalContext(queryParams).then(result => {
-      // Send the result back to GitHub MCP
-      if (githubMcpSocket && githubMcpSocket.readyState === WebSocket.OPEN) {
-        githubMcpSocket.send(JSON.stringify({
-          type: 'context_result',
-          requestId: message.requestId,
-          data: result
-        }));
-      }
-    }).catch(error => {
-      log('error', `Error querying context: ${error.message}`);
-    });
+  // Query context
+  queryDimensionalContext(queryParams).then(result => {
+    // Send the result back to GitHub MCP
+    if (githubMcpSocket && githubMcpSocket.readyState === WebSocket.OPEN) {
+      githubMcpSocket.send(JSON.stringify({
+        type: 'context_result',
+        requestId: message.requestId,
+        data: result
+      }));
+    }
+  }).catch(error => {
+    log('error', `Error querying context: ${error.message}`);
+  });
+}
 
-    return; // Context queries are handled separately
-  }
-
-  // Save context data to persistence
-  else if (message.type === 'context' || (message.path && message.path === '/context')) {
-    contextPersistence.mergeContext(message.data, 'github');
-  }
-
+/**
+ * WHO: TNOSMessageForwarder
+ * WHAT: Forward messages to TNOS MCP
+ * WHEN: When messages need to be sent to TNOS
+ * WHERE: System Layer 2 (Reactive)
+ * WHY: To reliably deliver messages to TNOS
+ * HOW: Using WebSocket with fallback to queue
+ * EXTENT: All messages forwarded to TNOS
+ */
+function forwardToTnosMcp(message) {
   // Transform GitHub MCP message to TNOS 7D format
   const tnos7dMessage = contextBridge.githubToTnos7d(message);
 
@@ -870,6 +883,43 @@ function processGithubMcpMessage(message) {
     // Queue message for later processing
     messageQueue.queueForTnos(tnos7dMessage);
   }
+}
+
+/**
+ * WHO: GitHubMessageProcessor
+ * WHAT: Process incoming messages from GitHub MCP
+ * WHEN: When messages arrive from GitHub MCP server
+ * WHERE: System Layer 2 (Reactive)
+ * WHY: To transform and forward GitHub messages to TNOS
+ * HOW: Using context transformation and reliable delivery
+ * EXTENT: All GitHub-to-TNOS message traffic
+ */
+function processGithubMcpMessage(message) {
+  // Check if the message is a formula execution request
+  if (message.type === 'execute_formula' || (message.path && message.path.includes('formula'))) {
+    handleFormulaMessage(message);
+    return;
+  }
+
+  // Check if the message is a compression request
+  if (message.type === 'compression' || (message.path && message.path.includes('compression'))) {
+    handleCompressionMessage(message);
+    return;
+  }
+
+  // Check if the message is a context query
+  if (message.type === 'query_context' || (message.path && message.path.includes('context'))) {
+    handleContextQueryMessage(message);
+    return;
+  }
+
+  // Save context data to persistence
+  if (message.type === 'context' || (message.path && message.path === '/context')) {
+    contextPersistence.mergeContext(message.data, 'github');
+  }
+
+  // Forward message to TNOS MCP
+  forwardToTnosMcp(message);
 
   // Forward to connected clients
   broadcastToClients(message);
@@ -1055,88 +1105,170 @@ async function healthCheck() {
  * EXTENT: All bridge control commands
  */
 function processClientCommand(message, ws) {
-  const { command, params } = message;
+  const { command } = message;
 
-  switch (command) {
-    case 'status':
-      ws.send(JSON.stringify({
-        type: 'response',
-        command: 'status',
-        status: {
-          githubConnection: githubMcpSocket && githubMcpSocket.readyState === WebSocket.OPEN ? 'connected' : 'disconnected',
-          tnosConnection: tnosMcpSocket && tnosMcpSocket.readyState === WebSocket.OPEN ? 'connected' : 'disconnected',
-          queuedMessages: {
-            github: messageQueue.github.length,
-            tnos: messageQueue.tnos.length
-          },
-          compressionStats: MobiusCompression.getStatistics(),
-          uptime: process.uptime(),
-          timestamp: Date.now()
-        }
-      }));
-      break;
+  const handlers = {
+    'status': handleStatusCommand,
+    'reconnect': handleReconnectCommand,
+    'sync': handleSyncCommand
+  };
 
-    case 'reconnect':
-      if (params && params.target === 'github') {
-        if (githubMcpSocket) githubMcpSocket.terminate();
-        connectToGithubMcp();
-        ws.send(JSON.stringify({
-          type: 'response',
-          command: 'reconnect',
-          status: 'reconnecting',
-          target: 'github'
-        }));
-      }
-      else if (params && params.target === 'tnos') {
-        if (tnosMcpSocket) tnosMcpSocket.terminate();
-        connectToTnosMcp();
-        ws.send(JSON.stringify({
-          type: 'response',
-          command: 'reconnect',
-          status: 'reconnecting',
-          target: 'tnos'
-        }));
-      }
-      else {
-        // Reconnect both
-        if (githubMcpSocket) githubMcpSocket.terminate();
-        if (tnosMcpSocket) tnosMcpSocket.terminate();
-        connectToGithubMcp();
-        connectToTnosMcp();
-        ws.send(JSON.stringify({
-          type: 'response',
-          command: 'reconnect',
-          status: 'reconnecting',
-          target: 'all'
-        }));
-      }
-      break;
+  const handler = handlers[command] || handleUnknownCommand;
+  handler(message, ws);
+}
 
-    case 'sync':
-      syncContext().then(() => {
-        ws.send(JSON.stringify({
-          type: 'response',
-          command: 'sync',
-          status: 'completed'
-        }));
-      }).catch(error => {
-        ws.send(JSON.stringify({
-          type: 'response',
-          command: 'sync',
-          status: 'error',
-          error: error.message
-        }));
-      });
-      break;
+/**
+ * WHO: StatusCommandHandler
+ * WHAT: Handle status command requests
+ * WHEN: When client requests status information
+ * WHERE: System Layer 2 (Reactive)
+ * WHY: To provide system status information
+ * HOW: Using current connection state assessment
+ * EXTENT: All bridge status information
+ */
+function handleStatusCommand(message, ws) {
+  const status = {
+    type: 'response',
+    command: 'status',
+    status: {
+      githubConnection: getConnectionStatus(githubMcpSocket),
+      tnosConnection: getConnectionStatus(tnosMcpSocket),
+      queuedMessages: {
+        github: messageQueue.github.length,
+        tnos: messageQueue.tnos.length
+      },
+      compressionStats: MobiusCompression.getStatistics(),
+      uptime: process.uptime(),
+      timestamp: Date.now()
+    }
+  };
 
-    default:
-      ws.send(JSON.stringify({
-        type: 'response',
-        command: command,
-        status: 'unknown',
-        error: 'Unknown command'
-      }));
+  ws.send(JSON.stringify(status));
+}
+
+/**
+ * WHO: ConnectionStatusChecker
+ * WHAT: Check connection status
+ * WHEN: During status requests
+ * WHERE: System Layer 2 (Reactive)
+ * WHY: To determine WebSocket connection status
+ * HOW: Using WebSocket readyState property
+ * EXTENT: All WebSocket connections
+ */
+function getConnectionStatus(socket) {
+  return socket && socket.readyState === WebSocket.OPEN ? 'connected' : 'disconnected';
+}
+
+/**
+ * WHO: ReconnectCommandHandler
+ * WHAT: Handle reconnection requests
+ * WHEN: When client requests reconnection
+ * WHERE: System Layer 2 (Reactive)
+ * WHY: To re-establish MCP connections
+ * HOW: Using targeted socket reconnection
+ * EXTENT: GitHub and TNOS connections
+ */
+function handleReconnectCommand(message, ws) {
+  const { params } = message;
+  const target = params && params.target ? params.target : 'all';
+
+  performReconnection(target);
+
+  ws.send(JSON.stringify({
+    type: 'response',
+    command: 'reconnect',
+    status: 'reconnecting',
+    target: target
+  }));
+}
+
+/**
+ * WHO: ConnectionReconnector
+ * WHAT: Perform reconnection based on target
+ * WHEN: During reconnection operations
+ * WHERE: System Layer 2 (Reactive)
+ * WHY: To restore connections
+ * HOW: Using clean termination and reconnection
+ * EXTENT: MCP socket connections
+ */
+function performReconnection(target) {
+  if (target === 'github' || target === 'all') {
+    if (githubMcpSocket) githubMcpSocket.terminate();
+    connectToGithubMcp();
   }
+
+  if (target === 'tnos' || target === 'all') {
+    if (tnosMcpSocket) tnosMcpSocket.terminate();
+    connectToTnosMcp();
+  }
+}
+
+/**
+ * WHO: SyncCommandHandler
+ * WHAT: Handle context sync requests
+ * WHEN: When client requests context synchronization
+ * WHERE: System Layer 2 (Reactive)
+ * WHY: To synchronize contexts between systems
+ * HOW: Using context synchronization process
+ * EXTENT: All context data
+ */
+function handleSyncCommand(message, ws) {
+  syncContext()
+    .then(() => sendSyncSuccessResponse(ws))
+    .catch(error => sendSyncErrorResponse(ws, error));
+}
+
+/**
+ * WHO: SyncResponseSender
+ * WHAT: Send sync success response
+ * WHEN: After sync operation completes
+ * WHERE: System Layer 2 (Reactive)
+ * WHY: To confirm sync success
+ * HOW: Using standard WebSocket response
+ * EXTENT: Successful sync operations
+ */
+function sendSyncSuccessResponse(ws) {
+  ws.send(JSON.stringify({
+    type: 'response',
+    command: 'sync',
+    status: 'completed'
+  }));
+}
+
+/**
+ * WHO: SyncErrorResponseSender
+ * WHAT: Send sync error response
+ * WHEN: After sync operation fails
+ * WHERE: System Layer 2 (Reactive)
+ * WHY: To report sync failure
+ * HOW: Using standard WebSocket error response
+ * EXTENT: Failed sync operations
+ */
+function sendSyncErrorResponse(ws, error) {
+  ws.send(JSON.stringify({
+    type: 'response',
+    command: 'sync',
+    status: 'error',
+    error: error.message
+  }));
+}
+
+/**
+ * WHO: UnknownCommandHandler
+ * WHAT: Handle unrecognized commands
+ * WHEN: When client sends unknown command
+ * WHERE: System Layer 2 (Reactive)
+ * WHY: To provide appropriate error feedback
+ * HOW: Using standard error response
+ * EXTENT: All unsupported commands
+ */
+function handleUnknownCommand(message, ws) {
+  ws.send(JSON.stringify({
+    type: 'response',
+    command: message.command,
+    status: 'unknown',
+    error: 'Unknown command'
+  }));
 }
 
 /**
