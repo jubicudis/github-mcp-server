@@ -18,9 +18,7 @@
             "description": "Parameters for the formula"
           }
         },
-        "required": [
-          "formulaName"
-        ]
+        "required": ["formulaName"]
       }
     },
     {
@@ -35,7 +33,7 @@
               "WHO",
               "WHAT",
               "WHEN",
-              "WHERE/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/mcp
+              "WHERE",
               "WHY",
               "HOW",
               "TO_WHAT_EXTENT"
@@ -52,10 +50,7 @@
             "default": 3
           }
         },
-        "required": [
-          "dimension",
-          "query"
-        ]
+        "required": ["dimension", "query"]
       }
     },
     {
@@ -79,11 +74,7 @@
             "description": "The data payload to send to the TNOS MCP system"
           }
         },
-        "required": [
-          "target_layer",
-          "message_type",
-          "payload"
-        ]
+        "required": ["target_layer", "message_type", "payload"]
       }
     },
     {
@@ -107,9 +98,7 @@
             "default": true
           }
         },
-        "required": [
-          "input_data"
-        ]
+        "required": ["input_data"]
       }
     }
   ],
@@ -131,21 +120,12 @@
     }
   ],
   "permissions": {
-    "allowedDirectories": [
-      "/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS"
-    ],
+    "allowedDirectories": ["/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS"],
     "disallowedDirectories": [
       "/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/core/kernel/security",
       "/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/config/secrets"
     ],
-    "allowedCommands": [
-      "git",
-      "ls",
-      "python",
-      "node",
-      "java",
-      "cpp"
-    ]
+    "allowedCommands": ["git", "ls", "python", "node", "java", "cpp"]
   },
   "integrations": {
     "tnos_mcp": {
@@ -167,7 +147,7 @@
         "WHO": "user",
         "WHAT": "subject",
         "WHEN": "temporal",
-        "WHERE/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/mcp
+        "WHERE": "spatial",
         "WHY": "rationale",
         "HOW": "method",
         "TO_WHAT_EXTENT": "scope"
@@ -186,4 +166,3 @@
     "encryptSensitiveData": true
   }
 }
-
