@@ -19,3 +19,16 @@
 2025-04-27 20:31:49,923 - tnos_mcp_server - INFO - Received shutdown signal, exiting...
 2025-04-27 20:31:52,263 - websockets.server - INFO - server closing
 2025-04-27 20:31:52,265 - websockets.server - INFO - server closed
+2025-04-27 20:44:14,324 - tnos_mcp_server - INFO - Wrote PID to /Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/github-mcp-server/logs/tnos_mcp_server.pid
+2025-04-27 20:44:14,324 - tnos_mcp_server - INFO - Starting TNOS MCP server on localhost:9001 (WebSocket)
+2025-04-27 20:44:14,822 - websockets.server - INFO - server listening on 127.0.0.1:9001
+2025-04-27 20:44:14,823 - websockets.server - INFO - server listening on [::1]:9001
+2025-04-27 20:44:14,823 - tnos_mcp_server - INFO - Server started successfully
+2025-04-27 21:05:00,462 - tnos_mcp_server - INFO - Received shutdown signal, exiting...
+2025-04-27 21:05:00,465 - websockets.server - INFO - server closing
+2025-04-27 21:05:00,465 - websockets.server - INFO - server closed
+2025-04-27 21:05:56,629 - tnos_mcp_server - INFO - Wrote PID to /Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/github-mcp-server/logs/tnos_mcp_server.pid
+2025-04-27 21:05:56,630 - tnos_mcp_server - INFO - Starting TNOS MCP server on localhost:9001 (WebSocket)
+2025-04-27 21:05:57,057 - websockets.server - INFO - server listening on 127.0.0.1:9001
+2025-04-27 21:05:57,058 - websockets.server - INFO - server listening on [::1]:9001
+2025-04-27 21:05:57,058 - tnos_mcp_server - INFO - Server started successfully

@@ -18,6 +18,7 @@ import logging
 import os
 import sys
 import time
+import argparse
 import websockets
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
@@ -33,16 +34,51 @@ from mcp.integration.layer3.protocol.protocol_layer3 import VersionManager
 # Initialize the path manager early
 path_manager = PathManager()
 
-# Configure logging early so we can log import errors
+# Parse command line arguments
+parser = argparse.ArgumentParser(description="GitHub MCP to TNOS MCP Bridge")
+parser.add_argument(
+    "--tnos-port",
+    type=int,
+    default=9000,
+    help="TCP port for TNOS MCP server (WebSocket port will be TCP port + 1)",
+)
+parser.add_argument(
+    "--github-port", type=int, default=8080, help="Port for GitHub MCP server"
+)
+parser.add_argument("--log-file", type=str, default=None, help="Path to log file")
+parser.add_argument(
+    "--context-vector",
+    type=str,
+    default=None,
+    help="JSON string with 7D context vector",
+)
+parser.add_argument("--debug", action="store_true", help="Enable debug logging")
+args = parser.parse_args()
+
+# Define log file path
+log_file_path = args.log_file
+if log_file_path is None:
+    log_file_path = path_manager.get_log_path("github_tnos_bridge")
+
+# Configure logging
+log_level = logging.DEBUG if args.debug else logging.INFO
 logging.basicConfig(
-    level=logging.INFO,
+    level=log_level,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
     handlers=[
-        logging.FileHandler(path_manager.get_log_path("github_tnos_bridge")),
+        logging.FileHandler(log_file_path),
         logging.StreamHandler(),
     ],
 )
 logger = logging.getLogger("github_mcp_bridge")
+
+# Calculate WebSocket port (TCP port + 1)
+tnos_ws_port = args.tnos_port + 1
+tnos_server_uri = f"ws://localhost:{tnos_ws_port}"
+logger.info(
+    f"TNOS MCP server TCP port: {args.tnos_port}, WebSocket port: {tnos_ws_port}"
+)
+logger.info(f"GitHub MCP server port: {args.github_port}")
 
 # Setup PYTHONPATH to include project root directory
 if path_manager.add_to_python_path():
@@ -125,7 +161,7 @@ class GitHubTNOSBridge:
     """
 
     def __init__(
-        self, tnos_server_uri: str = "ws://localhost:8888", github_mcp_port: int = 8080
+        self, tnos_server_uri: str = "ws://localhost:9001", github_mcp_port: int = 8080
     ):
         """
         Initialize the bridge between GitHub MCP and TNOS MCP.
@@ -174,6 +210,11 @@ class GitHubTNOSBridge:
 
         # Save PID for monitoring
         self._save_pid()
+
+        # Log the TNOS server URI we're connecting to
+        logger.info(
+            f"Configured to connect to TNOS MCP server at {self.tnos_server_uri}"
+        )
 
     def _save_pid(self):
         """Save the current process ID to a file for monitoring"""
@@ -1108,4 +1149,31 @@ async def main():
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    try:
+        # Create and initialize the bridge
+        bridge = GitHubTNOSBridge(tnos_server_uri, args.github_port)
+
+        # Parse context vector if provided
+        if args.context_vector:
+            try:
+                context = json.loads(args.context_vector)
+                logger.info(f"Using provided context vector: {context}")
+                # Initialize with the provided context
+                # bridge.set_context(context)  # Uncomment when implementing this method
+            except json.JSONDecodeError:
+                logger.error(f"Failed to parse context vector: {args.context_vector}")
+
+        # Log startup information
+        logger.info("GitHub TNOS Bridge starting up")
+        logger.info(f"Connecting to TNOS MCP server at {tnos_server_uri}")
+        logger.info(f"GitHub MCP port: {args.github_port}")
+
+        # Start the bridge
+        # This would be replaced with actual bridge initialization code
+        asyncio.run(bridge.start())
+    except KeyboardInterrupt:
+        logger.info("Bridge shutdown requested by user")
+        sys.exit(0)
+    except Exception as e:
+        logger.error(f"Bridge startup failed: {e}", exc_info=True)
+        sys.exit(1)
