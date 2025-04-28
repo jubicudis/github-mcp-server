@@ -33,3 +33,6 @@
 2025-04-27 21:05:57,058 - websockets.server - INFO - server listening on [::1]:9001
 2025-04-27 21:05:57,058 - tnos_mcp_server - INFO - Server started successfully
 2025-04-28 07:12:07,667 - tnos_mcp_server - ERROR - Missing required package: websockets. Please install with 'pip install websockets'
+2025-04-28 08:55:30,387 - tnos_mcp_server - ERROR - Missing required package: websockets. Please install with 'pip install websockets'
+2025-04-28 09:14:35,627 - tnos_mcp_server - ERROR - Missing required package: websockets. Please install with 'pip install websockets'
+2025-04-28 10:31:22,913 - tnos_mcp_server - ERROR - Missing required package: websockets. Please install with 'pip install websockets'
