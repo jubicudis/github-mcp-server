@@ -146,11 +146,17 @@ if missing_packages:
 
     sys.exit(1)
 
-# Now import TNOS MCP components (only if all required packages are available)
+# WHO: GithubMCPBridge
+# WHAT: Import necessary TNOS MCP components
+# WHEN: During bridge initialization
+# WHERE: GitHub MCP Bridge
+# WHY: To establish connection with TNOS core
+# HOW: Import required modules with error handling
+# EXTENT: Required for protocol bridge functionality
 try:
     from mcp.integration.mcp_integration import TNOSLayerIntegration
     from mcp.protocol.mcp_protocol import MCPContext, MCPMessage, MCPProtocolVersion
-    from mcp.server.mcp_server import MCPServer
+    from mcp.server.mcp_server_time import MCPServer
 except ImportError as e:
     logger.error(f"Failed to import TNOS MCP components: {e}")
     logger.error(
