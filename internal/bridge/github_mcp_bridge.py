@@ -22,14 +22,27 @@ import argparse
 import websockets
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
-# Import components from reorganized modules
-from mcp.integration.layer3.config.config_layer3 import PathManager, ConfigManager
-from mcp.integration.layer3.security.security_layer3 import (
-    TokenManager,
-    EnhancedMessageValidator,
+# Add the project root to Python path to find mcp modules
+project_root = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "..", "..")
 )
-from mcp.integration.layer3.network.network_layer3 import PortManager, RateLimiter
-from mcp.integration.layer3.protocol.protocol_layer3 import VersionManager
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+    print(f"Added {project_root} to Python path")
+
+# Import components from reorganized modules
+try:
+    from mcp.integration.layer3.config.config_layer3 import PathManager, ConfigManager
+    from mcp.integration.layer3.security.security_layer3 import (
+        TokenManager,
+        EnhancedMessageValidator,
+    )
+    from mcp.integration.layer3.network.network_layer3 import PortManager, RateLimiter
+    from mcp.integration.layer3.protocol.protocol_layer3 import VersionManager
+except ImportError as e:
+    print(f"Error importing MCP modules: {e}")
+    print(f"Current Python path: {sys.path}")
+    sys.exit(1)
 
 # Initialize the path manager early
 path_manager = PathManager()
