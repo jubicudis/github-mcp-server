@@ -9,6 +9,14 @@ and the TNOS Model Context Protocol implementation. It translates context and
 capabilities between the two systems, allowing GitHub Copilot in VS Code to
 access and utilize TNOS capabilities.
 
+# WHO: GitHubTNOSBridge
+# WHAT: Bidirectional communication bridge
+# WHEN: During communication between GitHub MCP and TNOS MCP
+# WHERE: Layer 3 / Bridge
+# WHY: To enable integration with GitHub Copilot
+# HOW: WebSocket protocol translation with 7D context preservation
+# EXTENT: All GitHub MCP to TNOS MCP operations
+
 Created: April 15, 2025
 """
 
@@ -154,9 +162,13 @@ if missing_packages:
 # HOW: Import required modules with error handling
 # EXTENT: Required for protocol bridge functionality
 try:
-    from mcp.integration.mcp_integration import TNOSLayerIntegration
+    # Import the correct MCP components
     from mcp.protocol.mcp_protocol import MCPContext, MCPMessage, MCPProtocolVersion
-    from mcp.server.mcp_server_time import MCPServer
+    from mcp.server.mcp_server_time import MCPServerTime
+    
+    # Import Möbius Compression components
+    from algorithms.compression.mobius_compression import MobiusCompressor
+    from algorithms.compression.context_aware_compression import ContextAwareCompressor
 except ImportError as e:
     logger.error(f"Failed to import TNOS MCP components: {e}")
     logger.error(
@@ -171,7 +183,7 @@ except ImportError as e:
 # WHEN: During GitHub-TNOS communication
 # WHERE: Layer 3 / Bridge
 # WHY: To enable bidirectional MCP integration
-# HOW: Using WebSocket communication
+# HOW: Using WebSocket communication with 7D context preservation
 # EXTENT: All GitHub-TNOS interactions
 class GitHubTNOSBridge:
     """
@@ -196,20 +208,22 @@ class GitHubTNOSBridge:
         # Initialize token manager
         self.token_manager = TokenManager(self.path_manager)
 
+        # Initialize time service
+        self.time_service = MCPServerTime()
+
         self.tnos_server_uri = tnos_server_uri
         self.github_mcp_port = github_mcp_port
         self.tnos_ws_connection = None
         self.github_clients = set()
         self.session_mapping = {}  # Maps GitHub session IDs to TNOS session IDs
         self.tool_mapping = self._build_tool_mapping()
-        self.version_manager = VersionManager()
         self.message_validator = EnhancedMessageValidator(self.config_manager)
         self.message_validator.set_token_manager(self.token_manager)
         self.rate_limiter = RateLimiter()
 
         # Protocol version negotiation
-        self.supported_versions = VersionManager.SUPPORTED_VERSIONS
-        self.current_version = VersionManager.get_latest_version()
+        self.supported_versions = MCPProtocolVersion.SUPPORTED_VERSIONS
+        self.current_version = MCPProtocolVersion.get_latest_version()
 
         # Connection state tracking for improved error handling
         self.connection_state = {
@@ -286,20 +300,22 @@ class GitHubTNOSBridge:
         Returns:
             TNOS MCPContext object with 7D dimensions populated
         """
+        # Create a new context with current time
+        context = MCPContext()
+
         # Extract information from GitHub request
         tool_name = github_request.get("name", "")
         params = github_request.get("parameters", {})
 
-        # Map to 7D context dimensions
-        context = MCPContext()
-
         # WHO: The actor making the request (GitHub Copilot or user)
-        context.who = "GitHub Copilot"
+        context.who = "GitHub_Copilot"
 
         # WHAT: The capability being requested (mapped from GitHub tool)
         context.what = self.tool_mapping.get(tool_name, "unknown_operation")
 
-        # WHEN: Current timestamp (set by MCPContext constructor)
+        # WHEN: Current timestamp (get from time service for proper compression)
+        current_time = self.time_service.get_current_time()
+        context.when = current_time
 
         # WHERE: The location in the repository
         repo_info = f"{params.get('owner', '')}/{params.get('repo', '')}"
@@ -308,12 +324,12 @@ class GitHubTNOSBridge:
         context.where = repo_info if repo_info != "/" else "system"
 
         # WHY: Purpose of the operation
-        context.why = f"GitHub operation: {tool_name}"
+        context.why = f"GitHub_operation_{tool_name}"
 
         # HOW: The method being used
         context.how = "github_mcp_bridge"
 
-        # TO_WHAT_EXTENT: Scope of the operation
+        # EXTENT: Scope of the operation
         # Determine based on parameters if it's a single resource or multiple
         if any(param in params for param in ["perPage", "page", "list"]):
             context.extent = "multiple_resources"
@@ -321,11 +337,9 @@ class GitHubTNOSBridge:
             context.extent = "single_resource"
 
         # Add original request as metadata for reference
-        context.metadata = {
-            "original_github_request": json.dumps(github_request),
-            "github_tool": tool_name,
-            "mcp_version": self.current_version,  # Add protocol version information
-        }
+        context.set_metadata("original_github_request", json.dumps(github_request))
+        context.set_metadata("github_tool", tool_name)
+        context.set_metadata("mcp_version", self.current_version)
 
         return context
 
@@ -343,9 +357,7 @@ class GitHubTNOSBridge:
             Response formatted for GitHub MCP server
         """
         # Extract the result content from TNOS response
-        result_content = (
-            tnos_response.content if hasattr(tnos_response, "content") else {}
-        )
+        result_content = tnos_response.content
 
         # If TNOS response is a string, try to parse as JSON
         if isinstance(result_content, str):
@@ -355,20 +367,25 @@ class GitHubTNOSBridge:
                 # If not valid JSON, wrap in a content field
                 result_content = {"content": result_content}
 
+        # Extract 7D context dimensions for metadata
+        context_metadata = {
+            "who": tnos_response.context.who,
+            "what": tnos_response.context.what,
+            "when": tnos_response.context.when,
+            "where": tnos_response.context.where,
+            "why": tnos_response.context.why,
+            "how": tnos_response.context.how,
+            "extent": tnos_response.context.extent,
+        }
+
         # Add the original context information as metadata
         response = {
             "result": result_content,
             "metadata": {
-                "tnos_context": {
-                    "who": tnos_response.context.who,
-                    "what": tnos_response.context.what,
-                    "when": tnos_response.context.when,
-                    "where": tnos_response.context.where,
-                    "why": tnos_response.context.why,
-                    "how": tnos_response.context.how,
-                    "extent": tnos_response.context.extent,
-                },
-                "mcp_version": self.current_version,  # Add protocol version information
+                "tnos_context": context_metadata,
+                "mcp_version": self.current_version,
+                "timestamp": self.time_service.get_current_time(),
+                "operation": original_request.get("name", ""),
             },
         }
 
@@ -397,7 +414,9 @@ class GitHubTNOSBridge:
 
             # Update connection state
             self.connection_state["tnos"]["connected"] = True
-            self.connection_state["tnos"]["last_connection_time"] = time.time()
+            self.connection_state["tnos"][
+                "last_connection_time"
+            ] = self.time_service.get_current_time()
             self.connection_state["tnos"]["reconnect_attempts"] = 0
 
             logger.info(f"Connected to TNOS MCP server at {self.tnos_server_uri}")
@@ -423,17 +442,28 @@ class GitHubTNOSBridge:
         Negotiate MCP protocol version with the TNOS MCP server
         """
         try:
+            # Create a context vector with proper 7D context for negotiation
+            context = MCPContext()
+            context.who = "GitHubTNOSBridge"
+            context.what = "ProtocolNegotiation"
+            context.when = self.time_service.get_current_time()
+            context.where = "Layer3_Bridge"
+            context.why = "VersionCompatibility"
+            context.how = "WebSocket"
+            context.extent = "ProtocolCompatibility"
+
             # Create a version negotiation message
-            negotiation_msg = {
-                "message_type": "version_negotiation",
-                "content": {
+            negotiation_msg = MCPMessage(
+                message_type="version_negotiation",
+                context=context,
+                content={
                     "supported_versions": self.supported_versions,
                     "preferred_version": self.current_version,
                 },
-            }
+            )
 
             # Send the negotiation message
-            await self.tnos_ws_connection.send(json.dumps(negotiation_msg))
+            await self.tnos_ws_connection.send(negotiation_msg.to_json())
 
             # Wait for a response
             response_str = await asyncio.wait_for(
@@ -441,10 +471,17 @@ class GitHubTNOSBridge:
             )
 
             # Parse the response
-            response = json.loads(response_str)
+            tnos_response = MCPMessage.from_json(response_str)
 
-            if response.get("message_type") == "version_negotiation_response":
-                server_version = response.get("content", {}).get("selected_version")
+            if tnos_response.message_type == "version_negotiation_response":
+                if isinstance(tnos_response.content, dict):
+                    server_version = tnos_response.content.get("selected_version")
+                else:
+                    try:
+                        content_dict = json.loads(tnos_response.content)
+                        server_version = content_dict.get("selected_version")
+                    except (json.JSONDecodeError, TypeError):
+                        server_version = None
 
                 if server_version:
                     # Update the current version to the negotiated version
@@ -476,7 +513,9 @@ class GitHubTNOSBridge:
 
         # Update connection state
         self.connection_state["github"]["connected"] = True
-        self.connection_state["github"]["last_connection_time"] = time.time()
+        self.connection_state["github"][
+            "last_connection_time"
+        ] = self.time_service.get_current_time()
 
         try:
             # Connect to TNOS MCP server if not already connected
@@ -718,6 +757,14 @@ class GitHubTNOSBridge:
 
     async def start(self):
         """
+        # WHO: GitHubTNOSBridge.start
+        # WHAT: Start the bridge server
+        # WHEN: During system initialization
+        # WHERE: Layer 3 / Bridge
+        # WHY: To begin handling connections
+        # HOW: Using WebSocket server
+        # EXTENT: All bridge operations
+
         Start the bridge server to handle connections from GitHub MCP.
         """
         try:
@@ -783,15 +830,14 @@ class GitHubTNOSBridge:
 
         try:
             # Create a version negotiation message with proper 7D context
-            request_context = MCPContext(
-                who="GitHubTNOSBridge",
-                what="ProtocolNegotiation",
-                when=time.time(),
-                where="Layer3_Bridge",
-                why="VersionCompatibility",
-                how=f"MCP_{requested_version}",
-                extent="ProtocolCompatibility",
-            )
+            request_context = MCPContext()
+            request_context.who = "GitHubTNOSBridge"
+            request_context.what = "ProtocolNegotiation"
+            request_context.when = self.time_service.get_current_time()
+            request_context.where = "Layer3_Bridge"
+            request_context.why = "VersionCompatibility"
+            request_context.how = f"MCP_{requested_version}"
+            request_context.extent = "ProtocolCompatibility"
 
             # If external context is provided, use its values
             if context:
@@ -961,6 +1007,14 @@ class GitHubTNOSBridge:
 
 def register_tnos_tools_with_github_mcp():
     """
+    # WHO: register_tnos_tools_with_github_mcp
+    # WHAT: Generate TNOS tool registrations
+    # WHEN: During GitHub MCP initialization
+    # WHERE: Layer 3 / Bridge
+    # WHY: To expose TNOS capabilities
+    # HOW: JSON configuration generation
+    # EXTENT: All TNOS tools
+
     Generate a configuration that registers TNOS capabilities as tools
     in the GitHub MCP server.
 
@@ -1160,10 +1214,18 @@ def register_tnos_tools_with_github_mcp():
 
 async def main():
     """
+    # WHO: main
+    # WHAT: Main entry point
+    # WHEN: During bridge execution
+    # WHERE: GitHub MCP Bridge
+    # WHY: To initialize the bridge
+    # HOW: Initialize and start bridge instance
+    # EXTENT: Complete application lifecycle
+
     Main entry point for the GitHub-TNOS MCP Bridge.
     """
     # Create and start the bridge
-    bridge = GitHubTNOSBridge()
+    bridge = GitHubTNOSBridge(tnos_server_uri, args.github_port)
     await bridge.start()
 
 
@@ -1175,10 +1237,9 @@ if __name__ == "__main__":
         # Parse context vector if provided
         if args.context_vector:
             try:
-                context = json.loads(args.context_vector)
-                logger.info(f"Using provided context vector: {context}")
-                # Initialize with the provided context
-                # bridge.set_context(context)  # Uncomment when implementing this method
+                context_dict = json.loads(args.context_vector)
+                logger.info(f"Using provided context vector: {context_dict}")
+                # Initialize with the provided context if needed
             except json.JSONDecodeError:
                 logger.error(f"Failed to parse context vector: {args.context_vector}")
 
@@ -1188,7 +1249,6 @@ if __name__ == "__main__":
         logger.info(f"GitHub MCP port: {args.github_port}")
 
         # Start the bridge
-        # This would be replaced with actual bridge initialization code
         asyncio.run(bridge.start())
     except KeyboardInterrupt:
         logger.info("Bridge shutdown requested by user")
