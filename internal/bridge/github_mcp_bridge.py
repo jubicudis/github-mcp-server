@@ -25,7 +25,6 @@ import json
 import logging
 import os
 import sys
-import time
 import argparse
 import websockets
 from typing import Any, Dict, List, Optional, Set, Tuple, Union
@@ -40,13 +39,10 @@ if project_root not in sys.path:
 
 # Import components from reorganized modules
 try:
-    from mcp.integration.layer3.config.config_layer3 import PathManager, ConfigManager
-    from mcp.integration.layer3.security.security_layer3 import (
-        TokenManager,
-        EnhancedMessageValidator,
-    )
-    from mcp.integration.layer3.network.network_layer3 import PortManager, RateLimiter
-    from mcp.integration.layer3.protocol.protocol_layer3 import VersionManager
+    from mcp.config.config_manager import PathManager, ConfigManager
+    from mcp.security.security_manager import TokenManager, EnhancedMessageValidator
+    from mcp.network.network_manager import PortManager, RateLimiter
+    from mcp.protocol.protocol_manager import VersionManager
 except ImportError as e:
     print(f"Error importing MCP modules: {e}")
     print(f"Current Python path: {sys.path}")
@@ -164,7 +160,7 @@ if missing_packages:
 try:
     # Import the correct MCP components
     from mcp.protocol.mcp_protocol import MCPContext, MCPMessage, MCPProtocolVersion
-    from mcp.server.mcp_server_time import MCPServerTime
+    from mcp.server_time.server_time import MCPServerTime
     
     # Import Möbius Compression components
     from algorithms.compression.mobius_compression import MobiusCompressor
