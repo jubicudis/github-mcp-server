@@ -352,7 +352,7 @@ class GitHubTNOSBridge:
 
     def translate_github_to_tnos_context(
         self, github_request: Dict[str, Any]
-    ) -> "MCPContext":
+    ) -> Any:
         """
         Translate GitHub MCP request into TNOS 7D context.
 
