@@ -37,16 +37,37 @@ if project_root not in sys.path:
     sys.path.insert(0, project_root)
     print(f"Added {project_root} to Python path")
 
-# Import components from reorganized modules
+# Import components from existing MCP modules
 try:
-    from mcp.config.config_manager import PathManager, ConfigManager
-    from mcp.security.security_manager import TokenManager, EnhancedMessageValidator
-    from mcp.network.network_manager import PortManager, RateLimiter
-    from mcp.protocol.protocol_manager import VersionManager
+    # Import from main MCP modules
+    from mcp.config import PathManager, ConfigManager
+    from mcp.security_layer3 import TokenManager, EnhancedMessageValidator
+    from mcp.network_layer3 import PortManager, RateLimiter
+    from mcp.protocol.mcp_protocol import MCPProtocolVersion
 except ImportError as e:
-    print(f"Error importing MCP modules: {e}")
-    print(f"Current Python path: {sys.path}")
-    sys.exit(1)
+    # Alternative imports if main ones fail
+    try:
+        from mcp import config as config_module
+        from mcp import security_layer3 as security_module
+        from mcp import network_layer3 as network_module
+        from mcp.protocol import mcp_protocol
+        
+        # Create class references from modules
+        PathManager = config_module.PathManager if hasattr(config_module, 'PathManager') else None
+        ConfigManager = config_module.ConfigManager if hasattr(config_module, 'ConfigManager') else None
+        TokenManager = security_module.TokenManager if hasattr(security_module, 'TokenManager') else None
+        EnhancedMessageValidator = security_module.EnhancedMessageValidator if hasattr(security_module, 'EnhancedMessageValidator') else None
+        PortManager = network_module.PortManager if hasattr(network_module, 'PortManager') else None
+        RateLimiter = network_module.RateLimiter if hasattr(network_module, 'RateLimiter') else None
+        MCPProtocolVersion = mcp_protocol.MCPProtocolVersion if hasattr(mcp_protocol, 'MCPProtocolVersion') else None
+        
+        if not all([PathManager, ConfigManager, TokenManager, EnhancedMessageValidator, 
+                   PortManager, RateLimiter, MCPProtocolVersion]):
+            raise ImportError("Failed to import required classes from alternative modules")
+    except ImportError as e2:
+        print(f"Error importing MCP modules: {e} -> {e2}")
+        print(f"Current Python path: {sys.path}")
+        sys.exit(1)
 
 # Initialize the path manager early
 path_manager = PathManager()
