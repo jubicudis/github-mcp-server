@@ -39,72 +39,37 @@ if project_root not in sys.path:
 
 # Import components from existing MCP modules
 try:
-    # Import from main MCP modules
+    # Import directly from the mcp directory structure
     from mcp.config import PathManager, ConfigManager
     from mcp.security_layer3 import TokenManager, EnhancedMessageValidator
     from mcp.network_layer3 import PortManager, RateLimiter
+    # Access the protocol file directly from its location
     from mcp.protocol.mcp_protocol import MCPProtocolVersion
 except ImportError as e:
-    # Alternative imports if main ones fail
+    # Alternative import paths - trying different locations
     try:
-        from mcp import config as config_module
-        from mcp import security_layer3 as security_module
-        from mcp import network_layer3 as network_module
-        from mcp.protocol import mcp_protocol
-
-        # Create class references from modules
-        PathManager = (
-            config_module.PathManager if hasattr(config_module, "PathManager") else None
-        )
-        ConfigManager = (
-            config_module.ConfigManager
-            if hasattr(config_module, "ConfigManager")
-            else None
-        )
-        TokenManager = (
-            security_module.TokenManager
-            if hasattr(security_module, "TokenManager")
-            else None
-        )
-        EnhancedMessageValidator = (
-            security_module.EnhancedMessageValidator
-            if hasattr(security_module, "EnhancedMessageValidator")
-            else None
-        )
-        PortManager = (
-            network_module.PortManager
-            if hasattr(network_module, "PortManager")
-            else None
-        )
-        RateLimiter = (
-            network_module.RateLimiter
-            if hasattr(network_module, "RateLimiter")
-            else None
-        )
-        MCPProtocolVersion = (
-            mcp_protocol.MCPProtocolVersion
-            if hasattr(mcp_protocol, "MCPProtocolVersion")
-            else None
-        )
-
-        if not all(
-            [
-                PathManager,
-                ConfigManager,
-                TokenManager,
-                EnhancedMessageValidator,
-                PortManager,
-                RateLimiter,
-                MCPProtocolVersion,
-            ]
-        ):
-            raise ImportError(
-                "Failed to import required classes from alternative modules"
-            )
+        # Try alternate import paths based on actual file structure
+        sys.path.append(os.path.join(project_root, "mcp"))
+        from config import PathManager, ConfigManager
+        from security_layer3 import TokenManager, EnhancedMessageValidator
+        from network_layer3 import PortManager, RateLimiter
+        from protocol.mcp_protocol import MCPProtocolVersion
     except ImportError as e2:
-        print(f"Error importing MCP modules: {e} -> {e2}")
-        print(f"Current Python path: {sys.path}")
-        sys.exit(1)
+        # Try importing from protocol directory directly
+        try:
+            sys.path.append(os.path.join(project_root, "mcp", "protocol"))
+            import mcp_protocol
+            MCPProtocolVersion = mcp_protocol.MCPProtocolVersion
+            
+            # Create class references manually if needed
+            sys.path.append(os.path.join(project_root, "mcp"))
+            from config import PathManager, ConfigManager
+            from security_layer3 import TokenManager, EnhancedMessageValidator
+            from network_layer3 import PortManager, RateLimiter
+        except ImportError as e3:
+            print(f"Error importing MCP modules: {e} -> {e2} -> {e3}")
+            print(f"Current Python path: {sys.path}")
+            sys.exit(1)
 
 # Initialize the path manager early
 path_manager = PathManager()
@@ -178,6 +143,7 @@ required_packages = {
     "json": STANDARD_LIBRARY,
     "logging": STANDARD_LIBRARY,
     "jsonschema": f"{PIP_INSTALL_PREFIX}jsonschema",
+    "psutil": f"{PIP_INSTALL_PREFIX}psutil",
 }
 
 # Track imported modules
@@ -207,7 +173,11 @@ for package, install_cmd in required_packages.items():
             import jsonschema
 
             imported_modules["jsonschema"] = jsonschema
-            # We'll need this later for message validation in EnhancedMessageValidator
+        elif package == "psutil":
+            import psutil
+            
+            imported_modules["psutil"] = psutil
+            # We'll need this later for health monitoring
     except ImportError as e:
         missing_packages.append((package, install_cmd))
         logger.error(f"Failed to import {package}: {e}. Install with: {install_cmd}")
@@ -222,7 +192,7 @@ if missing_packages:
         logger.error("\nTroubleshooting for websockets package:")
         logger.error("1. Try installing directly: pip3 install websockets")
         logger.error(
-            "2. If using virtualenv, activate it first: source tnos_venv/bin/activate"
+            "2. If using virtualenv, activate it first: source python/tnos_venv/bin/activate"
         )
         logger.error("3. Check for multiple Python installations: which -a python3")
         logger.error(
@@ -239,9 +209,25 @@ if missing_packages:
 # HOW: Import required modules with error handling
 # EXTENT: Required for protocol bridge functionality
 try:
-    # Import the correct MCP components
-    from mcp.protocol.mcp_protocol import MCPContext, MCPMessage, MCPProtocolVersion
-    from mcp.server_time.server_time import MCPServerTime
+    # Import the correct MCP components with fallback approaches
+    try:
+        # Try to import from protocol directory directly
+        sys.path.append(os.path.join(project_root, "mcp", "protocol"))
+        import mcp_protocol
+        MCPContext = mcp_protocol.MCPContext
+        MCPMessage = mcp_protocol.MCPMessage
+        MCPProtocolVersion = mcp_protocol.MCPProtocolVersion
+    except (ImportError, AttributeError):
+        # Try alternate import paths
+        from mcp.protocol.mcp_protocol import MCPContext, MCPMessage, MCPProtocolVersion
+    
+    # Try to import server time module
+    try:
+        from mcp.server_time.server_time import MCPServerTime
+    except ImportError:
+        # Direct import from server_time directory
+        sys.path.append(os.path.join(project_root, "mcp", "server_time"))
+        from server_time import MCPServerTime
 except ImportError as e:
     logger.error(f"Failed to import TNOS MCP components: {e}")
     logger.error(
@@ -363,7 +349,7 @@ class GitHubTNOSBridge:
 
     def translate_github_to_tnos_context(
         self, github_request: Dict[str, Any]
-    ) -> MCPContext:
+    ) -> "MCPContext":
         """
         Translate GitHub MCP request into TNOS 7D context.
 
@@ -417,7 +403,7 @@ class GitHubTNOSBridge:
         return context
 
     def translate_tnos_to_github_response(
-        self, tnos_response: MCPMessage, original_request: Dict[str, Any]
+        self, tnos_response: "MCPMessage", original_request: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
         Translate TNOS response back to GitHub MCP format.
