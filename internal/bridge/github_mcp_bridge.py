@@ -27,7 +27,7 @@ import os
 import sys
 import argparse
 import websockets
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Dict, Optional
 
 # Add the project root to Python path to find mcp modules
 project_root = os.path.abspath(
@@ -51,19 +51,56 @@ except ImportError as e:
         from mcp import security_layer3 as security_module
         from mcp import network_layer3 as network_module
         from mcp.protocol import mcp_protocol
-        
+
         # Create class references from modules
-        PathManager = config_module.PathManager if hasattr(config_module, 'PathManager') else None
-        ConfigManager = config_module.ConfigManager if hasattr(config_module, 'ConfigManager') else None
-        TokenManager = security_module.TokenManager if hasattr(security_module, 'TokenManager') else None
-        EnhancedMessageValidator = security_module.EnhancedMessageValidator if hasattr(security_module, 'EnhancedMessageValidator') else None
-        PortManager = network_module.PortManager if hasattr(network_module, 'PortManager') else None
-        RateLimiter = network_module.RateLimiter if hasattr(network_module, 'RateLimiter') else None
-        MCPProtocolVersion = mcp_protocol.MCPProtocolVersion if hasattr(mcp_protocol, 'MCPProtocolVersion') else None
-        
-        if not all([PathManager, ConfigManager, TokenManager, EnhancedMessageValidator, 
-                   PortManager, RateLimiter, MCPProtocolVersion]):
-            raise ImportError("Failed to import required classes from alternative modules")
+        PathManager = (
+            config_module.PathManager if hasattr(config_module, "PathManager") else None
+        )
+        ConfigManager = (
+            config_module.ConfigManager
+            if hasattr(config_module, "ConfigManager")
+            else None
+        )
+        TokenManager = (
+            security_module.TokenManager
+            if hasattr(security_module, "TokenManager")
+            else None
+        )
+        EnhancedMessageValidator = (
+            security_module.EnhancedMessageValidator
+            if hasattr(security_module, "EnhancedMessageValidator")
+            else None
+        )
+        PortManager = (
+            network_module.PortManager
+            if hasattr(network_module, "PortManager")
+            else None
+        )
+        RateLimiter = (
+            network_module.RateLimiter
+            if hasattr(network_module, "RateLimiter")
+            else None
+        )
+        MCPProtocolVersion = (
+            mcp_protocol.MCPProtocolVersion
+            if hasattr(mcp_protocol, "MCPProtocolVersion")
+            else None
+        )
+
+        if not all(
+            [
+                PathManager,
+                ConfigManager,
+                TokenManager,
+                EnhancedMessageValidator,
+                PortManager,
+                RateLimiter,
+                MCPProtocolVersion,
+            ]
+        ):
+            raise ImportError(
+                "Failed to import required classes from alternative modules"
+            )
     except ImportError as e2:
         print(f"Error importing MCP modules: {e} -> {e2}")
         print(f"Current Python path: {sys.path}")
@@ -122,16 +159,31 @@ logger.info(f"GitHub MCP server port: {args.github_port}")
 if path_manager.add_to_python_path():
     logger.info("Added %s to Python path", path_manager.project_root)
 
+# WHO: PackageManager
+# WHAT: Package requirement definitions
+# WHEN: During bridge initialization
+# WHERE: Layer 3 / Bridge
+# WHY: To ensure all required packages are available
+# HOW: Through package availability checking
+# EXTENT: All required dependencies for bridge operation
+
+# Define constants for package sources
+STANDARD_LIBRARY = "Standard library"
+PIP_INSTALL_PREFIX = "pip install "
+
 # Try to import required packages with detailed error handling
 required_packages = {
-    "asyncio": "Standard library",
-    "websockets": "pip install websockets",
-    "json": "Standard library",
-    "logging": "Standard library",
-    "jsonschema": "pip install jsonschema",
+    "asyncio": STANDARD_LIBRARY,
+    "websockets": f"{PIP_INSTALL_PREFIX}websockets",
+    "json": STANDARD_LIBRARY,
+    "logging": STANDARD_LIBRARY,
+    "jsonschema": f"{PIP_INSTALL_PREFIX}jsonschema",
 }
 
+# Track imported modules
+imported_modules = {}
 missing_packages = []
+
 for package, install_cmd in required_packages.items():
     if package in [
         "json",
@@ -143,11 +195,19 @@ for package, install_cmd in required_packages.items():
 
     try:
         if package == "asyncio":
+            # Store the module reference for future use
             import asyncio
+
+            imported_modules["asyncio"] = asyncio
         elif package == "websockets":
             import websockets
+
+            imported_modules["websockets"] = websockets
         elif package == "jsonschema":
             import jsonschema
+
+            imported_modules["jsonschema"] = jsonschema
+            # We'll need this later for message validation in EnhancedMessageValidator
     except ImportError as e:
         missing_packages.append((package, install_cmd))
         logger.error(f"Failed to import {package}: {e}. Install with: {install_cmd}")
@@ -182,7 +242,7 @@ try:
     # Import the correct MCP components
     from mcp.protocol.mcp_protocol import MCPContext, MCPMessage, MCPProtocolVersion
     from mcp.server_time.server_time import MCPServerTime
-    
+
     # Import Möbius Compression components
     from algorithms.compression.mobius_compression import MobiusCompressor
     from algorithms.compression.context_aware_compression import ContextAwareCompressor
