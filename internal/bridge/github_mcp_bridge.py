@@ -242,10 +242,6 @@ try:
     # Import the correct MCP components
     from mcp.protocol.mcp_protocol import MCPContext, MCPMessage, MCPProtocolVersion
     from mcp.server_time.server_time import MCPServerTime
-
-    # Import Möbius Compression components
-    from algorithms.compression.mobius_compression import MobiusCompressor
-    from algorithms.compression.context_aware_compression import ContextAwareCompressor
 except ImportError as e:
     logger.error(f"Failed to import TNOS MCP components: {e}")
     logger.error(
