@@ -43,6 +43,7 @@ try:
     from mcp.config import PathManager, ConfigManager
     from mcp.security_layer3 import TokenManager, EnhancedMessageValidator
     from mcp.network_layer3 import PortManager, RateLimiter
+
     # Access the protocol file directly from its location
     from mcp.protocol.mcp_protocol import MCPProtocolVersion
 except ImportError as e:
@@ -59,8 +60,9 @@ except ImportError as e:
         try:
             sys.path.append(os.path.join(project_root, "mcp", "protocol"))
             import mcp_protocol
+
             MCPProtocolVersion = mcp_protocol.MCPProtocolVersion
-            
+
             # Create class references manually if needed
             sys.path.append(os.path.join(project_root, "mcp"))
             from config import PathManager, ConfigManager
@@ -175,7 +177,7 @@ for package, install_cmd in required_packages.items():
             imported_modules["jsonschema"] = jsonschema
         elif package == "psutil":
             import psutil
-            
+
             imported_modules["psutil"] = psutil
             # We'll need this later for health monitoring
     except ImportError as e:
@@ -214,13 +216,14 @@ try:
         # Try to import from protocol directory directly
         sys.path.append(os.path.join(project_root, "mcp", "protocol"))
         import mcp_protocol
+
         MCPContext = mcp_protocol.MCPContext
         MCPMessage = mcp_protocol.MCPMessage
         MCPProtocolVersion = mcp_protocol.MCPProtocolVersion
     except (ImportError, AttributeError):
         # Try alternate import paths
         from mcp.protocol.mcp_protocol import MCPContext, MCPMessage, MCPProtocolVersion
-    
+
     # Try to import server time module
     try:
         from mcp.server_time.server_time import MCPServerTime
@@ -403,7 +406,7 @@ class GitHubTNOSBridge:
         return context
 
     def translate_tnos_to_github_response(
-        self, tnos_response: "MCPMessage", original_request: Dict[str, Any]
+        self, tnos_response: Any, original_request: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
         Translate TNOS response back to GitHub MCP format.
