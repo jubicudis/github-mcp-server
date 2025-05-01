@@ -93,3 +93,24 @@
 2025-04-30 12:38:58,748 - tnos_mcp_server - INFO - Received shutdown signal, exiting...
 2025-04-30 12:38:58,935 - websockets.server - INFO - server closing
 2025-04-30 12:38:58,937 - websockets.server - INFO - server closed
+2025-04-30 18:22:01,919 - tnos_mcp_server - INFO - Wrote PID to /Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/github-mcp-server/logs/tnos_mcp_server.pid
+2025-04-30 18:22:01,920 - tnos_mcp_server - INFO - Starting TNOS MCP server on localhost:9001 (WebSocket)
+2025-04-30 18:22:04,795 - websockets.server - INFO - server listening on 127.0.0.1:9001
+2025-04-30 18:22:04,796 - websockets.server - INFO - server listening on [::1]:9001
+2025-04-30 18:22:04,796 - tnos_mcp_server - INFO - Server started successfully
+2025-05-01 07:02:34,293 - tnos_mcp_server - INFO - Received shutdown signal, exiting...
+2025-05-01 07:02:34,336 - websockets.server - INFO - server closing
+2025-05-01 07:02:34,336 - websockets.server - INFO - server closed
+2025-05-01 07:03:47,449 - tnos_mcp_server - INFO - Wrote PID to /Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/github-mcp-server/logs/tnos_mcp_server.pid
+2025-05-01 07:03:47,449 - tnos_mcp_server - INFO - Starting TNOS MCP server on localhost:9001 (WebSocket)
+2025-05-01 07:03:47,630 - websockets.server - INFO - server listening on [::1]:9001
+2025-05-01 07:03:47,630 - websockets.server - INFO - server listening on 127.0.0.1:9001
+2025-05-01 07:03:47,631 - tnos_mcp_server - INFO - Server started successfully
+2025-05-01 07:11:22,267 - tnos_mcp_server - INFO - Received shutdown signal, exiting...
+2025-05-01 07:11:22,366 - websockets.server - INFO - server closing
+2025-05-01 07:11:22,366 - websockets.server - INFO - server closed
+2025-05-01 07:11:25,165 - tnos_mcp_server - INFO - Wrote PID to /Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/github-mcp-server/logs/tnos_mcp_server.pid
+2025-05-01 07:11:25,165 - tnos_mcp_server - INFO - Starting TNOS MCP server on localhost:9001 (WebSocket)
+2025-05-01 07:11:25,742 - websockets.server - INFO - server listening on 127.0.0.1:9001
+2025-05-01 07:11:25,742 - websockets.server - INFO - server listening on [::1]:9001
+2025-05-01 07:11:25,743 - tnos_mcp_server - INFO - Server started successfully

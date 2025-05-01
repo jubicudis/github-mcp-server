@@ -29,6 +29,42 @@ import argparse
 import websockets
 from typing import Any, Dict, Optional
 
+# Virtual environment detection and activation
+project_root = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "..", "..")
+)
+venv_path = os.path.join(project_root, "python", "tnos_venv")
+
+# Check if we're running in a virtual environment
+if not hasattr(sys, "real_prefix") and not (
+    hasattr(sys, "base_prefix") and sys.base_prefix != sys.prefix
+):
+    # We're not in a venv, try to activate the project's venv
+    if os.path.exists(venv_path):
+        # Add the venv site-packages to Python path
+        site_packages = os.path.join(
+            venv_path,
+            "lib",
+            f"python{sys.version_info.major}.{sys.version_info.minor}",
+            "site-packages",
+        )
+        if os.path.exists(site_packages) and site_packages not in sys.path:
+            sys.path.insert(0, site_packages)
+            print(
+                f"Added virtual environment site-packages to Python path: {site_packages}"
+            )
+
+# Now try importing required packages
+try:
+    import psutil
+except ImportError:
+    print(
+        "Failed to import psutil: No module named 'psutil'. Install with: pip install psutil"
+    )
+    print(f"Current Python path: {sys.path}")
+    print(f"Try running: {sys.executable} -m pip install psutil")
+    sys.exit(1)
+
 # Add the project root to Python path to find mcp modules
 project_root = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "..", "..")
@@ -226,11 +262,11 @@ try:
 
     # Try to import server time module
     try:
-        from mcp.server_time.server_time import MCPServerTime
+        from mcp.server.mcp_server_time import MCPServerTime
     except ImportError:
-        # Direct import from server_time directory
-        sys.path.append(os.path.join(project_root, "mcp", "server_time"))
-        from server_time import MCPServerTime
+        # Direct import from server directory
+        sys.path.append(os.path.join(project_root, "mcp", "server"))
+        from mcp_server_time import MCPServerTime
 except ImportError as e:
     logger.error(f"Failed to import TNOS MCP components: {e}")
     logger.error(
@@ -350,9 +386,7 @@ class GitHubTNOSBridge:
             "get_code_scanning_alert": "security_detail_operation",
         }
 
-    def translate_github_to_tnos_context(
-        self, github_request: Dict[str, Any]
-    ) -> Any:
+    def translate_github_to_tnos_context(self, github_request: Dict[str, Any]) -> Any:
         """
         Translate GitHub MCP request into TNOS 7D context.
 
