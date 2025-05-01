@@ -262,11 +262,21 @@ try:
 
     # Try to import server time module
     try:
+        # First try to import from the server directory
         from mcp.server.mcp_server_time import MCPServerTime
     except ImportError:
-        # Direct import from server directory
-        sys.path.append(os.path.join(project_root, "mcp", "server"))
-        from mcp_server_time import MCPServerTime
+        # Try to import from the server_time directory
+        try:
+            from mcp.server_time.core import MCPServerTime
+        except ImportError:
+            # Try direct import from server directory
+            sys.path.append(os.path.join(project_root, "mcp", "server"))
+            try:
+                from mcp_server_time import MCPServerTime
+            except ImportError:
+                # Try server_time directory
+                sys.path.append(os.path.join(project_root, "mcp", "server_time"))
+                from core import MCPServerTime
 except ImportError as e:
     logger.error(f"Failed to import TNOS MCP components: {e}")
     logger.error(
