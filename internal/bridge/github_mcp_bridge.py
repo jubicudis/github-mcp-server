@@ -25,92 +25,62 @@ import json
 import logging
 import os
 import sys
+import time
+import uuid
 import argparse
 import websockets
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional, Tuple, Union
 
-# Virtual environment detection and activation
-project_root = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "..", "..")
-)
-venv_path = os.path.join(project_root, "python", "tnos_venv")
-
-# Check if we're running in a virtual environment
-if not hasattr(sys, "real_prefix") and not (
-    hasattr(sys, "base_prefix") and sys.base_prefix != sys.prefix
-):
-    # We're not in a venv, try to activate the project's venv
-    if os.path.exists(venv_path):
-        # Add the venv site-packages to Python path
-        site_packages = os.path.join(
-            venv_path,
-            "lib",
-            f"python{sys.version_info.major}.{sys.version_info.minor}",
-            "site-packages",
-        )
-        if os.path.exists(site_packages) and site_packages not in sys.path:
-            sys.path.insert(0, site_packages)
-            print(
-                f"Added virtual environment site-packages to Python path: {site_packages}"
-            )
-
-# Now try importing required packages
-try:
-    import psutil
-except ImportError:
-    print(
-        "Failed to import psutil: No module named 'psutil'. Install with: pip install psutil"
-    )
-    print(f"Current Python path: {sys.path}")
-    print(f"Try running: {sys.executable} -m pip install psutil")
-    sys.exit(1)
-
-# Add the project root to Python path to find mcp modules
+# Add project root to Python path
 project_root = os.path.abspath(
     os.path.join(os.path.dirname(__file__), "..", "..", "..")
 )
 if project_root not in sys.path:
     sys.path.insert(0, project_root)
-    print(f"Added {project_root} to Python path")
 
-# Import components from existing MCP modules
+# Add mcp directory to Python path
+mcp_path = os.path.join(project_root, "mcp")
+if mcp_path not in sys.path:
+    sys.path.insert(0, mcp_path)
+
+# Import MCP components
 try:
-    # Import directly from the mcp directory structure
-    from mcp.config import PathManager, ConfigManager
-    from mcp.security_layer3 import TokenManager, EnhancedMessageValidator
-    from mcp.network_layer3 import PortManager, RateLimiter
-
-    # Access the protocol file directly from its location
-    from mcp.protocol.mcp_protocol import MCPProtocolVersion
+    # Try direct imports first
+    from mcp.protocol.mcp_protocol import MCPContext, MCPMessage, MCPProtocolVersion
+    from mcp.server.mcp_server_time import MCPServerTime
+    from mcp.integration.mcp_integration import TNOSLayerIntegration
+    from mcp.integration.mobius_compression_mcp import get_mcp_handler
 except ImportError as e:
-    # Alternative import paths - trying different locations
     try:
-        # Try alternate import paths based on actual file structure
-        sys.path.append(os.path.join(project_root, "mcp"))
-        from config import PathManager, ConfigManager
-        from security_layer3 import TokenManager, EnhancedMessageValidator
-        from network_layer3 import PortManager, RateLimiter
-        from protocol.mcp_protocol import MCPProtocolVersion
+        # Try alternate import structure
+        from protocol.mcp_protocol import MCPContext, MCPMessage, MCPProtocolVersion
+        from server.mcp_server_time import MCPServerTime
+        from integration.mcp_integration import TNOSLayerIntegration
+        from integration.mobius_compression_mcp import get_mcp_handler
     except ImportError as e2:
-        # Try importing from protocol directory directly
-        try:
-            sys.path.append(os.path.join(project_root, "mcp", "protocol"))
-            import mcp_protocol
+        sys.stderr.write(f"Failed to import MCP modules: {e} -> {e2}\n")
+        sys.stderr.write(f"Current Python path: {sys.path}\n")
+        sys.exit(1)
 
-            MCPProtocolVersion = mcp_protocol.MCPProtocolVersion
+# Configure logging
+log_directory = os.path.join(project_root, "logs")
+if not os.path.exists(log_directory):
+    try:
+        os.makedirs(log_directory)
+    except Exception as e:
+        sys.stderr.write(f"Failed to create log directory: {e}\n")
+        log_directory = os.getcwd()
 
-            # Create class references manually if needed
-            sys.path.append(os.path.join(project_root, "mcp"))
-            from config import PathManager, ConfigManager
-            from security_layer3 import TokenManager, EnhancedMessageValidator
-            from network_layer3 import PortManager, RateLimiter
-        except ImportError as e3:
-            print(f"Error importing MCP modules: {e} -> {e2} -> {e3}")
-            print(f"Current Python path: {sys.path}")
-            sys.exit(1)
-
-# Initialize the path manager early
-path_manager = PathManager()
+log_file_path = os.path.join(log_directory, f"github_tnos_bridge_{time.strftime('%Y%m%d_%H%M%S')}.log")
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.FileHandler(log_file_path),
+        logging.StreamHandler(sys.stdout),
+    ],
+)
+logger = logging.getLogger("github_mcp_bridge")
 
 # Parse command line arguments
 parser = argparse.ArgumentParser(description="GitHub MCP to TNOS MCP Bridge")
@@ -121,178 +91,99 @@ parser.add_argument(
     help="TCP port for TNOS MCP server (WebSocket port will be TCP port + 1)",
 )
 parser.add_argument(
-    "--github-port", type=int, default=8080, help="Port for GitHub MCP server"
+    "--github-port", 
+    type=int, 
+    default=8080, 
+    help="Port for GitHub MCP server"
 )
-parser.add_argument("--log-file", type=str, default=None, help="Path to log file")
+parser.add_argument(
+    "--log-level", 
+    choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+    default="INFO",
+    help="Set logging level"
+)
 parser.add_argument(
     "--context-vector",
     type=str,
     default=None,
-    help="JSON string with 7D context vector",
+    help="JSON string with 7D context vector"
 )
-parser.add_argument("--debug", action="store_true", help="Enable debug logging")
 args = parser.parse_args()
 
-# Define log file path
-log_file_path = args.log_file
-if log_file_path is None:
-    log_file_path = path_manager.get_log_path("github_tnos_bridge")
-
-# Configure logging
-log_level = logging.DEBUG if args.debug else logging.INFO
-logging.basicConfig(
-    level=log_level,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-    handlers=[
-        logging.FileHandler(log_file_path),
-        logging.StreamHandler(),
-    ],
-)
-logger = logging.getLogger("github_mcp_bridge")
+# Set log level
+log_level = getattr(logging, args.log_level)
+logger.setLevel(log_level)
+logging.getLogger().setLevel(log_level)
 
 # Calculate WebSocket port (TCP port + 1)
 tnos_ws_port = args.tnos_port + 1
 tnos_server_uri = f"ws://localhost:{tnos_ws_port}"
-logger.info(
-    f"TNOS MCP server TCP port: {args.tnos_port}, WebSocket port: {tnos_ws_port}"
-)
+logger.info(f"TNOS MCP server TCP port: {args.tnos_port}, WebSocket port: {tnos_ws_port}")
 logger.info(f"GitHub MCP server port: {args.github_port}")
 
-# Setup PYTHONPATH to include project root directory
-if path_manager.add_to_python_path():
-    logger.info("Added %s to Python path", path_manager.project_root)
-
-# WHO: PackageManager
-# WHAT: Package requirement definitions
-# WHEN: During bridge initialization
+# WHO: ContextVector7D
+# WHAT: 7D context vector implementation
+# WHEN: During context creation and translation
 # WHERE: Layer 3 / Bridge
-# WHY: To ensure all required packages are available
-# HOW: Through package availability checking
-# EXTENT: All required dependencies for bridge operation
-
-# Define constants for package sources
-STANDARD_LIBRARY = "Standard library"
-PIP_INSTALL_PREFIX = "pip install "
-
-# Try to import required packages with detailed error handling
-required_packages = {
-    "asyncio": STANDARD_LIBRARY,
-    "websockets": f"{PIP_INSTALL_PREFIX}websockets",
-    "json": STANDARD_LIBRARY,
-    "logging": STANDARD_LIBRARY,
-    "jsonschema": f"{PIP_INSTALL_PREFIX}jsonschema",
-    "psutil": f"{PIP_INSTALL_PREFIX}psutil",
-}
-
-# Track imported modules
-imported_modules = {}
-missing_packages = []
-
-for package, install_cmd in required_packages.items():
-    if package in [
-        "json",
-        "logging",
-        "sys",
-        "os",
-    ]:  # Standard libraries, already imported
-        continue
-
-    try:
-        if package == "asyncio":
-            # Store the module reference for future use
-            import asyncio
-
-            imported_modules["asyncio"] = asyncio
-        elif package == "websockets":
-            import websockets
-
-            imported_modules["websockets"] = websockets
-        elif package == "jsonschema":
-            import jsonschema
-
-            imported_modules["jsonschema"] = jsonschema
-        elif package == "psutil":
-            import psutil
-
-            imported_modules["psutil"] = psutil
-            # We'll need this later for health monitoring
-    except ImportError as e:
-        missing_packages.append((package, install_cmd))
-        logger.error(f"Failed to import {package}: {e}. Install with: {install_cmd}")
-
-if missing_packages:
-    logger.error("STARTUP FAILED - Missing required packages")
-    for package, cmd in missing_packages:
-        logger.error(f"  - {package}: Install with '{cmd}'")
-
-    # Try to help with the most common issue (websockets)
-    if any(pkg[0] == "websockets" for pkg in missing_packages):
-        logger.error("\nTroubleshooting for websockets package:")
-        logger.error("1. Try installing directly: pip3 install websockets")
-        logger.error(
-            "2. If using virtualenv, activate it first: source python/tnos_venv/bin/activate"
-        )
-        logger.error("3. Check for multiple Python installations: which -a python3")
-        logger.error(
-            "4. Try installing with specific Python: /path/to/python3 -m pip install websockets"
-        )
-
-    sys.exit(1)
-
-# WHO: GithubMCPBridge
-# WHAT: Import necessary TNOS MCP components
-# WHEN: During bridge initialization
-# WHERE: GitHub MCP Bridge
-# WHY: To establish connection with TNOS core
-# HOW: Import required modules with error handling
-# EXTENT: Required for protocol bridge functionality
-try:
-    # Import the correct MCP components with fallback approaches
-    try:
-        # Try to import from protocol directory directly
-        sys.path.append(os.path.join(project_root, "mcp", "protocol"))
-        import mcp_protocol
-
-        MCPContext = mcp_protocol.MCPContext
-        MCPMessage = mcp_protocol.MCPMessage
-        MCPProtocolVersion = mcp_protocol.MCPProtocolVersion
-    except (ImportError, AttributeError):
-        # Try alternate import paths
-        from mcp.protocol.mcp_protocol import MCPContext, MCPMessage, MCPProtocolVersion
-
-    # Try to import server time module
-    try:
-        # First try direct import from the correct location
-        sys.path.append(os.path.join(project_root, "mcp", "server"))
-        from mcp_server_time import MCPServerTime
-    except ImportError:
-        # Try alternate import paths
-        try:
-            # Try the fully qualified import
-            from mcp.server.mcp_server_time import MCPServerTime
-        except ImportError:
-            try:
-                # Try to import from the server_time directory
-                from mcp.server_time.core import MCPServerTime
-            except ImportError:
-                # Last resort - direct import with explicit path
-                mcp_server_time_path = os.path.join(
-                    project_root, "mcp", "server", "mcp_server_time.py"
-                )
-                if os.path.exists(mcp_server_time_path):
-                    sys.path.append(os.path.dirname(mcp_server_time_path))
-                    from mcp_server_time import MCPServerTime
-                else:
-                    raise ImportError(
-                        f"Could not find mcp_server_time module at {mcp_server_time_path}"
-                    )
-except ImportError as e:
-    logger.error(f"Failed to import TNOS MCP components: {e}")
-    logger.error(
-        "Make sure you're running this script from the project root or have PYTHONPATH set correctly"
-    )
-    logger.error(f"Current Python path: {sys.path}")
-    sys.exit(1)
+# WHY: To maintain TNOS 7D context format
+# HOW: Object-oriented context representation
+# EXTENT: All context operations
+class ContextVector7D:
+    """
+    Represents a 7D context vector following TNOS standards.
+    """
+    def __init__(
+        self, 
+        who: str = "System",
+        what: str = "Transform",
+        when: Union[str, float] = None,
+        where: str = "MCP_Bridge",
+        why: str = "Protocol_Compliance",
+        how: str = "Context_Translation",
+        extent: Union[str, float] = 1.0,
+    ):
+        """Initialize a 7D context vector with default values."""
+        self.who = who
+        self.what = what
+        self.when = when if when is not None else time.time()
+        self.where = where
+        self.why = why
+        self.how = how
+        self.extent = extent
+        self.metadata = {}
+        
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert the context vector to a dictionary."""
+        return {
+            "WHO": self.who,
+            "WHAT": self.what,
+            "WHEN": self.when,
+            "WHERE": self.where,
+            "WHY": self.why,
+            "HOW": self.how,
+            "EXTENT": self.extent,
+            "metadata": self.metadata
+        }
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ContextVector7D':
+        """Create a context vector from a dictionary."""
+        context = cls()
+        
+        # Extract dimensions with appropriate defaults
+        context.who = data.get("WHO", data.get("who", "System"))
+        context.what = data.get("WHAT", data.get("what", "Transform"))
+        context.when = data.get("WHEN", data.get("when", time.time()))
+        context.where = data.get("WHERE", data.get("where", "MCP_Bridge"))
+        context.why = data.get("WHY", data.get("why", "Protocol_Compliance"))
+        context.how = data.get("HOW", data.get("how", "Context_Translation"))
+        context.extent = data.get("EXTENT", data.get("extent", 1.0))
+        
+        # Extract metadata if available
+        if "metadata" in data and isinstance(data["metadata"], dict):
+            context.metadata = data["metadata"]
+            
+        return context
 
 
 # WHO: GitHubTNOSBridge
@@ -318,29 +209,20 @@ class GitHubTNOSBridge:
             tnos_server_uri: WebSocket URI for the TNOS MCP server
             github_mcp_port: Port number the GitHub MCP server is running on
         """
-        # Initialize path and config manager
-        self.path_manager = path_manager  # Use the global path manager
-        self.config_manager = ConfigManager(self.path_manager)
-
-        # Initialize token manager
-        self.token_manager = TokenManager(self.path_manager)
-
-        # Initialize time service
-        self.time_service = MCPServerTime()
-
         self.tnos_server_uri = tnos_server_uri
         self.github_mcp_port = github_mcp_port
         self.tnos_ws_connection = None
         self.github_clients = set()
         self.session_mapping = {}  # Maps GitHub session IDs to TNOS session IDs
         self.tool_mapping = self._build_tool_mapping()
-        self.message_validator = EnhancedMessageValidator(self.config_manager)
-        self.message_validator.set_token_manager(self.token_manager)
-        self.rate_limiter = RateLimiter()
-
+        
+        # Initialize MCP time service
+        self.time_service = MCPServerTime()
+        
         # Protocol version negotiation
         self.supported_versions = MCPProtocolVersion.SUPPORTED_VERSIONS
         self.current_version = MCPProtocolVersion.get_latest_version()
+        self.min_version = MCPProtocolVersion.get_min_supported_version()
 
         # Connection state tracking for improved error handling
         self.connection_state = {
@@ -357,18 +239,30 @@ class GitHubTNOSBridge:
                 "reconnect_attempts": 0,
             },
         }
+        
+        # Message buffer for handling disconnections
+        self.message_buffer = {
+            "github": [],
+            "tnos": []
+        }
+        
+        # Rate limiting settings
+        self.rate_limits = {
+            "default": {"requests": 60, "period": 60},
+            "compression": {"requests": 20, "period": 60},
+            "formula": {"requests": 30, "period": 60},
+        }
+        self.request_counts = {}
 
         # Save PID for monitoring
         self._save_pid()
 
         # Log the TNOS server URI we're connecting to
-        logger.info(
-            f"Configured to connect to TNOS MCP server at {self.tnos_server_uri}"
-        )
+        logger.info(f"Initialized bridge to connect to TNOS MCP server at {self.tnos_server_uri}")
 
     def _save_pid(self):
         """Save the current process ID to a file for monitoring"""
-        pid_path = self.path_manager.get_pid_path("github_bridge")
+        pid_path = os.path.join(project_root, "logs", "github_bridge.pid")
         try:
             with open(pid_path, "w") as f:
                 f.write(str(os.getpid()))
@@ -387,27 +281,231 @@ class GitHubTNOSBridge:
         # This mapping connects GitHub tools to TNOS capabilities
         # Format: "github_tool_name": "tnos_capability_name"
         return {
+            # Formula Registry operations
+            "tnos_formula_registry": "formula_registry_query",
+            "tnos_mobius_formula_execution": "formula_execute",
+            
+            # Context operations
+            "tnos_context_analysis": "context_analyze",
+            "tnos_7d_context_vector": "context_vector_generate",
+            
+            # Compression operations
+            "tnos_compression": "mobius_compression",
+            
+            # Code operations
+            "tnos_code_optimization": "code_optimize",
+            "tnos_neural_hybrid_reasoning": "neural_hybrid_reason",
+            
             # Repository operations
             "get_file_contents": "file_read_operation",
             "list_branches": "version_control_operation",
             "create_or_update_file": "file_write_operation",
             "search_repositories": "search_operation",
+            
             # Issue operations
             "get_issue": "task_management_operation",
             "create_issue": "task_creation_operation",
             "list_issues": "task_listing_operation",
+            
             # Pull request operations
             "get_pull_request": "code_review_operation",
             "list_pull_requests": "code_review_listing_operation",
             "get_pull_request_files": "code_diff_operation",
+            
             # Code scanning
             "list_code_scanning_alerts": "security_analysis_operation",
             "get_code_scanning_alert": "security_detail_operation",
         }
 
-    def translate_github_to_tnos_context(self, github_request: Dict[str, Any]) -> Any:
+    # WHO: GitHubTNOSBridge.bridgeMCPContext
+    # WHAT: Convert GitHub context to TNOS 7D context
+    # WHEN: During tool request handling
+    # WHERE: MCP_Bridge
+    # WHY: To preserve context across systems
+    # HOW: Context translation with dimension mapping
+    # EXTENT: All tool requests
+    def bridgeMCPContext(self, github_context: Dict[str, Any]) -> ContextVector7D:
         """
-        Translate GitHub MCP request into TNOS 7D context.
+        Bridge GitHub MCP context format to TNOS 7D context.
+        This is a critical function for maintaining context awareness.
+        
+        Args:
+            github_context: Context from GitHub MCP request
+            
+        Returns:
+            TNOS 7D Context Vector
+        """
+        # Create a 7D context vector with defaults
+        context_vector = ContextVector7D()
+        
+        # Extract GitHub context information if available
+        if github_context:
+            # Map GitHub identity to WHO dimension
+            if "identity" in github_context:
+                context_vector.who = github_context.get("identity") or "GitHub_Copilot"
+            
+            # Map GitHub operation to WHAT dimension
+            if "operation" in github_context:
+                context_vector.what = github_context.get("operation") or "Transform"
+            
+            # Map GitHub timestamp to WHEN dimension with compression
+            if "timestamp" in github_context:
+                timestamp = github_context.get("timestamp")
+                if isinstance(timestamp, (int, float)):
+                    context_vector.when = self.time_service.compress_time(timestamp)
+                else:
+                    context_vector.when = self.time_service.get_current_time()
+            else:
+                context_vector.when = self.time_service.get_current_time()
+            
+            # Map GitHub location to WHERE dimension
+            if "location" in github_context:
+                context_vector.where = github_context.get("location") or "MCP_Bridge"
+            
+            # Map GitHub purpose to WHY dimension
+            if "purpose" in github_context:
+                context_vector.why = github_context.get("purpose") or "Protocol_Compliance"
+            
+            # Map GitHub process to HOW dimension
+            if "process" in github_context:
+                context_vector.how = github_context.get("process") or "Context_Translation"
+            elif "method" in github_context:
+                context_vector.how = github_context.get("method") or "Context_Translation"
+            
+            # Map GitHub scope to EXTENT dimension
+            if "scope" in github_context:
+                context_vector.extent = github_context.get("scope") or 1.0
+            
+            # Store the original GitHub context as metadata
+            context_vector.metadata["original_github_context"] = json.dumps(github_context)
+        
+        # Add bridge metadata
+        context_vector.metadata["bridge_timestamp"] = time.time()
+        context_vector.metadata["mcp_version"] = self.current_version
+        
+        return context_vector
+
+    # WHO: GitHubTNOSBridge.translateContext
+    # WHAT: Translate context between systems
+    # WHEN: During request processing
+    # WHERE: MCP_Bridge
+    # WHY: To ensure context compatibility
+    # HOW: Using 7D context framework
+    # EXTENT: All cross-system communications
+    def translateContext(self, context: Dict[str, Any], direction: str = "to_tnos") -> Dict[str, Any]:
+        """
+        Translate context between GitHub MCP and TNOS MCP formats.
+        
+        Args:
+            context: Context dictionary to translate
+            direction: Direction of translation ("to_tnos" or "to_github")
+            
+        Returns:
+            Translated context dictionary
+        """
+        if direction == "to_tnos":
+            # Convert GitHub context to TNOS 7D context
+            context_vector = self.bridgeMCPContext(context)
+            
+            # Apply compression to dimensional data for optimal transmission
+            compressed_context = self.compressContextDimensions(context_vector)
+            
+            return compressed_context.to_dict()
+        else:
+            # Convert TNOS 7D context to GitHub context
+            if isinstance(context, ContextVector7D):
+                tnos_context = context
+            else:
+                tnos_context = ContextVector7D.from_dict(context)
+            
+            # Create GitHub context format
+            github_context = {
+                "identity": tnos_context.who,
+                "operation": tnos_context.what,
+                "timestamp": self.time_service.decompress_time(tnos_context.when),
+                "location": tnos_context.where,
+                "purpose": tnos_context.why,
+                "method": tnos_context.how,
+                "scope": tnos_context.extent,
+                "metadata": {
+                    "source": "tnos_mcp",
+                    "translated_by": "github_mcp_bridge",
+                    "timestamp": time.time(),
+                    "mcp_version": self.current_version
+                }
+            }
+            
+            # Include any additional TNOS metadata
+            if tnos_context.metadata:
+                github_context["metadata"]["tnos_metadata"] = tnos_context.metadata
+            
+            return github_context
+
+    # WHO: GitHubTNOSBridge.compressContextDimensions
+    # WHAT: Apply compression to context
+    # WHEN: Before context transmission
+    # WHERE: MCP_Bridge
+    # WHY: To optimize data transfer
+    # HOW: Using Möbius compression formula
+    # EXTENT: All dimensional context data
+    def compressContextDimensions(self, context_vector: ContextVector7D) -> ContextVector7D:
+        """
+        Apply compression to 7D context dimensions using the Möbius compression formula.
+        This optimizes transmission while preserving context integrity.
+        
+        Args:
+            context_vector: The 7D context vector to compress
+            
+        Returns:
+            Compressed 7D context vector
+        """
+        # Create a new context vector for the compressed output
+        compressed = ContextVector7D(
+            who=context_vector.who,
+            what=context_vector.what,
+            when=context_vector.when,
+            where=context_vector.where,
+            why=context_vector.why,
+            how=context_vector.how,
+            extent=context_vector.extent
+        )
+        
+        # Copy metadata
+        compressed.metadata = context_vector.metadata.copy()
+        
+        try:
+            # Get compression handler
+            compression_handler = get_mcp_handler()
+            
+            # Add indicators that compression was applied
+            compressed.metadata["compression_applied"] = True
+            compressed.metadata["compression_timestamp"] = time.time()
+            
+            # Compress temporal dimension (WHEN) if it's a timestamp
+            if isinstance(context_vector.when, (int, float)):
+                compressed.when = self.time_service.compress_time(context_vector.when)
+                compressed.metadata["when_compression"] = "temporal"
+            
+            # Store compression variables for decompression
+            compressed.metadata["compression_variables"] = {
+                "B": 1.0,  # Base context integrity
+                "I": 0.95,  # Information retention factor
+                "V": 7.0,  # Vector dimensionality
+                "G": 1.0,  # Global context scale
+                "F": 0.05,  # Fine-tuning parameter
+                "E": 0.01,  # Entropy scaling factor
+            }
+            
+        except Exception as e:
+            logger.warning(f"Context compression failed, using uncompressed: {e}")
+            # If compression fails, return the original context
+            return context_vector
+        
+        return compressed
+
+    def translate_github_to_tnos_context(self, github_request: Dict[str, Any]) -> MCPContext:
+        """
+        Translate GitHub MCP request into TNOS MCPContext object.
 
         Args:
             github_request: GitHub MCP request object
@@ -421,40 +519,64 @@ class GitHubTNOSBridge:
         # Extract information from GitHub request
         tool_name = github_request.get("name", "")
         params = github_request.get("parameters", {})
+        github_context = github_request.get("context", {})
 
-        # WHO: The actor making the request (GitHub Copilot or user)
-        context.who = "GitHub_Copilot"
-
-        # WHAT: The capability being requested (mapped from GitHub tool)
-        context.what = self.tool_mapping.get(tool_name, "unknown_operation")
-
-        # WHEN: Current timestamp (get from time service for proper compression)
-        current_time = self.time_service.get_current_time()
-        context.when = current_time
-
-        # WHERE: The location in the repository
-        repo_info = f"{params.get('owner', '')}/{params.get('repo', '')}"
-        if "path" in params:
-            repo_info += f"/{params.get('path', '')}"
-        context.where = repo_info if repo_info != "/" else "system"
-
-        # WHY: Purpose of the operation
-        context.why = f"GitHub_operation_{tool_name}"
-
-        # HOW: The method being used
-        context.how = "github_mcp_bridge"
-
-        # EXTENT: Scope of the operation
-        # Determine based on parameters if it's a single resource or multiple
-        if any(param in params for param in ["perPage", "page", "list"]):
-            context.extent = "multiple_resources"
+        # Translate GitHub context to 7D context
+        context_7d = self.bridgeMCPContext(github_context)
+        
+        # Update with tool-specific information if not already in GitHub context
+        if "who" not in github_context:
+            context.who = "GitHub_Copilot"
         else:
-            context.extent = "single_resource"
+            context.who = context_7d.who
+            
+        if "what" not in github_context:
+            context.what = self.tool_mapping.get(tool_name, "unknown_operation")
+        else:
+            context.what = context_7d.what
+            
+        if "when" not in github_context:
+            context.when = self.time_service.get_current_time()
+        else:
+            context.when = context_7d.when
+            
+        if "where" not in github_context:
+            # Determine location from parameters if available
+            repo_info = f"{params.get('owner', '')}/{params.get('repo', '')}"
+            if "path" in params:
+                repo_info += f"/{params.get('path', '')}"
+            context.where = repo_info if repo_info != "/" else "MCP_Bridge"
+        else:
+            context.where = context_7d.where
+            
+        if "why" not in github_context:
+            context.why = f"GitHub_operation_{tool_name}"
+        else:
+            context.why = context_7d.why
+            
+        if "how" not in github_context:
+            context.how = "github_mcp_bridge"
+        else:
+            context.how = context_7d.how
+            
+        if "extent" not in github_context:
+            # Determine based on parameters if it's a single resource or multiple
+            if any(param in params for param in ["perPage", "page", "list"]):
+                context.extent = "multiple_resources"
+            else:
+                context.extent = "single_resource"
+        else:
+            context.extent = context_7d.extent
 
         # Add original request as metadata for reference
-        context.set_metadata("original_github_request", json.dumps(github_request))
-        context.set_metadata("github_tool", tool_name)
-        context.set_metadata("mcp_version", self.current_version)
+        context.add_metadata("original_github_request", json.dumps(github_request))
+        context.add_metadata("github_tool", tool_name)
+        context.add_metadata("mcp_version", self.current_version)
+        
+        # Add any metadata from the 7D context
+        for key, value in context_7d.metadata.items():
+            if key not in ["original_github_request", "github_tool", "mcp_version"]:
+                context.add_metadata(key, value)
 
         return context
 
@@ -472,7 +594,24 @@ class GitHubTNOSBridge:
             Response formatted for GitHub MCP server
         """
         # Extract the result content from TNOS response
-        result_content = tnos_response.content
+        try:
+            if isinstance(tnos_response, MCPMessage):
+                result_content = tnos_response.content
+                context_obj = tnos_response.context
+            else:
+                result_content = tnos_response.get("content", {})
+                context_obj = MCPContext()
+                
+                # Try to populate context from tnos_response
+                if "context" in tnos_response and isinstance(tnos_response["context"], dict):
+                    context_dict = tnos_response["context"]
+                    for dim in ["who", "what", "when", "where", "why", "how", "extent"]:
+                        if dim in context_dict:
+                            setattr(context_obj, dim, context_dict[dim])
+        except Exception as e:
+            logger.error(f"Error extracting content from TNOS response: {e}")
+            result_content = {"error": str(e)}
+            context_obj = MCPContext()
 
         # If TNOS response is a string, try to parse as JSON
         if isinstance(result_content, str):
@@ -483,15 +622,36 @@ class GitHubTNOSBridge:
                 result_content = {"content": result_content}
 
         # Extract 7D context dimensions for metadata
-        context_metadata = {
-            "who": tnos_response.context.who,
-            "what": tnos_response.context.what,
-            "when": tnos_response.context.when,
-            "where": tnos_response.context.where,
-            "why": tnos_response.context.why,
-            "how": tnos_response.context.how,
-            "extent": tnos_response.context.extent,
-        }
+        try:
+            context_metadata = {
+                "who": getattr(context_obj, "who", "System"),
+                "what": getattr(context_obj, "what", "Response"),
+                "when": getattr(context_obj, "when", self.time_service.get_current_time()),
+                "where": getattr(context_obj, "where", "MCP_Bridge"),
+                "why": getattr(context_obj, "why", "Request_Response"),
+                "how": getattr(context_obj, "how", "Bridge_Translation"),
+                "extent": getattr(context_obj, "extent", "Single_Response")
+            }
+
+            # If timestamp is compressed, decompress it
+            if isinstance(context_metadata["when"], (int, float)):
+                try:
+                    context_metadata["when"] = self.time_service.decompress_time(context_metadata["when"])
+                except:
+                    # If decompression fails, use as-is
+                    pass
+                    
+        except Exception as e:
+            logger.error(f"Error extracting context metadata: {e}")
+            context_metadata = {
+                "who": "System",
+                "what": "Response",
+                "when": time.time(),
+                "where": "MCP_Bridge",
+                "why": "Request_Response",
+                "how": "Bridge_Translation",
+                "extent": "Single_Response"
+            }
 
         # Add the original context information as metadata
         response = {
@@ -499,8 +659,9 @@ class GitHubTNOSBridge:
             "metadata": {
                 "tnos_context": context_metadata,
                 "mcp_version": self.current_version,
-                "timestamp": self.time_service.get_current_time(),
+                "timestamp": time.time(),
                 "operation": original_request.get("name", ""),
+                "request_id": original_request.get("id", str(uuid.uuid4()))
             },
         }
 
@@ -514,24 +675,35 @@ class GitHubTNOSBridge:
             True if connected successfully, False otherwise
         """
         try:
-            # Check if TNOS MCP server is available
-            host = self.tnos_server_uri.split("://")[1].split(":")[0]
-            port = int(self.tnos_server_uri.split(":")[-1])
+            # Extract host and port from URI
+            uri_parts = self.tnos_server_uri.split("://")[1].split(":")
+            host = uri_parts[0]
+            port = int(uri_parts[1]) if len(uri_parts) > 1 else 9001
 
-            if not PortManager.check_port_in_use(host, port):
+            # Check if port is available (this doesn't accurately check for WebSocket specifically)
+            try:
+                # Try to make a quick connection to see if the port is open
+                test_socket = await asyncio.open_connection(host, port)
+                await asyncio.sleep(0.1)  # Brief delay
+                test_socket[0].close()
+                await test_socket[1].wait_closed()
+            except (ConnectionRefusedError, OSError):
                 error_msg = f"TNOS MCP server not available at {host}:{port}"
                 logger.error(error_msg)
                 self.connection_state["tnos"]["last_error"] = error_msg
                 return False
 
             # Connect to the server
-            self.tnos_ws_connection = await websockets.connect(self.tnos_server_uri)
+            self.tnos_ws_connection = await websockets.connect(
+                self.tnos_server_uri, 
+                ping_interval=30,  # Send ping every 30 seconds
+                ping_timeout=10,   # Wait 10 seconds for pong
+                close_timeout=5    # Wait 5 seconds for clean close
+            )
 
             # Update connection state
             self.connection_state["tnos"]["connected"] = True
-            self.connection_state["tnos"][
-                "last_connection_time"
-            ] = self.time_service.get_current_time()
+            self.connection_state["tnos"]["last_connection_time"] = time.time()
             self.connection_state["tnos"]["reconnect_attempts"] = 0
 
             logger.info(f"Connected to TNOS MCP server at {self.tnos_server_uri}")
@@ -558,57 +730,68 @@ class GitHubTNOSBridge:
         """
         try:
             # Create a context vector with proper 7D context for negotiation
+            context_vector = ContextVector7D(
+                who="GitHubTNOSBridge",
+                what="ProtocolNegotiation",
+                when=self.time_service.get_current_time(),
+                where="Layer3_Bridge",
+                why="VersionCompatibility",
+                how="WebSocket",
+                extent="ProtocolCompatibility"
+            )
+            
+            # Convert to MCPContext
             context = MCPContext()
-            context.who = "GitHubTNOSBridge"
-            context.what = "ProtocolNegotiation"
-            context.when = self.time_service.get_current_time()
-            context.where = "Layer3_Bridge"
-            context.why = "VersionCompatibility"
-            context.how = "WebSocket"
-            context.extent = "ProtocolCompatibility"
+            context.who = context_vector.who
+            context.what = context_vector.what
+            context.when = context_vector.when
+            context.where = context_vector.where
+            context.why = context_vector.why
+            context.how = context_vector.how
+            context.extent = context_vector.extent
 
             # Create a version negotiation message
-            negotiation_msg = MCPMessage(
-                message_type="version_negotiation",
-                context=context,
-                content={
+            negotiation_msg = {
+                "type": "version_negotiation",
+                "context": context_vector.to_dict(),
+                "content": {
                     "supported_versions": self.supported_versions,
                     "preferred_version": self.current_version,
-                },
-            )
+                    "minimum_version": self.min_version
+                }
+            }
 
-            # Send the negotiation message
-            await self.tnos_ws_connection.send(negotiation_msg.to_json())
+            # Send the negotiation message as JSON
+            await self.tnos_ws_connection.send(json.dumps(negotiation_msg))
+            logger.info(f"Sent protocol version negotiation request with preferred version {self.current_version}")
 
-            # Wait for a response
-            response_str = await asyncio.wait_for(
-                self.tnos_ws_connection.recv(), timeout=5.0
-            )
+            # Wait for a response with timeout
+            response_str = await asyncio.wait_for(self.tnos_ws_connection.recv(), timeout=5.0)
 
             # Parse the response
-            tnos_response = MCPMessage.from_json(response_str)
-
-            if tnos_response.message_type == "version_negotiation_response":
-                if isinstance(tnos_response.content, dict):
-                    server_version = tnos_response.content.get("selected_version")
-                else:
-                    try:
-                        content_dict = json.loads(tnos_response.content)
-                        server_version = content_dict.get("selected_version")
-                    except (json.JSONDecodeError, TypeError):
+            try:
+                tnos_response = json.loads(response_str)
+                
+                # Extract the negotiated version
+                if isinstance(tnos_response, dict):
+                    if "content" in tnos_response and isinstance(tnos_response["content"], dict):
+                        server_version = tnos_response["content"].get("selected_version")
+                    else:
                         server_version = None
-
+                else:
+                    server_version = None
+                
                 if server_version:
                     # Update the current version to the negotiated version
                     self.current_version = server_version
-                    logger.info(
-                        f"Negotiated MCP protocol version: {self.current_version}"
-                    )
+                    logger.info(f"Negotiated MCP protocol version: {self.current_version}")
                 else:
-                    logger.warning("Server did not specify a protocol version")
-            else:
-                logger.warning("Unexpected response to version negotiation")
+                    logger.warning("Server did not specify a protocol version, using default")
+            except json.JSONDecodeError:
+                logger.error(f"Invalid JSON in version negotiation response: {response_str[:100]}...")
 
+        except asyncio.TimeoutError:
+            logger.warning(f"Timeout during version negotiation, using default version {self.current_version}")
         except Exception as e:
             logger.error(f"Error during protocol version negotiation: {e}")
             # Continue with the default version
@@ -628,407 +811,221 @@ class GitHubTNOSBridge:
 
         # Update connection state
         self.connection_state["github"]["connected"] = True
-        self.connection_state["github"][
-            "last_connection_time"
-        ] = self.time_service.get_current_time()
+        self.connection_state["github"]["last_connection_time"] = time.time()
 
         try:
-            # Connect to TNOS MCP server if not already connected
-            if (
-                not self.tnos_ws_connection
-                or not self.connection_state["tnos"]["connected"]
-            ):
+            # Ensure TNOS MCP connection is established
+            if not self.tnos_ws_connection or not self.connection_state["tnos"]["connected"]:
                 if not await self.connect_to_tnos_mcp():
-                    # Send error response to GitHub client
-                    await websocket.send(
-                        json.dumps(
-                            {
-                                "error": self.connection_state["tnos"]["last_error"],
-                                "status": "error",
-                                "errorType": "connection_failure",
-                                "recoverable": False,
-                                "recommendations": [
-                                    "Ensure TNOS MCP server is running (scripts/start_tnos_github_integration.sh)",
-                                    "Check if another process is using port 8888",
-                                    "Verify network connectivity to TNOS MCP server",
-                                ],
-                            }
-                        )
-                    )
+                    await websocket.send(json.dumps({
+                        "error": f"Failed to connect to TNOS MCP server: {self.connection_state['tnos']['last_error']}",
+                        "status": "error",
+                        "errorType": "connection_failure",
+                        "recoverable": False
+                    }))
                     return
 
-            # Handle messages from GitHub MCP
+            # Handle messages from GitHub MCP client
             async for message in websocket:
                 try:
-                    # Parse the message from GitHub MCP
+                    # Parse the message
                     github_request = json.loads(message)
-                    logger.info(
-                        f"Received GitHub MCP request: {github_request.get('name', 'unknown')}"
-                    )
-
-                    # Validate the incoming message format
-                    is_valid, error_message = (
-                        self.message_validator.validate_github_request(github_request)
-                    )
-                    if not is_valid:
-                        logger.error(f"Invalid request format: {error_message}")
-                        await websocket.send(
-                            json.dumps(
-                                {
-                                    "error": error_message,
-                                    "status": "error",
-                                    "errorType": "validation_failure",
-                                    "recoverable": True,
-                                }
-                            )
-                        )
-                        continue
-
+                    
+                    # Log the request type
+                    logger.info(f"Received GitHub MCP request: {github_request.get('name', 'unknown')}")
+                    
                     # Check if the tool is supported
                     tool_name = github_request.get("name", "")
-                    if (
-                        not tool_name.startswith("tnos_")
-                        and tool_name not in self.tool_mapping
-                    ):
-                        error_msg = f"Unsupported tool: {tool_name}"
-                        logger.warning(error_msg)
-                        await websocket.send(
-                            json.dumps(
-                                {
-                                    "error": error_msg,
-                                    "status": "error",
-                                    "errorType": "unsupported_tool",
-                                    "recoverable": True,
-                                    "suggestions": list(self.tool_mapping.keys())
-                                    + [
-                                        t
-                                        for t in self.config_manager.config.get(
-                                            "toolDefinitions", []
-                                        )
-                                        if t.get("name", "").startswith("tnos_")
-                                    ],
-                                }
-                            )
-                        )
+                    if not tool_name.startswith("tnos_") and tool_name not in self.tool_mapping:
+                        await websocket.send(json.dumps({
+                            "error": f"Unsupported tool: {tool_name}",
+                            "status": "error",
+                            "errorType": "unsupported_tool",
+                            "recoverable": True,
+                            "suggestions": list(self.tool_mapping.keys())
+                        }))
                         continue
-
-                    # Check rate limit
-                    if not self.rate_limiter.check_rate_limit(tool_name):
-                        error_msg = f"Rate limit exceeded for tool: {tool_name}"
-                        logger.warning(error_msg)
-                        await websocket.send(
-                            json.dumps(
-                                {
-                                    "error": error_msg,
-                                    "status": "error",
-                                    "errorType": "rate_limit_exceeded",
-                                    "recoverable": True,
-                                    "remaining_quota": self.rate_limiter.get_remaining_quota(
-                                        tool_name
-                                    ),
-                                }
-                            )
-                        )
+                    
+                    # Check rate limits
+                    if not self._check_rate_limit(tool_name):
+                        await websocket.send(json.dumps({
+                            "error": f"Rate limit exceeded for tool: {tool_name}",
+                            "status": "error",
+                            "errorType": "rate_limit_exceeded",
+                            "recoverable": True
+                        }))
                         continue
-
-                    # Translate to TNOS context format
+                    
+                    # Translate to TNOS context
                     tnos_context = self.translate_github_to_tnos_context(github_request)
-
+                    
                     # Create TNOS MCP message
-                    tnos_message = MCPMessage(
-                        message_type="request",
-                        context=tnos_context,
-                        content=github_request.get("parameters", {}),
-                    )
-
-                    # Send to TNOS MCP server
+                    tnos_message = {
+                        "type": "request",
+                        "context": {
+                            "WHO": tnos_context.who,
+                            "WHAT": tnos_context.what,
+                            "WHEN": tnos_context.when,
+                            "WHERE": tnos_context.where,
+                            "WHY": tnos_context.why,
+                            "HOW": tnos_context.how,
+                            "EXTENT": tnos_context.extent
+                        },
+                        "content": github_request.get("parameters", {})
+                    }
+                    
+                    # Add metadata
+                    for key, value in tnos_context.get_all_metadata().items():
+                        tnos_message["context"][key] = value
+                    
+                    # Send to TNOS MCP
                     try:
-                        await self.tnos_ws_connection.send(tnos_message.to_json())
-                        logger.info(
-                            f"Sent request to TNOS MCP for operation: {tnos_context.what}"
-                        )
+                        await self.tnos_ws_connection.send(json.dumps(tnos_message))
                     except websockets.exceptions.ConnectionClosed:
-                        # Connection to TNOS MCP server was closed, try to reconnect
-                        logger.warning(
-                            "Connection to TNOS MCP server was closed, attempting to reconnect..."
-                        )
-
+                        # Connection lost, try to reconnect
+                        logger.warning("Connection to TNOS MCP server lost, attempting to reconnect...")
                         if await self.connect_to_tnos_mcp():
-                            await self.tnos_ws_connection.send(tnos_message.to_json())
+                            await self.tnos_ws_connection.send(json.dumps(tnos_message))
                         else:
-                            await websocket.send(
-                                json.dumps(
-                                    {
-                                        "error": "Connection to TNOS MCP server lost and reconnection failed",
-                                        "status": "error",
-                                        "errorType": "connection_failure",
-                                        "recoverable": False,
-                                    }
-                                )
-                            )
+                            await websocket.send(json.dumps({
+                                "error": "Connection to TNOS MCP server lost and reconnection failed",
+                                "status": "error",
+                                "errorType": "connection_failure",
+                                "recoverable": False
+                            }))
                             continue
-
-                    # Wait for response from TNOS with timeout
+                    
+                    # Wait for response from TNOS MCP
                     try:
-                        # Set a reasonable timeout for waiting for a response
-                        tnos_response_str = await asyncio.wait_for(
-                            self.tnos_ws_connection.recv(), timeout=30.0
-                        )
-                        tnos_response = MCPMessage.from_json(tnos_response_str)
+                        tnos_response_str = await asyncio.wait_for(self.tnos_ws_connection.recv(), timeout=30.0)
+                        tnos_response = json.loads(tnos_response_str)
+                        
+                        # Translate response back to GitHub format
+                        github_response = self.translate_tnos_to_github_response(tnos_response, github_request)
+                        
+                        # Send response back to GitHub client
+                        await websocket.send(json.dumps(github_response))
+                        logger.info(f"Sent response back to GitHub MCP client for {tool_name}")
+                        
                     except asyncio.TimeoutError:
-                        error_msg = "Timeout waiting for TNOS MCP server response"
-                        logger.error(error_msg)
-                        await websocket.send(
-                            json.dumps(
-                                {
-                                    "error": error_msg,
-                                    "status": "error",
-                                    "errorType": "timeout",
-                                    "recoverable": True,
-                                }
-                            )
-                        )
-                        continue
+                        await websocket.send(json.dumps({
+                            "error": "Timeout waiting for TNOS MCP server response",
+                            "status": "error",
+                            "errorType": "timeout",
+                            "recoverable": True
+                        }))
                     except Exception as e:
-                        error_msg = (
-                            f"Error receiving response from TNOS MCP server: {e}"
-                        )
-                        logger.error(error_msg)
-                        await websocket.send(
-                            json.dumps(
-                                {
-                                    "error": error_msg,
-                                    "status": "error",
-                                    "errorType": "communication_failure",
-                                    "recoverable": True,
-                                }
-                            )
-                        )
-                        continue
-
-                    # Translate TNOS response to GitHub format
-                    github_response = self.translate_tnos_to_github_response(
-                        tnos_response, github_request
-                    )
-
-                    # Send response back to GitHub MCP
-                    await websocket.send(json.dumps(github_response))
-                    logger.info(
-                        f"Sent response back to GitHub MCP client for {github_request.get('name', 'unknown')}"
-                    )
-
+                        logger.error(f"Error receiving response from TNOS MCP: {e}")
+                        await websocket.send(json.dumps({
+                            "error": f"Error receiving response from TNOS MCP: {str(e)}",
+                            "status": "error",
+                            "errorType": "communication_failure",
+                            "recoverable": True
+                        }))
+                
                 except json.JSONDecodeError:
-                    error_msg = "Invalid JSON in GitHub MCP request"
-                    logger.error(error_msg)
-                    await websocket.send(
-                        json.dumps(
-                            {
-                                "error": error_msg,
-                                "status": "error",
-                                "errorType": "invalid_json",
-                                "recoverable": True,
-                            }
-                        )
-                    )
+                    await websocket.send(json.dumps({
+                        "error": "Invalid JSON in GitHub MCP request",
+                        "status": "error",
+                        "errorType": "invalid_json",
+                        "recoverable": True
+                    }))
                 except Exception as e:
-                    error_msg = f"Error handling GitHub MCP request: {e}"
-                    logger.error(error_msg)
-                    logger.exception("Detailed exception information:")
-                    await websocket.send(
-                        json.dumps(
-                            {
-                                "error": error_msg,
-                                "status": "error",
-                                "errorType": "general_error",
-                                "recoverable": True,
-                            }
-                        )
-                    )
-
+                    logger.error(f"Error handling GitHub MCP request: {e}")
+                    await websocket.send(json.dumps({
+                        "error": f"Error handling GitHub MCP request: {str(e)}",
+                        "status": "error",
+                        "errorType": "general_error",
+                        "recoverable": True
+                    }))
+                
         except websockets.exceptions.ConnectionClosed:
             logger.info(f"GitHub MCP client disconnected: {client_id}")
         except Exception as e:
             logger.error(f"Unexpected error in handle_github_request: {e}")
-            logger.exception("Detailed exception information:")
         finally:
             # Clean up when the connection is closed
             if websocket in self.github_clients:
                 self.github_clients.remove(websocket)
-
-            # Update connection state
+            
+            # Close TNOS connection if no clients are connected
             if not self.github_clients:
                 self.connection_state["github"]["connected"] = False
-
-                # Close TNOS connection if no clients are connected
-                if (
-                    self.tnos_ws_connection
-                    and self.connection_state["tnos"]["connected"]
-                ):
+                if self.tnos_ws_connection and self.connection_state["tnos"]["connected"]:
                     await self.tnos_ws_connection.close()
                     self.connection_state["tnos"]["connected"] = False
-                    logger.info(
-                        "Closed connection to TNOS MCP server (no clients connected)"
-                    )
+                    logger.info("Closed connection to TNOS MCP server (no clients connected)")
+
+    def _check_rate_limit(self, tool_name: str) -> bool:
+        """
+        Check if a request exceeds rate limits.
+        
+        Args:
+            tool_name: Name of the tool being requested
+            
+        Returns:
+            bool: True if within rate limits, False if limit exceeded
+        """
+        current_time = time.time()
+        
+        # Get rate limit settings for this tool
+        if tool_name.startswith("tnos_compression"):
+            limit_key = "compression"
+        elif tool_name.startswith("tnos_formula") or tool_name.startswith("tnos_mobius_formula"):
+            limit_key = "formula"
+        else:
+            limit_key = "default"
+            
+        limit = self.rate_limits.get(limit_key, self.rate_limits["default"])
+        
+        # Initialize or clean up request counts
+        if tool_name not in self.request_counts:
+            self.request_counts[tool_name] = []
+        else:
+            # Remove entries older than the period
+            self.request_counts[tool_name] = [
+                timestamp for timestamp in self.request_counts[tool_name] 
+                if current_time - timestamp < limit["period"]
+            ]
+        
+        # Check if we're exceeding the limit
+        if len(self.request_counts[tool_name]) >= limit["requests"]:
+            return False
+        
+        # Add current request to the count
+        self.request_counts[tool_name].append(current_time)
+        return True
 
     async def start(self):
         """
-        # WHO: GitHubTNOSBridge.start
-        # WHAT: Start the bridge server
-        # WHEN: During system initialization
-        # WHERE: Layer 3 / Bridge
-        # WHY: To begin handling connections
-        # HOW: Using WebSocket server
-        # EXTENT: All bridge operations
-
         Start the bridge server to handle connections from GitHub MCP.
         """
         try:
-            # Check if the port is already in use
-            if PortManager.check_port_in_use("localhost", self.github_mcp_port):
-                logger.error(
-                    f"Port {self.github_mcp_port} is already in use. "
-                    "Another instance of the bridge may be running."
-                )
+            # Check if the port might already be in use
+            try:
+                test_socket = await asyncio.open_connection("localhost", self.github_mcp_port)
+                await asyncio.sleep(0.1)  # Brief delay
+                test_socket[0].close()
+                await test_socket[1].wait_closed()
+                logger.error(f"Port {self.github_mcp_port} is already in use. " 
+                            "Another instance of the bridge may be running.")
                 return
+            except (ConnectionRefusedError, OSError):
+                # Port is available, which is what we want
+                pass
 
             server = await websockets.serve(
                 self.handle_github_request, "localhost", self.github_mcp_port
             )
-            logger.info(
-                f"GitHub-TNOS MCP Bridge running on port {self.github_mcp_port}"
-            )
+            logger.info(f"GitHub-TNOS MCP Bridge running on port {self.github_mcp_port}")
 
             # Keep the server running
             await server.wait_closed()
         except Exception as e:
             logger.error(f"Failed to start GitHub-TNOS MCP Bridge: {e}")
 
-    async def negotiate_protocol_version(
-        self,
-        requested_version: str,
-        min_acceptable_version: str = "1.0",
-        context: Optional[Any] = None,
-    ) -> str:
-        """
-        # WHO: GitHubTNOSBridge.negotiate_protocol_version
-        # WHAT: Negotiate protocol version compatibility
-        # WHEN: During bridge initialization
-        # WHERE: Layer 3 / Protocol
-        # WHY: To ensure compatibility between systems
-        # HOW: Version comparison and negotiation
-        # EXTENT: All bridge communication
-
-        Negotiate a compatible protocol version with the TNOS MCP server.
-        This function is called by the bridge starter to establish a compatible
-        protocol version for communication.
-
-        Args:
-            requested_version: Preferred protocol version to use
-            min_acceptable_version: Minimum acceptable protocol version
-            context: Optional context for the negotiation
-
-        Returns:
-            The negotiated protocol version as a string
-        """
-        # Set up a local version if this is called before connection
-        if (
-            not self.tnos_ws_connection
-            or not self.connection_state["tnos"]["connected"]
-        ):
-            try:
-                if not await self.connect_to_tnos_mcp():
-                    logger.error("Failed to connect for protocol negotiation")
-                    return requested_version  # Return requested version if we can't connect
-            except Exception as e:
-                logger.error(f"Connection error during protocol negotiation: {e}")
-                return requested_version
-
-        try:
-            # Create a version negotiation message with proper 7D context
-            request_context = MCPContext()
-            request_context.who = "GitHubTNOSBridge"
-            request_context.what = "ProtocolNegotiation"
-            request_context.when = self.time_service.get_current_time()
-            request_context.where = "Layer3_Bridge"
-            request_context.why = "VersionCompatibility"
-            request_context.how = f"MCP_{requested_version}"
-            request_context.extent = "ProtocolCompatibility"
-
-            # If external context is provided, use its values
-            if context:
-                for dim in ["who", "what", "when", "where", "why", "how", "extent"]:
-                    if hasattr(context, dim):
-                        setattr(request_context, dim, getattr(context, dim))
-
-            negotiation_msg = MCPMessage(
-                message_type="version_negotiation",
-                context=request_context,
-                content={
-                    "supported_versions": self.supported_versions,
-                    "preferred_version": requested_version,
-                    "minimum_version": min_acceptable_version,
-                },
-            )
-
-            # Send the negotiation message
-            await self.tnos_ws_connection.send(negotiation_msg.to_json())
-            logger.info(
-                f"Sent protocol version negotiation request: {requested_version}"
-            )
-
-            # Wait for a response with timeout
-            response_str = await asyncio.wait_for(
-                self.tnos_ws_connection.recv(), timeout=5.0
-            )
-
-            # Parse the response
-            tnos_response = MCPMessage.from_json(response_str)
-
-            if tnos_response.message_type == "version_negotiation_response":
-                content = tnos_response.content
-                if isinstance(content, str):
-                    try:
-                        content = json.loads(content)
-                    except json.JSONDecodeError:
-                        content = {"selected_version": requested_version}
-
-                server_version = content.get("selected_version", requested_version)
-
-                if server_version:
-                    # Update the current version to the negotiated version
-                    self.current_version = server_version
-                    logger.info(
-                        f"Successfully negotiated protocol version: {self.current_version}"
-                    )
-                    return server_version
-                else:
-                    logger.warning(
-                        "Server did not specify a version, using requested version"
-                    )
-                    return requested_version
-            else:
-                logger.warning(
-                    f"Unexpected response type: {tnos_response.message_type}"
-                )
-                return requested_version
-
-        except asyncio.TimeoutError:
-            logger.error("Timeout during protocol version negotiation")
-            return requested_version
-        except Exception as e:
-            logger.error(f"Error during protocol negotiation: {e}")
-            return requested_version
-
     async def stop(self) -> bool:
         """
-        # WHO: GitHubTNOSBridge.stop
-        # WHAT: Gracefully stop the bridge
-        # WHEN: During shutdown
-        # WHERE: Layer 3 / Bridge
-        # WHY: To ensure clean termination
-        # HOW: Closing connections and resources
-        # EXTENT: All bridge resources
-
         Gracefully stop the bridge, closing all connections
         and cleaning up resources.
 
@@ -1064,8 +1061,8 @@ class GitHubTNOSBridge:
                 except Exception as e:
                     logger.error(f"Error closing TNOS MCP connection: {e}")
 
-            # Remove PID file if it exists
-            pid_path = self.path_manager.get_pid_path("github_bridge")
+            # Remove PID file
+            pid_path = os.path.join(project_root, "logs", "github_bridge.pid")
             if os.path.exists(pid_path):
                 try:
                     os.unlink(pid_path)
@@ -1080,56 +1077,9 @@ class GitHubTNOSBridge:
             logger.error(f"Error during bridge shutdown: {e}")
             return False
 
-    async def recover(self) -> bool:
-        """
-        # WHO: GitHubTNOSBridge.recover
-        # WHAT: Attempt to recover bridge functionality
-        # WHEN: After communication failure
-        # WHERE: Layer 3 / Bridge
-        # WHY: To restore operation after failure
-        # HOW: Reconnection and state restoration
-        # EXTENT: Critical bridge components
-
-        Attempt to recover the bridge after a failure.
-        This is called by the health monitor when issues are detected.
-
-        Returns:
-            True if recovery was successful, False otherwise
-        """
-        logger.info("Attempting bridge recovery")
-
-        try:
-            # Reconnect to TNOS MCP if needed
-            if (
-                not self.tnos_ws_connection
-                or not self.connection_state["tnos"]["connected"]
-            ):
-                logger.info("Reconnecting to TNOS MCP server")
-                if not await self.connect_to_tnos_mcp():
-                    logger.error(
-                        "Recovery failed: Unable to connect to TNOS MCP server"
-                    )
-                    return False
-
-            # Report successful recovery
-            logger.info("Bridge recovery completed successfully")
-            return True
-
-        except Exception as e:
-            logger.error(f"Error during bridge recovery: {e}")
-            return False
-
 
 def register_tnos_tools_with_github_mcp():
     """
-    # WHO: register_tnos_tools_with_github_mcp
-    # WHAT: Generate TNOS tool registrations
-    # WHEN: During GitHub MCP initialization
-    # WHERE: Layer 3 / Bridge
-    # WHY: To expose TNOS capabilities
-    # HOW: JSON configuration generation
-    # EXTENT: All TNOS tools
-
     Generate a configuration that registers TNOS capabilities as tools
     in the GitHub MCP server.
 
@@ -1284,10 +1234,6 @@ def register_tnos_tools_with_github_mcp():
                             ],
                         },
                     },
-                    "contextVector": {
-                        "type": "object",
-                        "description": "Existing context vector to use in operation (for transform/combine operations)",
-                    },
                 },
                 "required": ["content", "operation"],
             },
@@ -1306,15 +1252,6 @@ def register_tnos_tools_with_github_mcp():
                         "type": "object",
                         "description": "Parameters to pass to the formula",
                     },
-                    "context": {
-                        "type": "object",
-                        "description": "Context information for formula execution",
-                    },
-                    "returnFormat": {
-                        "type": "string",
-                        "description": "Format to return the results in",
-                        "enum": ["json", "text", "detailed", "simplified"],
-                    },
                 },
                 "required": ["formulaName"],
             },
@@ -1323,48 +1260,30 @@ def register_tnos_tools_with_github_mcp():
 
     return {
         "toolDefinitions": tnos_capabilities,
-        "serverSettings": {"bridgeUri": "ws://localhost:8080"},
+        "serverSettings": {"bridgeUri": f"ws://localhost:{args.github_port}"},
     }
 
 
 async def main():
     """
-    # WHO: main
-    # WHAT: Main entry point
-    # WHEN: During bridge execution
-    # WHERE: GitHub MCP Bridge
-    # WHY: To initialize the bridge
-    # HOW: Initialize and start bridge instance
-    # EXTENT: Complete application lifecycle
-
     Main entry point for the GitHub-TNOS MCP Bridge.
     """
     # Create and start the bridge
     bridge = GitHubTNOSBridge(tnos_server_uri, args.github_port)
+
+    # Log startup information
+    logger.info("GitHub TNOS Bridge starting up")
+    logger.info(f"Connecting to TNOS MCP server at {tnos_server_uri}")
+    logger.info(f"GitHub MCP port: {args.github_port}")
+
+    # Start the bridge
     await bridge.start()
 
 
 if __name__ == "__main__":
     try:
-        # Create and initialize the bridge
-        bridge = GitHubTNOSBridge(tnos_server_uri, args.github_port)
-
-        # Parse context vector if provided
-        if args.context_vector:
-            try:
-                context_dict = json.loads(args.context_vector)
-                logger.info(f"Using provided context vector: {context_dict}")
-                # Initialize with the provided context if needed
-            except json.JSONDecodeError:
-                logger.error(f"Failed to parse context vector: {args.context_vector}")
-
-        # Log startup information
-        logger.info("GitHub TNOS Bridge starting up")
-        logger.info(f"Connecting to TNOS MCP server at {tnos_server_uri}")
-        logger.info(f"GitHub MCP port: {args.github_port}")
-
-        # Start the bridge
-        asyncio.run(bridge.start())
+        # Create and start the bridge
+        asyncio.run(main())
     except KeyboardInterrupt:
         logger.info("Bridge shutdown requested by user")
         sys.exit(0)
