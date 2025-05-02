@@ -119,3 +119,11 @@
 2025-05-01 11:58:13,329 - tnos_mcp_server - INFO - Received shutdown signal, exiting...
 2025-05-01 11:58:14,455 - websockets.server - INFO - server closing
 2025-05-01 11:58:14,457 - websockets.server - INFO - server closed
+2025-05-01 17:50:42,557 - asyncio - DEBUG - Using selector: KqueueSelector
+2025-05-01 17:50:42,577 - tnos_mcp_server - DEBUG - Registered handler for message type: ping
+2025-05-01 17:50:42,578 - tnos_mcp_server - DEBUG - Registered handler for message type: version_negotiation
+2025-05-01 17:50:42,579 - tnos_mcp_server - INFO - Wrote PID to /Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/github-mcp-server/logs/tnos_mcp_server.pid
+2025-05-01 17:50:42,579 - tnos_mcp_server - INFO - Starting TNOS MCP server on localhost:9001 (WebSocket)
+2025-05-01 17:50:44,444 - websockets.server - INFO - server listening on 127.0.0.1:9001
+2025-05-01 17:50:44,444 - websockets.server - INFO - server listening on [::1]:9001
+2025-05-01 17:50:44,445 - tnos_mcp_server - INFO - Server started successfully
