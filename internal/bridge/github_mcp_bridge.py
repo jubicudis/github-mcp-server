@@ -29,7 +29,7 @@ import time
 import uuid
 import argparse
 import websockets
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, Union
 
 # Add project root to Python path
 project_root = os.path.abspath(
@@ -324,7 +324,7 @@ class GitHubTNOSBridge:
     # WHY: To preserve context across systems
     # HOW: Context translation with dimension mapping
     # EXTENT: All tool requests
-    def bridgeMCPContext(self, github_context: Dict[str, Any]) -> ContextVector7D:
+    def bridge_mcp_context(self, github_context: Dict[str, Any]) -> ContextVector7D:
         """
         Bridge GitHub MCP context format to TNOS 7D context.
         This is a critical function for maintaining context awareness.
@@ -392,7 +392,7 @@ class GitHubTNOSBridge:
     # WHY: To ensure context compatibility
     # HOW: Using 7D context framework
     # EXTENT: All cross-system communications
-    def translateContext(self, context: Dict[str, Any], direction: str = "to_tnos") -> Dict[str, Any]:
+    def translate_context(self, context: Dict[str, Any], direction: str = "to_tnos") -> Dict[str, Any]:
         """
         Translate context between GitHub MCP and TNOS MCP formats.
         
@@ -405,41 +405,41 @@ class GitHubTNOSBridge:
         """
         if direction == "to_tnos":
             # Convert GitHub context to TNOS 7D context
-            context_vector = self.bridgeMCPContext(context)
+            context_vector = self.bridge_mcp_context(context)
             
             # Apply compression to dimensional data for optimal transmission
-            compressed_context = self.compressContextDimensions(context_vector)
+            compressed_context = self.compress_context_dimensions(context_vector)
             
             return compressed_context.to_dict()
+        
+        # Convert TNOS 7D context to GitHub context
+        if isinstance(context, ContextVector7D):
+            tnos_context = context
         else:
-            # Convert TNOS 7D context to GitHub context
-            if isinstance(context, ContextVector7D):
-                tnos_context = context
-            else:
-                tnos_context = ContextVector7D.from_dict(context)
-            
-            # Create GitHub context format
-            github_context = {
-                "identity": tnos_context.who,
-                "operation": tnos_context.what,
-                "timestamp": self.time_service.decompress_time(tnos_context.when),
-                "location": tnos_context.where,
-                "purpose": tnos_context.why,
-                "method": tnos_context.how,
-                "scope": tnos_context.extent,
-                "metadata": {
-                    "source": "tnos_mcp",
-                    "translated_by": "github_mcp_bridge",
-                    "timestamp": time.time(),
-                    "mcp_version": self.current_version
-                }
+            tnos_context = ContextVector7D.from_dict(context)
+        
+        # Create GitHub context format
+        github_context = {
+            "identity": tnos_context.who,
+            "operation": tnos_context.what,
+            "timestamp": self.time_service.decompress_time(tnos_context.when),
+            "location": tnos_context.where,
+            "purpose": tnos_context.why,
+            "method": tnos_context.how,
+            "scope": tnos_context.extent,
+            "metadata": {
+                "source": "tnos_mcp",
+                "translated_by": "github_mcp_bridge",
+                "timestamp": time.time(),
+                "mcp_version": self.current_version
             }
-            
-            # Include any additional TNOS metadata
-            if tnos_context.metadata:
-                github_context["metadata"]["tnos_metadata"] = tnos_context.metadata
-            
-            return github_context
+        }
+        
+        # Include any additional TNOS metadata
+        if tnos_context.metadata:
+            github_context["metadata"]["tnos_metadata"] = tnos_context.metadata
+        
+        return github_context
 
     # WHO: GitHubTNOSBridge.compressContextDimensions
     # WHAT: Apply compression to context
@@ -448,7 +448,7 @@ class GitHubTNOSBridge:
     # WHY: To optimize data transfer
     # HOW: Using Möbius compression formula
     # EXTENT: All dimensional context data
-    def compressContextDimensions(self, context_vector: ContextVector7D) -> ContextVector7D:
+    def compress_context_dimensions(self, context_vector: ContextVector7D) -> ContextVector7D:
         """
         Apply compression to 7D context dimensions using the Möbius compression formula.
         This optimizes transmission while preserving context integrity.
@@ -522,7 +522,7 @@ class GitHubTNOSBridge:
         github_context = github_request.get("context", {})
 
         # Translate GitHub context to 7D context
-        context_7d = self.bridgeMCPContext(github_context)
+        context_7d = self.bridge_mcp_context(github_context)
         
         # Update with tool-specific information if not already in GitHub context
         if "who" not in github_context:
@@ -637,7 +637,7 @@ class GitHubTNOSBridge:
             if isinstance(context_metadata["when"], (int, float)):
                 try:
                     context_metadata["when"] = self.time_service.decompress_time(context_metadata["when"])
-                except:
+                except Exception:
                     # If decompression fails, use as-is
                     pass
                     
@@ -680,7 +680,7 @@ class GitHubTNOSBridge:
             host = uri_parts[0]
             port = int(uri_parts[1]) if len(uri_parts) > 1 else 9001
 
-            # Check if port is available (this doesn't accurately check for WebSocket specifically)
+            # Check if port is available
             try:
                 # Try to make a quick connection to see if the port is open
                 test_socket = await asyncio.open_connection(host, port)
@@ -825,119 +825,7 @@ class GitHubTNOSBridge:
                     }))
                     return
 
-            # Handle messages from GitHub MCP client
-            async for message in websocket:
-                try:
-                    # Parse the message
-                    github_request = json.loads(message)
-                    
-                    # Log the request type
-                    logger.info(f"Received GitHub MCP request: {github_request.get('name', 'unknown')}")
-                    
-                    # Check if the tool is supported
-                    tool_name = github_request.get("name", "")
-                    if not tool_name.startswith("tnos_") and tool_name not in self.tool_mapping:
-                        await websocket.send(json.dumps({
-                            "error": f"Unsupported tool: {tool_name}",
-                            "status": "error",
-                            "errorType": "unsupported_tool",
-                            "recoverable": True,
-                            "suggestions": list(self.tool_mapping.keys())
-                        }))
-                        continue
-                    
-                    # Check rate limits
-                    if not self._check_rate_limit(tool_name):
-                        await websocket.send(json.dumps({
-                            "error": f"Rate limit exceeded for tool: {tool_name}",
-                            "status": "error",
-                            "errorType": "rate_limit_exceeded",
-                            "recoverable": True
-                        }))
-                        continue
-                    
-                    # Translate to TNOS context
-                    tnos_context = self.translate_github_to_tnos_context(github_request)
-                    
-                    # Create TNOS MCP message
-                    tnos_message = {
-                        "type": "request",
-                        "context": {
-                            "WHO": tnos_context.who,
-                            "WHAT": tnos_context.what,
-                            "WHEN": tnos_context.when,
-                            "WHERE": tnos_context.where,
-                            "WHY": tnos_context.why,
-                            "HOW": tnos_context.how,
-                            "EXTENT": tnos_context.extent
-                        },
-                        "content": github_request.get("parameters", {})
-                    }
-                    
-                    # Add metadata
-                    for key, value in tnos_context.get_all_metadata().items():
-                        tnos_message["context"][key] = value
-                    
-                    # Send to TNOS MCP
-                    try:
-                        await self.tnos_ws_connection.send(json.dumps(tnos_message))
-                    except websockets.exceptions.ConnectionClosed:
-                        # Connection lost, try to reconnect
-                        logger.warning("Connection to TNOS MCP server lost, attempting to reconnect...")
-                        if await self.connect_to_tnos_mcp():
-                            await self.tnos_ws_connection.send(json.dumps(tnos_message))
-                        else:
-                            await websocket.send(json.dumps({
-                                "error": "Connection to TNOS MCP server lost and reconnection failed",
-                                "status": "error",
-                                "errorType": "connection_failure",
-                                "recoverable": False
-                            }))
-                            continue
-                    
-                    # Wait for response from TNOS MCP
-                    try:
-                        tnos_response_str = await asyncio.wait_for(self.tnos_ws_connection.recv(), timeout=30.0)
-                        tnos_response = json.loads(tnos_response_str)
-                        
-                        # Translate response back to GitHub format
-                        github_response = self.translate_tnos_to_github_response(tnos_response, github_request)
-                        
-                        # Send response back to GitHub client
-                        await websocket.send(json.dumps(github_response))
-                        logger.info(f"Sent response back to GitHub MCP client for {tool_name}")
-                        
-                    except asyncio.TimeoutError:
-                        await websocket.send(json.dumps({
-                            "error": "Timeout waiting for TNOS MCP server response",
-                            "status": "error",
-                            "errorType": "timeout",
-                            "recoverable": True
-                        }))
-                    except Exception as e:
-                        logger.error(f"Error receiving response from TNOS MCP: {e}")
-                        await websocket.send(json.dumps({
-                            "error": f"Error receiving response from TNOS MCP: {str(e)}",
-                            "status": "error",
-                            "errorType": "communication_failure",
-                            "recoverable": True
-                        }))
-                
-                except json.JSONDecodeError:
-                    await websocket.send(json.dumps({
-                        "error": "Invalid JSON in GitHub MCP request",
-                        "status": "error",
-                        "errorType": "invalid_json",
-                        "recoverable": True
-                    }))
-                except Exception as e:
-                    logger.error(f"Error handling GitHub MCP request: {e}")
-                    await websocket.send(json.dumps({
-                        "error": f"Error handling GitHub MCP request: {str(e)}",
-                        "status": "error",
-                        "errorType": "general_error",
-                        "recoverable": True
-                    }))
+            await self._process_client_messages(websocket)
                 
         except websockets.exceptions.ConnectionClosed:
             logger.info(f"GitHub MCP client disconnected: {client_id}")
@@ -945,16 +833,157 @@ class GitHubTNOSBridge:
             logger.error(f"Unexpected error in handle_github_request: {e}")
         finally:
             # Clean up when the connection is closed
-            if websocket in self.github_clients:
-                self.github_clients.remove(websocket)
+            await self._cleanup_client(websocket)
+
+    async def _process_client_messages(self, websocket):
+        """
+        Process incoming messages from a GitHub MCP client.
+        
+        Args:
+            websocket: The client WebSocket connection
+        """
+        async for message in websocket:
+            try:
+                # Parse the message
+                github_request = json.loads(message)
+                
+                # Log the request type
+                tool_name = github_request.get("name", "unknown")
+                logger.info(f"Received GitHub MCP request: {tool_name}")
+                
+                # Check if the tool is supported
+                if not tool_name.startswith("tnos_") and tool_name not in self.tool_mapping:
+                    await websocket.send(json.dumps({
+                        "error": f"Unsupported tool: {tool_name}",
+                        "status": "error",
+                        "errorType": "unsupported_tool",
+                        "recoverable": True,
+                        "suggestions": list(self.tool_mapping.keys())
+                    }))
+                    continue
+                
+                # Check rate limits
+                if not self._check_rate_limit(tool_name):
+                    await websocket.send(json.dumps({
+                        "error": f"Rate limit exceeded for tool: {tool_name}",
+                        "status": "error",
+                        "errorType": "rate_limit_exceeded",
+                        "recoverable": True
+                    }))
+                    continue
+                
+                # Process the request and get response
+                response = await self._handle_tool_request(github_request)
+                
+                # Send response back to GitHub client
+                await websocket.send(json.dumps(response))
+                logger.info(f"Sent response back to GitHub MCP client for {tool_name}")
+                
+            except json.JSONDecodeError:
+                await websocket.send(json.dumps({
+                    "error": "Invalid JSON in GitHub MCP request",
+                    "status": "error",
+                    "errorType": "invalid_json",
+                    "recoverable": True
+                }))
+            except Exception as e:
+                logger.error(f"Error handling GitHub MCP request: {e}")
+                await websocket.send(json.dumps({
+                    "error": f"Error handling GitHub MCP request: {str(e)}",
+                    "status": "error",
+                    "errorType": "general_error",
+                    "recoverable": True
+                }))
+
+    async def _handle_tool_request(self, github_request: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Process a tool request from GitHub MCP and get a response from TNOS MCP.
+        
+        Args:
+            github_request: The GitHub MCP request
             
-            # Close TNOS connection if no clients are connected
-            if not self.github_clients:
-                self.connection_state["github"]["connected"] = False
-                if self.tnos_ws_connection and self.connection_state["tnos"]["connected"]:
-                    await self.tnos_ws_connection.close()
-                    self.connection_state["tnos"]["connected"] = False
-                    logger.info("Closed connection to TNOS MCP server (no clients connected)")
+        Returns:
+            Response for GitHub MCP client
+        """
+        # Translate to TNOS context
+        tnos_context = self.translate_github_to_tnos_context(github_request)
+        
+        # Create TNOS MCP message
+        tnos_message = {
+            "type": "request",
+            "context": {
+                "WHO": tnos_context.who,
+                "WHAT": tnos_context.what,
+                "WHEN": tnos_context.when,
+                "WHERE": tnos_context.where,
+                "WHY": tnos_context.why,
+                "HOW": tnos_context.how,
+                "EXTENT": tnos_context.extent
+            },
+            "content": github_request.get("parameters", {})
+        }
+        
+        # Add metadata
+        for key, value in tnos_context.get_all_metadata().items():
+            tnos_message["context"][key] = value
+        
+        # Send to TNOS MCP
+        try:
+            await self.tnos_ws_connection.send(json.dumps(tnos_message))
+        except websockets.exceptions.ConnectionClosed:
+            # Connection lost, try to reconnect
+            logger.warning("Connection to TNOS MCP server lost, attempting to reconnect...")
+            if await self.connect_to_tnos_mcp():
+                await self.tnos_ws_connection.send(json.dumps(tnos_message))
+            else:
+                return {
+                    "error": "Connection to TNOS MCP server lost and reconnection failed",
+                    "status": "error",
+                    "errorType": "connection_failure",
+                    "recoverable": False
+                }
+        
+        # Wait for response from TNOS MCP
+        try:
+            tnos_response_str = await asyncio.wait_for(self.tnos_ws_connection.recv(), timeout=30.0)
+            tnos_response = json.loads(tnos_response_str)
+            
+            # Translate response back to GitHub format
+            return self.translate_tnos_to_github_response(tnos_response, github_request)
+            
+        except asyncio.TimeoutError:
+            return {
+                "error": "Timeout waiting for TNOS MCP server response",
+                "status": "error",
+                "errorType": "timeout",
+                "recoverable": True
+            }
+        except Exception as e:
+            logger.error(f"Error receiving response from TNOS MCP: {e}")
+            return {
+                "error": f"Error receiving response from TNOS MCP: {str(e)}",
+                "status": "error",
+                "errorType": "communication_failure",
+                "recoverable": True
+            }
+
+    async def _cleanup_client(self, websocket):
+        """
+        Clean up resources when a client disconnects.
+        
+        Args:
+            websocket: The client WebSocket connection
+        """
+        if websocket in self.github_clients:
+            self.github_clients.remove(websocket)
+        
+        # Close TNOS connection if no clients are connected
+        if not self.github_clients:
+            self.connection_state["github"]["connected"] = False
+            if self.tnos_ws_connection and self.connection_state["tnos"]["connected"]:
+                await self.tnos_ws_connection.close()
+                self.connection_state["tnos"]["connected"] = False
+                logger.info("Closed connection to TNOS MCP server (no clients connected)")
 
     def _check_rate_limit(self, tool_name: str) -> bool:
         """
