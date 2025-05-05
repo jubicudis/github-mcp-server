@@ -145,3 +145,19 @@
 2025-05-05 10:30:37,107 - tnos_mcp_server - DEBUG - Registered handler for message type: version_negotiation
 2025-05-05 10:30:37,834 - tnos_mcp_server - INFO - Wrote PID to /Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/github-mcp-server/logs/tnos_mcp_server.pid
 2025-05-05 10:30:37,834 - tnos_mcp_server - INFO - Starting TNOS MCP server on localhost:9001 (WebSocket)
+2025-05-05 10:58:42,199 - asyncio - DEBUG - Using selector: KqueueSelector
+2025-05-05 10:58:42,202 - tnos_mcp_server - DEBUG - Registered handler for message type: ping
+2025-05-05 10:58:42,203 - tnos_mcp_server - DEBUG - Registered handler for message type: version_negotiation
+2025-05-05 10:58:42,244 - tnos_mcp_server - INFO - Wrote PID to /Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/github-mcp-server/logs/tnos_mcp_server.pid
+2025-05-05 10:58:42,244 - tnos_mcp_server - INFO - Starting TNOS MCP server on localhost:9001 (WebSocket)
+2025-05-05 11:02:24,409 - asyncio - DEBUG - Using selector: KqueueSelector
+2025-05-05 11:02:25,198 - tnos_mcp_server - DEBUG - Registered handler for message type: ping
+2025-05-05 11:02:25,198 - tnos_mcp_server - DEBUG - Registered handler for message type: version_negotiation
+2025-05-05 11:02:25,202 - tnos_mcp_server - INFO - Wrote PID to /Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/github-mcp-server/logs/tnos_mcp_server.pid
+2025-05-05 11:02:25,203 - tnos_mcp_server - INFO - Starting TNOS MCP server on localhost:9001 (WebSocket)
+2025-05-05 11:02:32,466 - websockets.server - INFO - server listening on 127.0.0.1:9001
+2025-05-05 11:02:32,467 - websockets.server - INFO - server listening on [::1]:9001
+2025-05-05 11:02:32,467 - tnos_mcp_server - INFO - Server started successfully
+2025-05-05 11:03:36,126 - tnos_mcp_server - INFO - Received shutdown signal, exiting...
+2025-05-05 11:03:36,890 - websockets.server - INFO - server closing
+2025-05-05 11:03:36,893 - websockets.server - INFO - server closed
