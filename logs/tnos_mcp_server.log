@@ -127,3 +127,21 @@
 2025-05-01 17:50:44,444 - websockets.server - INFO - server listening on 127.0.0.1:9001
 2025-05-01 17:50:44,444 - websockets.server - INFO - server listening on [::1]:9001
 2025-05-01 17:50:44,445 - tnos_mcp_server - INFO - Server started successfully
+2025-05-05 09:56:55,030 - tnos_mcp_server - INFO - Wrote PID to /Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/github-mcp-server/logs/tnos_mcp_server.pid
+2025-05-05 09:56:55,030 - tnos_mcp_server - INFO - Starting TNOS MCP server on localhost:9001 (WebSocket)
+2025-05-05 10:14:40,740 - tnos_mcp_server - ERROR - Missing required package: websockets. Please install with 'pip install websockets'
+2025-05-05 10:15:52,184 - tnos_mcp_server - ERROR - Missing required package: websockets. Please install with 'pip install websockets'
+2025-05-05 10:22:38,425 - asyncio - DEBUG - Using selector: KqueueSelector
+2025-05-05 10:22:38,427 - tnos_mcp_server - DEBUG - Registered handler for message type: ping
+2025-05-05 10:22:38,428 - tnos_mcp_server - DEBUG - Registered handler for message type: version_negotiation
+2025-05-05 10:22:38,457 - tnos_mcp_server - INFO - Wrote PID to /Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/github-mcp-server/logs/tnos_mcp_server.pid
+2025-05-05 10:22:38,457 - tnos_mcp_server - INFO - Starting TNOS MCP server on localhost:9001 (WebSocket)
+2025-05-05 10:23:41,200 - tnos_mcp_server - INFO - Wrote PID to /Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/github-mcp-server/logs/tnos_mcp_server.pid
+2025-05-05 10:23:41,201 - tnos_mcp_server - INFO - Starting TNOS MCP server on localhost:9001 (WebSocket)
+2025-05-05 10:24:59,414 - tnos_mcp_server - INFO - Wrote PID to /Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/github-mcp-server/logs/tnos_mcp_server.pid
+2025-05-05 10:24:59,414 - tnos_mcp_server - INFO - Starting TNOS MCP server on localhost:9001 (WebSocket)
+2025-05-05 10:30:35,248 - asyncio - DEBUG - Using selector: KqueueSelector
+2025-05-05 10:30:37,009 - tnos_mcp_server - DEBUG - Registered handler for message type: ping
+2025-05-05 10:30:37,107 - tnos_mcp_server - DEBUG - Registered handler for message type: version_negotiation
+2025-05-05 10:30:37,834 - tnos_mcp_server - INFO - Wrote PID to /Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/github-mcp-server/logs/tnos_mcp_server.pid
+2025-05-05 10:30:37,834 - tnos_mcp_server - INFO - Starting TNOS MCP server on localhost:9001 (WebSocket)
