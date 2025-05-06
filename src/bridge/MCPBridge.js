@@ -1944,7 +1944,7 @@ module.exports = {
 
 /**
  * Creates a standardized 7D context vector from various input sources
- * 
+ *
  * @param {Object} params - Input parameters for context creation
  * @param {Object} [params.githubContext] - GitHub MCP context object
  * @param {Object} [params.existingContext] - Existing context to extend
@@ -1952,27 +1952,40 @@ module.exports = {
  * @returns {Object} Standardized 7D context vector
  */
 function ContextVector7D(params = {}) {
-  const { githubContext = {}, existingContext = {}, source = 'github_mcp' } = params;
+  const {
+    githubContext = {},
+    existingContext = {},
+    source = "github_mcp",
+  } = params;
   const now = Date.now();
-  
+
   // Extract values from GitHub context if available
-  let who = githubContext.identity || githubContext.user || existingContext.who || 'System';
-  let what = githubContext.operation || githubContext.type || existingContext.what || 'Transform';
+  let who =
+    githubContext.identity ||
+    githubContext.user ||
+    existingContext.who ||
+    "System";
+  let what =
+    githubContext.operation ||
+    githubContext.type ||
+    existingContext.what ||
+    "Transform";
   let when = githubContext.timestamp || existingContext.when || now;
-  let where = existingContext.where || 'MCP_Bridge';
-  let why = githubContext.purpose || existingContext.why || 'Protocol_Compliance';
-  let how = existingContext.how || 'Context_Translation';
+  let where = existingContext.where || "MCP_Bridge";
+  let why =
+    githubContext.purpose || existingContext.why || "Protocol_Compliance";
+  let how = existingContext.how || "Context_Translation";
   let extent = githubContext.scope || existingContext.extent || 1.0;
-  
+
   // Convert numeric values to appropriate types
-  if (typeof extent === 'string') {
+  if (typeof extent === "string") {
     extent = parseFloat(extent) || 1.0;
   }
-  
-  if (typeof when === 'string') {
+
+  if (typeof when === "string") {
     when = Date.parse(when) || now;
   }
-  
+
   // Create standardized context vector with compression awareness
   return {
     who,
@@ -1991,51 +2004,51 @@ function ContextVector7D(params = {}) {
       I: 0.9, // Intent factor
       G: 1.2, // Growth factor
       F: 0.6, // Flexibility factor
-    }
+    },
   };
 }
 
 /**
  * Translate context between GitHub MCP and TNOS 7D formats
- * 
+ *
  * @param {Object} sourceContext - Source context to translate
  * @param {string} direction - Direction of translation ('github_to_tnos' or 'tnos_to_github')
  * @returns {Object} Translated context
  */
 function translateContext(sourceContext, direction) {
-  log('debug', `Translating context: ${direction}`);
-  
-  if (direction === 'github_to_tnos') {
+  log("debug", `Translating context: ${direction}`);
+
+  if (direction === "github_to_tnos") {
     return {
-      who: sourceContext.identity || sourceContext.user || 'System',
-      what: sourceContext.operation || sourceContext.type || 'Transform',
+      who: sourceContext.identity || sourceContext.user || "System",
+      what: sourceContext.operation || sourceContext.type || "Transform",
       when: sourceContext.timestamp || Date.now(),
-      where: 'MCP_Bridge',
-      why: sourceContext.purpose || 'Protocol_Compliance',
-      how: 'Context_Translation',
+      where: "MCP_Bridge",
+      why: sourceContext.purpose || "Protocol_Compliance",
+      how: "Context_Translation",
       extent: sourceContext.scope || 1.0,
-      source: 'github_mcp',
-      timestamp: Date.now()
+      source: "github_mcp",
+      timestamp: Date.now(),
     };
-  } else if (direction === 'tnos_to_github') {
+  } else if (direction === "tnos_to_github") {
     return {
-      user: sourceContext.who || 'System',
-      type: sourceContext.what || 'unknown',
-      purpose: sourceContext.why || 'Protocol_Compliance',
+      user: sourceContext.who || "System",
+      type: sourceContext.what || "unknown",
+      purpose: sourceContext.why || "Protocol_Compliance",
       scope: sourceContext.extent || 1.0,
       timestamp: sourceContext.when || Date.now(),
-      source: 'tnos_mcp',
-      bridge_timestamp: Date.now()
+      source: "tnos_mcp",
+      bridge_timestamp: Date.now(),
     };
   } else {
-    log('warn', `Unknown translation direction: ${direction}`);
+    log("warn", `Unknown translation direction: ${direction}`);
     return sourceContext;
   }
 }
 
 /**
  * Bridge context between GitHub MCP and TNOS 7D formats with full context awareness
- * 
+ *
  * @param {Object} githubContext - GitHub MCP context
  * @param {Object} tnosContext - TNOS 7D context (optional)
  * @returns {Object} Bridged context with all dimensions
@@ -2044,29 +2057,32 @@ function bridgeMCPContext(githubContext, tnosContext = null) {
   // Convert external MCP format to internal 7D context
   const contextVector = ContextVector7D({
     githubContext,
-    existingContext: tnosContext || {}
+    existingContext: tnosContext || {},
   });
-  
+
   // Apply compression-first logic for context operations
   const contextEntropy = calculateContextEntropy(contextVector);
-  
+
   // Extract contextual factors from vector
   const { B, V, I, G, F } = contextVector.meta;
-  
+
   // Calculate temporal factor (how "fresh" the context is)
   const now = Date.now();
-  const t = contextVector.when ? Math.min(1, (now - contextVector.when) / 86400000) : 0;
-  
+  const t = contextVector.when
+    ? Math.min(1, (now - contextVector.when) / 86400000)
+    : 0;
+
   // Calculate energy factor (computational cost of processing context)
-  const E = 0.5 + (Object.keys(contextVector).length * 0.1);
-  
+  const E = 0.5 + Object.keys(contextVector).length * 0.1;
+
   // Alignment calculation for optimal context bridging
   const alignment = (B + V * I) * Math.exp(-t * E);
-  
+
   // Apply Möbius compression formula to context vector
-  const compressionFactor = (B * I * (1 - (contextEntropy / Math.log2(1 + V))) * (G + F)) / 
-                            (E * t + contextEntropy + alignment);
-  
+  const compressionFactor =
+    (B * I * (1 - contextEntropy / Math.log2(1 + V)) * (G + F)) /
+    (E * t + contextEntropy + alignment);
+
   // Create enhanced context with compression metadata
   const enhancedContext = {
     ...contextVector,
@@ -2075,17 +2091,20 @@ function bridgeMCPContext(githubContext, tnosContext = null) {
       compressionFactor,
       contextEntropy,
       alignment,
-      bridgeTimestamp: now
-    }
+      bridgeTimestamp: now,
+    },
   };
-  
-  log('debug', `Context bridged with compression factor: ${compressionFactor.toFixed(3)}`);
+
+  log(
+    "debug",
+    `Context bridged with compression factor: ${compressionFactor.toFixed(3)}`
+  );
   return enhancedContext;
 }
 
 /**
  * Calculate entropy of a context vector for compression operations
- * 
+ *
  * @param {Object} context - Context vector to analyze
  * @returns {number} Entropy value for the context
  */
@@ -2093,24 +2112,24 @@ function calculateContextEntropy(context) {
   try {
     // Convert context to string for entropy calculation
     const contextString = JSON.stringify(context);
-    
+
     // Count character frequencies
     const charFreq = {};
     for (let i = 0; i < contextString.length; i++) {
       const char = contextString[i];
       charFreq[char] = (charFreq[char] || 0) + 1;
     }
-    
+
     // Calculate entropy using Shannon formula
     let entropy = 0;
     for (const char in charFreq) {
       const freq = charFreq[char] / contextString.length;
       entropy -= freq * Math.log2(freq);
     }
-    
+
     return entropy;
   } catch (error) {
-    log('error', `Error calculating context entropy: ${error.message}`);
+    log("error", `Error calculating context entropy: ${error.message}`);
     return 1.0; // Default entropy on error
   }
 }
@@ -2121,7 +2140,7 @@ module.exports = {
   ContextVector7D,
   translateContext,
   bridgeMCPContext,
-  calculateContextEntropy
+  calculateContextEntropy,
 };
 
 // Start the bridge when executed directly

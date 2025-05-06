@@ -24,9 +24,6 @@ import websockets
 from datetime import datetime
 from typing import Dict, List, Any, Optional, Tuple, Union
 
-# Import subprocess for server starting functionality
-import subprocess
-
 # Configuration
 CONFIG = {
     "github_mcp": {
@@ -71,7 +68,7 @@ CONFIG = {
 
 
 # Configure logging
-def setup_logging(level_name: str, log_file: str = None) -> logging.Logger:
+def setup_logging(level_name: str) -> logging.Logger:
     """
     WHO: LoggingInitializer
     WHAT: Set up Python logging system
@@ -99,13 +96,10 @@ def setup_logging(level_name: str, log_file: str = None) -> logging.Logger:
     )
 
     # Ensure log directory exists
-    log_dir = CONFIG["logging"]["log_dir"]
-    os.makedirs(log_dir, exist_ok=True)
+    os.makedirs(CONFIG["logging"]["log_dir"], exist_ok=True)
 
     # Create file handler
-    log_path = (
-        log_file if log_file else os.path.join(log_dir, CONFIG["logging"]["log_file"])
-    )
+    log_path = os.path.join(CONFIG["logging"]["log_dir"], CONFIG["logging"]["log_file"])
     file_handler = logging.FileHandler(log_path)
     file_handler.setLevel(level)
     file_handler.setFormatter(formatter)
@@ -1339,66 +1333,16 @@ def main() -> None:
         help=f'Port to run the bridge on (default: {CONFIG["bridge"]["port"]})',
     )
     parser.add_argument(
-        "--github-port",
-        type=int,
-        default=CONFIG["github_mcp"]["port"],
-        help=f'Port for GitHub MCP server (default: {CONFIG["github_mcp"]["port"]})',
-    )
-    parser.add_argument(
-        "--tnos-port",
-        type=int,
-        default=CONFIG["tnos_mcp"]["port"],
-        help=f'Port for TNOS MCP server (default: {CONFIG["tnos_mcp"]["port"]})',
-    )
-    parser.add_argument(
         "--log-level",
         choices=["debug", "info", "warning", "error"],
         default=CONFIG["logging"]["log_level"],
         help=f'Log level (default: {CONFIG["logging"]["log_level"]})',
     )
-    parser.add_argument(
-        "--log-file",
-        type=str,
-        help="Path to log file (default: auto-generated based on configuration)",
-    )
-    parser.add_argument(
-        "--context-vector",
-        type=str,
-        help="JSON string containing 7D context vector for bridge initialization",
-    )
     args = parser.parse_args()
 
-    # Update configuration based on arguments
-    CONFIG["bridge"]["port"] = args.port
-    CONFIG["github_mcp"]["port"] = args.github_port
-    CONFIG["github_mcp"]["ws_endpoint"] = f"ws://localhost:{args.github_port}/ws"
-    CONFIG["tnos_mcp"]["port"] = args.tnos_port
-    CONFIG["tnos_mcp"]["ws_endpoint"] = f"ws://localhost:{args.tnos_port}/ws"
-
-    # Parse context vector if provided
-    context_vector = None
-    if args.context_vector:
-        try:
-            context_vector = json.loads(args.context_vector)
-        except json.JSONDecodeError as e:
-            print(f"Error parsing context vector: {e}")
-            context_vector = {
-                "who": "MCPBridge",
-                "what": "Connectivity",
-                "when": "Runtime",
-                "where": "Layer6_Integration",
-                "why": "CrossSystemCommunication",
-                "how": "ProtocolTranslation",
-                "extent": "AllMCPCommunications",
-            }
-
     # Setup logging
-    logger = setup_logging(args.log_level, args.log_file)
-    logger.info(f"Starting GitHub MCP Bridge on port {args.port}")
-    logger.info(f"GitHub MCP port: {args.github_port}, TNOS MCP port: {args.tnos_port}")
-
-    if context_vector:
-        logger.info(f"Using context vector: {json.dumps(context_vector)}")
+    logger = setup_logging(args.log_level)
+    logger.info("Starting GitHub MCP Bridge...")
 
     # Create and start the bridge server
     bridge_server = MCPBridgeServer(logger, args.port)
