@@ -26,8 +26,8 @@ import (
 	"github.com/shurcooL/graphql"
 	"golang.org/x/oauth2"
 
-	"github.com/tnos/github-mcp-server/pkg/log"
-	"github.com/tnos/github-mcp-server/pkg/translations"
+	"github.com/github/github-mcp-server/pkg/log"
+	"github.com/github/github-mcp-server/pkg/translations"
 )
 
 const (

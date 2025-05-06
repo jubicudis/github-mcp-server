@@ -19,7 +19,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/tranquility-neuro-os/tnos/pkg/log"
+	"github.com/github/github-mcp-server/pkg/log"
 )
 
 // Constants for API endpoints

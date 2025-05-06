@@ -5,7 +5,7 @@
 // WHY: To verify code scanning functionality
 // HOW: By testing MCP protocol handlers
 // EXTENT: All code scanning operations
-package githubapi
+package github
 
 import (
 	"context"

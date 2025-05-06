@@ -16,7 +16,7 @@ import (
 	"math"
 	"time"
 
-	"github.com/tnos/github-mcp-server/pkg/log"
+	"github.com/github/github-mcp-server/pkg/log"
 )
 
 // ContextVector7D represents a 7D context vector

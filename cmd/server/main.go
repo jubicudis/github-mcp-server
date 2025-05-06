@@ -24,10 +24,10 @@ import (
 	"syscall"
 	"time"
 
-	// Import internal packages
-	"github.com/tnos/github-mcp-server/pkg/github"
-	"github.com/tnos/github-mcp-server/pkg/log"
-	"github.com/tnos/github-mcp-server/pkg/translations"
+	// Import internal packages with proper module paths
+	"github.com/github/github-mcp-server/pkg/github"
+	"github.com/github/github-mcp-server/pkg/log"
+	"github.com/github/github-mcp-server/pkg/translations"
 
 	// Import external packages
 	"github.com/gorilla/websocket"
