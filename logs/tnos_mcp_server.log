@@ -182,3 +182,6 @@
 2025-05-06 08:26:59,419 - websockets.server - INFO - server listening on 127.0.0.1:9001
 2025-05-06 08:26:59,420 - websockets.server - INFO - server listening on [::1]:9001
 2025-05-06 08:26:59,420 - tnos_mcp_server - INFO - Server started successfully
+2025-05-06 10:08:00,728 - tnos_mcp_server - INFO - Received shutdown signal, exiting...
+2025-05-06 10:08:00,892 - websockets.server - INFO - server closing
+2025-05-06 10:08:00,893 - websockets.server - INFO - server closed
