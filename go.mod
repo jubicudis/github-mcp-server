@@ -1,27 +1,50 @@
-module github.com/github/github-mcp-server
+module github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server
 
-go 1.23.0
+go 1.22.0
 
-toolchain go1.24.2
-
+// WHO: DependencyManager
+// WHAT: Direct project dependencies
+// WHEN: Build and runtime
+// WHERE: System Layer 6 (Integration)
+// WHY: Core functionality requirements
+// HOW: Using semantic versioning
+// EXTENT: All required external libraries
 require (
 	github.com/docker/docker v28.0.4+incompatible
 	github.com/google/go-cmp v0.7.0
 	github.com/google/go-github/v69 v69.2.0
+	github.com/gorilla/websocket v1.5.3
 	github.com/mark3labs/mcp-go v0.18.0
 	github.com/migueleliasweb/go-github-mock v1.1.0
+	github.com/shurcooL/graphql v0.0.0-20230722043721-ed46e5a46466
 	github.com/sirupsen/logrus v1.9.3
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.20.1
 	github.com/stretchr/testify v1.10.0
+	golang.org/x/oauth2 v0.30.0
 )
 
-require (
-	github.com/gorilla/websocket v1.5.3 // indirect
-	github.com/shurcooL/graphql v0.0.0-20230722043721-ed46e5a46466 // indirect
-	golang.org/x/oauth2 v0.30.0 // indirect
+// WHO: ImportResolver
+// WHAT: Local path mappings
+// WHEN: During module resolution
+// WHERE: System Layer 6 (Integration)
+// WHY: To handle internal package references
+// HOW: Using Go module replace directives
+// EXTENT: Internal packages only
+replace (
+	github.com/github/github-mcp-server/pkg/github => ./pkg/github
+	github.com/github/github-mcp-server/pkg/log => ./pkg/log
+	github.com/github/github-mcp-server/pkg/translations => ./pkg/translations
+	github.com/tnos/github-mcp-server/pkg/log => ./pkg/log
 )
 
+// WHO: SystemManager
+// WHAT: Indirect dependencies
+// WHEN: Throughout application lifecycle
+// WHERE: System Layer 6 (Integration)
+// WHY: Supporting library requirements
+// HOW: Using transitive dependencies
+// EXTENT: All supporting functionality
 require (
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/containerd/log v0.1.0 // indirect
@@ -35,7 +58,6 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-viper/mapstructure/v2 v2.2.1 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
-	github.com/google/go-github/v64 v64.0.0
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/mux v1.8.0 // indirect
