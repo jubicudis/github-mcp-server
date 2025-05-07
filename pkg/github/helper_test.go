@@ -5,7 +5,7 @@
 // WHY: To provide reusable test utilities
 // HOW: By implementing common test functions
 // EXTENT: All test files
-package githubapi
+package github
 
 import (
 	"context"

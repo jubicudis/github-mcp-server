@@ -5,7 +5,7 @@
 // WHY: To verify PR functionality
 // HOW: By testing MCP protocol handlers
 // EXTENT: All PR operations
-package githubapi
+package github
 
 import (
 	"context"
@@ -14,9 +14,9 @@ import (
 	"testing"
 	"time"
 
-	githubMCP "github.com/github/github-mcp-server/pkg/github"
-	"github.com/github/github-mcp-server/pkg/translations"
 	"github.com/google/go-github/v69/github"
+	githubMCP "github.com/google/go-github/v69/github"
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/translations"
 	"github.com/migueleliasweb/go-github-mock/src/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

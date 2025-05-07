@@ -7,8 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/github/github-mcp-server/pkg/translations"
 	"github.com/google/go-github/v69/github"
+	githubMCP "github.com/google/go-github/v69/github"
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/translations"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/migueleliasweb/go-github-mock/src/mock"
 	"github.com/stretchr/testify/assert"
@@ -1533,4 +1534,3 @@ func Test_ListBranches(t *testing.T) {
 		})
 	}
 }
-

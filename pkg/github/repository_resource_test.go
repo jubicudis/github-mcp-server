@@ -5,16 +5,15 @@
 // WHY: To verify repository file operations
 // HOW: By testing MCP protocol handlers
 // EXTENT: All repository resource operations
-package githubapi
+package github
 
 import (
 	"context"
 	"net/http"
 	"testing"
 
-	"github.com/github/github-mcp-server/pkg/translations"
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/translations"
 	"github.com/google/go-github/v69/github"
-	githubMCP "github.com/google/go-github/v69/github"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/migueleliasweb/go-github-mock/src/mock"
 	"github.com/stretchr/testify/require"

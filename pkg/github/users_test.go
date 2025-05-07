@@ -5,4 +5,4 @@
 // WHY: To verify user functionality
 // HOW: By testing MCP protocol handlers
 // EXTENT: All user operations
-package githubapi
+package github

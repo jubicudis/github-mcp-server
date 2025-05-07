@@ -16,7 +16,7 @@ import (
 	"math"
 	"time"
 
-	"github.com/github/github-mcp-server/pkg/log"
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log"
 )
 
 // ContextVector7D represents a 7D context vector
@@ -301,7 +301,6 @@ func (c *ContextVector7D) Compress() *ContextVector7D {
 
 	// Extract compression factors from meta
 	var B, V, I, G, F float64 = 0.8, 0.7, 0.9, 1.2, 0.6
-	var ok bool
 
 	if val, exists := c.Meta["B"].(float64); exists {
 		B = val
@@ -324,7 +323,7 @@ func (c *ContextVector7D) Compress() *ContextVector7D {
 
 	// Calculate time factor (normalized seconds since context creation)
 	var t float64 = 1.0
-	if createdAt, ok := c.Meta["createdAt"].(int64); ok {
+	if createdAt, exists := c.Meta["createdAt"].(int64); exists {
 		elapsed := float64(time.Now().Unix() - createdAt)
 		t = math.Min(elapsed/86400, 1.0) // Normalize to max 1.0 (1 day)
 	}

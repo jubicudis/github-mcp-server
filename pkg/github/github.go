@@ -22,7 +22,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/tnos/github-mcp-server/pkg/log"
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log"
 )
 
 // Constants for API endpoints
@@ -299,7 +299,7 @@ func (c *Client) ListIssues(owner, repo string, state string, page int) ([]Issue
 	// HOW: Using GitHub API
 	// EXTENT: Multiple issues
 
-	c.Logger.Debug("Listing issues", "owner", owner, "repo", repo, "state", state, "page", page)
+	c.Logger.Debug("Listing issues", "owner", owner, "repo", "state", state, "page", page)
 
 	var issues []Issue
 
@@ -334,7 +334,7 @@ func (c *Client) GetPullRequest(owner, repo string, prNumber int) (*PullRequest,
 	// HOW: Using GitHub API
 	// EXTENT: Single pull request
 
-	c.Logger.Debug("Fetching pull request", "owner", owner, "repo", repo, "pr", prNumber)
+	c.Logger.Debug("Fetching pull request", "owner", owner, "repo", "pr", prNumber)
 
 	var pr PullRequest
 	path := fmt.Sprintf("%s/%s/%s/pulls/%d", ReposEndpoint, owner, repo, prNumber)
@@ -353,7 +353,7 @@ func (c *Client) ListPullRequests(owner, repo string, state string, page int) ([
 	// HOW: Using GitHub API
 	// EXTENT: Multiple pull requests
 
-	c.Logger.Debug("Listing pull requests", "owner", owner, "repo", repo, "state", state, "page", page)
+	c.Logger.Debug("Listing pull requests", "owner", owner, "repo", "state", state, "page", page)
 
 	var prs []PullRequest
 

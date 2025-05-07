@@ -19,8 +19,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/github/github-mcp-server/pkg/translations"
 	"github.com/gorilla/websocket"
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/translations"
 )
 
 // Supported MCP protocol versions

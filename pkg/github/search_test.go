@@ -5,7 +5,7 @@
 // WHY: To verify search functionality
 // HOW: By testing MCP protocol handlers
 // EXTENT: All search operations
-package githubapi
+package github
 
 import (
 	"context"
@@ -13,9 +13,8 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/github/github-mcp-server/pkg/translations"
-	"github.com/google/go-github/v64/github"
-	githubMCP "github.com/google/go-github/v69/github"
+	"github.com/google/go-github/v69/github"
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/translations"
 	"github.com/migueleliasweb/go-github-mock/src/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -23,7 +22,7 @@ import (
 
 func Test_SearchRepositories(t *testing.T) {
 	// Verify tool definition once
-	mockClient := githubMCP.NewClient(nil)
+	mockClient := NewClient(nil)
 	tool, _ := SearchRepositories(stubGetClientFn(mockClient), translations.NullTranslationHelper)
 
 	assert.Equal(t, "search_repositories", tool.Name)
@@ -35,24 +34,24 @@ func Test_SearchRepositories(t *testing.T) {
 
 	// Setup mock search results
 	mockSearchResult := &github.RepositoriesSearchResult{
-		Total:             githubMCP.Ptr(2),
-		IncompleteResults: githubMCP.Ptr(false),
+		Total:             Ptr(2),
+		IncompleteResults: Ptr(false),
 		Repositories: []*github.Repository{
 			{
-				ID:              githubMCP.Ptr(int64(12345)),
-				Name:            githubMCP.Ptr("repo-1"),
-				FullName:        githubMCP.Ptr("owner/repo-1"),
-				HTMLURL:         githubMCP.Ptr("https://github.com/owner/repo-1"),
-				Description:     githubMCP.Ptr("Test repository 1"),
-				StargazersCount: githubMCP.Ptr(100),
+				ID:              Ptr(int64(12345)),
+				Name:            Ptr("repo-1"),
+				FullName:        Ptr("owner/repo-1"),
+				HTMLURL:         Ptr("https://github.com/owner/repo-1"),
+				Description:     Ptr("Test repository 1"),
+				StargazersCount: Ptr(100),
 			},
 			{
-				ID:              githubMCP.Ptr(int64(67890)),
-				Name:            githubMCP.Ptr("repo-2"),
-				FullName:        githubMCP.Ptr("owner/repo-2"),
-				HTMLURL:         githubMCP.Ptr("https://github.com/owner/repo-2"),
-				Description:     githubMCP.Ptr("Test repository 2"),
-				StargazersCount: githubMCP.Ptr(50),
+				ID:              Ptr(int64(67890)),
+				Name:            Ptr("repo-2"),
+				FullName:        Ptr("owner/repo-2"),
+				HTMLURL:         Ptr("https://github.com/owner/repo-2"),
+				Description:     Ptr("Test repository 2"),
+				StargazersCount: Ptr(50),
 			},
 		},
 	}
@@ -129,7 +128,7 @@ func Test_SearchRepositories(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
-			client := githubMCP.NewClient(tc.mockedClient)
+			client := NewClient(tc.mockedClient)
 			_, handler := SearchRepositories(stubGetClientFn(client), translations.NullTranslationHelper)
 
 			// Create call request
@@ -170,7 +169,7 @@ func Test_SearchRepositories(t *testing.T) {
 
 func Test_SearchCode(t *testing.T) {
 	// Verify tool definition once
-	mockClient := githubMCP.NewClient(nil)
+	mockClient := NewClient(nil)
 	tool, _ := SearchCode(stubGetClientFn(mockClient), translations.NullTranslationHelper)
 
 	assert.Equal(t, "search_code", tool.Name)
@@ -184,22 +183,22 @@ func Test_SearchCode(t *testing.T) {
 
 	// Setup mock search results
 	mockSearchResult := &github.CodeSearchResult{
-		Total:             githubMCP.Ptr(2),
-		IncompleteResults: githubMCP.Ptr(false),
+		Total:             Ptr(2),
+		IncompleteResults: Ptr(false),
 		CodeResults: []*github.CodeResult{
 			{
-				Name:       githubMCP.Ptr("file1.go"),
-				Path:       githubMCP.Ptr("path/to/file1.go"),
-				SHA:        githubMCP.Ptr("abc123def456"),
-				HTMLURL:    githubMCP.Ptr("https://github.com/owner/repo/blob/main/path/to/file1.go"),
-				Repository: &github.Repository{Name: githubMCP.Ptr("repo"), FullName: githubMCP.Ptr("owner/repo")},
+				Name:       Ptr("file1.go"),
+				Path:       Ptr("path/to/file1.go"),
+				SHA:        Ptr("abc123def456"),
+				HTMLURL:    Ptr("https://github.com/owner/repo/blob/main/path/to/file1.go"),
+				Repository: &github.Repository{Name: Ptr("repo"), FullName: Ptr("owner/repo")},
 			},
 			{
-				Name:       githubMCP.Ptr("file2.go"),
-				Path:       githubMCP.Ptr("path/to/file2.go"),
-				SHA:        githubMCP.Ptr("def456abc123"),
-				HTMLURL:    githubMCP.Ptr("https://github.com/owner/repo/blob/main/path/to/file2.go"),
-				Repository: &github.Repository{Name: githubMCP.Ptr("repo"), FullName: githubMCP.Ptr("owner/repo")},
+				Name:       Ptr("file2.go"),
+				Path:       Ptr("path/to/file2.go"),
+				SHA:        Ptr("def456abc123"),
+				HTMLURL:    Ptr("https://github.com/owner/repo/blob/main/path/to/file2.go"),
+				Repository: &github.Repository{Name: Ptr("repo"), FullName: Ptr("owner/repo")},
 			},
 		},
 	}
@@ -280,7 +279,7 @@ func Test_SearchCode(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
-			client := githubMCP.NewClient(tc.mockedClient)
+			client := NewClient(tc.mockedClient)
 			_, handler := SearchCode(stubGetClientFn(client), translations.NullTranslationHelper)
 
 			// Create call request
@@ -321,7 +320,7 @@ func Test_SearchCode(t *testing.T) {
 
 func Test_SearchUsers(t *testing.T) {
 	// Verify tool definition once
-	mockClient := githubMCP.NewClient(nil)
+	mockClient := NewClient(nil)
 	tool, _ := SearchUsers(stubGetClientFn(mockClient), translations.NullTranslationHelper)
 
 	assert.Equal(t, "search_users", tool.Name)
@@ -335,26 +334,26 @@ func Test_SearchUsers(t *testing.T) {
 
 	// Setup mock search results
 	mockSearchResult := &github.UsersSearchResult{
-		Total:             githubMCP.Ptr(2),
-		IncompleteResults: githubMCP.Ptr(false),
+		Total:             Ptr(2),
+		IncompleteResults: Ptr(false),
 		Users: []*github.User{
 			{
-				Login:     githubMCP.Ptr("user1"),
-				ID:        githubMCP.Ptr(int64(1001)),
-				HTMLURL:   githubMCP.Ptr("https://github.com/user1"),
-				AvatarURL: githubMCP.Ptr("https://avatars.githubusercontent.com/u/1001"),
-				Type:      githubMCP.Ptr("User"),
-				Followers: githubMCP.Ptr(100),
-				Following: githubMCP.Ptr(50),
+				Login:     Ptr("user1"),
+				ID:        Ptr(int64(1001)),
+				HTMLURL:   Ptr("https://github.com/user1"),
+				AvatarURL: Ptr("https://avatars.githubusercontent.com/u/1001"),
+				Type:      Ptr("User"),
+				Followers: Ptr(100),
+				Following: Ptr(50),
 			},
 			{
-				Login:     githubMCP.Ptr("user2"),
-				ID:        githubMCP.Ptr(int64(1002)),
-				HTMLURL:   githubMCP.Ptr("https://github.com/user2"),
-				AvatarURL: githubMCP.Ptr("https://avatars.githubusercontent.com/u/1002"),
-				Type:      githubMCP.Ptr("User"),
-				Followers: githubMCP.Ptr(200),
-				Following: githubMCP.Ptr(75),
+				Login:     Ptr("user2"),
+				ID:        Ptr(int64(1002)),
+				HTMLURL:   Ptr("https://github.com/user2"),
+				AvatarURL: Ptr("https://avatars.githubusercontent.com/u/1002"),
+				Type:      Ptr("User"),
+				Followers: Ptr(200),
+				Following: Ptr(75),
 			},
 		},
 	}
@@ -435,7 +434,7 @@ func Test_SearchUsers(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
-			client := githubMCP.NewClient(tc.mockedClient)
+			client := NewClient(tc.mockedClient)
 			_, handler := SearchUsers(stubGetClientFn(client), translations.NullTranslationHelper)
 
 			// Create call request

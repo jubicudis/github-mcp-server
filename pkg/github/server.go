@@ -5,7 +5,7 @@
 // WHY: To handle GitHub API integration
 // HOW: Using MCP protocol handlers
 // EXTENT: All GitHub API operations
-package githubapi
+package github
 
 import (
 	"context"

@@ -25,9 +25,9 @@ import (
 	"time"
 
 	// Import internal packages with proper module paths
-	"github.com/github/github-mcp-server/pkg/github"
-	"github.com/github/github-mcp-server/pkg/log"
-	"github.com/github/github-mcp-server/pkg/translations"
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/github"
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log"
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/translations"
 
 	// Import external packages
 	"github.com/gorilla/websocket"
