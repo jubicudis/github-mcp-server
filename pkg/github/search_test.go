@@ -14,7 +14,7 @@ import (
 	"testing"
 
 	"github.com/google/go-github/v69/github"
-	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/translations"
+	"tranquility-neuro-os/github-mcp-server/pkg/translations"
 	"github.com/migueleliasweb/go-github-mock/src/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

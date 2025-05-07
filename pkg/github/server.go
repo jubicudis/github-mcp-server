@@ -44,11 +44,7 @@ const (
 	ErrMarshalIssues    = "failed to marshal issues: %w"
 )
 
-// TranslationHelperFunc defines a function type for translations
-type TranslationHelperFunc func(key string, defaultValue string) string
-
-// GetClientFn defines a function type to obtain GitHub clients
-type GetClientFn func(context.Context) (*github.Client, error)
+// GetClientFn is defined in common.go
 
 // WHO: ServerInitializer
 // WHAT: MCP Server Configuration
@@ -122,42 +118,6 @@ func registerIssueTools(s *server.MCPServer, getClient GetClientFn, t Translatio
 	}
 }
 
-// WHO: IssueOperationTool
-// WHAT: Single Issue Retrieval Tool
-// WHEN: During tool invocation
-// WHERE: GitHub MCP Server
-// WHY: To provide access to a specific issue
-// HOW: By fetching issue details from GitHub
-// EXTENT: Single issue access
-// NOTE: This function is moved to issues.go to avoid duplication
-
-// WHO: IssueCommentsTool
-// WHAT: Issue Comments Retrieval Tool
-// WHEN: During tool invocation
-// WHERE: GitHub MCP Server
-// WHY: To access comments on a GitHub issue
-// HOW: By querying GitHub API with pagination support
-// EXTENT: All comments on a specific issue
-// NOTE: This function is implemented in issues.go
-
-// WHO: IssueSearchTool
-// WHAT: Issue Search Tool
-// WHEN: During tool invocation
-// WHERE: GitHub MCP Server
-// WHY: To allow searching for issues across repositories
-// HOW: By querying GitHub search API with filters
-// EXTENT: Cross-repository issue searching
-// NOTE: This function is implemented in issues.go to avoid duplication
-
-// WHO: ListIssuesTool
-// WHAT: Issue Listing Tool
-// WHEN: During tool invocation
-// WHERE: GitHub MCP Server
-// WHY: To list repository issues with filtering options
-// HOW: By querying GitHub Issues API with parameters
-// EXTENT: All repository issues
-// NOTE: This function is implemented in issues.go to avoid duplication
-
 // WHO: PRToolRegistrar
 // WHAT: Pull Request Tool Registration
 // WHEN: Server initialization
@@ -168,17 +128,17 @@ func registerIssueTools(s *server.MCPServer, getClient GetClientFn, t Translatio
 func registerPRTools(s *server.MCPServer, getClient GetClientFn, t TranslationHelperFunc, readOnly bool) {
 	s.AddTool(GetPullRequest(getClient, t))
 	s.AddTool(ListPullRequests(getClient, t))
-	s.AddTool(getPullRequestFiles(getClient, t))
-	s.AddTool(getPullRequestStatus(getClient, t))
-	s.AddTool(getPullRequestComments(getClient, t))
-	s.AddTool(getPullRequestReviews(getClient, t))
+	s.AddTool(GetPullRequestFiles(getClient, t))
+	s.AddTool(GetPullRequestStatus(getClient, t))
+	s.AddTool(GetPullRequestComments(getClient, t))
+	s.AddTool(GetPullRequestReviews(getClient, t))
 
 	if !readOnly {
-		s.AddTool(mergePullRequest(getClient, t))
-		s.AddTool(updatePullRequestBranch(getClient, t))
-		s.AddTool(createPullRequestReview(getClient, t))
-		s.AddTool(createPullRequest(getClient, t))
-		s.AddTool(updatePullRequest(getClient, t))
+		s.AddTool(MergePullRequest(getClient, t))
+		s.AddTool(UpdatePullRequestBranch(getClient, t))
+		s.AddTool(CreatePullRequestReview(getClient, t))
+		s.AddTool(CreatePullRequest(getClient, t))
+		s.AddTool(UpdatePullRequest(getClient, t))
 	}
 }
 
@@ -719,7 +679,7 @@ func OptionalPaginationParams(r mcp.CallToolRequest) (PaginationParams, error) {
 }
 
 // Placeholder functions for PR operations - implementations would be in separate files
-func getPullRequestFiles(getClient GetClientFn, t TranslationHelperFunc) (mcp.Tool, server.ToolHandlerFunc) {
+func GetPullRequestFiles(getClient GetClientFn, t TranslationHelperFunc) (mcp.Tool, server.ToolHandlerFunc) {
 	return mcp.NewTool("get_pull_request_files",
 			mcp.WithDescription(t("TOOL_GET_PR_FILES_DESCRIPTION", "Get the list of files changed in a pull request")),
 			mcp.WithString("owner",
@@ -824,344 +784,6 @@ func fetchPRFiles(ctx context.Context, client *github.Client, owner, repo string
 	return mcp.NewToolResultText(string(result)), nil
 }
 
-// WHO: IssueCreationTool
-// WHAT: Issue Creation Tool
-// WHEN: During tool invocation
-// WHERE: GitHub MCP Server
-// WHY: To create new issues in repositories
-// HOW: By submitting issue data to GitHub API
-// EXTENT: New issue creation
-func CreateIssue(getClient GetClientFn, t TranslationHelperFunc) (mcp.Tool, server.ToolHandlerFunc) {
-	return mcp.NewTool("create_issue",
-			mcp.WithDescription(t("TOOL_CREATE_ISSUE_DESCRIPTION", "Create a new issue in a GitHub repository")),
-			mcp.WithString("owner",
-				mcp.Description(RepositoryOwnerDesc),
-				mcp.Required(),
-			),
-			mcp.WithString("repo",
-				mcp.Description(RepositoryNameDesc),
-				mcp.Required(),
-			),
-			mcp.WithString("title",
-				mcp.Description("Issue title"),
-				mcp.Required(),
-			),
-			mcp.WithString("body",
-				mcp.Description("Issue body content"),
-			),
-			mcp.WithArray("assignees",
-				mcp.Description("Usernames to assign to this issue"),
-				mcp.Items(mcp.String()),
-			),
-			mcp.WithArray("labels",
-				mcp.Description("Labels to apply to this issue"),
-				mcp.Items(mcp.String()),
-			),
-			mcp.WithNumber("milestone",
-				mcp.Description("Milestone number"),
-			),
-		),
-		func(ctx context.Context, r mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			client, err := getClient(ctx)
-			if err != nil {
-				return nil, fmt.Errorf(ErrGetGitHubClient, err)
-			}
-
-			// Extract required parameters
-			owner, err := requiredParam[string](r, "owner")
-			if err != nil {
-				return nil, err
-			}
-
-			repo, err := requiredParam[string](r, "repo")
-			if err != nil {
-				return nil, err
-			}
-
-			title, err := requiredParam[string](r, "title")
-			if err != nil {
-				return nil, err
-			}
-
-			// Extract optional parameters
-			body, _ := OptionalParam[string](r, "body")
-			milestone, err := OptionalIntParam(r, "milestone")
-			if err != nil {
-				return nil, err
-			}
-
-			// Extract assignees and labels
-			assignees, err := OptionalStringArrayParam(r, "assignees")
-			if err != nil {
-				return nil, err
-			}
-
-			labels, err := OptionalStringArrayParam(r, "labels")
-			if err != nil {
-				return nil, err
-			}
-
-			// Create issue request
-			issueRequest := &github.IssueRequest{
-				Title:     github.String(title),
-				Body:      github.String(body),
-				Assignees: &assignees,
-				Labels:    &labels,
-			}
-
-			// Set milestone if provided
-			if milestone > 0 {
-				issueRequest.Milestone = github.Int(milestone)
-			}
-
-			// Call GitHub API
-			issue, resp, err := client.Issues.Create(ctx, owner, repo, issueRequest)
-			if err != nil {
-				return nil, fmt.Errorf("failed to create issue: %w", err)
-			}
-			defer func() { _ = resp.Body.Close() }()
-
-			if resp.StatusCode != http.StatusCreated {
-				body, err := io.ReadAll(resp.Body)
-				if err != nil {
-					return nil, fmt.Errorf(ErrReadResponseBody, err)
-				}
-				return mcp.NewToolResultError(fmt.Sprintf("failed to create issue: %s", string(body))), nil
-			}
-
-			result, err := json.Marshal(issue)
-			if err != nil {
-				return nil, fmt.Errorf(ErrMarshalIssue, err)
-			}
-
-			return mcp.NewToolResultText(string(result)), nil
-		}
-}
-
-// WHO: IssueCommentTool
-// WHAT: Issue Comment Creation Tool
-// WHEN: During tool invocation
-// WHERE: GitHub MCP Server
-// WHY: To add comments to existing issues
-// HOW: By submitting comment data to GitHub API
-// EXTENT: New comment creation
-func AddIssueComment(getClient GetClientFn, t TranslationHelperFunc) (mcp.Tool, server.ToolHandlerFunc) {
-	return mcp.NewTool("add_issue_comment",
-			mcp.WithDescription(t("TOOL_ADD_ISSUE_COMMENT_DESCRIPTION", "Add a comment to an existing issue")),
-			mcp.WithString("owner",
-				mcp.Description(RepositoryOwnerDesc),
-				mcp.Required(),
-			),
-			mcp.WithString("repo",
-				mcp.Description(RepositoryNameDesc),
-				mcp.Required(),
-			),
-			mcp.WithNumber("issue_number",
-				mcp.Description("Issue number to comment on"),
-				mcp.Required(),
-			),
-			mcp.WithString("body",
-				mcp.Description("Comment text"),
-				mcp.Required(),
-			),
-		),
-		func(ctx context.Context, r mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			client, err := getClient(ctx)
-			if err != nil {
-				return nil, fmt.Errorf(ErrGetGitHubClient, err)
-			}
-
-			// Extract required parameters
-			owner, err := requiredParam[string](r, "owner")
-			if err != nil {
-				return nil, err
-			}
-
-			repo, err := requiredParam[string](r, "repo")
-			if err != nil {
-				return nil, err
-			}
-
-			issueNumber, err := RequiredInt(r, "issue_number")
-			if err != nil {
-				return nil, err
-			}
-
-			body, err := requiredParam[string](r, "body")
-			if err != nil {
-				return nil, err
-			}
-
-			// Create comment request
-			commentRequest := &github.IssueComment{
-				Body: github.String(body),
-			}
-
-			// Call GitHub API
-			comment, resp, err := client.Issues.CreateComment(ctx, owner, repo, issueNumber, commentRequest)
-			if err != nil {
-				return nil, fmt.Errorf("failed to create comment: %w", err)
-			}
-			defer func() { _ = resp.Body.Close() }()
-
-			if resp.StatusCode != http.StatusCreated {
-				body, err := io.ReadAll(resp.Body)
-				if err != nil {
-					return nil, fmt.Errorf(ErrReadResponseBody, err)
-				}
-				return mcp.NewToolResultError(fmt.Sprintf("failed to create comment: %s", string(body))), nil
-			}
-
-			result, err := json.Marshal(comment)
-			if err != nil {
-				return nil, fmt.Errorf(ErrMarshalComment, err)
-			}
-
-			return mcp.NewToolResultText(string(result)), nil
-		}
-}
-
-// WHO: IssueUpdateTool
-// WHAT: Issue Update Tool
-// WHEN: During tool invocation
-// WHERE: GitHub MCP Server
-// WHY: To modify existing GitHub issues
-// HOW: By submitting updated issue data to GitHub API
-// EXTENT: Existing issue modification
-func UpdateIssue(getClient GetClientFn, t TranslationHelperFunc) (mcp.Tool, server.ToolHandlerFunc) {
-	return mcp.NewTool("update_issue",
-			mcp.WithDescription(t("TOOL_UPDATE_ISSUE_DESCRIPTION", "Update an existing issue in a GitHub repository")),
-			mcp.WithString("owner",
-				mcp.Description(RepositoryOwnerDesc),
-				mcp.Required(),
-			),
-			mcp.WithString("repo",
-				mcp.Description(RepositoryNameDesc),
-				mcp.Required(),
-			),
-			mcp.WithNumber("issue_number",
-				mcp.Description("Issue number to update"),
-				mcp.Required(),
-			),
-			mcp.WithString("title",
-				mcp.Description("New title"),
-			),
-			mcp.WithString("body",
-				mcp.Description("New description"),
-			),
-			mcp.WithString("state",
-				mcp.Description("New state ('open' or 'closed')"),
-				mcp.Enum("open", "closed"),
-			),
-			mcp.WithArray("assignees",
-				mcp.Description("New assignees"),
-				mcp.Items(mcp.String()),
-			),
-			mcp.WithArray("labels",
-				mcp.Description("New labels"),
-				mcp.Items(mcp.String()),
-			),
-			mcp.WithNumber("milestone",
-				mcp.Description("New milestone number"),
-			),
-		),
-		func(ctx context.Context, r mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			client, err := getClient(ctx)
-			if err != nil {
-				return nil, fmt.Errorf(ErrGetGitHubClient, err)
-			}
-
-			// Extract required parameters
-			owner, err := requiredParam[string](r, "owner")
-			if err != nil {
-				return nil, err
-			}
-
-			repo, err := requiredParam[string](r, "repo")
-			if err != nil {
-				return nil, err
-			}
-
-			issueNumber, err := RequiredInt(r, "issue_number")
-			if err != nil {
-				return nil, err
-			}
-
-			// Extract optional parameters
-			title, _ := OptionalParam[string](r, "title")
-			body, _ := OptionalParam[string](r, "body")
-			state, _ := OptionalParam[string](r, "state")
-			milestone, err := OptionalIntParam(r, "milestone")
-			if err != nil {
-				return nil, err
-			}
-
-			// Extract assignees and labels
-			assignees, err := OptionalStringArrayParam(r, "assignees")
-			if err != nil {
-				return nil, err
-			}
-
-			labels, err := OptionalStringArrayParam(r, "labels")
-			if err != nil {
-				return nil, err
-			}
-
-			// Create issue update request
-			issueRequest := &github.IssueRequest{}
-
-			// Only add fields that were provided
-			if title != "" {
-				issueRequest.Title = github.String(title)
-			}
-
-			if body != "" {
-				issueRequest.Body = github.String(body)
-			}
-
-			if state != "" {
-				issueRequest.State = github.String(state)
-			}
-
-			if milestone > 0 {
-				issueRequest.Milestone = github.Int(milestone)
-			} else if r.Params.Arguments["milestone"] != nil {
-				// If milestone is explicitly set to 0, remove the milestone
-				issueRequest.Milestone = github.Int(0)
-			}
-
-			if r.Params.Arguments["assignees"] != nil {
-				issueRequest.Assignees = &assignees
-			}
-
-			if r.Params.Arguments["labels"] != nil {
-				issueRequest.Labels = &labels
-			}
-
-			// Call GitHub API
-			issue, resp, err := client.Issues.Edit(ctx, owner, repo, issueNumber, issueRequest)
-			if err != nil {
-				return nil, fmt.Errorf("failed to update issue: %w", err)
-			}
-			defer func() { _ = resp.Body.Close() }()
-
-			if resp.StatusCode != http.StatusOK {
-				body, err := io.ReadAll(resp.Body)
-				if err != nil {
-					return nil, fmt.Errorf(ErrReadResponseBody, err)
-				}
-				return mcp.NewToolResultError(fmt.Sprintf("failed to update issue: %s", string(body))), nil
-			}
-
-			result, err := json.Marshal(issue)
-			if err != nil {
-				return nil, fmt.Errorf(ErrMarshalIssue, err)
-			}
-
-			return mcp.NewToolResultText(string(result)), nil
-		}
-}
-
 // WHO: PRStatusTool
 // WHAT: Pull Request Status Tool
 // WHEN: During tool invocation
@@ -1169,7 +791,7 @@ func UpdateIssue(getClient GetClientFn, t TranslationHelperFunc) (mcp.Tool, serv
 // WHY: To get combined status of PR checks
 // HOW: By querying GitHub API for status information
 // EXTENT: All status checks for a PR
-func getPullRequestStatus(getClient GetClientFn, t TranslationHelperFunc) (mcp.Tool, server.ToolHandlerFunc) {
+func GetPullRequestStatus(getClient GetClientFn, t TranslationHelperFunc) (mcp.Tool, server.ToolHandlerFunc) {
 	return mcp.NewTool("get_pull_request_status",
 			mcp.WithDescription(t("TOOL_GET_PR_STATUS_DESCRIPTION", "Get the combined status of all status checks for a pull request")),
 			mcp.WithString("owner",
@@ -1251,7 +873,7 @@ func fetchCombinedStatus(ctx context.Context, client *github.Client, owner, repo
 // WHY: To retrieve PR review comments
 // HOW: By fetching comments from GitHub API
 // EXTENT: All review comments on a PR
-func getPullRequestComments(getClient GetClientFn, t TranslationHelperFunc) (mcp.Tool, server.ToolHandlerFunc) {
+func GetPullRequestComments(getClient GetClientFn, t TranslationHelperFunc) (mcp.Tool, server.ToolHandlerFunc) {
 	return mcp.NewTool("get_pull_request_comments",
 			mcp.WithDescription(t("TOOL_GET_PR_COMMENTS_DESCRIPTION", "Get the review comments on a pull request")),
 			mcp.WithString("owner",
@@ -1310,7 +932,7 @@ func getPullRequestComments(getClient GetClientFn, t TranslationHelperFunc) (mcp
 // WHY: To retrieve PR review information
 // HOW: By fetching reviews from GitHub API
 // EXTENT: All reviews on a PR
-func getPullRequestReviews(getClient GetClientFn, t TranslationHelperFunc) (mcp.Tool, server.ToolHandlerFunc) {
+func GetPullRequestReviews(getClient GetClientFn, t TranslationHelperFunc) (mcp.Tool, server.ToolHandlerFunc) {
 	return mcp.NewTool("get_pull_request_reviews",
 			mcp.WithDescription(t("TOOL_GET_PR_REVIEWS_DESCRIPTION", "Get the reviews on a pull request")),
 			mcp.WithString("owner",
@@ -1383,7 +1005,7 @@ func fetchPRReviews(ctx context.Context, client *github.Client, owner, repo stri
 // WHY: To merge open pull requests
 // HOW: By calling GitHub merge API with appropriate options
 // EXTENT: PR merge operations
-func mergePullRequest(getClient GetClientFn, t TranslationHelperFunc) (mcp.Tool, server.ToolHandlerFunc) {
+func MergePullRequest(getClient GetClientFn, t TranslationHelperFunc) (mcp.Tool, server.ToolHandlerFunc) {
 	return mcp.NewTool("merge_pull_request",
 			mcp.WithDescription(t("TOOL_MERGE_PR_DESCRIPTION", "Merge a pull request")),
 			mcp.WithString("owner",
@@ -1518,7 +1140,7 @@ func prepareClientAndPRParams(ctx context.Context, getClient GetClientFn, r mcp.
 // WHY: To allow creating reviews on pull requests
 // HOW: By submitting review data to GitHub API
 // EXTENT: PR review creation
-func createPullRequestReview(getClient GetClientFn, t TranslationHelperFunc) (mcp.Tool, server.ToolHandlerFunc) {
+func CreatePullRequestReview(getClient GetClientFn, t TranslationHelperFunc) (mcp.Tool, server.ToolHandlerFunc) {
 	return mcp.NewTool("create_pull_request_review",
 			mcp.WithDescription(t("TOOL_CREATE_PR_REVIEW_DESCRIPTION", "Create a review on a pull request")),
 			mcp.WithString("owner",

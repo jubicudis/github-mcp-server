@@ -16,8 +16,8 @@ import (
 	"math"
 	"time"
 
-	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log"
-	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/translations"
+	"tranquility-neuro-os/github-mcp-server/pkg/log"
+	"tranquility-neuro-os/github-mcp-server/pkg/translations"
 )
 
 // ContextVector7D represents the 7-dimensional context vector used in GitHub MCP

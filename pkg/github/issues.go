@@ -8,16 +8,12 @@ import (
 	"net/http"
 	"time"
 
+	"tranquility-neuro-os/github-mcp-server/pkg/translations"
+
 	"github.com/google/go-github/v69/github"
-	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/translations"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
-
-// Ptr returns a pointer to the provided value
-func Ptr[T any](v T) *T {
-	return &v
-}
 
 // GetIssue creates a tool to get details of a specific issue in a GitHub repository.
 func GetIssue(getClient GetClientFn, t translations.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {

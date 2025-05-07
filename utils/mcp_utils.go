@@ -16,8 +16,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/internal/mcp"
-	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/models"
+	"tranquility-neuro-os/github-mcp-server/internal/mcp"
+	"tranquility-neuro-os/github-mcp-server/models"
 )
 
 var (

@@ -14,7 +14,7 @@ import (
 	"fmt"
 
 	// Use proper module import for log package
-	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log"
+	"tranquility-neuro-os/github-mcp-server/pkg/log"
 )
 
 // InitializeMCPBridge sets up the MCP bridge between GitHub and TNOS MCP

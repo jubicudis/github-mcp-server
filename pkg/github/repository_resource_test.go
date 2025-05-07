@@ -12,8 +12,8 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/translations"
 	"github.com/google/go-github/v69/github"
+	"tranquility-neuro-os/github-mcp-server/pkg/translations"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/migueleliasweb/go-github-mock/src/mock"
 	"github.com/stretchr/testify/require"
@@ -27,21 +27,21 @@ var GetRawReposContentsByOwnerByRepoByPath mock.EndpointPattern = mock.EndpointP
 func Test_repositoryResourceContentsHandler(t *testing.T) {
 	mockDirContent := []*github.RepositoryContent{
 		{
-			Type:        githubMCP.Ptr("file"),
-			Name:        githubMCP.Ptr("README.md"),
-			Path:        githubMCP.Ptr("README.md"),
-			SHA:         githubMCP.Ptr("abc123"),
-			Size:        githubMCP.Ptr(42),
-			HTMLURL:     githubMCP.Ptr("https://github.com/owner/repo/blob/main/README.md"),
-			DownloadURL: githubMCP.Ptr("https://raw.githubusercontent.com/owner/repo/main/README.md"),
+			Type:        github.Ptr("file"),
+			Name:        github.Ptr("README.md"),
+			Path:        github.Ptr("README.md"),
+			SHA:         github.Ptr("abc123"),
+			Size:        github.Ptr(42),
+			HTMLURL:     github.Ptr("https://github.com/owner/repo/blob/main/README.md"),
+			DownloadURL: github.Ptr("https://raw.githubusercontent.com/owner/repo/main/README.md"),
 		},
 		{
-			Type:        githubMCP.Ptr("dir"),
-			Name:        githubMCP.Ptr("src"),
-			Path:        githubMCP.Ptr("src"),
-			SHA:         githubMCP.Ptr("def456"),
-			HTMLURL:     githubMCP.Ptr("https://github.com/owner/repo/tree/main/src"),
-			DownloadURL: githubMCP.Ptr("https://raw.githubusercontent.com/owner/repo/main/src"),
+			Type:        github.Ptr("dir"),
+			Name:        github.Ptr("src"),
+			Path:        github.Ptr("src"),
+			SHA:         github.Ptr("def456"),
+			HTMLURL:     github.Ptr("https://github.com/owner/repo/tree/main/src"),
+			DownloadURL: github.Ptr("https://raw.githubusercontent.com/owner/repo/main/src"),
 		},
 	}
 	expectedDirContent := []mcp.TextResourceContents{
@@ -58,25 +58,25 @@ func Test_repositoryResourceContentsHandler(t *testing.T) {
 	}
 
 	mockTextContent := &github.RepositoryContent{
-		Type:        githubMCP.Ptr("file"),
-		Name:        githubMCP.Ptr("README.md"),
-		Path:        githubMCP.Ptr("README.md"),
-		Content:     githubMCP.Ptr("# Test Repository\n\nThis is a test repository."),
-		SHA:         githubMCP.Ptr("abc123"),
-		Size:        githubMCP.Ptr(42),
-		HTMLURL:     githubMCP.Ptr("https://github.com/owner/repo/blob/main/README.md"),
-		DownloadURL: githubMCP.Ptr("https://raw.githubusercontent.com/owner/repo/main/README.md"),
+		Type:        github.Ptr("file"),
+		Name:        github.Ptr("README.md"),
+		Path:        github.Ptr("README.md"),
+		Content:     github.Ptr("# Test Repository\n\nThis is a test repository."),
+		SHA:         github.Ptr("abc123"),
+		Size:        github.Ptr(42),
+		HTMLURL:     github.Ptr("https://github.com/owner/repo/blob/main/README.md"),
+		DownloadURL: github.Ptr("https://raw.githubusercontent.com/owner/repo/main/README.md"),
 	}
 
 	mockFileContent := &github.RepositoryContent{
-		Type:        githubMCP.Ptr("file"),
-		Name:        githubMCP.Ptr("data.png"),
-		Path:        githubMCP.Ptr("data.png"),
-		Content:     githubMCP.Ptr("IyBUZXN0IFJlcG9zaXRvcnkKClRoaXMgaXMgYSB0ZXN0IHJlcG9zaXRvcnku"), // Base64 encoded "# Test Repository\n\nThis is a test repository."
-		SHA:         githubMCP.Ptr("abc123"),
-		Size:        githubMCP.Ptr(42),
-		HTMLURL:     githubMCP.Ptr("https://github.com/owner/repo/blob/main/data.png"),
-		DownloadURL: githubMCP.Ptr("https://raw.githubusercontent.com/owner/repo/main/data.png"),
+		Type:        github.Ptr("file"),
+		Name:        github.Ptr("data.png"),
+		Path:        github.Ptr("data.png"),
+		Content:     github.Ptr("IyBUZXN0IFJlcG9zaXRvcnkKClRoaXMgaXMgYSB0ZXN0IHJlcG9zaXRvcnku"), // Base64 encoded "# Test Repository\n\nThis is a test repository."
+		SHA:         github.Ptr("abc123"),
+		Size:        github.Ptr(42),
+		HTMLURL:     github.Ptr("https://github.com/owner/repo/blob/main/data.png"),
+		DownloadURL: github.Ptr("https://raw.githubusercontent.com/owner/repo/main/data.png"),
 	}
 
 	expectedFileContent := []mcp.BlobResourceContents{
@@ -240,7 +240,7 @@ func Test_repositoryResourceContentsHandler(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			client := githubMCP.NewClient(tc.mockedClient)
+			client := github.NewClient(tc.mockedClient)
 			handler := RepositoryResourceContentsHandler((stubGetClientFn(client)))
 
 			request := mcp.ReadResourceRequest{

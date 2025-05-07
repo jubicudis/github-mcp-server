@@ -16,48 +16,40 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/github"
+	"tranquility-neuro-os/github-mcp-server/pkg/github"
+
 	"github.com/mark3labs/mcp-go/types"
 	"github.com/stretchr/testify/require"
 )
 
-// Ptr returns a pointer to the provided value
-// WHO: TestUtilityProvider
-// WHAT: Generic pointer creation
-// WHEN: During test data setup
-// WHERE: System Layer 6 (Testing)
-// WHY: To create pointers to values for GitHub API structures
-// HOW: Using Go generics
-// EXTENT: All test files
-func Ptr[T any](v T) *T {
-	return &v
-}
+// NOTE: Ptr function is already defined in testutil.go
+// and is imported automatically since we're in the same package
 
-// CreateMCPRequest creates a mock MCP request with the provided args
+// CreateTypesMCPRequest creates a mock MCP request with the provided args
 // WHO: MCPRequestFactory
-// WHAT: Test request creation
+// WHAT: Test request creation for types package
 // WHEN: During test execution
 // WHERE: System Layer 6 (Testing)
-// WHY: To simulate incoming MCP requests
-// HOW: Using MCP call structure
-// EXTENT: All MCP handler tests
-func CreateMCPRequest(args map[string]interface{}) *types.MCPCall {
+// WHY: To simulate incoming MCP requests using types.MCPCall
+// HOW: Using types.MCPCall structure
+// EXTENT: All MCP handler tests requiring types.MCPCall
+func CreateTypesMCPRequest(args map[string]interface{}) *types.MCPCall {
 	return &types.MCPCall{
 		Arguments: args,
 	}
 }
 
-// StubGetClientFn creates a test stub for the GetClientFn function
+// StubGetClientWithTokenFn creates a test stub for the GetClientFn function with token support
 // WHO: ClientStubProvider
-// WHAT: GitHub client stub creation
+// WHAT: GitHub client stub creation with token handling
 // WHEN: During test execution setup
 // WHERE: System Layer 6 (Testing)
-// WHY: To provide controlled client behavior
-// HOW: Using function wrapping
-// EXTENT: All GitHub client tests
-func StubGetClientFn(client github.Client) github.GetClientFn {
+// WHY: To provide controlled client behavior with auth token
+// HOW: Using function wrapping with token parameter
+// EXTENT: All GitHub client tests requiring token authentication
+func StubGetClientWithTokenFn(client *github.Client) github.GetClientFn {
 	return func(ctx context.Context, token string) (github.Client, error) {
-		return client, nil
+		return *client, nil
 	}
 }
 
@@ -109,7 +101,7 @@ func (v *QueryParamValidator) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
-// MockResponse creates a handler that returns the provided status and body
+// CreateMockResponseHandler creates a handler that returns the provided status and body
 // WHO: ResponseMocker
 // WHAT: HTTP response simulation
 // WHEN: During API testing
@@ -117,11 +109,11 @@ func (v *QueryParamValidator) ServeHTTP(w http.ResponseWriter, r *http.Request) 
 // WHY: To provide controlled responses
 // HOW: Using http.HandlerFunc
 // EXTENT: All API endpoint tests
-func MockResponse(t *testing.T, status int, body interface{}) http.Handler {
+func CreateMockResponseHandler(t *testing.T, status int, body interface{}) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(status)
-		
+
 		if body != nil {
 			data, err := json.Marshal(body)
 			require.NoError(t, err)

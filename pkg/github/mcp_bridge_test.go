@@ -14,8 +14,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log"
-	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/translations"
+	"tranquility-neuro-os/github-mcp-server/pkg/log"
+	"tranquility-neuro-os/github-mcp-server/pkg/translations"
 )
 
 // TestMCPBridgeCreation tests the creation of the MCP Bridge

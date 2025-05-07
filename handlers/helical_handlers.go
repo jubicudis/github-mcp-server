@@ -8,8 +8,8 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/models"
-	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/utils"
+	"tranquility-neuro-os/github-mcp-server/models"
+	"tranquility-neuro-os/github-mcp-server/utils"
 )
 
 // WHO: HelicalToolsHandler

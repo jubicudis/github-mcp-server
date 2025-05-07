@@ -16,6 +16,17 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
+// WHO: PointerHelper
+// WHAT: Generic Pointer Helper
+// WHEN: During parameter construction
+// WHERE: GitHub MCP Server
+// WHY: To create pointers to literal values
+// HOW: By using Go's generic type system
+// EXTENT: All pointer creation operations
+func Ptr[T any](v T) *T {
+	return &v
+}
+
 // TranslationHelperFunc defines a function type for translations
 type TranslationHelperFunc func(key string, defaultValue string) string
 

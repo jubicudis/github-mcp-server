@@ -18,7 +18,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log"
+	"tranquility-neuro-os/github-mcp-server/pkg/log"
 )
 
 // MCPBridgeState represents the state of the MCP bridge

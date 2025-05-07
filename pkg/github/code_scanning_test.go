@@ -1,10 +1,12 @@
-// WHO: GitHubMCPScanningTests
-// WHAT: Code Scanning API Testing
-// WHEN: During test execution
-// WHERE: MCP Bridge Layer Testing
-// WHY: To verify code scanning functionality
-// HOW: By testing MCP protocol handlers
-// EXTENT: All code scanning operations
+/*
+ * WHO: GitHubMCPScanningTests
+ * WHAT: Code Scanning API Testing
+ * WHEN: During test execution
+ * WHERE: MCP Bridge Layer Testing
+ * WHY: To verify code scanning functionality
+ * HOW: By testing MCP protocol handlers
+ * EXTENT: All code scanning operations
+ */
 package github
 
 import (
@@ -13,10 +15,10 @@ import (
 	"net/http"
 	"testing"
 
+	"tranquility-neuro-os/github-mcp-server/pkg/github/testutil"
+	"tranquility-neuro-os/github-mcp-server/pkg/translations"
+
 	"github.com/google/go-github/v69/github"
-	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/github/testutil"
-	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/translations"
-	"github.com/mark3labs/mcp-go/types"
 	"github.com/migueleliasweb/go-github-mock/src/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
