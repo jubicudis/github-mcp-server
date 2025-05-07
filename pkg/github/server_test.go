@@ -22,11 +22,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func stubGetClientFn(client *github.Client) GetClientFn {
-	return func(_ context.Context) (*github.Client, error) {
-		return client, nil
-	}
-}
+// Using the stubGetClientFn defined in helper_test.go instead of redefining it here
 
 func Test_GetMe(t *testing.T) {
 	// Verify tool definition

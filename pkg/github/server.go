@@ -14,7 +14,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"time"
 
 	"github.com/google/go-github/v69/github"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -110,6 +109,7 @@ func registerResourceTemplates(s *server.MCPServer, getClient GetClientFn, t Tra
 // HOW: By registering issue-related tools
 // EXTENT: All issue operations
 func registerIssueTools(s *server.MCPServer, getClient GetClientFn, t TranslationHelperFunc, readOnly bool) {
+	// Import GetIssue from issues.go instead of using the local function
 	s.AddTool(GetIssue(getClient, t))
 	s.AddTool(SearchIssues(getClient, t))
 	s.AddTool(ListIssues(getClient, t))
@@ -129,67 +129,7 @@ func registerIssueTools(s *server.MCPServer, getClient GetClientFn, t Translatio
 // WHY: To provide access to a specific issue
 // HOW: By fetching issue details from GitHub
 // EXTENT: Single issue access
-func GetIssue(getClient GetClientFn, t TranslationHelperFunc) (mcp.Tool, server.ToolHandlerFunc) {
-	return mcp.NewTool("get_issue",
-			mcp.WithDescription(t("TOOL_GET_ISSUE_DESCRIPTION", "Get details of a specific GitHub issue")),
-			mcp.WithString("owner",
-				mcp.Description(RepositoryOwnerDesc),
-				mcp.Required(),
-			),
-			mcp.WithString("repo",
-				mcp.Description(RepositoryNameDesc),
-				mcp.Required(),
-			),
-			mcp.WithNumber("number",
-				mcp.Description("Issue number"),
-				mcp.Required(),
-			),
-		),
-		func(ctx context.Context, r mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			client, err := getClient(ctx)
-			if err != nil {
-				return nil, fmt.Errorf(ErrGetGitHubClient, err)
-			}
-
-			// Extract required parameters
-			owner, err := requiredParam[string](r, "owner")
-			if err != nil {
-				return nil, err
-			}
-
-			repo, err := requiredParam[string](r, "repo")
-			if err != nil {
-				return nil, err
-			}
-
-			num, err := RequiredInt(r, "number")
-			if err != nil {
-				return nil, err
-			}
-
-			// Call GitHub API
-			issue, resp, err := client.Issues.Get(ctx, owner, repo, num)
-			if err != nil {
-				return nil, fmt.Errorf("failed to get issue: %w", err)
-			}
-			defer func() { _ = resp.Body.Close() }()
-
-			if resp.StatusCode != http.StatusOK {
-				body, err := io.ReadAll(resp.Body)
-				if err != nil {
-					return nil, fmt.Errorf(ErrReadResponseBody, err)
-				}
-				return mcp.NewToolResultError(fmt.Sprintf("failed to get issue: %s", string(body))), nil
-			}
-
-			result, err := json.Marshal(issue)
-			if err != nil {
-				return nil, fmt.Errorf(ErrMarshalIssue, err)
-			}
-
-			return mcp.NewToolResultText(string(result)), nil
-		}
-}
+// NOTE: This function is moved to issues.go to avoid duplication
 
 // WHO: IssueCommentsTool
 // WHAT: Issue Comments Retrieval Tool
@@ -198,82 +138,7 @@ func GetIssue(getClient GetClientFn, t TranslationHelperFunc) (mcp.Tool, server.
 // WHY: To access comments on a GitHub issue
 // HOW: By querying GitHub API with pagination support
 // EXTENT: All comments on a specific issue
-func GetIssueComments(getClient GetClientFn, t TranslationHelperFunc) (mcp.Tool, server.ToolHandlerFunc) {
-	return mcp.NewTool("get_issue_comments",
-			mcp.WithDescription(t("TOOL_GET_ISSUE_COMMENTS_DESCRIPTION", "Get comments for a GitHub issue")),
-			mcp.WithString("owner",
-				mcp.Description(RepositoryOwnerDesc),
-				mcp.Required(),
-			),
-			mcp.WithString("repo",
-				mcp.Description(RepositoryNameDesc),
-				mcp.Required(),
-			),
-			mcp.WithNumber("issue_number",
-				mcp.Description("Issue number"),
-				mcp.Required(),
-			),
-			WithPagination(),
-		),
-		func(ctx context.Context, r mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			client, err := getClient(ctx)
-			if err != nil {
-				return nil, fmt.Errorf(ErrGetGitHubClient, err)
-			}
-
-			// Extract required parameters
-			owner, err := requiredParam[string](r, "owner")
-			if err != nil {
-				return nil, err
-			}
-
-			repo, err := requiredParam[string](r, "repo")
-			if err != nil {
-				return nil, err
-			}
-
-			issueNumber, err := RequiredInt(r, "issue_number")
-			if err != nil {
-				return nil, err
-			}
-
-			// Get pagination parameters
-			pagination, err := OptionalPaginationParams(r)
-			if err != nil {
-				return nil, err
-			}
-
-			// Create list options
-			opts := &github.IssueListCommentsOptions{
-				ListOptions: github.ListOptions{
-					Page:    pagination.page,
-					PerPage: pagination.perPage,
-				},
-			}
-
-			// Call GitHub API
-			comments, resp, err := client.Issues.ListComments(ctx, owner, repo, issueNumber, opts)
-			if err != nil {
-				return nil, fmt.Errorf("failed to list issue comments: %w", err)
-			}
-			defer func() { _ = resp.Body.Close() }()
-
-			if resp.StatusCode != http.StatusOK {
-				body, err := io.ReadAll(resp.Body)
-				if err != nil {
-					return nil, fmt.Errorf(ErrReadResponseBody, err)
-				}
-				return mcp.NewToolResultError(fmt.Sprintf("failed to list issue comments: %s", string(body))), nil
-			}
-
-			result, err := json.Marshal(comments)
-			if err != nil {
-				return nil, fmt.Errorf(ErrMarshalComments, err)
-			}
-
-			return mcp.NewToolResultText(string(result)), nil
-		}
-}
+// NOTE: This function is implemented in issues.go
 
 // WHO: IssueSearchTool
 // WHAT: Issue Search Tool
@@ -282,80 +147,7 @@ func GetIssueComments(getClient GetClientFn, t TranslationHelperFunc) (mcp.Tool,
 // WHY: To allow searching for issues across repositories
 // HOW: By querying GitHub search API with filters
 // EXTENT: Cross-repository issue searching
-func SearchIssues(getClient GetClientFn, t TranslationHelperFunc) (mcp.Tool, server.ToolHandlerFunc) {
-	return mcp.NewTool("search_issues",
-			mcp.WithDescription(t("TOOL_SEARCH_ISSUES_DESCRIPTION", "Search for issues and pull requests across GitHub repositories")),
-			mcp.WithString("q",
-				mcp.Description("Search query using GitHub issues search syntax"),
-				mcp.Required(),
-			),
-			mcp.WithString("sort",
-				mcp.Description("Sort field (comments, reactions, created, etc.)"),
-				mcp.Enum("comments", "reactions", "reactions-+1", "reactions--1", "reactions-smile",
-					"reactions-thinking_face", "reactions-heart", "reactions-tada", "interactions",
-					"created", "updated"),
-			),
-			mcp.WithString("order",
-				mcp.Description("Sort order ('asc' or 'desc')"),
-				mcp.Enum("asc", "desc"),
-			),
-			WithPagination(),
-		),
-		func(ctx context.Context, r mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			client, err := getClient(ctx)
-			if err != nil {
-				return nil, fmt.Errorf(ErrGetGitHubClient, err)
-			}
-
-			// Extract required parameters
-			query, err := requiredParam[string](r, "q")
-			if err != nil {
-				return nil, err
-			}
-
-			// Get optional parameters
-			sort, _ := OptionalParam[string](r, "sort")
-			order, _ := OptionalParam[string](r, "order")
-
-			// Get pagination parameters
-			pagination, err := OptionalPaginationParams(r)
-			if err != nil {
-				return nil, err
-			}
-
-			// Create search options
-			opts := &github.SearchOptions{
-				Sort:  sort,
-				Order: order,
-				ListOptions: github.ListOptions{
-					Page:    pagination.page,
-					PerPage: pagination.perPage,
-				},
-			}
-
-			// Call GitHub API
-			issues, resp, err := client.Search.Issues(ctx, query, opts)
-			if err != nil {
-				return nil, fmt.Errorf("failed to search issues: %w", err)
-			}
-			defer func() { _ = resp.Body.Close() }()
-
-			if resp.StatusCode != http.StatusOK {
-				body, err := io.ReadAll(resp.Body)
-				if err != nil {
-					return nil, fmt.Errorf(ErrReadResponseBody, err)
-				}
-				return mcp.NewToolResultError(fmt.Sprintf("failed to search issues: %s", string(body))), nil
-			}
-
-			result, err := json.Marshal(issues)
-			if err != nil {
-				return nil, fmt.Errorf(ErrMarshalSearchRes, err)
-			}
-
-			return mcp.NewToolResultText(string(result)), nil
-		}
-}
+// NOTE: This function is implemented in issues.go to avoid duplication
 
 // WHO: ListIssuesTool
 // WHAT: Issue Listing Tool
@@ -364,122 +156,7 @@ func SearchIssues(getClient GetClientFn, t TranslationHelperFunc) (mcp.Tool, ser
 // WHY: To list repository issues with filtering options
 // HOW: By querying GitHub Issues API with parameters
 // EXTENT: All repository issues
-func ListIssues(getClient GetClientFn, t TranslationHelperFunc) (mcp.Tool, server.ToolHandlerFunc) {
-	return mcp.NewTool("list_issues",
-			mcp.WithDescription(t("TOOL_LIST_ISSUES_DESCRIPTION", "List issues in a GitHub repository with filtering options")),
-			mcp.WithString("owner",
-				mcp.Description(RepositoryOwnerDesc),
-				mcp.Required(),
-			),
-			mcp.WithString("repo",
-				mcp.Description(RepositoryNameDesc),
-				mcp.Required(),
-			),
-			mcp.WithString("state",
-				mcp.Description("Filter by state ('open', 'closed', 'all')"),
-				mcp.Enum("open", "closed", "all"),
-			),
-			mcp.WithString("sort",
-				mcp.Description("Sort by ('created', 'updated', 'comments')"),
-				mcp.Enum("created", "updated", "comments"),
-			),
-			mcp.WithString("direction",
-				mcp.Description("Sort direction ('asc', 'desc')"),
-				mcp.Enum("asc", "desc"),
-			),
-			mcp.WithString("since",
-				mcp.Description("Filter by date (ISO 8601 timestamp)"),
-			),
-			mcp.WithArray("labels",
-				mcp.Description("Filter by labels"),
-				mcp.Items(mcp.String()),
-			),
-			WithPagination(),
-		),
-		func(ctx context.Context, r mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			client, err := getClient(ctx)
-			if err != nil {
-				return nil, fmt.Errorf(ErrGetGitHubClient, err)
-			}
-
-			// Extract required parameters
-			owner, err := requiredParam[string](r, "owner")
-			if err != nil {
-				return nil, err
-			}
-
-			repo, err := requiredParam[string](r, "repo")
-			if err != nil {
-				return nil, err
-			}
-
-			// Extract optional parameters
-			state, _ := OptionalParam[string](r, "state")
-			if state == "" {
-				state = "open"
-			}
-
-			sort, _ := OptionalParam[string](r, "sort")
-			direction, _ := OptionalParam[string](r, "direction")
-			since, _ := OptionalParam[string](r, "since")
-
-			// Get labels
-			labels, err := OptionalStringArrayParam(r, "labels")
-			if err != nil {
-				return nil, err
-			}
-
-			// Get pagination parameters
-			pagination, err := OptionalPaginationParams(r)
-			if err != nil {
-				return nil, err
-			}
-
-			// Create list options
-			opts := &github.IssueListByRepoOptions{
-				State:     state,
-				Sort:      sort,
-				Direction: direction,
-				Since:     github.Timestamp{},
-				Labels:    labels,
-				ListOptions: github.ListOptions{
-					Page:    pagination.page,
-					PerPage: pagination.perPage,
-				},
-			}
-
-			// Set timestamp if provided
-			if since != "" {
-				t, err := time.Parse(time.RFC3339, since)
-				if err != nil {
-					return nil, fmt.Errorf("invalid since timestamp format (expected RFC3339): %w", err)
-				}
-				opts.Since = github.Timestamp{Time: t}
-			}
-
-			// Call GitHub API
-			issues, resp, err := client.Issues.ListByRepo(ctx, owner, repo, opts)
-			if err != nil {
-				return nil, fmt.Errorf("failed to list issues: %w", err)
-			}
-			defer func() { _ = resp.Body.Close() }()
-
-			if resp.StatusCode != http.StatusOK {
-				body, err := io.ReadAll(resp.Body)
-				if err != nil {
-					return nil, fmt.Errorf(ErrReadResponseBody, err)
-				}
-				return mcp.NewToolResultError(fmt.Sprintf("failed to list issues: %s", string(body))), nil
-			}
-
-			result, err := json.Marshal(issues)
-			if err != nil {
-				return nil, fmt.Errorf(ErrMarshalIssues, err)
-			}
-
-			return mcp.NewToolResultText(string(result)), nil
-		}
-}
+// NOTE: This function is implemented in issues.go to avoid duplication
 
 // WHO: PRToolRegistrar
 // WHAT: Pull Request Tool Registration
@@ -1832,4 +1509,195 @@ func prepareClientAndPRParams(ctx context.Context, getClient GetClientFn, r mcp.
 	}
 
 	return client, params, nil
+}
+
+// WHO: PRReviewCreationTool
+// WHAT: Pull Request Review Creation Tool
+// WHEN: During tool invocation
+// WHERE: GitHub MCP Server
+// WHY: To allow creating reviews on pull requests
+// HOW: By submitting review data to GitHub API
+// EXTENT: PR review creation
+func createPullRequestReview(getClient GetClientFn, t TranslationHelperFunc) (mcp.Tool, server.ToolHandlerFunc) {
+	return mcp.NewTool("create_pull_request_review",
+			mcp.WithDescription(t("TOOL_CREATE_PR_REVIEW_DESCRIPTION", "Create a review on a pull request")),
+			mcp.WithString("owner",
+				mcp.Description(RepositoryOwnerDesc),
+				mcp.Required(),
+			),
+			mcp.WithString("repo",
+				mcp.Description(RepositoryNameDesc),
+				mcp.Required(),
+			),
+			mcp.WithNumber("pullNumber",
+				mcp.Description("Pull request number"),
+				mcp.Required(),
+			),
+			mcp.WithString("body",
+				mcp.Description("Review comment text"),
+			),
+			mcp.WithString("event",
+				mcp.Description("Review event ('APPROVE', 'REQUEST_CHANGES', 'COMMENT', or 'PENDING')"),
+				mcp.Required(),
+				mcp.Enum("APPROVE", "REQUEST_CHANGES", "COMMENT", "PENDING"),
+			),
+			mcp.WithArray("comments",
+				mcp.Description("Draft review comments"),
+			),
+			mcp.WithString("commit_id",
+				mcp.Description("Commit ID for the review"),
+			),
+		),
+		func(ctx context.Context, r mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+			// WHO: PRReviewHandler
+			// WHAT: Handle PR review creation requests
+			// WHEN: During review submission
+			// WHERE: GitHub MCP Server
+			// WHY: To process review creation
+			// HOW: By extracting parameters and calling GitHub API
+			// EXTENT: PR review submission
+
+			// Get GitHub client and extract parameters
+			client, params, err := prepareClientAndPRParams(ctx, getClient, r)
+			if err != nil {
+				return nil, err
+			}
+
+			// Extract review options
+			reviewRequest, err := extractReviewRequest(r)
+			if err != nil {
+				return nil, err
+			}
+
+			// Call GitHub API to create review
+			return submitPRReview(ctx, client, params, reviewRequest)
+		}
+}
+
+// WHO: ReviewRequestExtractor
+// WHAT: Pull Request Review Request Extractor
+// WHEN: During PR review creation
+// WHERE: GitHub MCP Server
+// WHY: To prepare review request data
+// HOW: By extracting review parameters from request
+// EXTENT: PR review configuration
+func extractReviewRequest(r mcp.CallToolRequest) (*github.PullRequestReviewRequest, error) {
+	// Extract required parameters
+	event, err := requiredParam[string](r, "event")
+	if err != nil {
+		return nil, err
+	}
+
+	// Extract optional parameters
+	body, _ := OptionalParam[string](r, "body")
+	commitID, _ := OptionalParam[string](r, "commit_id")
+
+	// Create review request
+	reviewRequest := &github.PullRequestReviewRequest{
+		Body:  github.String(body),
+		Event: github.String(event),
+	}
+
+	// Set commit ID if provided
+	if commitID != "" {
+		reviewRequest.CommitID = github.String(commitID)
+	}
+
+	// Extract review comments if provided
+	if commentsRaw, exists := r.Params.Arguments["comments"]; exists {
+		var commentList []map[string]interface{}
+
+		// Handle different types of comment arrays
+		switch comments := commentsRaw.(type) {
+		case []map[string]interface{}:
+			commentList = comments
+		case []interface{}:
+			// Convert each item to the expected type
+			for _, comment := range comments {
+				if commentMap, ok := comment.(map[string]interface{}); ok {
+					commentList = append(commentList, commentMap)
+				}
+			}
+		}
+
+		// Process comments
+		if len(commentList) > 0 {
+			// Create GitHub draft comments
+			draftComments := make([]*github.DraftReviewComment, 0, len(commentList))
+
+			for _, comment := range commentList {
+				draftComment := &github.DraftReviewComment{}
+
+				// Extract required fields
+				if path, ok := comment["path"].(string); ok {
+					draftComment.Path = github.String(path)
+				} else {
+					return nil, fmt.Errorf("comment missing required 'path' field")
+				}
+
+				if position, ok := comment["position"].(float64); ok {
+					draftComment.Position = github.Int(int(position))
+				} else {
+					return nil, fmt.Errorf("comment missing required 'position' field")
+				}
+
+				if body, ok := comment["body"].(string); ok {
+					draftComment.Body = github.String(body)
+				} else {
+					return nil, fmt.Errorf("comment missing required 'body' field")
+				}
+
+				// Add to comments list
+				draftComments = append(draftComments, draftComment)
+			}
+
+			reviewRequest.Comments = draftComments
+		}
+	}
+
+	return reviewRequest, nil
+}
+
+// WHO: PRReviewSubmitter
+// WHAT: PR Review Submission
+// WHEN: During PR review creation
+// WHERE: GitHub MCP Server
+// WHY: To submit a pull request review
+// HOW: By calling GitHub API with review data
+// EXTENT: PR review creation
+func submitPRReview(
+	ctx context.Context,
+	client *github.Client,
+	params prParams,
+	reviewRequest *github.PullRequestReviewRequest,
+) (*mcp.CallToolResult, error) {
+	// Call GitHub API
+	review, resp, err := client.PullRequests.CreateReview(
+		ctx,
+		params.owner,
+		params.repo,
+		params.number,
+		reviewRequest,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create pull request review: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	// Check response status
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, fmt.Errorf(ErrReadResponseBody, err)
+		}
+		return mcp.NewToolResultError(fmt.Sprintf("failed to create pull request review: %s", string(body))), nil
+	}
+
+	// Marshal response
+	result, err := json.Marshal(review)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal review: %w", err)
+	}
+
+	return mcp.NewToolResultText(string(result)), nil
 }

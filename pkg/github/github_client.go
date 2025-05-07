@@ -30,6 +30,7 @@ import (
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/translations"
 )
 
+// DefaultAPI constants
 const (
 	// WHO: ConfigManager
 	// WHAT: GitHub API constants
@@ -142,8 +143,9 @@ type cacheItem struct {
 	expires   time.Time
 }
 
-// NewClient creates a new GitHub client
-func NewClient(options ClientOptions) (*Client, error) {
+// NewAdvancedClient creates a new GitHub client with advanced options
+// This is renamed from NewClient to avoid conflicts with the legacy client
+func NewAdvancedClient(options ClientOptions) (*Client, error) {
 	// WHO: ClientCreator
 	// WHAT: Client creation
 	// WHEN: During system initialization

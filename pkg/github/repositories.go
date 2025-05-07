@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strings"
 
 	"github.com/google/go-github/v69/github"
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/translations"
@@ -538,10 +537,18 @@ func ForkRepository(getClient GetClientFn, t translations.TranslationHelperFunc)
 		}
 }
 
-// isAcceptedError checks if the error is a GitHub AcceptedError which isn't really an error but a status
-func isAcceptedError(err error) bool {
-	// Check if error message contains "202 Accepted" which is typical for AsyncOperation
-	return err != nil && (resp.StatusCode == http.StatusAccepted || strings.Contains(err.Error(), "202 Accepted"))
+// Note: isAcceptedError is defined in common.go
+
+// OptionalParamWithDefault gets an optional parameter with a default value
+func OptionalParamWithDefault[T any](request mcp.CallToolRequest, name string, defaultValue T) (T, error) {
+	if val, ok := request.Params.Arguments[name]; ok && val != nil {
+		// Try to convert the value to the requested type
+		if converted, ok := val.(T); ok {
+			return converted, nil
+		}
+		return defaultValue, fmt.Errorf("parameter %s has an invalid type", name)
+	}
+	return defaultValue, nil
 }
 
 // CreateBranch creates a tool to create a new branch.
