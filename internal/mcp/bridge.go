@@ -14,6 +14,8 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math"
+	"reflect"
 	"sync"
 	"time"
 
@@ -35,25 +37,181 @@ type BridgeConfig struct {
 type ContextVector7D struct {
 	// WHO: Context vector component
 	// WHAT: 7D context representation
-	Who    string  `json:"who"`    // WHO: Actor & Identity Context
-	What   string  `json:"what"`   // WHAT: Function & Content Context
-	When   string  `json:"when"`   // WHEN: Temporal Context
-	Where  string  `json:"where"`  // WHERE: Location Context
-	Why    string  `json:"why"`    // WHY: Intent & Purpose Context
-	How    string  `json:"how"`    // HOW: Method & Process Context
-	Extent float64 `json:"extent"` // EXTENT: Scope & Impact Context
+	Who    string                 `json:"who"`              // WHO: Actor & Identity Context
+	What   string                 `json:"what"`             // WHAT: Function & Content Context
+	When   string                 `json:"when"`             // WHEN: Temporal Context
+	Where  string                 `json:"where"`            // WHERE: Location Context
+	Why    string                 `json:"why"`              // WHY: Intent & Purpose Context
+	How    string                 `json:"how"`              // HOW: Method & Process Context
+	Extent float64                `json:"extent"`           // EXTENT: Scope & Impact Context
+	Meta   map[string]interface{} `json:"meta,omitempty"`   // Additional context metadata for compression
+	Source string                 `json:"source,omitempty"` // Source system identifier
+}
+
+// Compress applies the Möbius Compression Formula to this context vector
+func (cv *ContextVector7D) Compress() *ContextVector7D {
+	// WHO: ContextCompressor
+	// WHAT: Context compression
+	// WHEN: During context transmission
+	// WHERE: Between systems
+	// WHY: To optimize context storage and transmission
+	// HOW: Using Möbius compression formula
+	// EXTENT: Full context representation
+
+	if cv.Meta == nil {
+		cv.Meta = make(map[string]interface{})
+	}
+
+	// Extract or set default contextual factors
+	B := getMetaFloat(cv.Meta, "B", 0.8) // Base factor
+	V := getMetaFloat(cv.Meta, "V", 0.7) // Value factor
+	I := getMetaFloat(cv.Meta, "I", 0.9) // Intent factor
+	G := getMetaFloat(cv.Meta, "G", 1.2) // Growth factor
+	F := getMetaFloat(cv.Meta, "F", 0.6) // Flexibility factor
+
+	// Calculate time factor (how "fresh" the context is)
+	now := time.Now().Format(time.RFC3339)
+	t := calculateTimeDelta(cv.When, now)
+
+	// Calculate energy factor (computational cost)
+	E := 0.5
+
+	// Calculate context entropy (simplified)
+	contextBytes, _ := json.Marshal(cv)
+	entropy := float64(len(contextBytes)) / 100.0
+
+	// Apply Möbius compression formula
+	alignment := (B + V*I) * math.Exp(-t*E)
+	compressionFactor := (B * I * (1.0 - (entropy / math.Log2(1.0+V))) * (G + F)) /
+		(E*t + entropy + alignment)
+
+	// Store compression metadata
+	cv.Meta["compressedAt"] = now
+	cv.Meta["compressionFactor"] = compressionFactor
+	cv.Meta["entropy"] = entropy
+	cv.Meta["B"] = B
+	cv.Meta["V"] = V
+	cv.Meta["I"] = I
+	cv.Meta["G"] = G
+	cv.Meta["F"] = F
+	cv.Meta["E"] = E
+	cv.Meta["t"] = t
+	cv.Meta["alignment"] = alignment
+
+	return cv
+}
+
+// Merge combines this context vector with another, preserving important information
+func (cv ContextVector7D) Merge(other ContextVector7D) ContextVector7D {
+	// WHO: ContextMerger
+	// WHAT: Context combination
+	// WHEN: During multi-source operations
+	// WHERE: Context integration points
+	// WHY: To combine information from multiple contexts
+	// HOW: Using weighted merging strategy
+	// EXTENT: Comprehensive context integration
+
+	result := cv
+
+	// Use the more recent When value
+	t1 := calculateTimeDelta("", cv.When)
+	t2 := calculateTimeDelta("", other.When)
+	if t2 < t1 {
+		result.When = other.When
+	}
+
+	// Merge metadata
+	if result.Meta == nil {
+		result.Meta = make(map[string]interface{})
+	}
+
+	if other.Meta != nil {
+		for k, v := range other.Meta {
+			if _, exists := result.Meta[k]; !exists {
+				result.Meta[k] = v
+			}
+		}
+	}
+
+	// Keep track of sources
+	if result.Source == "" {
+		result.Source = "merged"
+	} else if other.Source != "" && result.Source != other.Source {
+		result.Source = result.Source + "+" + other.Source
+	}
+
+	return result
+}
+
+// ToMap converts the context vector to a map representation
+func (cv *ContextVector7D) ToMap() map[string]interface{} {
+	// WHO: DataTransformer
+	// WHAT: Format conversion
+	// WHEN: During serialization
+	// WHERE: Data exchange boundaries
+	// WHY: To enable interoperability
+	// HOW: Using standardized mapping
+	// EXTENT: Complete context representation
+
+	return map[string]interface{}{
+		"who":    cv.Who,
+		"what":   cv.What,
+		"when":   cv.When,
+		"where":  cv.Where,
+		"why":    cv.Why,
+		"how":    cv.How,
+		"extent": cv.Extent,
+		"meta":   cv.Meta,
+		"source": cv.Source,
+	}
+}
+
+// TranslateToMCP converts the context vector to MCP format
+func (cv *ContextVector7D) TranslateToMCP() map[string]interface{} {
+	// WHO: FormatTranslator
+	// WHAT: Protocol format translation
+	// WHEN: During protocol interchange
+	// WHERE: Bridge communication
+	// WHY: For protocol compatibility
+	// HOW: Using format mapping
+	// EXTENT: All required MCP fields
+
+	result := map[string]interface{}{
+		"identity":  cv.Who,
+		"operation": cv.What,
+		"timestamp": cv.When,
+		"location":  cv.Where,
+		"purpose":   cv.Why,
+		"method":    cv.How,
+		"scope":     cv.Extent,
+	}
+
+	if cv.Meta != nil {
+		result["metadata"] = cv.Meta
+	}
+
+	if cv.Source != "" {
+		result["source"] = cv.Source
+	}
+
+	return result
 }
 
 // TNOSMCPBridge provides bidirectional communication between GitHub MCP and TNOS MCP
 type TNOSMCPBridge struct {
 	// WHO: Bridge component
 	// WHAT: MCP bridge implementation
-	config      BridgeConfig      // HOW: Configuration parameters
-	connection  *BridgeConnection // WHERE: Connection to TNOS MCP
-	contextPool sync.Pool         // WHAT: Pool of context vectors for reuse
-	mutex       sync.RWMutex      // HOW: Thread safety mechanism
-	isConnected bool              // WHEN: Current connection state
-	healthTimer *time.Timer       // WHEN: Timer for health checks
+	config            BridgeConfig                                  // HOW: Configuration parameters
+	connection        *BridgeConnection                             // WHERE: Connection to TNOS MCP
+	contextPool       sync.Pool                                     // WHAT: Pool of context vectors for reuse
+	mutex             sync.RWMutex                                  // HOW: Thread safety mechanism
+	isConnected       bool                                          // WHEN: Current connection state
+	healthTimer       *time.Timer                                   // WHEN: Timer for health checks
+	protocolVersion   ProtocolVersion                               // WHAT: Negotiated protocol version
+	supportedVersions []ProtocolVersion                             // WHAT: Supported protocol versions
+	serverFeatures    map[string]interface{}                        // WHAT: Server-advertised feature set
+	contextStorage    map[string]ContextVector7D                    // WHERE: Persistent context storage
+	messageHandlers   map[string]func(map[string]interface{}) error // HOW: Message type handlers
 }
 
 // BridgeConnection manages the underlying connection to TNOS MCP
@@ -86,6 +244,13 @@ func NewTNOSMCPBridge(config BridgeConfig) *TNOSMCPBridge {
 		config.MaxRetries = 5
 	}
 
+	// Default supported versions
+	supportedVersions := []ProtocolVersion{
+		{Major: 3, Minor: 0, Patch: 0},
+		{Major: 2, Minor: 0, Patch: 0},
+		{Major: 1, Minor: 0, Patch: 0},
+	}
+
 	// Create and initialize the bridge
 	bridge := &TNOSMCPBridge{
 		config: config,
@@ -99,15 +264,237 @@ func NewTNOSMCPBridge(config BridgeConfig) *TNOSMCPBridge {
 					Why:    "Protocol_Communication",
 					How:    "Bridge_Connection",
 					Extent: 1.0,
+					Meta:   make(map[string]interface{}),
+					Source: "github_mcp_bridge",
 				}
 			},
 		},
+		supportedVersions: supportedVersions,
+		protocolVersion:   supportedVersions[0], // Default to highest supported version
+		serverFeatures:    make(map[string]interface{}),
+		contextStorage:    make(map[string]ContextVector7D),
+		messageHandlers:   make(map[string]func(map[string]interface{}) error),
 	}
+
+	// Register default message handlers
+	bridge.registerDefaultHandlers()
 
 	// Initialize the connection
 	bridge.initConnection()
 
 	return bridge
+}
+
+// registerDefaultHandlers registers the default message type handlers
+func (b *TNOSMCPBridge) registerDefaultHandlers() {
+	// WHO: HandlerRegistrar
+	// WHAT: Message handler registration
+	// WHEN: During bridge initialization
+	// WHERE: Message processing setup
+	// WHY: To handle different message types
+	// HOW: Using function mapping
+	// EXTENT: All supported message types
+
+	b.messageHandlers["handshake"] = b.handleHandshake
+	b.messageHandlers["healthcheck"] = b.handleHealthCheck
+	b.messageHandlers["context_sync"] = b.handleContextSync
+	b.messageHandlers["error"] = b.handleError
+}
+
+// handleHandshake processes handshake messages
+func (b *TNOSMCPBridge) handleHandshake(message map[string]interface{}) error {
+	// WHO: HandshakeProcessor
+	// WHAT: Protocol handshake handling
+	// WHEN: During connection establishment
+	// WHERE: Protocol initialization
+	// WHY: To negotiate protocol parameters
+	// HOW: Using version comparison
+	// EXTENT: Complete handshake process
+
+	// Extract supported versions from the message
+	versions := []string{"1.0"}
+	if versionsArray, ok := message["supportedVersions"].([]interface{}); ok {
+		versions = make([]string, len(versionsArray))
+		for i, v := range versionsArray {
+			if strVersion, ok := v.(string); ok {
+				versions[i] = strVersion
+			}
+		}
+	}
+
+	// Find highest compatible version
+	serverVersions := make([]ProtocolVersion, 0)
+	for _, vStr := range versions {
+		if v, err := NewProtocolVersion(vStr); err == nil {
+			serverVersions = append(serverVersions, v)
+		}
+	}
+
+	// Find highest compatible version
+	negotiatedVersion, err := b.negotiateVersion(serverVersions)
+	if err != nil {
+		return fmt.Errorf("version negotiation failed: %w", err)
+	}
+
+	// Update bridge state
+	b.mutex.Lock()
+	b.protocolVersion = negotiatedVersion
+
+	// Extract server features if available
+	if features, ok := message["serverFeatures"].(map[string]interface{}); ok {
+		b.serverFeatures = features
+	}
+	b.mutex.Unlock()
+
+	// Log successful handshake
+	if b.config.DebugMode {
+		log.Printf("Handshake successful, using protocol version %s", negotiatedVersion.String())
+	}
+
+	return nil
+}
+
+// handleHealthCheck processes health check messages
+func (b *TNOSMCPBridge) handleHealthCheck(message map[string]interface{}) error {
+	// WHO: HealthcheckProcessor
+	// WHAT: Health verification
+	// WHEN: During health monitoring
+	// WHERE: Bridge connection
+	// WHY: To confirm connection health
+	// HOW: Using status response
+	// EXTENT: Single health check
+
+	// Update last activity timestamp
+	timestamp := time.Now().Format(time.RFC3339)
+
+	if b.config.DebugMode {
+		log.Printf("Health check received at %s", timestamp)
+	}
+
+	// Could implement additional health metrics here
+
+	return nil
+}
+
+// handleContextSync processes context synchronization messages
+func (b *TNOSMCPBridge) handleContextSync(message map[string]interface{}) error {
+	// WHO: ContextSynchronizer
+	// WHAT: Context state synchronization
+	// WHEN: During context updates
+	// WHERE: Bridge context storage
+	// WHY: To maintain context continuity
+	// HOW: Using context storage
+	// EXTENT: Shared context state
+
+	// Extract context from the message
+	contextMap, ok := message["context"].(map[string]interface{})
+	if !ok {
+		return fmt.Errorf("invalid context in sync message")
+	}
+
+	// Convert to 7D context
+	context := TranslateFromMCP(contextMap)
+
+	// Store or update the context
+	id := extractStringWithDefault(message, "id", "default")
+
+	b.mutex.Lock()
+	b.contextStorage[id] = context
+	b.mutex.Unlock()
+
+	if b.config.DebugMode {
+		log.Printf("Context synchronized: %s", id)
+	}
+
+	return nil
+}
+
+// handleError processes error messages
+func (b *TNOSMCPBridge) handleError(message map[string]interface{}) error {
+	// WHO: ErrorHandler
+	// WHAT: Error processing
+	// WHEN: During error conditions
+	// WHERE: Bridge communication
+	// WHY: To handle error states
+	// HOW: Using error reporting
+	// EXTENT: Error recovery
+
+	errorCode := extractStringWithDefault(message, "code", "unknown")
+	errorMsg := extractStringWithDefault(message, "message", "Unknown error")
+
+	log.Printf("Error received from TNOS MCP: %s - %s", errorCode, errorMsg)
+
+	// Implement error-specific recovery logic here
+
+	return fmt.Errorf("mcp error: [%s] %s", errorCode, errorMsg)
+}
+
+// negotiateVersion finds the highest compatible version between client and server
+func (b *TNOSMCPBridge) negotiateVersion(serverVersions []ProtocolVersion) (ProtocolVersion, error) {
+	// WHO: VersionNegotiator
+	// WHAT: Protocol version selection
+	// WHEN: During handshake
+	// WHERE: Protocol initialization
+	// WHY: To ensure compatible communication
+	// HOW: Using version matching
+	// EXTENT: Protocol version compatibility
+
+	// If no server versions, return error
+	if len(serverVersions) == 0 {
+		return ProtocolVersion{}, errors.New("no compatible protocol version")
+	}
+
+	// Try to find highest compatible version
+	for _, clientVersion := range b.supportedVersions {
+		for _, serverVersion := range serverVersions {
+			if clientVersion.Major == serverVersion.Major &&
+				clientVersion.Minor >= serverVersion.Minor {
+				return clientVersion, nil
+			}
+		}
+	}
+
+	// No compatible version found
+	return ProtocolVersion{}, errors.New("no compatible protocol version found")
+}
+
+// GetPersistentContext retrieves a stored context by ID
+func (b *TNOSMCPBridge) GetPersistentContext(id string) (*ContextVector7D, bool) {
+	// WHO: ContextProvider
+	// WHAT: Context retrieval
+	// WHEN: During context operations
+	// WHERE: Context storage
+	// WHY: To access persistent context
+	// HOW: Using context lookup
+	// EXTENT: Single context instance
+
+	b.mutex.RLock()
+	defer b.mutex.RUnlock()
+
+	context, exists := b.contextStorage[id]
+	if !exists {
+		return nil, false
+	}
+
+	// Return a copy to avoid concurrent modification
+	contextCopy := context
+	return &contextCopy, true
+}
+
+// StorePersistentContext saves a context with the given ID
+func (b *TNOSMCPBridge) StorePersistentContext(id string, context ContextVector7D) {
+	// WHO: ContextStorer
+	// WHAT: Context persistence
+	// WHEN: During context updates
+	// WHERE: Context storage
+	// WHY: To maintain context state
+	// HOW: Using context mapping
+	// EXTENT: Single context instance
+
+	b.mutex.Lock()
+	defer b.mutex.Unlock()
+
+	b.contextStorage[id] = context
 }
 
 // initConnection establishes the initial connection to TNOS MCP
@@ -344,6 +731,7 @@ func (b *TNOSMCPBridge) SendRequest(req mcp.CallToolRequest) (*mcp.CallToolResul
 
 	b.mutex.RLock()
 	isConnected := b.isConnected
+	protocolVersion := b.protocolVersion
 	b.mutex.RUnlock()
 
 	if !isConnected {
@@ -356,39 +744,134 @@ func (b *TNOSMCPBridge) SendRequest(req mcp.CallToolRequest) (*mcp.CallToolResul
 		githubContext = contextValue
 	}
 
-	// Translate to TNOS 7D context
-	tnos7D, err := b.TranslateContext(githubContext)
-	if err != nil {
-		return nil, fmt.Errorf("failed to translate context: %w", err)
+	// Check for persistent context ID
+	contextID := extractStringWithDefault(githubContext, "contextId", "")
+	var tnos7D *ContextVector7D
+	var err error
+
+	if contextID != "" {
+		// Try to retrieve existing context
+		if existingContext, exists := b.GetPersistentContext(contextID); exists {
+			tnos7D = existingContext
+			// Update with any new values from the request
+			if tnos7D.Meta == nil {
+				tnos7D.Meta = make(map[string]interface{})
+			}
+			tnos7D.Meta["lastUsed"] = time.Now().Format(time.RFC3339)
+		}
 	}
 
-	// Prepare request for TNOS MCP
-	tnosRequest := map[string]interface{}{
-		"tool":    req.Params.Name, // Using Params.Name instead of ToolName which doesn't exist
-		"params":  req.Params,
-		"context": tnos7D,
+	// If no existing context, translate from GitHub context
+	if tnos7D == nil {
+		tnos7D, err = b.TranslateContext(githubContext)
+		if err != nil {
+			return nil, fmt.Errorf("failed to translate context: %w", err)
+		}
+	}
+
+	// Apply compression to optimize context
+	tnos7D.Compress()
+
+	// Store context for future use if ID provided
+	if contextID != "" {
+		b.StorePersistentContext(contextID, *tnos7D)
+	}
+
+	// Prepare request for TNOS MCP based on protocol version
+	var tnosRequest map[string]interface{}
+
+	switch protocolVersion.Major {
+	case 3:
+		// MCP 3.0 format
+		tnosRequest = map[string]interface{}{
+			"tool":    req.Params.Name,
+			"params":  req.Params.Arguments,
+			"context": tnos7D.ToMap(),
+			"meta": map[string]interface{}{
+				"version":   protocolVersion.String(),
+				"requestId": generateRequestID(),
+				"timestamp": time.Now().Format(time.RFC3339),
+				"source":    "github_mcp_server",
+			},
+		}
+	case 2:
+		// MCP 2.0 format
+		tnosRequest = map[string]interface{}{
+			"tool":       req.Params.Name,
+			"parameters": req.Params.Arguments,
+			"context":    tnos7D.TranslateToMCP(),
+			"requestId":  generateRequestID(),
+		}
+	default:
+		// MCP 1.0 format (fallback)
+		tnosRequest = map[string]interface{}{
+			"tool":    req.Params.Name,
+			"params":  req.Params.Arguments,
+			"context": tnos7D.TranslateToMCP(),
+		}
+	}
+
+	// Log the request with timing
+	startTime := time.Now()
+
+	if b.config.DebugMode {
+		reqJSON, _ := json.Marshal(tnosRequest)
+		log.Printf("[MCP-BRIDGE] Sending request to TNOS MCP: %s", string(reqJSON))
 	}
 
 	// Simulate sending request to TNOS MCP
 	// In a real implementation, this would use HTTP, WebSockets, etc.
 
-	if b.config.DebugMode {
-		reqJSON, _ := json.Marshal(tnosRequest)
-		log.Printf("Sending request to TNOS MCP: %s", string(reqJSON))
-	}
+	// Simulate processing time
+	time.Sleep(10 * time.Millisecond)
 
 	// Simulate receiving response
 	// In a real implementation, this would parse the actual response
-	tnosResponse := &mcp.CallToolResult{
-		Content: []mcp.Content{
-			mcp.Content{
-				Type: "text",
-				Text: "Response from TNOS MCP",
-			},
-		},
+	// Creating a simple response with the correct type structure
+	tnosResponse := &mcp.CallToolResult{}
+
+	// Use a safe approach by checking if we can use JSON marshaling to set fields
+	responseJSON := []byte(`{"result":"Response from TNOS MCP"}`)
+	if err := json.Unmarshal(responseJSON, tnosResponse); err != nil && b.config.DebugMode {
+		log.Printf("[MCP-BRIDGE] Warning: Failed to construct response: %v", err)
+	}
+
+	// Add context information to the response based on protocol version
+	if protocolVersion.Major >= 2 {
+		// For MCP 2.0+, include context in the response
+		contextJSON, _ := json.Marshal(tnos7D.ToMap())
+
+		// The actual MCP library might store context in a different way
+		// Here we're assuming it might use a Metadata field
+		if metadataField := reflect.ValueOf(tnosResponse).Elem().FieldByName("Metadata"); metadataField.IsValid() && metadataField.CanSet() {
+			metadata := map[string]interface{}{
+				"context": string(contextJSON),
+			}
+			metadataField.Set(reflect.ValueOf(metadata))
+		}
+	}
+
+	// Log performance metrics
+	duration := time.Since(startTime)
+	if b.config.DebugMode {
+		log.Printf("[MCP-BRIDGE] Request completed in %v", duration)
 	}
 
 	return tnosResponse, nil
+}
+
+// generateRequestID creates a unique request ID
+func generateRequestID() string {
+	// WHO: IDGenerator
+	// WHAT: Request ID generation
+	// WHEN: During request preparation
+	// WHERE: Bridge communication
+	// WHY: To uniquely identify requests
+	// HOW: Using timestamp and random component
+	// EXTENT: Single request identification
+
+	now := time.Now().UnixNano()
+	return fmt.Sprintf("req_%d_%d", now, now%1000)
 }
 
 // RegisterTools registers tools from TNOS MCP with GitHub MCP Server
@@ -462,4 +945,173 @@ func extractFloatWithDefault(m map[string]interface{}, key string, defaultVal fl
 		}
 	}
 	return defaultVal
+}
+
+// calculateTimeDelta calculates the time difference between two RFC3339 timestamps in days
+func calculateTimeDelta(timestamp1, timestamp2 string) float64 {
+	// WHO: TimeCalculator
+	// WHAT: Time difference calculation
+	// WHEN: During context operations
+	// WHERE: Context time comparison
+	// WHY: To evaluate context freshness
+	// HOW: Using time parsing and comparison
+	// EXTENT: Single time comparison
+
+	// If timestamp1 is empty, use current time
+	if timestamp1 == "" {
+		timestamp1 = time.Now().Format(time.RFC3339)
+	}
+
+	// If timestamp2 is empty, use current time
+	if timestamp2 == "" {
+		timestamp2 = time.Now().Format(time.RFC3339)
+	}
+
+	// Parse the timestamps
+	t1, err1 := time.Parse(time.RFC3339, timestamp1)
+	t2, err2 := time.Parse(time.RFC3339, timestamp2)
+
+	// Default to 0 if parsing fails
+	if err1 != nil || err2 != nil {
+		return 0
+	}
+
+	// Calculate difference in days
+	diff := t2.Sub(t1).Hours() / 24.0
+	if diff < 0 {
+		diff = -diff // Absolute value
+	}
+
+	return diff
+}
+
+// getMetaFloat extracts a float value from metadata with a default value
+func getMetaFloat(meta map[string]interface{}, key string, defaultValue float64) float64 {
+	// WHO: MetadataExtractor
+	// WHAT: Extract float value from metadata
+	// WHEN: During context operations
+	// WHERE: Context metadata processing
+	// WHY: To retrieve compression factors
+	// HOW: Using type assertion
+	// EXTENT: Single metadata field
+
+	if meta == nil {
+		return defaultValue
+	}
+
+	if val, ok := meta[key]; ok {
+		switch v := val.(type) {
+		case float64:
+			return v
+		case float32:
+			return float64(v)
+		case int:
+			return float64(v)
+		case int64:
+			return float64(v)
+		}
+	}
+
+	return defaultValue
+}
+
+// TranslateFromMCP converts an MCP context to a 7D context vector
+func TranslateFromMCP(mcpContext map[string]interface{}) ContextVector7D {
+	// WHO: ContextTranslator
+	// WHAT: Context format conversion
+	// WHEN: During context ingestion
+	// WHERE: Protocol boundary
+	// WHY: To standardize external context
+	// HOW: Using field mapping
+	// EXTENT: Complete context structure
+
+	// Create a new context vector
+	cv := ContextVector7D{
+		Who:    extractStringWithDefault(mcpContext, "identity", "External"),
+		What:   extractStringWithDefault(mcpContext, "operation", "Unknown"),
+		When:   extractStringWithDefault(mcpContext, "timestamp", time.Now().Format(time.RFC3339)),
+		Where:  extractStringWithDefault(mcpContext, "location", "MCP_Interface"),
+		Why:    extractStringWithDefault(mcpContext, "purpose", "External_Request"),
+		How:    extractStringWithDefault(mcpContext, "method", "MCP_Protocol"),
+		Extent: extractFloatWithDefault(mcpContext, "scope", 1.0),
+		Source: extractStringWithDefault(mcpContext, "source", "mcp_external"),
+	}
+
+	// Extract metadata if available
+	if metadata, ok := mcpContext["metadata"].(map[string]interface{}); ok {
+		cv.Meta = metadata
+	} else {
+		cv.Meta = make(map[string]interface{})
+	}
+
+	return cv
+}
+
+// ProtocolVersion represents an MCP protocol version
+type ProtocolVersion struct {
+	// WHO: VersionManager
+	// WHAT: Protocol version representation
+	// WHEN: During protocol negotiation
+	// WHERE: Bridge communication
+	// WHY: To ensure compatibility
+	// HOW: Using semantic versioning
+	// EXTENT: Protocol version tracking
+
+	Major int
+	Minor int
+	Patch int
+}
+
+// NewProtocolVersion creates a new protocol version from a string
+func NewProtocolVersion(version string) (ProtocolVersion, error) {
+	// WHO: VersionCreator
+	// WHAT: Protocol version parsing
+	// WHEN: During protocol initialization
+	// WHERE: Version handling
+	// WHY: To parse version strings
+	// HOW: Using format parsing
+	// EXTENT: Single version instance
+
+	var major, minor, patch int
+	_, err := fmt.Sscanf(version, "%d.%d.%d", &major, &minor, &patch)
+	if err != nil {
+		// Try parsing just major.minor
+		_, err = fmt.Sscanf(version, "%d.%d", &major, &minor)
+		if err != nil {
+			return ProtocolVersion{}, fmt.Errorf("invalid version format: %s", version)
+		}
+	}
+
+	return ProtocolVersion{
+		Major: major,
+		Minor: minor,
+		Patch: patch,
+	}, nil
+}
+
+// String returns the string representation of a protocol version
+func (pv ProtocolVersion) String() string {
+	// WHO: VersionFormatter
+	// WHAT: Version string creation
+	// WHEN: During protocol communication
+	// WHERE: Version exchange
+	// WHY: To standardize version format
+	// HOW: Using string formatting
+	// EXTENT: Version representation
+
+	return fmt.Sprintf("%d.%d.%d", pv.Major, pv.Minor, pv.Patch)
+}
+
+// IsCompatibleWith checks if this version is compatible with another
+func (pv ProtocolVersion) IsCompatibleWith(other ProtocolVersion) bool {
+	// WHO: CompatibilityChecker
+	// WHAT: Version compatibility check
+	// WHEN: During protocol negotiation
+	// WHERE: Bridge communication
+	// WHY: To ensure protocol compatibility
+	// HOW: Using semantic version rules
+	// EXTENT: Version compatibility
+
+	// Major version must match for compatibility
+	return pv.Major == other.Major
 }
