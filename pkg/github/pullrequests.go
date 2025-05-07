@@ -7,8 +7,8 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/translations"
 	"github.com/google/go-github/v69/github"
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/translations"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
@@ -125,40 +125,45 @@ func UpdatePullRequest(getClient GetClientFn, t translations.TranslationHelperFu
 
 			// Build the update struct only with provided fields
 			update := &github.PullRequest{}
+			updateNeeded := false
+
+			title, ok, err := OptionalParamOK[string](request, "title")
+			if err != nil {
+				return mcp.NewToolResultError(err.Error()), nil
+			} else if ok {
 				update.Title = Ptr(title)
+				updateNeeded = true
+			}
 
-			if title, ok, err := OptionalParamOK[string](request, "title"); err != nil {
+			body, ok, err := OptionalParamOK[string](request, "body")
+			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			} else if ok {
-				update.Title = mcp.Ptr(title)
-				updateNeeded = true
 				update.Body = Ptr(body)
+				updateNeeded = true
+			}
 
-			if body, ok, err := OptionalParamOK[string](request, "body"); err != nil {
+			state, ok, err := OptionalParamOK[string](request, "state")
+			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			} else if ok {
-				update.Body = mcp.Ptr(body)
-				updateNeeded = true
 				update.State = Ptr(state)
+				updateNeeded = true
+			}
 
-			if state, ok, err := OptionalParamOK[string](request, "state"); err != nil {
+			base, ok, err := OptionalParamOK[string](request, "base")
+			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			} else if ok {
-				update.State = mcp.Ptr(state)
-				updateNeeded = true
 				update.Base = &github.PullRequestBranch{Ref: Ptr(base)}
-
-			if base, ok, err := OptionalParamOK[string](request, "base"); err != nil {
-				return mcp.NewToolResultError(err.Error()), nil
-			} else if ok {
-				update.Base = &github.PullRequestBranch{Ref: mcp.Ptr(base)}
 				updateNeeded = true
-				update.MaintainerCanModify = Ptr(maintainerCanModify)
+			}
 
-			if maintainerCanModify, ok, err := OptionalParamOK[bool](request, "maintainer_can_modify"); err != nil {
+			maintainerCanModify, ok, err := OptionalParamOK[bool](request, "maintainer_can_modify")
+			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			} else if ok {
-				update.MaintainerCanModify = mcp.Ptr(maintainerCanModify)
+				update.MaintainerCanModify = Ptr(maintainerCanModify)
 				updateNeeded = true
 			}
 
@@ -550,7 +555,7 @@ func UpdatePullRequestBranch(getClient GetClientFn, t translations.TranslationHe
 			}
 			opts := &github.PullRequestBranchUpdateOptions{}
 			if expectedHeadSHA != "" {
-				opts.ExpectedHeadSHA = mcp.Ptr(expectedHeadSHA)
+				opts.ExpectedHeadSHA = Ptr(expectedHeadSHA)
 			}
 
 			client, err := getClient(ctx)
@@ -794,7 +799,7 @@ func CreatePullRequestReview(getClient GetClientFn, t translations.TranslationHe
 
 			// Create review request
 			reviewRequest := &github.PullRequestReviewRequest{
-				Event: mcp.Ptr(event),
+				Event: Ptr(event),
 			}
 
 			// Add body if provided
@@ -803,7 +808,7 @@ func CreatePullRequestReview(getClient GetClientFn, t translations.TranslationHe
 				return mcp.NewToolResultError(err.Error()), nil
 			}
 			if body != "" {
-				reviewRequest.Body = mcp.Ptr(body)
+				reviewRequest.Body = Ptr(body)
 			}
 
 			// Add commit ID if provided
@@ -812,7 +817,7 @@ func CreatePullRequestReview(getClient GetClientFn, t translations.TranslationHe
 				return mcp.NewToolResultError(err.Error()), nil
 			}
 			if commitID != "" {
-				reviewRequest.CommitID = mcp.Ptr(commitID)
+				reviewRequest.CommitID = Ptr(commitID)
 			}
 
 			// Add comments if provided
@@ -851,23 +856,23 @@ func CreatePullRequestReview(getClient GetClientFn, t translations.TranslationHe
 					}
 
 					comment := &github.DraftReviewComment{
-						Path: mcp.Ptr(path),
-						Body: mcp.Ptr(body),
+						Path: Ptr(path),
+						Body: Ptr(body),
 					}
 
 					if positionFloat, ok := commentMap["position"].(float64); ok {
-						comment.Position = mcp.Ptr(int(positionFloat))
+						comment.Position = Ptr(int(positionFloat))
 					} else if lineFloat, ok := commentMap["line"].(float64); ok {
-						comment.Line = mcp.Ptr(int(lineFloat))
+						comment.Line = Ptr(int(lineFloat))
 					}
 					if side, ok := commentMap["side"].(string); ok {
-						comment.Side = mcp.Ptr(side)
+						comment.Side = Ptr(side)
 					}
 					if startLineFloat, ok := commentMap["start_line"].(float64); ok {
-						comment.StartLine = mcp.Ptr(int(startLineFloat))
+						comment.StartLine = Ptr(int(startLineFloat))
 					}
 					if startSide, ok := commentMap["start_side"].(string); ok {
-						comment.StartSide = mcp.Ptr(startSide)
+						comment.StartSide = Ptr(startSide)
 					}
 
 					comments = append(comments, comment)
@@ -975,17 +980,17 @@ func CreatePullRequest(getClient GetClientFn, t translations.TranslationHelperFu
 			}
 
 			newPR := &github.NewPullRequest{
-				Title: mcp.Ptr(title),
-				Head:  mcp.Ptr(head),
-				Base:  mcp.Ptr(base),
+				Title: Ptr(title),
+				Head:  Ptr(head),
+				Base:  Ptr(base),
 			}
 
 			if body != "" {
-				newPR.Body = mcp.Ptr(body)
+				newPR.Body = Ptr(body)
 			}
 
-			newPR.Draft = mcp.Ptr(draft)
-			newPR.MaintainerCanModify = mcp.Ptr(maintainerCanModify)
+			newPR.Draft = Ptr(draft)
+			newPR.MaintainerCanModify = Ptr(maintainerCanModify)
 
 			client, err := getClient(ctx)
 			if err != nil {

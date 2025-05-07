@@ -180,7 +180,7 @@ func NewBridge(options BridgeOptions) *Bridge {
 		options.URL = DefaultBridgeURL
 	}
 
-	if options.ProtocolVersions == nil || len(options.ProtocolVersions) == 0 {
+	if len(options.ProtocolVersions) == 0 {
 		options.ProtocolVersions = []string{DefaultProtocolVersion}
 	}
 
@@ -199,7 +199,7 @@ func NewBridge(options BridgeOptions) *Bridge {
 	// Create default logger if none provided
 	if options.Logger == nil {
 		options.Logger = log.NewLogger(log.Config{
-			Level:      log.LevelInfo,
+			Level:      "info", // Changed from log.LevelInfo to string "info"
 			ConsoleOut: true,
 		})
 	}
@@ -663,7 +663,8 @@ func (b *Bridge) readPump() {
 
 			// Merge with existing context
 			if b.context != nil {
-				b.context = &incomingContext.Merge(*b.context)
+				mergedContext := incomingContext.Merge(*b.context) // Store the result first
+				b.context = &mergedContext                         // Then assign the pointer
 			} else {
 				b.context = &incomingContext
 			}
@@ -791,39 +792,36 @@ func (b *Bridge) healthCheckPump() {
 	ticker := time.NewTicker(b.options.HealthInterval)
 	defer ticker.Stop()
 
-	for {
-		select {
-		case <-ticker.C:
-			b.mu.Lock()
-			if !b.isConnected || b.isShutdown {
-				b.mu.Unlock()
-				return
-			}
-
-			// Skip health check if recent activity
-			timeSinceActivity := time.Since(b.stats.lastActivity)
-			if timeSinceActivity < b.options.HealthInterval {
-				b.mu.Unlock()
-				continue
-			}
+	for range ticker.C {
+		b.mu.Lock()
+		if !b.isConnected || b.isShutdown {
 			b.mu.Unlock()
+			return
+		}
 
-			// Send health check
-			healthCheck := Message{
-				ID:   generateMessageID(),
-				Type: TypeHealthCheck,
-				Payload: map[string]interface{}{
-					"timestamp": time.Now().Unix(),
-				},
-				Context: b.context.TranslateToMCP(),
-			}
+		// Skip health check if recent activity
+		timeSinceActivity := time.Since(b.stats.lastActivity)
+		if timeSinceActivity < b.options.HealthInterval {
+			b.mu.Unlock()
+			continue
+		}
+		b.mu.Unlock()
 
-			b.options.Logger.Debug("Sending health check")
+		// Send health check
+		healthCheck := Message{
+			ID:   generateMessageID(),
+			Type: TypeHealthCheck,
+			Payload: map[string]interface{}{
+				"timestamp": time.Now().Unix(),
+			},
+			Context: b.context.TranslateToMCP(),
+		}
 
-			// Don't wait for response, just send
-			if err := b.Send(healthCheck); err != nil {
-				b.options.Logger.Error("Health check error", "error", err.Error())
-			}
+		b.options.Logger.Debug("Sending health check")
+
+		// Don't wait for response, just send
+		if err := b.Send(healthCheck); err != nil {
+			b.options.Logger.Error("Health check error", "error", err.Error())
 		}
 	}
 }

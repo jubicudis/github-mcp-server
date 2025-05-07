@@ -364,7 +364,7 @@ func (b *TNOSMCPBridge) SendRequest(req mcp.CallToolRequest) (*mcp.CallToolResul
 
 	// Prepare request for TNOS MCP
 	tnosRequest := map[string]interface{}{
-		"tool":    req.ToolName,
+		"tool":    req.Params.Name, // Using Params.Name instead of ToolName which doesn't exist
 		"params":  req.Params,
 		"context": tnos7D,
 	}

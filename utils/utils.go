@@ -20,7 +20,7 @@ import (
 	"strings"
 	"time"
 
-	"github-mcp-server/models"
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/models"
 )
 
 // GenerateID generates a unique ID for requests
