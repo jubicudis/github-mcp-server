@@ -14,7 +14,9 @@ import (
 	"testing"
 
 	"github.com/google/go-github/v69/github"
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/github/testutil"
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/translations"
+	"github.com/mark3labs/mcp-go/types"
 	"github.com/migueleliasweb/go-github-mock/src/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -23,7 +25,7 @@ import (
 func Test_GetCodeScanningAlert(t *testing.T) {
 	// Verify tool definition once
 	mockClient := NewClient(nil)
-	tool, _ := GetCodeScanningAlert(stubGetClientFn(mockClient), translations.NullTranslationHelper)
+	tool, _ := GetCodeScanningAlert(testutil.StubGetClientFn(mockClient), translations.NullTranslationHelper)
 	assert.NotEmpty(t, tool.Description)
 	assert.Contains(t, tool.InputSchema.Properties, "owner")
 	assert.Contains(t, tool.InputSchema.Properties, "repo")
@@ -32,10 +34,10 @@ func Test_GetCodeScanningAlert(t *testing.T) {
 
 	// Setup mock alert for success case
 	mockAlert := &github.Alert{
-		Number:  Ptr(42),
-		State:   Ptr("open"),
-		Rule:    &github.Rule{ID: Ptr("test-rule"), Description: Ptr("Test Rule Description")},
-		HTMLURL: Ptr("https://github.com/owner/repo/security/code-scanning/42"),
+		Number:  testutil.Ptr(42),
+		State:   testutil.Ptr("open"),
+		Rule:    &github.Rule{ID: testutil.Ptr("test-rule"), Description: testutil.Ptr("Test Rule Description")},
+		HTMLURL: testutil.Ptr("https://github.com/owner/repo/security/code-scanning/42"),
 	}
 
 	tests := []struct {
@@ -87,10 +89,10 @@ func Test_GetCodeScanningAlert(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
 			client := NewClient(tc.mockedClient)
-			_, handler := GetCodeScanningAlert(stubGetClientFn(client), translations.NullTranslationHelper)
+			_, handler := GetCodeScanningAlert(testutil.StubGetClientFn(client), translations.NullTranslationHelper)
 
 			// Create call request
-			request := createMCPRequest(tc.requestArgs)
+			request := testutil.CreateMCPRequest(tc.requestArgs)
 
 			// Call handler
 			result, err := handler(context.Background(), request)
@@ -105,7 +107,7 @@ func Test_GetCodeScanningAlert(t *testing.T) {
 			require.NoError(t, err)
 
 			// Parse the result and get the text content if no error
-			textContent := getTextResult(t, result)
+			textContent := testutil.GetTextResult(t, result)
 
 			// Unmarshal and verify the result
 			var returnedAlert github.Alert
@@ -122,7 +124,7 @@ func Test_GetCodeScanningAlert(t *testing.T) {
 func Test_ListCodeScanningAlerts(t *testing.T) {
 	// Verify tool definition once
 	mockClient := NewClient(nil)
-	tool, _ := ListCodeScanningAlerts(stubGetClientFn(mockClient), translations.NullTranslationHelper)
+	tool, _ := ListCodeScanningAlerts(testutil.StubGetClientFn(mockClient), translations.NullTranslationHelper)
 	assert.NotEmpty(t, tool.Description)
 	assert.Contains(t, tool.InputSchema.Properties, "owner")
 	assert.Contains(t, tool.InputSchema.Properties, "repo")
@@ -134,16 +136,16 @@ func Test_ListCodeScanningAlerts(t *testing.T) {
 	// Setup mock alerts for success case
 	mockAlerts := []*github.Alert{
 		{
-			Number:  Ptr(42),
-			State:   Ptr("open"),
-			Rule:    &github.Rule{ID: Ptr("test-rule-1"), Description: Ptr("Test Rule 1")},
-			HTMLURL: Ptr("https://github.com/owner/repo/security/code-scanning/42"),
+			Number:  testutil.Ptr(42),
+			State:   testutil.Ptr("open"),
+			Rule:    &github.Rule{ID: testutil.Ptr("test-rule-1"), Description: testutil.Ptr("Test Rule 1")},
+			HTMLURL: testutil.Ptr("https://github.com/owner/repo/security/code-scanning/42"),
 		},
 		{
-			Number:  Ptr(43),
-			State:   Ptr("fixed"),
-			Rule:    &github.Rule{ID: Ptr("test-rule-2"), Description: Ptr("Test Rule 2")},
-			HTMLURL: Ptr("https://github.com/owner/repo/security/code-scanning/43"),
+			Number:  testutil.Ptr(43),
+			State:   testutil.Ptr("fixed"),
+			Rule:    &github.Rule{ID: testutil.Ptr("test-rule-2"), Description: testutil.Ptr("Test Rule 2")},
+			HTMLURL: testutil.Ptr("https://github.com/owner/repo/security/code-scanning/43"),
 		},
 	}
 
@@ -160,12 +162,12 @@ func Test_ListCodeScanningAlerts(t *testing.T) {
 			mockedClient: mock.NewMockedHTTPClient(
 				mock.WithRequestMatchHandler(
 					mock.GetReposCodeScanningAlertsByOwnerByRepo,
-					expectQueryParams(t, map[string]string{
+					testutil.ExpectQueryParams(t, map[string]string{
 						"ref":      "main",
 						"state":    "open",
 						"severity": "high",
-					}).andThen(
-						mockResponse(t, http.StatusOK, mockAlerts),
+					}).AndThen(
+						testutil.MockResponse(t, http.StatusOK, mockAlerts),
 					),
 				),
 			),
@@ -203,10 +205,10 @@ func Test_ListCodeScanningAlerts(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
 			client := NewClient(tc.mockedClient)
-			_, handler := ListCodeScanningAlerts(stubGetClientFn(client), translations.NullTranslationHelper)
+			_, handler := ListCodeScanningAlerts(testutil.StubGetClientFn(client), translations.NullTranslationHelper)
 
 			// Create call request
-			request := createMCPRequest(tc.requestArgs)
+			request := testutil.CreateMCPRequest(tc.requestArgs)
 
 			// Call handler
 			result, err := handler(context.Background(), request)
@@ -221,7 +223,7 @@ func Test_ListCodeScanningAlerts(t *testing.T) {
 			require.NoError(t, err)
 
 			// Parse the result and get the text content if no error
-			textContent := getTextResult(t, result)
+			textContent := testutil.GetTextResult(t, result)
 
 			// Unmarshal and verify the result
 			var returnedAlerts []*github.Alert

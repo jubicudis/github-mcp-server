@@ -26,8 +26,8 @@ import (
 	"github.com/shurcooL/graphql"
 	"golang.org/x/oauth2"
 
-	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log"
-	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/translations"
+	"tranquility-neuro-os/github-mcp-server/pkg/log"
+	"tranquility-neuro-os/github-mcp-server/pkg/translations"
 )
 
 // DefaultAPI constants

@@ -11,8 +11,34 @@
 package github
 
 import (
-	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log"
+	"time"
+
+	"log"
 )
+
+// ContextVector7D is already defined in context_translator.go
+// Using that definition for all client operations
+
+// DefaultContextVector7D creates a default context vector with standard values
+func DefaultContextVector7D() ContextVector7D {
+	// WHO: ContextFactory
+	// WHAT: Create default context vector
+	// WHEN: During initialization
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To provide standard context values
+	// HOW: Using 7D framework defaults
+	// EXTENT: All client operations requiring context
+
+	return ContextVector7D{
+		Who:    "System",
+		What:   "DefaultOperation",
+		When:   time.Now().Unix(), // Convert time.Time to Unix timestamp (int64)
+		Where:  "GitHub_MCP_Server",
+		Why:    "StandardProcessing",
+		How:    "DefaultMethod",
+		Extent: 1.0,
+	}
+}
 
 // This file serves as a compatibility layer.
 // All actual functionality has been migrated to github_client.go and client_adapter.go.
@@ -39,25 +65,7 @@ import (
  *    but uses the advanced client implementation internally.
  */
 
-// ContextVector7D represents the 7D context used by the legacy client
-type ContextVector7D struct {
-	// WHO: ContextManager
-	// WHAT: 7D Context Structure
-	// WHEN: During contextual operations
-	// WHERE: System Layer 6 (Integration)
-	// WHY: To provide contextual awareness
-	// HOW: Using structured context data
-	// EXTENT: All context-aware operations
-
-	Who    string                 `json:"who"`
-	What   string                 `json:"what"`
-	When   int64                  `json:"when"`
-	Where  string                 `json:"where"`
-	Why    string                 `json:"why"`
-	How    string                 `json:"how"`
-	Extent float64                `json:"extent"`
-	Meta   map[string]interface{} `json:"meta,omitempty"`
-}
+// Legacy client uses the ContextVector7D defined in context_translator.go
 
 // LegacyClientAdapter adapts the advanced client to the legacy interface
 type LegacyClientAdapter struct {
@@ -74,8 +82,8 @@ type LegacyClientAdapter struct {
 	logger         *log.Logger
 }
 
-// NewClient creates a new legacy client adapter
-func NewClient(token string, logger *log.Logger) *LegacyClientAdapter {
+// NewLegacyClient creates a new legacy client adapter
+func NewLegacyClient(token string, logger *log.Logger) *LegacyClientAdapter {
 	// WHO: ClientFactory
 	// WHAT: Create legacy client
 	// WHEN: During client initialization
@@ -85,4 +93,27 @@ func NewClient(token string, logger *log.Logger) *LegacyClientAdapter {
 	// EXTENT: Client lifecycle management
 
 	return NewLegacyClientAdapter(token, logger)
+}
+
+// NewLegacyClientAdapter creates a new legacy client adapter with default context
+func NewLegacyClientAdapter(token string, logger *log.Logger) *LegacyClientAdapter {
+	// WHO: AdapterFactory
+	// WHAT: Create legacy client adapter
+	// WHEN: During client initialization
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To wrap advanced client with legacy interface
+	// HOW: Using adapter pattern
+	// EXTENT: Client lifecycle management
+
+	options := ClientOptions{
+		Token:       token,
+		EnableCache: true,
+	}
+	advancedClient, _ := NewAdvancedClient(options)
+
+	return &LegacyClientAdapter{
+		advancedClient: advancedClient,
+		legacyContext:  DefaultContextVector7D(),
+		logger:         logger,
+	}
 }

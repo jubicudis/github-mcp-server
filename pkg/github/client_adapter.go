@@ -11,19 +11,24 @@
 package github
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"math"
+	"net/url"
 	"strings"
 	"time"
-
-	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log"
 )
 
-// LegacyClientAdapter adapts the advanced GitHub client implementation
+// Logger defines a custom logger interface that supports structured logging
+type Logger interface {
+	Debug(msg string, args ...interface{})
+	Info(msg string, args ...interface{})
+	Error(msg string, args ...interface{})
+}
+
+// ClientCompatibilityAdapter adapts the advanced GitHub client implementation
 // to provide compatibility with the older, simpler client interface
-type LegacyClientAdapter struct {
+type ClientCompatibilityAdapter struct {
 	// WHO: ClientBridge
 	// WHAT: Adapter struct for client migration
 	// WHEN: During transition phase
@@ -32,18 +37,18 @@ type LegacyClientAdapter struct {
 	// HOW: Using delegation pattern
 	// EXTENT: All legacy client operations
 
-	// The advanced client implementation
-	advancedClient *Client
+	// Logger instance
+	logger Logger
 
 	// Legacy context data
 	legacyContext ContextVector7D
 
-	// Logger instance
-	logger *log.Logger
+	// Advanced client reference
+	advancedClient *Client
 }
 
-// NewLegacyClientAdapter creates a new adapter for the legacy client
-func NewLegacyClientAdapter(token string, logger *log.Logger) *LegacyClientAdapter {
+// NewClientCompatibilityAdapter creates a new adapter for the legacy client
+func NewClientCompatibilityAdapter(token string, logger Logger) *ClientCompatibilityAdapter {
 	// WHO: AdapterFactory
 	// WHAT: Create legacy client adapter
 	// WHEN: During client initialization
@@ -84,16 +89,24 @@ func NewLegacyClientAdapter(token string, logger *log.Logger) *LegacyClientAdapt
 		CacheTimeout:    DefaultCacheTimeout,
 		RateLimitBuffer: 10,
 	}
+	// Parse the base URL string into a URL object
+	parsedURL, err := url.Parse(DefaultAPIBaseURL)
+	if err != nil {
+		if logger != nil {
+			logger.Error("Failed to parse API base URL", "error", err)
+		}
+		return nil
+	}
 
 	// Create advanced client
 	client := &Client{
 		options: options,
-		baseURL: DefaultAPIBaseURL,
+		baseURL: parsedURL,
 		cache:   make(map[string]*cacheItem),
 	}
 
 	// Create adapter
-	adapter := &LegacyClientAdapter{
+	adapter := &ClientCompatibilityAdapter{
 		advancedClient: client,
 		legacyContext:  ctx,
 		logger:         logger,
@@ -112,7 +125,7 @@ func NewLegacyClientAdapter(token string, logger *log.Logger) *LegacyClientAdapt
 }
 
 // GetUser returns information about a GitHub user
-func (a *LegacyClientAdapter) GetUser(username string) (*User, error) {
+func (a *ClientCompatibilityAdapter) GetUser(username string) (*User, error) {
 	// WHO: UserRetriever
 	// WHAT: Get user information
 	// WHEN: During user operations
@@ -137,8 +150,7 @@ func (a *LegacyClientAdapter) GetUser(username string) (*User, error) {
 	// If advanced client is available, delegate to it
 	if a.advancedClient != nil {
 		// Create context from legacy context
-		ctx := context.Background()
-		// TODO: Add context data
+		// TODO: Add context data when implementing the advanced client
 
 		// Use advanced client to get user
 		// This is a placeholder for the actual implementation
@@ -151,7 +163,9 @@ func (a *LegacyClientAdapter) GetUser(username string) (*User, error) {
 
 	// Direct implementation if advanced client is not available
 	// This is a simplified implementation to maintain compatibility
-	endpoint := fmt.Sprintf("/users/%s", username)
+	// endpoint would be used for actual API call in the real implementation
+	// endpoint := fmt.Sprintf("/users/%s", username)
+
 	// Create a user object manually for now
 	user := &User{
 		ID:    123456,
@@ -165,7 +179,7 @@ func (a *LegacyClientAdapter) GetUser(username string) (*User, error) {
 }
 
 // GetRepository returns information about a GitHub repository
-func (a *LegacyClientAdapter) GetRepository(owner, repo string) (*Repository, error) {
+func (a *ClientCompatibilityAdapter) GetRepository(owner, repo string) (*Repository, error) {
 	// WHO: RepositoryRetriever
 	// WHAT: Get repository information
 	// WHEN: During repository operations
@@ -190,9 +204,7 @@ func (a *LegacyClientAdapter) GetRepository(owner, repo string) (*Repository, er
 
 	// If advanced client is available, delegate to it
 	if a.advancedClient != nil {
-		// Create context from legacy context
-		ctx := context.Background()
-		// TODO: Add context data
+		// TODO: Add context data when implementing the advanced client
 
 		// Use advanced client to get repository
 		// This is a placeholder for the actual implementation
@@ -206,6 +218,12 @@ func (a *LegacyClientAdapter) GetRepository(owner, repo string) (*Repository, er
 	// Direct implementation if advanced client is not available
 	// This is a simplified implementation to maintain compatibility
 	endpoint := fmt.Sprintf("/repos/%s/%s", owner, repo)
+
+	// Log the endpoint that would be called in a real implementation
+	if a.logger != nil {
+		a.logger.Debug("Would call endpoint", "endpoint", endpoint)
+	}
+
 	// Create a repository object manually for now
 	repository := &Repository{
 		ID:       123456,
@@ -219,7 +237,7 @@ func (a *LegacyClientAdapter) GetRepository(owner, repo string) (*Repository, er
 }
 
 // GetFileContent returns the content of a file from a GitHub repository
-func (a *LegacyClientAdapter) GetFileContent(owner, repo, path, ref string) (*RepoContent, error) {
+func (a *ClientCompatibilityAdapter) GetFileContent(owner, repo, path, ref string) (*RepoContent, error) {
 	// WHO: ContentRetriever
 	// WHAT: Get file content
 	// WHEN: During content operations
@@ -247,7 +265,7 @@ func (a *LegacyClientAdapter) GetFileContent(owner, repo, path, ref string) (*Re
 	// If advanced client is available, delegate to it
 	if a.advancedClient != nil {
 		// Create context from legacy context
-		ctx := context.Background()
+		// ctx := context.Background() // Commented out until used
 		// TODO: Add context data
 
 		// Use advanced client to get file content
@@ -280,7 +298,7 @@ func (a *LegacyClientAdapter) GetFileContent(owner, repo, path, ref string) (*Re
 }
 
 // ListRepositoryContents lists the contents of a directory in a GitHub repository
-func (a *LegacyClientAdapter) ListRepositoryContents(owner, repo, path, ref string) ([]*DirectoryEntry, error) {
+func (a *ClientCompatibilityAdapter) ListRepositoryContents(owner, repo, path, ref string) ([]*DirectoryEntry, error) {
 	// WHO: DirectoryLister
 	// WHAT: List directory contents
 	// WHEN: During content operations
@@ -307,9 +325,8 @@ func (a *LegacyClientAdapter) ListRepositoryContents(owner, repo, path, ref stri
 
 	// If advanced client is available, delegate to it
 	if a.advancedClient != nil {
-		// Create context from legacy context
-		ctx := context.Background()
-		// TODO: Add context data
+		// TODO: Create context from legacy context and add context data
+		// when implementing the advanced client functionality
 
 		// Use advanced client to list contents
 		// This is a placeholder for the actual implementation
@@ -352,7 +369,7 @@ func (a *LegacyClientAdapter) ListRepositoryContents(owner, repo, path, ref stri
 }
 
 // CreateIssue creates a new issue in a GitHub repository
-func (a *LegacyClientAdapter) CreateIssue(owner, repo, title, body string, assignees []string) (*Issue, error) {
+func (a *ClientCompatibilityAdapter) CreateIssue(owner, repo, title, body string, assignees []string) (*Issue, error) {
 	// WHO: IssueCreator
 	// WHAT: Create issue
 	// WHEN: During issue operations
@@ -379,7 +396,7 @@ func (a *LegacyClientAdapter) CreateIssue(owner, repo, title, body string, assig
 	// If advanced client is available, delegate to it
 	if a.advancedClient != nil {
 		// Create context from legacy context
-		ctx := context.Background()
+		// ctx := context.Background() // Commented out until used
 		// TODO: Add context data
 
 		// Use advanced client to create issue
@@ -397,6 +414,11 @@ func (a *LegacyClientAdapter) CreateIssue(owner, repo, title, body string, assig
 	// This is a simplified implementation to maintain compatibility
 	endpoint := fmt.Sprintf("/repos/%s/%s/issues", owner, repo)
 
+	// Log the endpoint that would be called in a real implementation
+	if a.logger != nil {
+		a.logger.Debug("Would call endpoint", "endpoint", endpoint)
+	}
+
 	// Create an issue object manually for now
 	issue := &Issue{
 		ID:     123456,
@@ -413,7 +435,7 @@ func (a *LegacyClientAdapter) CreateIssue(owner, repo, title, body string, assig
 }
 
 // ParseResourceURI parses a resource URI into a ResourceURI struct
-func (a *LegacyClientAdapter) ParseResourceURI(uri string) (*ResourceURI, error) {
+func (a *ClientCompatibilityAdapter) ParseResourceURI(uri string) (*ResourceURI, error) {
 	// WHO: URIParser
 	// WHAT: Parse resource URI
 	// WHEN: During URI operations
@@ -495,7 +517,7 @@ func (a *LegacyClientAdapter) ParseResourceURI(uri string) (*ResourceURI, error)
 }
 
 // ApplyMobiusCompression applies Möbius compression to data
-func (a *LegacyClientAdapter) ApplyMobiusCompression(data interface{}) (map[string]interface{}, error) {
+func (a *ClientCompatibilityAdapter) ApplyMobiusCompression(data interface{}) (map[string]interface{}, error) {
 	// WHO: CompressionEngine
 	// WHAT: Apply compression
 	// WHEN: During data operations
@@ -605,7 +627,7 @@ func (a *LegacyClientAdapter) ApplyMobiusCompression(data interface{}) (map[stri
 }
 
 // WithContext creates a copy of the client with updated context
-func (a *LegacyClientAdapter) WithContext(ctx ContextVector7D) *LegacyClientAdapter {
+func (a *ClientCompatibilityAdapter) WithContext(ctx ContextVector7D) *ClientCompatibilityAdapter {
 	// WHO: ContextUpdater
 	// WHAT: Update client context
 	// WHEN: During context operations
@@ -615,7 +637,7 @@ func (a *LegacyClientAdapter) WithContext(ctx ContextVector7D) *LegacyClientAdap
 	// EXTENT: Context management operations
 
 	// Create a new adapter with the same client but updated context
-	return &LegacyClientAdapter{
+	return &ClientCompatibilityAdapter{
 		advancedClient: a.advancedClient,
 		legacyContext:  ctx,
 		logger:         a.logger,
@@ -623,7 +645,7 @@ func (a *LegacyClientAdapter) WithContext(ctx ContextVector7D) *LegacyClientAdap
 }
 
 // GetContext returns the current context
-func (a *LegacyClientAdapter) GetContext() ContextVector7D {
+func (a *ClientCompatibilityAdapter) GetContext() ContextVector7D {
 	// WHO: ContextProvider
 	// WHAT: Get client context
 	// WHEN: During context operations
@@ -636,7 +658,7 @@ func (a *LegacyClientAdapter) GetContext() ContextVector7D {
 }
 
 // CreateContext creates a new context with the given values
-func (a *LegacyClientAdapter) CreateContext(what, why string, extent float64) ContextVector7D {
+func (a *ClientCompatibilityAdapter) CreateContext(what, why string, extent float64) ContextVector7D {
 	// WHO: ContextCreator
 	// WHAT: Create new context
 	// WHEN: During context operations
