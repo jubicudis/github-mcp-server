@@ -3,8 +3,8 @@
  * WHAT: Core data models for GitHub MCP server
  * WHEN: Throughout system operations
  * WHERE: System Layer 6 (Integration)
- * WHY: To provide structured data representations
- * HOW: Using Go structs with 7D context
+ * WHY: To define standard data structures
+ * HOW: Using Go structures with 7D context
  * EXTENT: All data modeling needs
  */
 
@@ -14,269 +14,45 @@ import (
 	"time"
 )
 
-// ContextVector7D represents the 7D context framework
+// ContextVector7D represents the 7-dimensional context framework
 type ContextVector7D struct {
-	// WHO: Actor & Identity Context
+	// WHO: Identity and actor information
 	Who string `json:"who"`
 
-	// WHAT: Function & Content Context
+	// WHAT: Function and content information
 	What string `json:"what"`
 
-	// WHEN: Temporal Context
+	// WHEN: Temporal context (Unix timestamp)
 	When int64 `json:"when"`
 
-	// WHERE: Location Context
+	// WHERE: Location context within the system
 	Where string `json:"where"`
 
-	// WHY: Intent & Purpose Context
+	// WHY: Intent and purpose context
 	Why string `json:"why"`
 
-	// HOW: Method & Process Context
+	// HOW: Method and process context
 	How string `json:"how"`
 
-	// TO WHAT EXTENT: Scope & Impact Context
+	// TO WHAT EXTENT: Scope and impact context (0.0-1.0)
 	Extent float64 `json:"extent"`
 
-	// Additional metadata
-	Meta   map[string]interface{} `json:"meta,omitempty"`
-	Source string                 `json:"source,omitempty"`
+	// Additional metadata for the context
+	Meta map[string]interface{} `json:"meta,omitempty"`
+
+	// Source of the context
+	Source string `json:"source,omitempty"`
 }
 
-// Repository represents a GitHub repository
-type Repository struct {
-	// WHO: ContentManager
-	// WHAT: Repository data structure
-	// WHEN: During repository operations
-	// WHERE: System Layer 6 (Integration)
-	// WHY: To model repository data
-	// HOW: Using Go struct
-	// EXTENT: All repository attributes
-
-	Owner         string                 `json:"owner"`
-	Name          string                 `json:"name"`
-	FullName      string                 `json:"full_name"`
-	Description   string                 `json:"description"`
-	URL           string                 `json:"url"`
-	DefaultBranch string                 `json:"default_branch"`
-	Private       bool                   `json:"private"`
-	CreatedAt     time.Time              `json:"created_at"`
-	UpdatedAt     time.Time              `json:"updated_at"`
-	Context       *ContextVector7D       `json:"context,omitempty"`
-	Metadata      map[string]interface{} `json:"metadata,omitempty"`
-}
-
-// Issue represents a GitHub issue
-type Issue struct {
-	// WHO: IssueManager
-	// WHAT: Issue data structure
-	// WHEN: During issue operations
-	// WHERE: System Layer 6 (Integration)
-	// WHY: To model issue data
-	// HOW: Using Go struct
-	// EXTENT: All issue attributes
-
-	Number     int                    `json:"number"`
-	Title      string                 `json:"title"`
-	Body       string                 `json:"body"`
-	State      string                 `json:"state"`
-	CreatedAt  time.Time              `json:"created_at"`
-	UpdatedAt  time.Time              `json:"updated_at"`
-	ClosedAt   *time.Time             `json:"closed_at,omitempty"`
-	User       string                 `json:"user"`
-	Labels     []string               `json:"labels,omitempty"`
-	Assignees  []string               `json:"assignees,omitempty"`
-	URL        string                 `json:"url"`
-	HTMLURL    string                 `json:"html_url"`
-	Context    *ContextVector7D       `json:"context,omitempty"`
-	Metadata   map[string]interface{} `json:"metadata,omitempty"`
-	Repository string                 `json:"repository"`
-}
-
-// PullRequest represents a GitHub pull request
-type PullRequest struct {
-	// WHO: PRManager
-	// WHAT: PR data structure
-	// WHEN: During PR operations
-	// WHERE: System Layer 6 (Integration)
-	// WHY: To model PR data
-	// HOW: Using Go struct
-	// EXTENT: All PR attributes
-
-	Number     int                    `json:"number"`
-	Title      string                 `json:"title"`
-	Body       string                 `json:"body"`
-	State      string                 `json:"state"`
-	CreatedAt  time.Time              `json:"created_at"`
-	UpdatedAt  time.Time              `json:"updated_at"`
-	ClosedAt   *time.Time             `json:"closed_at,omitempty"`
-	MergedAt   *time.Time             `json:"merged_at,omitempty"`
-	User       string                 `json:"user"`
-	Base       string                 `json:"base"`
-	Head       string                 `json:"head"`
-	Draft      bool                   `json:"draft"`
-	Merged     bool                   `json:"merged"`
-	Mergeable  *bool                  `json:"mergeable,omitempty"`
-	URL        string                 `json:"url"`
-	HTMLURL    string                 `json:"html_url"`
-	Context    *ContextVector7D       `json:"context,omitempty"`
-	Metadata   map[string]interface{} `json:"metadata,omitempty"`
-	Repository string                 `json:"repository"`
-}
-
-// FileContent represents a file in a GitHub repository
-type FileContent struct {
-	// WHO: ContentManager
-	// WHAT: File content data structure
-	// WHEN: During content operations
-	// WHERE: System Layer 6 (Integration)
-	// WHY: To model file data
-	// HOW: Using Go struct
-	// EXTENT: All file attributes
-
-	Path        string                 `json:"path"`
-	Name        string                 `json:"name"`
-	SHA         string                 `json:"sha"`
-	Size        int                    `json:"size"`
-	Type        string                 `json:"type"`
-	Content     string                 `json:"content,omitempty"`
-	Encoding    string                 `json:"encoding,omitempty"`
-	URL         string                 `json:"url"`
-	HTMLURL     string                 `json:"html_url"`
-	DownloadURL string                 `json:"download_url,omitempty"`
-	Context     *ContextVector7D       `json:"context,omitempty"`
-	Metadata    map[string]interface{} `json:"metadata,omitempty"`
-}
-
-// Branch represents a GitHub branch
-type Branch struct {
-	// WHO: BranchManager
-	// WHAT: Branch data structure
-	// WHEN: During branch operations
-	// WHERE: System Layer 6 (Integration)
-	// WHY: To model branch data
-	// HOW: Using Go struct
-	// EXTENT: All branch attributes
-
-	Name       string                 `json:"name"`
-	SHA        string                 `json:"sha"`
-	Protected  bool                   `json:"protected"`
-	URL        string                 `json:"url"`
-	Context    *ContextVector7D       `json:"context,omitempty"`
-	Metadata   map[string]interface{} `json:"metadata,omitempty"`
-	Repository string                 `json:"repository"`
-}
-
-// Commit represents a GitHub commit
-type Commit struct {
-	// WHO: CommitManager
-	// WHAT: Commit data structure
-	// WHEN: During commit operations
-	// WHERE: System Layer 6 (Integration)
-	// WHY: To model commit data
-	// HOW: Using Go struct
-	// EXTENT: All commit attributes
-
-	SHA         string                 `json:"sha"`
-	Message     string                 `json:"message"`
-	Author      string                 `json:"author"`
-	AuthorEmail string                 `json:"author_email"`
-	AuthorDate  time.Time              `json:"author_date"`
-	Committer   string                 `json:"committer"`
-	CommitDate  time.Time              `json:"commit_date"`
-	URL         string                 `json:"url"`
-	HTMLURL     string                 `json:"html_url"`
-	Context     *ContextVector7D       `json:"context,omitempty"`
-	Metadata    map[string]interface{} `json:"metadata,omitempty"`
-	Repository  string                 `json:"repository"`
-}
-
-// MCPRequest represents an MCP (Model Context Protocol) request
-type MCPRequest struct {
-	// WHO: MCPRequestManager
-	// WHAT: MCP request data structure
-	// WHEN: During MCP operations
-	// WHERE: System Layer 6 (Integration)
-	// WHY: To model MCP requests
-	// HOW: Using Go struct
-	// EXTENT: All MCP request attributes
-
-	ID        string                 `json:"id"`
-	Method    string                 `json:"method"`
-	URI       string                 `json:"uri"`
-	Params    map[string]interface{} `json:"params,omitempty"`
-	Context   *ContextVector7D       `json:"context,omitempty"`
-	Timestamp int64                  `json:"timestamp"`
-	Source    string                 `json:"source,omitempty"`
-}
-
-// MCPResponse represents an MCP (Model Context Protocol) response
-type MCPResponse struct {
-	// WHO: MCPResponseManager
-	// WHAT: MCP response data structure
-	// WHEN: During MCP operations
-	// WHERE: System Layer 6 (Integration)
-	// WHY: To model MCP responses
-	// HOW: Using Go struct
-	// EXTENT: All MCP response attributes
-
-	ID        string                 `json:"id"`
-	Status    int                    `json:"status"`
-	Data      interface{}            `json:"data,omitempty"`
-	Error     *MCPError              `json:"error,omitempty"`
-	Context   *ContextVector7D       `json:"context,omitempty"`
-	Timestamp int64                  `json:"timestamp"`
-	Metadata  map[string]interface{} `json:"metadata,omitempty"`
-}
-
-// MCPError represents an MCP (Model Context Protocol) error
-type MCPError struct {
-	// WHO: ErrorManager
-	// WHAT: Error data structure
-	// WHEN: During error handling
-	// WHERE: System Layer 6 (Integration)
-	// WHY: To model error data
-	// HOW: Using Go struct
-	// EXTENT: All error attributes
-
-	Code    int                    `json:"code"`
-	Message string                 `json:"message"`
-	Details interface{}            `json:"details,omitempty"`
-	Context *ContextVector7D       `json:"context,omitempty"`
-	Meta    map[string]interface{} `json:"meta,omitempty"`
-}
-
-// ToMap converts a ContextVector7D to a map
-func (cv *ContextVector7D) ToMap() map[string]interface{} {
-	// WHO: ContextConverter
-	// WHAT: Convert context to map
-	// WHEN: During serialization
-	// WHERE: System Layer 6 (Integration)
-	// WHY: For JSON conversion
-	// HOW: Using struct to map conversion
-	// EXTENT: All context dimensions
-
-	return map[string]interface{}{
-		"who":    cv.Who,
-		"what":   cv.What,
-		"when":   cv.When,
-		"where":  cv.Where,
-		"why":    cv.Why,
-		"how":    cv.How,
-		"extent": cv.Extent,
-		"meta":   cv.Meta,
-		"source": cv.Source,
-	}
-}
-
-// NewContextVector7D creates a new 7D context vector
-func NewContextVector7D(who, what, where, why, how string, extent float64) *ContextVector7D {
-	// WHO: ContextCreator
-	// WHAT: Create context vector
+// NewContextVector7D creates a new context vector with default values
+func NewContextVector7D(who, what, where, why, how string) *ContextVector7D {
+	// WHO: ContextFactory
+	// WHAT: Create new context vector
 	// WHEN: During context initialization
 	// WHERE: System Layer 6 (Integration)
-	// WHY: To initialize context
-	// HOW: Using struct constructor
-	// EXTENT: All context dimensions
+	// WHY: To standardize context creation
+	// HOW: Using factory pattern
+	// EXTENT: Single context creation
 
 	return &ContextVector7D{
 		Who:    who,
@@ -285,8 +61,183 @@ func NewContextVector7D(who, what, where, why, how string, extent float64) *Cont
 		Where:  where,
 		Why:    why,
 		How:    how,
-		Extent: extent,
+		Extent: 1.0,
 		Meta:   make(map[string]interface{}),
-		Source: "github_mcp",
+		Source: "system",
 	}
+}
+
+// MCPRequest represents a generic MCP request structure
+type MCPRequest struct {
+	// Request ID
+	ID string `json:"id"`
+
+	// Request type
+	Type string `json:"type"`
+
+	// Request URI
+	URI string `json:"uri"`
+
+	// Request parameters
+	Params map[string]interface{} `json:"params,omitempty"`
+
+	// Request context
+	Context *ContextVector7D `json:"context"`
+
+	// Request timestamp
+	Timestamp int64 `json:"timestamp"`
+}
+
+// MCPResponse represents a generic MCP response structure
+type MCPResponse struct {
+	// Request ID this response is for
+	RequestID string `json:"requestId"`
+
+	// Status code
+	Status int `json:"status"`
+
+	// Status message
+	Message string `json:"message"`
+
+	// Response data
+	Data interface{} `json:"data,omitempty"`
+
+	// Response context
+	Context *ContextVector7D `json:"context"`
+
+	// Response timestamp
+	Timestamp int64 `json:"timestamp"`
+}
+
+// GitHubRepository represents a GitHub repository
+type GitHubRepository struct {
+	Owner       string           `json:"owner"`
+	Name        string           `json:"name"`
+	Description string           `json:"description"`
+	URL         string           `json:"url"`
+	Private     bool             `json:"private"`
+	Fork        bool             `json:"fork"`
+	Stars       int              `json:"stars"`
+	Watchers    int              `json:"watchers"`
+	Issues      int              `json:"issues"`
+	Context     *ContextVector7D `json:"context,omitempty"`
+}
+
+// GitHubUser represents a GitHub user
+type GitHubUser struct {
+	Login     string           `json:"login"`
+	ID        int              `json:"id"`
+	Name      string           `json:"name"`
+	Email     string           `json:"email"`
+	AvatarURL string           `json:"avatarUrl"`
+	URL       string           `json:"url"`
+	Type      string           `json:"type"`
+	Context   *ContextVector7D `json:"context,omitempty"`
+}
+
+// GitHubIssue represents a GitHub issue
+type GitHubIssue struct {
+	Number    int              `json:"number"`
+	Title     string           `json:"title"`
+	Body      string           `json:"body"`
+	State     string           `json:"state"`
+	CreatedAt int64            `json:"createdAt"`
+	UpdatedAt int64            `json:"updatedAt"`
+	ClosedAt  int64            `json:"closedAt,omitempty"`
+	User      *GitHubUser      `json:"user"`
+	Labels    []string         `json:"labels"`
+	Context   *ContextVector7D `json:"context,omitempty"`
+}
+
+// GitHubPullRequest represents a GitHub pull request
+type GitHubPullRequest struct {
+	Number     int              `json:"number"`
+	Title      string           `json:"title"`
+	Body       string           `json:"body"`
+	State      string           `json:"state"`
+	CreatedAt  int64            `json:"createdAt"`
+	UpdatedAt  int64            `json:"updatedAt"`
+	ClosedAt   int64            `json:"closedAt,omitempty"`
+	MergedAt   int64            `json:"mergedAt,omitempty"`
+	BaseBranch string           `json:"baseBranch"`
+	HeadBranch string           `json:"headBranch"`
+	User       *GitHubUser      `json:"user"`
+	Mergeable  bool             `json:"mergeable"`
+	Context    *ContextVector7D `json:"context,omitempty"`
+}
+
+// GitHubContent represents content from a GitHub repository
+type GitHubContent struct {
+	Name        string           `json:"name"`
+	Path        string           `json:"path"`
+	SHA         string           `json:"sha"`
+	Size        int              `json:"size"`
+	Type        string           `json:"type"` // file, dir, symlink
+	Content     string           `json:"content,omitempty"`
+	Encoding    string           `json:"encoding,omitempty"`
+	DownloadURL string           `json:"downloadUrl,omitempty"`
+	Context     *ContextVector7D `json:"context,omitempty"`
+}
+
+// GitHubSearchResult represents a search result from GitHub
+type GitHubSearchResult struct {
+	TotalCount int              `json:"totalCount"`
+	Items      []interface{}    `json:"items"`
+	Context    *ContextVector7D `json:"context,omitempty"`
+}
+
+// GitHubCodeScanningAlert represents a code scanning alert from GitHub
+type GitHubCodeScanningAlert struct {
+	Number      int    `json:"number"`
+	RuleID      string `json:"ruleId"`
+	Severity    string `json:"severity"`
+	Description string `json:"description"`
+	State       string `json:"state"`
+	CreatedAt   int64  `json:"createdAt"`
+	UpdatedAt   int64  `json:"updatedAt"`
+	FixedAt     int64  `json:"fixedAt,omitempty"`
+	Location    struct {
+		Path      string `json:"path"`
+		StartLine int    `json:"startLine"`
+		EndLine   int    `json:"endLine"`
+	} `json:"location"`
+	Context *ContextVector7D `json:"context,omitempty"`
+}
+
+// BridgeMessage represents a message exchanged between GitHub MCP and TNOS MCP
+type BridgeMessage struct {
+	ID              string                 `json:"id"`
+	Type            string                 `json:"type"`
+	Source          string                 `json:"source"`
+	Destination     string                 `json:"destination"`
+	Payload         interface{}            `json:"payload"`
+	Context         *ContextVector7D       `json:"context"`
+	Version         string                 `json:"version"`
+	Timestamp       int64                  `json:"timestamp"`
+	Compressed      bool                   `json:"compressed"`
+	CompressionData map[string]interface{} `json:"compressionData,omitempty"`
+}
+
+// TranslationResult represents the result of a context translation
+type TranslationResult struct {
+	Original   *ContextVector7D `json:"original"`
+	Translated *ContextVector7D `json:"translated"`
+	Success    bool             `json:"success"`
+	Message    string           `json:"message,omitempty"`
+	Timestamp  int64            `json:"timestamp"`
+}
+
+// SystemHealth represents the health status of the MCP system
+type SystemHealth struct {
+	Status      string                     `json:"status"` // "healthy", "degraded", "failing"
+	Components  map[string]ComponentHealth `json:"components"`
+	LastChecked int64                      `json:"lastChecked"`
+	Context     *ContextVector7D           `json:"context"`
+}
+
+// ComponentHealth represents the health status of a specific component
+type ComponentHealth struct {
+	Status      string `json:"status"` // "healthy", "degraded", "failing"
+	Message     string `json:"message,omitempty"`
+	LastChecked int64  `json:"lastChecked"`
 }
