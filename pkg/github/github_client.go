@@ -25,10 +25,27 @@ import (
 
 	"github.com/shurcooL/graphql"
 	"golang.org/x/oauth2"
-
-	"tranquility-neuro-os/github-mcp-server/pkg/log"
-	"tranquility-neuro-os/github-mcp-server/pkg/translations"
 )
+
+// ContextVector7D is defined in context_translator.go
+// This struct represents the 7-dimensional context vector used in GitHub MCP
+
+// ToMap converts ContextVector7D to a map representation
+func (cv *ContextVector7D) ToMap() map[string]interface{} {
+	return map[string]interface{}{
+		"who":    cv.Who,
+		"what":   cv.What,
+		"when":   cv.When,
+		"where":  cv.Where,
+		"why":    cv.Why,
+		"how":    cv.How,
+		"extent": cv.Extent,
+		"meta":   cv.Meta,
+	}
+}
+
+// We're using the Logger interface defined in client_adapter.go
+// Additional methods can be handled through interface composition if needed
 
 // DefaultAPI constants
 const (
@@ -92,7 +109,7 @@ type ClientOptions struct {
 	AcceptHeader    string
 	UserAgent       string
 	Timeout         time.Duration
-	Logger          *log.Logger
+	Logger          Logger
 	EnableCache     bool
 	CacheTimeout    time.Duration
 	RateLimitBuffer int
@@ -115,7 +132,7 @@ type Client struct {
 	graphQLURL  *url.URL
 
 	// Context for requests
-	context *translations.ContextVector7D
+	context *ContextVector7D
 
 	// Cache for common operations
 	cache         map[string]*cacheItem
@@ -190,14 +207,6 @@ func NewAdvancedClient(options ClientOptions) (*Client, error) {
 		return nil, fmt.Errorf("invalid GraphQL URL: %w", err)
 	}
 
-	// Create default logger if none provided
-	if options.Logger == nil {
-		options.Logger = log.NewLogger(log.Config{
-			Level:      log.LevelInfo,
-			ConsoleOut: true,
-		})
-	}
-
 	// Configure OAuth2 client
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: options.Token},
@@ -210,7 +219,7 @@ func NewAdvancedClient(options ClientOptions) (*Client, error) {
 
 	// Create 7D context for the client
 	now := time.Now().Unix()
-	contextVector := &translations.ContextVector7D{
+	contextVector := &ContextVector7D{
 		Who:    "GitHubClient",
 		What:   "GitHubIntegration",
 		When:   now,
@@ -225,8 +234,8 @@ func NewAdvancedClient(options ClientOptions) (*Client, error) {
 			"G":         0.6, // Growth factor
 			"F":         0.5, // Flexibility factor
 			"createdAt": now,
+			"Source":    "github_mcp",
 		},
-		Source: "github_mcp",
 	}
 
 	return &Client{
@@ -241,7 +250,7 @@ func NewAdvancedClient(options ClientOptions) (*Client, error) {
 }
 
 // SetContext updates the client context
-func (c *Client) SetContext(context *translations.ContextVector7D) {
+func (c *Client) SetContext(context *ContextVector7D) {
 	// WHO: ContextManager
 	// WHAT: Update context
 	// WHEN: During context changes
@@ -267,13 +276,17 @@ func (c *Client) GetRepositoryByName(ctx context.Context, owner, repo string) (m
 	cacheKey := fmt.Sprintf("repo:%s/%s", owner, repo)
 	cached, found := c.getCachedItem(cacheKey)
 	if found {
-		c.options.Logger.Debug("Cache hit", "key", cacheKey)
+		if c.options.Logger != nil {
+			c.options.Logger.Debug("Cache hit", "key", cacheKey)
+		}
 		return cached.(map[string]interface{}), nil
 	}
 
-	c.options.Logger.Info("Fetching repository",
-		"owner", owner,
-		"repo", repo)
+	if c.options.Logger != nil {
+		c.options.Logger.Info("Fetching repository",
+			"owner", owner,
+			"repo", repo)
+	}
 
 	// Make API request
 	path := fmt.Sprintf("/repos/%s/%s", owner, repo)
@@ -304,11 +317,13 @@ func (c *Client) GetFileContent(ctx context.Context, owner, repo, path, ref stri
 	// HOW: Using REST API
 	// EXTENT: Single file
 
-	c.options.Logger.Info("Fetching file content",
-		"owner", owner,
-		"repo", repo,
-		"path", path,
-		"ref", ref)
+	if c.options.Logger != nil {
+		c.options.Logger.Info("Fetching file content",
+			"owner", owner,
+			"repo", repo,
+			"path", path,
+			"ref", ref)
+	}
 
 	// Build API path
 	apiPath := fmt.Sprintf("/repos/%s/%s/contents/%s", owner, repo, path)
@@ -354,11 +369,13 @@ func (c *Client) GetDirectoryContent(ctx context.Context, owner, repo, path, ref
 	// HOW: Using REST API
 	// EXTENT: Directory listing
 
-	c.options.Logger.Info("Fetching directory content",
-		"owner", owner,
-		"repo", repo,
-		"path", path,
-		"ref", ref)
+	if c.options.Logger != nil {
+		c.options.Logger.Info("Fetching directory content",
+			"owner", owner,
+			"repo", repo,
+			"path", path,
+			"ref", ref)
+	}
 
 	// Build API path
 	apiPath := fmt.Sprintf("/repos/%s/%s/contents/%s", owner, repo, path)
@@ -400,10 +417,12 @@ func (c *Client) CreateIssue(ctx context.Context, owner, repo string, issue map[
 	// EXTENT: Single issue creation
 
 	title, _ := issue["title"].(string)
-	c.options.Logger.Info("Creating issue",
-		"owner", owner,
-		"repo", repo,
-		"title", title)
+	if c.options.Logger != nil {
+		c.options.Logger.Info("Creating issue",
+			"owner", owner,
+			"repo", repo,
+			"title", title)
+	}
 
 	// Validate required fields
 	if _, ok := issue["title"]; !ok {
@@ -436,10 +455,12 @@ func (c *Client) UpdateIssue(ctx context.Context, owner, repo string, number int
 	// HOW: Using REST API
 	// EXTENT: Single issue update
 
-	c.options.Logger.Info("Updating issue",
-		"owner", owner,
-		"repo", repo,
-		"number", number)
+	if c.options.Logger != nil {
+		c.options.Logger.Info("Updating issue",
+			"owner", owner,
+			"repo", repo,
+			"number", number)
+	}
 
 	// Make API request
 	apiPath := fmt.Sprintf("/repos/%s/%s/issues/%d", owner, repo, number)
@@ -471,12 +492,14 @@ func (c *Client) CreatePullRequest(ctx context.Context, owner, repo string, pr m
 	head, _ := pr["head"].(string)
 	base, _ := pr["base"].(string)
 
-	c.options.Logger.Info("Creating pull request",
-		"owner", owner,
-		"repo", repo,
-		"title", title,
-		"head", head,
-		"base", base)
+	if c.options.Logger != nil {
+		c.options.Logger.Info("Creating pull request",
+			"owner", owner,
+			"repo", repo,
+			"title", title,
+			"head", head,
+			"base", base)
+	}
 
 	// Validate required fields
 	required := []string{"title", "head", "base"}
@@ -512,9 +535,11 @@ func (c *Client) GetBranches(ctx context.Context, owner, repo string) ([]map[str
 	// HOW: Using REST API
 	// EXTENT: Branch listing
 
-	c.options.Logger.Info("Fetching branches",
-		"owner", owner,
-		"repo", repo)
+	if c.options.Logger != nil {
+		c.options.Logger.Info("Fetching branches",
+			"owner", owner,
+			"repo", repo)
+	}
 
 	// Make API request
 	apiPath := fmt.Sprintf("/repos/%s/%s/branches", owner, repo)
@@ -546,14 +571,18 @@ func (c *Client) GetCommit(ctx context.Context, owner, repo, sha string) (map[st
 	cacheKey := fmt.Sprintf("commit:%s/%s/%s", owner, repo, sha)
 	cached, found := c.getCachedItem(cacheKey)
 	if found {
-		c.options.Logger.Debug("Cache hit", "key", cacheKey)
+		if c.options.Logger != nil {
+			c.options.Logger.Debug("Cache hit", "key", cacheKey)
+		}
 		return cached.(map[string]interface{}), nil
 	}
 
-	c.options.Logger.Info("Fetching commit",
-		"owner", owner,
-		"repo", repo,
-		"sha", sha)
+	if c.options.Logger != nil {
+		c.options.Logger.Info("Fetching commit",
+			"owner", owner,
+			"repo", repo,
+			"sha", sha)
+	}
 
 	// Make API request
 	apiPath := fmt.Sprintf("/repos/%s/%s/commits/%s", owner, repo, sha)
@@ -584,8 +613,10 @@ func (c *Client) SearchCode(ctx context.Context, query string, options map[strin
 	// HOW: Using search API
 	// EXTENT: Code search results
 
-	c.options.Logger.Info("Searching code",
-		"query", query)
+	if c.options.Logger != nil {
+		c.options.Logger.Info("Searching code",
+			"query", query)
+	}
 
 	// Build query parameters
 	params := url.Values{}
@@ -622,9 +653,11 @@ func (c *Client) GetCodeScanningAlerts(ctx context.Context, owner, repo string) 
 	// HOW: Using security API
 	// EXTENT: Security alerts
 
-	c.options.Logger.Info("Fetching code scanning alerts",
-		"owner", owner,
-		"repo", repo)
+	if c.options.Logger != nil {
+		c.options.Logger.Info("Fetching code scanning alerts",
+			"owner", owner,
+			"repo", repo)
+	}
 
 	// Make API request with preview header
 	headers := map[string]string{
@@ -724,9 +757,11 @@ func (c *Client) doRequestWithHeaders(ctx context.Context, method, path string, 
 	}
 
 	// Execute request
-	c.options.Logger.Debug("Making API request",
-		"method", method,
-		"path", path)
+	if c.options.Logger != nil {
+		c.options.Logger.Debug("Making API request",
+			"method", method,
+			"path", path)
+	}
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -781,9 +816,11 @@ func (c *Client) checkRateLimit() error {
 	if c.rateLimitRemain <= c.options.RateLimitBuffer && time.Now().Before(c.rateLimitReset) {
 		waitTime := c.rateLimitReset.Sub(time.Now())
 		if waitTime > 0 {
-			c.options.Logger.Warn("Rate limit exceeded, waiting",
-				"remaining", c.rateLimitRemain,
-				"resetIn", waitTime.String())
+			if c.options.Logger != nil {
+				c.options.Logger.Info("Rate limit exceeded, waiting",
+					"remaining", c.rateLimitRemain,
+					"resetIn", waitTime.String())
+			}
 
 			time.Sleep(waitTime)
 		}

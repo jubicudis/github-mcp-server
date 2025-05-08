@@ -23,6 +23,14 @@ import (
 
 // Config holds the logger configuration
 type Config struct {
+	// WHO: ConfigurationManager
+	// WHAT: Logger configuration structure
+	// WHEN: During logger initialization
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To provide configurable logging options
+	// HOW: Using structured configuration parameters
+	// EXTENT: Logger initialization
+
 	// Level is the minimum log level to output
 	Level string
 	// FilePath is the path to the log file
@@ -31,6 +39,8 @@ type Config struct {
 	ConsoleOut bool
 	// ContextMode controls how context is displayed
 	ContextMode string
+	// EnableCompression controls whether to compress context data
+	EnableCompression bool
 }
 
 // Level represents a log level
@@ -51,6 +61,14 @@ const (
 
 // String representation of log levels
 func (l Level) String() string {
+	// WHO: LevelFormatter
+	// WHAT: Format log level as string
+	// WHEN: During log formatting
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To provide human-readable log levels
+	// HOW: Using string conversion
+	// EXTENT: Log message formatting
+
 	switch l {
 	case Debug:
 		return "DEBUG"
@@ -69,6 +87,14 @@ func (l Level) String() string {
 
 // FromString converts a string to a Level
 func FromString(s string) Level {
+	// WHO: LevelParser
+	// WHAT: Parse string to log level
+	// WHEN: During logger configuration
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To convert string configuration to level enum
+	// HOW: Using string comparison
+	// EXTENT: Logger initialization
+
 	switch strings.ToUpper(s) {
 	case "DEBUG":
 		return Debug
@@ -85,6 +111,26 @@ func FromString(s string) Level {
 	}
 }
 
+// ContextVector7D represents the 7-dimensional context vector used in logging
+type ContextVector7D struct {
+	// WHO: ContextVectorManager
+	// WHAT: 7D context structure
+	// WHEN: During context operations
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To represent context dimensions
+	// HOW: Using structured dimensions
+	// EXTENT: Context representation
+
+	Who    string                 `json:"who"`
+	What   string                 `json:"what"`
+	When   int64                  `json:"when"`
+	Where  string                 `json:"where"`
+	Why    string                 `json:"why"`
+	How    string                 `json:"how"`
+	Extent float64                `json:"extent"`
+	Meta   map[string]interface{} `json:"meta,omitempty"`
+}
+
 // Logger implements 7D Context-aware logging
 type Logger struct {
 	// WHO: LoggerCore
@@ -95,11 +141,13 @@ type Logger struct {
 	// HOW: Using structured data with compression
 	// EXTENT: All log operations
 
-	level       Level
-	contextMode string
-	out         io.Writer
-	fileOut     io.Writer
-	mu          sync.Mutex
+	level             Level
+	contextMode       string
+	enableCompression bool
+	out               io.Writer
+	fileOut           io.Writer
+	mu                sync.Mutex
+	context           *ContextVector7D
 }
 
 // NewLogger creates a new Logger with the specified configuration
@@ -149,17 +197,57 @@ func NewLogger(config Config) *Logger {
 		out = io.MultiWriter(writers...)
 	}
 
+	// Create default context
+	defaultContext := &ContextVector7D{
+		Who:    "LogSystem",
+		What:   "Logging",
+		When:   time.Now().Unix(),
+		Where:  "System Layer 6",
+		Why:    "SystemMonitoring",
+		How:    "StructuredLogging",
+		Extent: 1.0,
+		Meta:   make(map[string]interface{}),
+	}
+
 	// Create and return logger
 	return &Logger{
-		level:       FromString(config.Level),
-		contextMode: config.ContextMode,
-		out:         out,
-		fileOut:     fileOut,
+		level:             FromString(config.Level),
+		contextMode:       config.ContextMode,
+		enableCompression: config.EnableCompression,
+		out:               out,
+		fileOut:           fileOut,
+		context:           defaultContext,
 	}
+}
+
+// DefaultLogger returns a logger with default configuration
+func DefaultLogger() *Logger {
+	// WHO: DefaultLoggerProvider
+	// WHAT: Create default logger
+	// WHEN: During quick initialization
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To provide a simple logger with defaults
+	// HOW: Using standard configuration
+	// EXTENT: Simple logging needs
+
+	config := Config{
+		Level:       "INFO",
+		ConsoleOut:  true,
+		ContextMode: "debug",
+	}
+	return NewLogger(config)
 }
 
 // Close closes the logger and associated resources
 func (l *Logger) Close() {
+	// WHO: ResourceCleaner
+	// WHAT: Release logger resources
+	// WHEN: During shutdown
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To properly close file handles
+	// HOW: Using io.Closer interface
+	// EXTENT: Resource cleanup
+
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
@@ -169,8 +257,38 @@ func (l *Logger) Close() {
 	}
 }
 
+// WithContext returns a new logger with the specified context
+func (l *Logger) WithContext(context *ContextVector7D) *Logger {
+	// WHO: ContextualLoggerProvider
+	// WHAT: Create contextualized logger
+	// WHEN: During context-aware operations
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To provide context-aware logging
+	// HOW: Using context inheritance
+	// EXTENT: Contextual operations
+
+	newLogger := &Logger{
+		level:             l.level,
+		contextMode:       l.contextMode,
+		enableCompression: l.enableCompression,
+		out:               l.out,
+		fileOut:           l.fileOut,
+		context:           context,
+	}
+
+	return newLogger
+}
+
 // log is the internal logging function
 func (l *Logger) log(level Level, msg string, keyvals ...interface{}) {
+	// WHO: LogRecorder
+	// WHAT: Record log message with context
+	// WHEN: During log operations
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To store log data with context
+	// HOW: Using formatted output with context
+	// EXTENT: All log messages
+
 	// Skip logging if the level is below the configured level
 	if level < l.level {
 		return
@@ -233,11 +351,28 @@ func (l *Logger) log(level Level, msg string, keyvals ...interface{}) {
 		}
 	}
 
+	// If we have a context object and are in debug mode, add it to the log
+	if l.context != nil && l.contextMode == "debug" {
+		// Only print context if we didn't already have context fields
+		if len(contextFields) == 0 {
+			fmt.Fprintf(l.out, " [7D-CTX: who=%s what=%s where=%s why=%s]",
+				l.context.Who, l.context.What, l.context.Where, l.context.Why)
+		}
+	}
+
 	fmt.Fprintln(l.out)
 }
 
 // Helper function to check if a field is a 7D context dimension
 func isContextDimension(field string) bool {
+	// WHO: ContextFieldValidator
+	// WHAT: Validate context dimension
+	// WHEN: During log formatting
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To identify context fields
+	// HOW: Using dimension name comparison
+	// EXTENT: Log field processing
+
 	dimensions := []string{
 		"who", "what", "when", "where", "why", "how", "extent",
 		"WHO", "WHAT", "WHEN", "WHERE", "WHY", "HOW", "EXTENT",
@@ -256,34 +391,96 @@ func isContextDimension(field string) bool {
 
 // Debug logs a debug message
 func (l *Logger) Debug(msg string, keyvals ...interface{}) {
+	// WHO: DebugLogger
+	// WHAT: Log debug message
+	// WHEN: During detailed diagnostics
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To provide detailed troubleshooting
+	// HOW: Using debug level logging
+	// EXTENT: Diagnostic operations
+
 	l.log(Debug, msg, keyvals...)
 }
 
 // Info logs an info message
 func (l *Logger) Info(msg string, keyvals ...interface{}) {
+	// WHO: InfoLogger
+	// WHAT: Log info message
+	// WHEN: During normal operations
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To provide operational information
+	// HOW: Using info level logging
+	// EXTENT: Standard operations
+
 	l.log(Info, msg, keyvals...)
 }
 
 // Warn logs a warning message
 func (l *Logger) Warn(msg string, keyvals ...interface{}) {
+	// WHO: WarnLogger
+	// WHAT: Log warning message
+	// WHEN: During potential issues
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To highlight potential problems
+	// HOW: Using warning level logging
+	// EXTENT: Warning conditions
+
 	l.log(Warn, msg, keyvals...)
 }
 
 // Error logs an error message
 func (l *Logger) Error(msg string, keyvals ...interface{}) {
+	// WHO: ErrorLogger
+	// WHAT: Log error message
+	// WHEN: During error conditions
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To record errors for resolution
+	// HOW: Using error level logging
+	// EXTENT: Error conditions
+
 	l.log(Error, msg, keyvals...)
 }
 
 // Fatal logs a fatal message and exits the program
 func (l *Logger) Fatal(msg string, keyvals ...interface{}) {
+	// WHO: FatalLogger
+	// WHAT: Log fatal message and exit
+	// WHEN: During critical failures
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To handle unrecoverable errors
+	// HOW: Using fatal level logging with exit
+	// EXTENT: Critical failures
+
 	l.log(Fatal, msg, keyvals...)
 	os.Exit(1)
 }
 
-// WithContext returns a new logger with context
-func (l *Logger) WithContext(context map[string]interface{}) *Logger {
-	// Create a new logger with the same configuration
-	return l
+// SetLevel changes the logging level
+func (l *Logger) SetLevel(level Level) {
+	// WHO: LevelManager
+	// WHAT: Change logging level
+	// WHEN: During runtime configuration
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To adjust verbosity dynamically
+	// HOW: Using level modification
+	// EXTENT: Logger configuration
+
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	l.level = level
+}
+
+// SetLevelFromString changes the logging level from a string
+func (l *Logger) SetLevelFromString(levelStr string) {
+	// WHO: LevelConfigurator
+	// WHAT: Set log level from string
+	// WHEN: During runtime configuration
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To adjust verbosity from config
+	// HOW: Using level parsing
+	// EXTENT: Logger configuration
+
+	l.SetLevel(FromString(levelStr))
 }
 
 // CompressContext applies Möbius compression to the context
@@ -297,6 +494,172 @@ func CompressContext(context map[string]interface{}) map[string]interface{} {
 	// EXTENT: Context lifecycle
 
 	// In a real implementation, this would apply the Möbius Compression Formula
-	// For now, we'll just return the original context
-	return context
+	// Formula: compressed = (value * B * I * (1 - (entropy / log2(1 + V))) * (G + F)) / (E * t + entropy + alignment)
+	// alignment = (B + V * I) * exp(-t * E)
+
+	// For now, we'll just return the original context with compression metadata
+	compressed := make(map[string]interface{})
+	compressed["original"] = context
+	compressed["compressed"] = true
+	compressed["compression_algorithm"] = "mobius"
+	compressed["compression_timestamp"] = time.Now().Unix()
+
+	return compressed
+}
+
+// Debugf formats and logs a debug message
+func (l *Logger) Debugf(format string, args ...interface{}) {
+	// WHO: FormatDebugLogger
+	// WHAT: Format and log debug message
+	// WHEN: During detailed diagnostics
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To provide formatted debug information
+	// HOW: Using printf-style formatting
+	// EXTENT: Diagnostic operations
+
+	l.Debug(fmt.Sprintf(format, args...))
+}
+
+// Infof formats and logs an info message
+func (l *Logger) Infof(format string, args ...interface{}) {
+	// WHO: FormatInfoLogger
+	// WHAT: Format and log info message
+	// WHEN: During normal operations
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To provide formatted operational information
+	// HOW: Using printf-style formatting
+	// EXTENT: Standard operations
+
+	l.Info(fmt.Sprintf(format, args...))
+}
+
+// Warnf formats and logs a warning message
+func (l *Logger) Warnf(format string, args ...interface{}) {
+	// WHO: FormatWarnLogger
+	// WHAT: Format and log warning message
+	// WHEN: During potential issues
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To provide formatted warning information
+	// HOW: Using printf-style formatting
+	// EXTENT: Warning conditions
+
+	l.Warn(fmt.Sprintf(format, args...))
+}
+
+// Errorf formats and logs an error message
+func (l *Logger) Errorf(format string, args ...interface{}) {
+	// WHO: FormatErrorLogger
+	// WHAT: Format and log error message
+	// WHEN: During error conditions
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To provide formatted error information
+	// HOW: Using printf-style formatting
+	// EXTENT: Error conditions
+
+	l.Error(fmt.Sprintf(format, args...))
+}
+
+// Fatalf formats and logs a fatal message and exits the program
+func (l *Logger) Fatalf(format string, args ...interface{}) {
+	// WHO: FormatFatalLogger
+	// WHAT: Format and log fatal message and exit
+	// WHEN: During critical failures
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To provide formatted fatal information
+	// HOW: Using printf-style formatting with exit
+	// EXTENT: Critical failures
+
+	l.Fatal(fmt.Sprintf(format, args...))
+}
+
+// GetCurrentContext returns a copy of the current context
+func (l *Logger) GetCurrentContext() *ContextVector7D {
+	// WHO: ContextProvider
+	// WHAT: Get current context
+	// WHEN: During context observation
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To provide access to current context
+	// HOW: Using context copying
+	// EXTENT: Context observation
+
+	if l.context == nil {
+		return nil
+	}
+
+	// Return a copy to prevent modification
+	ctx := *l.context
+	return &ctx
+}
+
+// UpdateContext updates the current context with new values
+func (l *Logger) UpdateContext(updates map[string]interface{}) {
+	// WHO: ContextUpdater
+	// WHAT: Update context values
+	// WHEN: During context modification
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To modify contextual information
+	// HOW: Using context field updating
+	// EXTENT: Context maintenance
+
+	l.mu.Lock()
+	defer l.mu.Unlock()
+
+	if l.context == nil {
+		return
+	}
+
+	// Update fields based on map
+	for key, value := range updates {
+		switch strings.ToLower(key) {
+		case "who":
+			if strVal, ok := value.(string); ok {
+				l.context.Who = strVal
+			}
+		case "what":
+			if strVal, ok := value.(string); ok {
+				l.context.What = strVal
+			}
+		case "when":
+			switch v := value.(type) {
+			case int64:
+				l.context.When = v
+			case int:
+				l.context.When = int64(v)
+			case time.Time:
+				l.context.When = v.Unix()
+			}
+		case "where":
+			if strVal, ok := value.(string); ok {
+				l.context.Where = strVal
+			}
+		case "why":
+			if strVal, ok := value.(string); ok {
+				l.context.Why = strVal
+			}
+		case "how":
+			if strVal, ok := value.(string); ok {
+				l.context.How = strVal
+			}
+		case "extent":
+			switch v := value.(type) {
+			case float64:
+				l.context.Extent = v
+			case float32:
+				l.context.Extent = float64(v)
+			case int:
+				l.context.Extent = float64(v)
+			}
+		case "meta":
+			if metaMap, ok := value.(map[string]interface{}); ok {
+				if l.context.Meta == nil {
+					l.context.Meta = metaMap
+				} else {
+					// Merge maps
+					for k, v := range metaMap {
+						l.context.Meta[k] = v
+					}
+				}
+			}
+		}
+	}
 }

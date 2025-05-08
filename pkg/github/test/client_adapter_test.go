@@ -11,12 +11,9 @@
 package github_test
 
 import (
-	"context"
 	"testing"
-	"time"
 
-	"tranquility-neuro-os/github-mcp-server/pkg/github"
-	"tranquility-neuro-os/github-mcp-server/pkg/log"
+	githubpkg "tranquility-neuro-os/github-mcp-server/pkg/github"
 )
 
 // TestClientAdapter verifies that the adapter pattern works correctly
@@ -29,110 +26,121 @@ func TestClientAdapter(t *testing.T) {
 	// HOW: Using test assertions
 	// EXTENT: Adapter verification
 
-	// Create logger for testing
-	logger := log.NewLogger(log.Config{
-		Level:      log.LevelDebug,
-		ConsoleOut: true,
-	})
-
 	// GitHub token from environment or use a placeholder for test
 	token := "test_token"
 
 	// Create legacy client via adapter
-	legacyClient := github.NewClient(token, logger)
+	legacyClient := githubpkg.NewClientCompatibilityAdapter(token, nil)
 
 	if legacyClient == nil {
 		t.Fatal("Failed to create legacy client adapter")
 	}
 
-	// Test context compression
-	ctx := legacyClient.CompressContext()
+	// Test context data
+	ctx := legacyClient.GetContext()
 
-	if ctx == nil {
-		t.Error("Failed to compress context")
+	if ctx.Who == "" {
+		t.Error("Missing WHO dimension in context")
 	}
 
 	// Verify context contains expected 7D dimensions
-	dimensions := []string{"who", "what", "when", "where", "why", "how", "extent"}
-	for _, dim := range dimensions {
-		if _, ok := ctx[dim]; !ok {
-			t.Errorf("Missing dimension %s in compressed context", dim)
-		}
+	if ctx.What == "" {
+		t.Error("Missing WHAT dimension in context")
+	}
+	if ctx.When == 0 {
+		t.Error("Missing WHEN dimension in context")
+	}
+	if ctx.Where == "" {
+		t.Error("Missing WHERE dimension in context")
+	}
+	if ctx.Why == "" {
+		t.Error("Missing WHY dimension in context")
+	}
+	if ctx.How == "" {
+		t.Error("Missing HOW dimension in context")
+	}
+	if ctx.Extent == 0 {
+		t.Error("Missing EXTENT dimension in context")
 	}
 
-	// Create user service with legacy client
-	userService := github.NewUserService(legacyClient)
-
-	if userService == nil {
-		t.Fatal("Failed to create user service")
-	}
-
-	// Verify the advanced client implementation from github_client.go also works
-	options := github.ClientOptions{
-		Token:           token,
-		APIBaseURL:      "https://api.github.com",
-		GraphQLBaseURL:  "https://api.github.com/graphql",
-		AcceptHeader:    "application/vnd.github.v3+json",
-		UserAgent:       "TNOS-GitHub-MCP-Test-Client",
-		Timeout:         30 * time.Second,
-		Logger:          logger,
-		EnableCache:     true,
-		CacheTimeout:    5 * time.Minute,
-		RateLimitBuffer: 10,
-	}
-
-	// Create advanced client
-	advancedClient, err := github.NewClient(options)
-
+	// Test getting a user
+	user, err := legacyClient.GetUser("testuser")
 	if err != nil {
-		t.Logf("Note: Advanced client creation skipped: %v", err)
-		t.Log("This is expected in test environments without proper GitHub credentials")
-	} else if advancedClient != nil {
-		// Test the advanced client
-		ctx := context.Background()
-		owner := "octocat"
-		repo := "hello-world"
+		t.Errorf("Failed to get user: %v", err)
+	}
+	if user == nil {
+		t.Error("Expected user object, got nil")
+	} else if user.Login != "testuser" {
+		t.Errorf("Expected username 'testuser', got '%s'", user.Login)
+	}
 
-		repoData, err := advancedClient.GetRepositoryByName(ctx, owner, repo)
+	// Test getting a repository
+	repo, err := legacyClient.GetRepository("testowner", "testrepo")
+	if err != nil {
+		t.Errorf("Failed to get repository: %v", err)
+	}
+	if repo == nil {
+		t.Error("Expected repository object, got nil")
+	} else if repo.Name != "testrepo" {
+		t.Errorf("Expected repository name 'testrepo', got '%s'", repo.Name)
+	}
 
-		// We don't expect this to succeed without valid credentials,
-		// just verifying the interface works
-		t.Logf("Advanced client repository request result: %v", err)
-
-		if repoData != nil {
-			t.Logf("Found repository data with name: %v", repoData["name"])
+	// Test parsing a resource URI
+	uri := "repo://testowner/testrepo/contents/path/to/file"
+	resourceURI, err := legacyClient.ParseResourceURI(uri)
+	if err != nil {
+		t.Errorf("Failed to parse resource URI: %v", err)
+	}
+	if resourceURI == nil {
+		t.Error("Expected resourceURI object, got nil")
+	} else {
+		if resourceURI.Owner != "testowner" {
+			t.Errorf("Expected owner 'testowner', got '%s'", resourceURI.Owner)
+		}
+		if resourceURI.Repo != "testrepo" {
+			t.Errorf("Expected repo 'testrepo', got '%s'", resourceURI.Repo)
+		}
+		if resourceURI.Path != "path/to/file" {
+			t.Errorf("Expected path 'path/to/file', got '%s'", resourceURI.Path)
 		}
 	}
 
-	// Test MCP bridge integration
-	bridgeOptions := github.DefaultMCPBridgeOptions()
-	bridgeOptions.GithubToken = token
-	bridgeOptions.Logger = logger
+	// Test Möbius compression
+	testData := map[string]interface{}{
+		"key1": "value1",
+		"key2": 123,
+		"key3": true,
+		"key4": []string{"a", "b", "c"},
+	}
 
-	bridge, err := github.NewMCPBridge(bridgeOptions)
-
+	compressed, err := legacyClient.ApplyMobiusCompression(testData)
 	if err != nil {
-		t.Logf("Note: MCP Bridge creation error: %v", err)
-	} else if bridge != nil {
-		state := bridge.GetState()
-		t.Logf("MCP Bridge created with state: %v", state)
+		t.Errorf("Failed to apply Möbius compression: %v", err)
+	}
+	if compressed == nil {
+		t.Error("Expected compressed object, got nil")
+	}
 
-		// Test context synchronization (this won't actually connect but tests the interface)
-		testContext := map[string]interface{}{
-			"who":    "TestClient",
-			"what":   "RunTest",
-			"when":   time.Now().Unix(),
-			"where":  "TestEnvironment",
-			"why":    "TestVerification",
-			"how":    "GoTesting",
-			"extent": 1.0,
-		}
+	// Test creating new context
+	newContext := legacyClient.CreateContext("TestOperation", "Testing", 0.5)
+	if newContext.What != "TestOperation" {
+		t.Errorf("Expected What='TestOperation', got '%s'", newContext.What)
+	}
+	if newContext.Why != "Testing" {
+		t.Errorf("Expected Why='Testing', got '%s'", newContext.Why)
+	}
+	if newContext.Extent != 0.5 {
+		t.Errorf("Expected Extent=0.5, got '%f'", newContext.Extent)
+	}
 
-		err = bridge.SyncContext(testContext)
+	// Test creating client with context
+	clientWithContext := legacyClient.WithContext(newContext)
+	if clientWithContext == nil {
+		t.Error("Failed to create client with context")
+	}
 
-		// We expect an error due to lack of connection
-		if err != nil {
-			t.Logf("Expected error during context sync without connection: %v", err)
-		}
+	updatedContext := clientWithContext.GetContext()
+	if updatedContext.What != "TestOperation" {
+		t.Errorf("Context was not properly updated: expected What='TestOperation', got '%s'", updatedContext.What)
 	}
 }

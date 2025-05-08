@@ -15,9 +15,6 @@ import (
 	"fmt"
 	"math"
 	"time"
-
-	"tranquility-neuro-os/github-mcp-server/pkg/log"
-	"tranquility-neuro-os/github-mcp-server/pkg/translations"
 )
 
 // ContextVector7D represents the 7-dimensional context vector used in GitHub MCP
@@ -40,6 +37,21 @@ type ContextVector7D struct {
 	Meta   map[string]interface{} `json:"meta,omitempty"`
 }
 
+// TNOSContextVector represents the context vector used in TNOS system
+type TNOSContextVector struct {
+	Who    string                 `json:"who"`
+	What   string                 `json:"what"`
+	When   int64                  `json:"when"`
+	Where  string                 `json:"where"`
+	Why    string                 `json:"why"`
+	How    string                 `json:"how"`
+	Extent float64                `json:"extent"`
+	Source string                 `json:"source,omitempty"`
+	Meta   map[string]interface{} `json:"meta,omitempty"`
+}
+
+// Using the Logger interface already defined in the package
+
 // ContextTranslator handles context translation between systems
 type ContextTranslator struct {
 	// WHO: TranslationManager
@@ -50,7 +62,7 @@ type ContextTranslator struct {
 	// HOW: Using translation algorithms
 	// EXTENT: All context translations
 
-	logger *log.Logger
+	logger Logger
 
 	// Configuration options
 	enableCompression bool
@@ -64,7 +76,7 @@ type ContextTranslator struct {
 
 // NewContextTranslator creates a new context translator
 func NewContextTranslator(
-	logger *log.Logger,
+	logger Logger,
 	enableCompression bool,
 	preserveMetadata bool,
 	strictMapping bool,
@@ -77,27 +89,20 @@ func NewContextTranslator(
 	// HOW: Using factory pattern
 	// EXTENT: Translator lifecycle
 
-	if logger == nil {
-		// Create a minimal logger if none provided
-		logger = log.NewLogger(log.Config{
-			Level:      log.LevelInfo,
-			ConsoleOut: true,
-		})
-	}
-
 	return &ContextTranslator{
 		logger:            logger,
 		enableCompression: enableCompression,
 		preserveMetadata:  preserveMetadata,
 		strictMapping:     strictMapping,
 		translationCount:  0,
+		lastTranslation:   time.Now(),
 	}
 }
 
 // TranslateGitHubToTNOS translates GitHub context to TNOS context
 func (ct *ContextTranslator) TranslateGitHubToTNOS(
 	githubContext *ContextVector7D,
-) (*translations.ContextVector7D, error) {
+) (*TNOSContextVector, error) {
 	// WHO: ForwardTranslator
 	// WHAT: Convert GitHub to TNOS context
 	// WHEN: During outbound communications
@@ -111,7 +116,7 @@ func (ct *ContextTranslator) TranslateGitHubToTNOS(
 	}
 
 	// Create TNOS context from GitHub context
-	tnosContext := &translations.ContextVector7D{
+	tnosContext := &TNOSContextVector{
 		Who:    githubContext.Who,
 		What:   githubContext.What,
 		When:   githubContext.When,
@@ -140,6 +145,9 @@ func (ct *ContextTranslator) TranslateGitHubToTNOS(
 
 	// Apply additional TNOS-specific enrichment
 	now := time.Now().Unix()
+	if tnosContext.Meta == nil {
+		tnosContext.Meta = make(map[string]interface{})
+	}
 	tnosContext.Meta["translated_at"] = now
 	tnosContext.Meta["translation_direction"] = "github_to_tnos"
 	tnosContext.Meta["translator_version"] = "1.0"
@@ -148,16 +156,18 @@ func (ct *ContextTranslator) TranslateGitHubToTNOS(
 	ct.translationCount++
 	ct.lastTranslation = time.Now()
 
-	ct.logger.Debug("Translated GitHub context to TNOS",
-		"who", githubContext.Who,
-		"what", githubContext.What)
+	if ct.logger != nil {
+		ct.logger.Debug("Translated GitHub context to TNOS",
+			"who", githubContext.Who,
+			"what", githubContext.What)
+	}
 
 	return tnosContext, nil
 }
 
 // TranslateTNOSToGitHub translates TNOS context to GitHub context
 func (ct *ContextTranslator) TranslateTNOSToGitHub(
-	tnosContext *translations.ContextVector7D,
+	tnosContext *TNOSContextVector,
 ) (*ContextVector7D, error) {
 	// WHO: ReverseTranslator
 	// WHAT: Convert TNOS to GitHub context
@@ -211,9 +221,11 @@ func (ct *ContextTranslator) TranslateTNOSToGitHub(
 	ct.translationCount++
 	ct.lastTranslation = time.Now()
 
-	ct.logger.Debug("Translated TNOS context to GitHub",
-		"who", tnosContext.Who,
-		"what", tnosContext.What)
+	if ct.logger != nil {
+		ct.logger.Debug("Translated TNOS context to GitHub",
+			"who", tnosContext.Who,
+			"what", tnosContext.What)
+	}
 
 	return githubContext, nil
 }
@@ -221,7 +233,7 @@ func (ct *ContextTranslator) TranslateTNOSToGitHub(
 // TranslateMapToTNOS converts a map context to TNOS context
 func (ct *ContextTranslator) TranslateMapToTNOS(
 	contextMap map[string]interface{},
-) (*translations.ContextVector7D, error) {
+) (*TNOSContextVector, error) {
 	// WHO: MapTranslator
 	// WHAT: Convert map to TNOS context
 	// WHEN: During map conversions
@@ -256,7 +268,7 @@ func (ct *ContextTranslator) TranslateMapToTNOS(
 
 // TranslateTNOSToMap converts a TNOS context to a map
 func (ct *ContextTranslator) TranslateTNOSToMap(
-	tnosContext *translations.ContextVector7D,
+	tnosContext *TNOSContextVector,
 ) (map[string]interface{}, error) {
 	// WHO: MapConverter
 	// WHAT: Convert TNOS to map context
@@ -296,7 +308,9 @@ func (ct *ContextTranslator) TranslateTNOSToMap(
 	if ct.enableCompression {
 		compressedMap, err := ct.CompressContext(contextMap)
 		if err != nil {
-			ct.logger.Warn("Failed to compress context", "error", err.Error())
+			if ct.logger != nil {
+				ct.logger.Debug("Failed to compress context", "error", err.Error())
+			}
 			// Continue with uncompressed map
 		} else {
 			contextMap = compressedMap
@@ -306,7 +320,6 @@ func (ct *ContextTranslator) TranslateTNOSToMap(
 	return contextMap, nil
 }
 
-// CompressContext applies Möbius compression to a context map
 func (ct *ContextTranslator) CompressContext(
 	context map[string]interface{},
 ) (map[string]interface{}, error) {
@@ -465,7 +478,34 @@ func getMapInt64(m map[string]interface{}, key string, defaultValue int64) int64
 }
 
 // Helper function to safely extract a float from a map
-func getMetaFloat(meta map[string]interface{}, key string, defaultValue float64) float64 {
+func getMapFloat(m map[string]interface{}, key string, defaultValue float64) float64 {
+	// WHO: MapAccessor
+	// WHAT: Extract float from map
+	// WHEN: During map operations
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To safely access map values
+	// HOW: Using type assertion
+	// EXTENT: Map value extraction
+
+	if val, ok := m[key]; ok {
+		switch v := val.(type) {
+		case float64:
+			return v
+		case float32:
+			return float64(v)
+		case int:
+			return float64(v)
+		case int32:
+			return float64(v)
+		case int64:
+			return float64(v)
+		}
+	}
+	return defaultValue
+}
+
+// Helper function to safely extract a float from a meta map within the context translator
+func extractMetaFloat(meta map[string]interface{}, key string, defaultValue float64) float64 {
 	// WHO: MetaAccessor
 	// WHAT: Extract float from meta
 	// WHEN: During meta operations

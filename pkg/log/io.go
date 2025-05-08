@@ -1,7 +1,22 @@
+/*
+ * WHO: LogIO
+ * WHAT: Log I/O operations with 7D Context awareness
+ * WHEN: During log file operations
+ * WHERE: System Layer 6 (Integration)
+ * WHY: To provide context-aware I/O for logging
+ * HOW: Using Go's io interfaces with context enrichment
+ * EXTENT: All log file operations
+ */
+
 package log
 
 import (
+	"fmt"
 	"io"
+	"os"
+	"path/filepath"
+	"sync"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -42,4 +57,511 @@ func (l *IOLogger) Write(p []byte) (n int, err error) {
 	}
 	l.logger.Infof("[stdout]: sending %d bytes: %s", len(p), string(p))
 	return l.writer.Write(p)
+}
+
+// ContextWriter extends io.Writer with context awareness
+type ContextWriter struct {
+	// WHO: ContextualWriter
+	// WHAT: Context-aware writer implementation
+	// WHEN: During write operations
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To add context to write operations
+	// HOW: Using io.Writer with context
+	// EXTENT: All log write operations
+
+	writer  io.Writer
+	context *ContextVector7D
+	mu      sync.Mutex
+}
+
+// NewContextWriter creates a new context-aware writer
+func NewContextWriter(w io.Writer, context *ContextVector7D) *ContextWriter {
+	// WHO: WriterFactory
+	// WHAT: Create context writer
+	// WHEN: During writer initialization
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To provide contextualized writer
+	// HOW: Using composition pattern
+	// EXTENT: Writer lifecycle
+
+	return &ContextWriter{
+		writer:  w,
+		context: context,
+	}
+}
+
+// Write implements io.Writer with context
+func (cw *ContextWriter) Write(p []byte) (n int, err error) {
+	// WHO: ContextualByteWriter
+	// WHAT: Write bytes with context
+	// WHEN: During write operations
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To contextualize written data
+	// HOW: Using decorated write with context
+	// EXTENT: All byte write operations
+
+	cw.mu.Lock()
+	defer cw.mu.Unlock()
+
+	// Simply delegate to the underlying writer for now
+	// In a more advanced implementation, this could add context
+	// information to the written data
+	return cw.writer.Write(p)
+}
+
+// Close implements io.Closer for proper resource cleanup
+func (cw *ContextWriter) Close() error {
+	// WHO: ResourceManager
+	// WHAT: Close writer resources
+	// WHEN: During shutdown
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To clean up resources
+	// HOW: Using io.Closer interface
+	// EXTENT: Resource lifecycle
+
+	cw.mu.Lock()
+	defer cw.mu.Unlock()
+
+	// If the underlying writer is also a Closer, close it
+	if closer, ok := cw.writer.(io.Closer); ok {
+		return closer.Close()
+	}
+	return nil
+}
+
+// SetContext updates the writer's context
+func (cw *ContextWriter) SetContext(context *ContextVector7D) {
+	// WHO: ContextManager
+	// WHAT: Update writer context
+	// WHEN: During context change
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To modify operational context
+	// HOW: Using context replacement
+	// EXTENT: Context lifecycle
+
+	cw.mu.Lock()
+	defer cw.mu.Unlock()
+	cw.context = context
+}
+
+// RotatingFileWriter implements a file writer that rotates logs based on size or time
+type RotatingFileWriter struct {
+	// WHO: LogRotator
+	// WHAT: Rotate log files
+	// WHEN: During log size/time thresholds
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To manage log file growth
+	// HOW: Using file rotation strategies
+	// EXTENT: Log file lifecycle
+
+	baseFilename string
+	maxSize      int64
+	maxAge       time.Duration
+	currentFile  *os.File
+	currentSize  int64
+	lastRotation time.Time
+	mu           sync.Mutex
+}
+
+// NewRotatingFileWriter creates a new rotating file writer
+func NewRotatingFileWriter(baseFilename string, maxSizeBytes int64, maxAgeDuration time.Duration) (*RotatingFileWriter, error) {
+	// WHO: RotatorFactory
+	// WHAT: Create rotating writer
+	// WHEN: During writer initialization
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To provide managed log files
+	// HOW: Using factory pattern
+	// EXTENT: Writer lifecycle
+
+	// Create directory if it doesn't exist
+	dir := filepath.Dir(baseFilename)
+	if err := os.MkdirAll(dir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create log directory: %v", err)
+	}
+
+	// Open initial file
+	file, err := os.OpenFile(baseFilename, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open log file: %v", err)
+	}
+
+	// Get current file size
+	info, err := file.Stat()
+	var size int64 = 0
+	if err == nil {
+		size = info.Size()
+	}
+
+	return &RotatingFileWriter{
+		baseFilename: baseFilename,
+		maxSize:      maxSizeBytes,
+		maxAge:       maxAgeDuration,
+		currentFile:  file,
+		currentSize:  size,
+		lastRotation: time.Now(),
+	}, nil
+}
+
+// Write implements io.Writer with rotation logic
+func (rw *RotatingFileWriter) Write(p []byte) (n int, err error) {
+	// WHO: RotationalWriter
+	// WHAT: Write with rotation check
+	// WHEN: During write operations
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To manage log file sizes
+	// HOW: Using size/time checks
+	// EXTENT: All log writes
+
+	rw.mu.Lock()
+	defer rw.mu.Unlock()
+
+	// Check if rotation is needed
+	if rw.shouldRotate(int64(len(p))) {
+		if err := rw.rotate(); err != nil {
+			return 0, err
+		}
+	}
+
+	// Write to the current file
+	n, err = rw.currentFile.Write(p)
+	rw.currentSize += int64(n)
+	return n, err
+}
+
+// Close implements io.Closer
+func (rw *RotatingFileWriter) Close() error {
+	// WHO: RotationResourceManager
+	// WHAT: Close rotator resources
+	// WHEN: During shutdown
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To clean up file handles
+	// HOW: Using clean shutdown
+	// EXTENT: Resource cleanup
+
+	rw.mu.Lock()
+	defer rw.mu.Unlock()
+
+	if rw.currentFile != nil {
+		err := rw.currentFile.Close()
+		rw.currentFile = nil
+		return err
+	}
+	return nil
+}
+
+// shouldRotate determines if the file needs rotation
+func (rw *RotatingFileWriter) shouldRotate(additionalBytes int64) bool {
+	// WHO: RotationValidator
+	// WHAT: Check rotation conditions
+	// WHEN: Before writes
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To determine rotation need
+	// HOW: Using size and time checks
+	// EXTENT: Rotation decision
+
+	// Check size-based rotation
+	if rw.maxSize > 0 && rw.currentSize+additionalBytes > rw.maxSize {
+		return true
+	}
+
+	// Check time-based rotation
+	if rw.maxAge > 0 && time.Since(rw.lastRotation) > rw.maxAge {
+		return true
+	}
+
+	return false
+}
+
+// rotate performs the actual file rotation
+func (rw *RotatingFileWriter) rotate() error {
+	// WHO: FileRotator
+	// WHAT: Rotate log file
+	// WHEN: During rotation trigger
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To implement rotation
+	// HOW: Using file rename and reopen
+	// EXTENT: File rotation
+
+	// Close the current file
+	if rw.currentFile != nil {
+		if err := rw.currentFile.Close(); err != nil {
+			return err
+		}
+	}
+
+	// Generate timestamp for the rotated file
+	timestamp := time.Now().Format("20060102-150405")
+	rotatedName := fmt.Sprintf("%s.%s", rw.baseFilename, timestamp)
+
+	// Rename the current file
+	if err := os.Rename(rw.baseFilename, rotatedName); err != nil && !os.IsNotExist(err) {
+		return err
+	}
+
+	// Open a new file
+	file, err := os.OpenFile(rw.baseFilename, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
+
+	// Update writer state
+	rw.currentFile = file
+	rw.currentSize = 0
+	rw.lastRotation = time.Now()
+
+	return nil
+}
+
+// MultiContextWriter allows writing to multiple writers with context
+type MultiContextWriter struct {
+	// WHO: MultipleWriterManager
+	// WHAT: Manage multiple context writers
+	// WHEN: During multi-destination logging
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To write to multiple destinations
+	// HOW: Using writer aggregation
+	// EXTENT: Multi-destination operations
+
+	writers []io.Writer
+	context *ContextVector7D
+	mu      sync.Mutex
+}
+
+// NewMultiContextWriter creates a new multi-context writer
+func NewMultiContextWriter(context *ContextVector7D, writers ...io.Writer) *MultiContextWriter {
+	// WHO: MultiWriterFactory
+	// WHAT: Create multi-writer
+	// WHEN: During writer initialization
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To provide multi-destination logging
+	// HOW: Using factory pattern
+	// EXTENT: Writer lifecycle
+
+	return &MultiContextWriter{
+		writers: writers,
+		context: context,
+	}
+}
+
+// Write implements io.Writer by writing to all writers
+func (mw *MultiContextWriter) Write(p []byte) (n int, err error) {
+	// WHO: MultiplexingWriter
+	// WHAT: Write to multiple destinations
+	// WHEN: During write operations
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To distribute log data
+	// HOW: Using write broadcasting
+	// EXTENT: All write operations
+
+	mw.mu.Lock()
+	defer mw.mu.Unlock()
+
+	// Write to all writers, but return the first error
+	// This follows the behavior of io.MultiWriter
+	for _, w := range mw.writers {
+		n, err := w.Write(p)
+		if err != nil {
+			return n, err
+		}
+		if n != len(p) {
+			return n, io.ErrShortWrite
+		}
+	}
+	return len(p), nil
+}
+
+// Close implements io.Closer by closing all writers
+func (mw *MultiContextWriter) Close() error {
+	// WHO: MultiResourceManager
+	// WHAT: Close multiple resources
+	// WHEN: During shutdown
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To clean up multiple resources
+	// HOW: Using sequential closure
+	// EXTENT: Resource cleanup
+
+	mw.mu.Lock()
+	defer mw.mu.Unlock()
+
+	var lastErr error
+	for _, w := range mw.writers {
+		if closer, ok := w.(io.Closer); ok {
+			if err := closer.Close(); err != nil {
+				lastErr = err
+			}
+		}
+	}
+	return lastErr
+}
+
+// SetContext updates the writer's context and propagates to all context-aware writers
+func (mw *MultiContextWriter) SetContext(context *ContextVector7D) {
+	// WHO: MultiContextManager
+	// WHAT: Update multiple contexts
+	// WHEN: During context change
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To propagate context changes
+	// HOW: Using context broadcasting
+	// EXTENT: Context propagation
+
+	mw.mu.Lock()
+	defer mw.mu.Unlock()
+
+	mw.context = context
+
+	// Propagate context to any ContextWriters
+	for _, w := range mw.writers {
+		if cw, ok := w.(*ContextWriter); ok {
+			cw.SetContext(context)
+		}
+	}
+}
+
+// BufferedContextWriter provides buffered writing with context
+type BufferedContextWriter struct {
+	// WHO: BufferedWriteManager
+	// WHAT: Buffer write operations
+	// WHEN: During buffered logging
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To improve write performance
+	// HOW: Using write buffering
+	// EXTENT: Buffered operations
+
+	writer  io.Writer
+	buffer  []byte
+	context *ContextVector7D
+	mu      sync.Mutex
+	size    int
+}
+
+// NewBufferedContextWriter creates a new buffered context writer
+func NewBufferedContextWriter(w io.Writer, size int, context *ContextVector7D) *BufferedContextWriter {
+	// WHO: BufferedWriterFactory
+	// WHAT: Create buffered writer
+	// WHEN: During writer initialization
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To provide buffered logging
+	// HOW: Using factory pattern
+	// EXTENT: Writer lifecycle
+
+	return &BufferedContextWriter{
+		writer:  w,
+		buffer:  make([]byte, 0, size),
+		context: context,
+		size:    size,
+	}
+}
+
+// Write implements io.Writer with buffering
+func (bw *BufferedContextWriter) Write(p []byte) (n int, err error) {
+	// WHO: BufferingWriter
+	// WHAT: Buffer write operations
+	// WHEN: During write operations
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To batch write operations
+	// HOW: Using memory buffering
+	// EXTENT: All buffered writes
+
+	bw.mu.Lock()
+	defer bw.mu.Unlock()
+
+	// If the data exceeds the buffer, flush the buffer and write directly
+	if len(p) >= bw.size {
+		if err := bw.flushLocked(); err != nil {
+			return 0, err
+		}
+		return bw.writer.Write(p)
+	}
+
+	// If adding the data would overflow the buffer, flush first
+	if len(bw.buffer)+len(p) > bw.size {
+		if err := bw.flushLocked(); err != nil {
+			return 0, err
+		}
+	}
+
+	// Append to buffer
+	bw.buffer = append(bw.buffer, p...)
+	return len(p), nil
+}
+
+// Flush writes any buffered data to the underlying writer
+func (bw *BufferedContextWriter) Flush() error {
+	// WHO: BufferFlusher
+	// WHAT: Flush buffer contents
+	// WHEN: During flush operations
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To ensure data persistence
+	// HOW: Using forced write
+	// EXTENT: Buffer flushing
+
+	bw.mu.Lock()
+	defer bw.mu.Unlock()
+	return bw.flushLocked()
+}
+
+// flushLocked writes any buffered data to the underlying writer (assumes lock is held)
+func (bw *BufferedContextWriter) flushLocked() error {
+	// WHO: LockedBufferFlusher
+	// WHAT: Flush with lock held
+	// WHEN: During locked flush
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To perform atomic flush
+	// HOW: Using direct write
+	// EXTENT: Internal buffer operations
+
+	if len(bw.buffer) == 0 {
+		return nil
+	}
+
+	_, err := bw.writer.Write(bw.buffer)
+	bw.buffer = bw.buffer[:0] // Clear buffer but preserve capacity
+	return err
+}
+
+// Close implements io.Closer
+func (bw *BufferedContextWriter) Close() error {
+	// WHO: BufferedResourceManager
+	// WHAT: Close buffered resources
+	// WHEN: During shutdown
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To ensure all data is written
+	// HOW: Using flush and close
+	// EXTENT: Resource cleanup
+
+	bw.mu.Lock()
+	defer bw.mu.Unlock()
+
+	// Flush any remaining data
+	if err := bw.flushLocked(); err != nil {
+		return err
+	}
+
+	// Close underlying writer if it's a closer
+	if closer, ok := bw.writer.(io.Closer); ok {
+		return closer.Close()
+	}
+	return nil
+}
+
+// SetContext updates the writer's context
+func (bw *BufferedContextWriter) SetContext(context *ContextVector7D) {
+	// WHO: BufferedContextManager
+	// WHAT: Update buffered context
+	// WHEN: During context change
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To modify operational context
+	// HOW: Using context replacement
+	// EXTENT: Context lifecycle
+
+	bw.mu.Lock()
+	defer bw.mu.Unlock()
+	bw.context = context
+
+	// Propagate context to underlying writer if it's a context writer
+	if cw, ok := bw.writer.(*ContextWriter); ok {
+		cw.SetContext(context)
+	} else if mcw, ok := bw.writer.(*MultiContextWriter); ok {
+		mcw.SetContext(context)
+	}
 }

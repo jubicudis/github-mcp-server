@@ -30,9 +30,6 @@ func Ptr[T any](v T) *T {
 // TranslationHelperFunc defines a function type for translations
 type TranslationHelperFunc func(key string, defaultValue string) string
 
-// GetClientFn defines a function type to obtain GitHub clients
-type GetClientFn func(context.Context) (*github.Client, error)
-
 // WHO: PaginationManager
 // WHAT: Pagination Parameter Structure
 // WHEN: During parameter processing
@@ -106,7 +103,7 @@ func isAcceptedError(err error) bool {
 // WHY: To safely extract required parameters
 // HOW: By checking parameter existence, type, and value
 // EXTENT: All tool parameter processing
-func requiredParam[T comparable](r mcp.CallToolRequest, p string) (T, error) {
+func RequiredParam[T comparable](r mcp.CallToolRequest, p string) (T, error) {
 	var zero T
 
 	// Check if the parameter is present in the request
@@ -133,8 +130,8 @@ func requiredParam[T comparable](r mcp.CallToolRequest, p string) (T, error) {
 // WHY: To safely extract required integer parameters
 // HOW: By checking parameter existence, type, and value
 // EXTENT: All integer parameter processing
-func RequiredInt(r mcp.CallToolRequest, p string) (int, error) {
-	v, err := requiredParam[float64](r, p)
+func RequiredIntParam(r mcp.CallToolRequest, p string) (int, error) {
+	v, err := RequiredParam[float64](r, p)
 	if err != nil {
 		return 0, err
 	}
@@ -148,7 +145,7 @@ func RequiredInt(r mcp.CallToolRequest, p string) (int, error) {
 // WHY: To safely extract optional parameters
 // HOW: By checking parameter existence and type
 // EXTENT: All tool parameter processing
-func OptionalParam[T any](r mcp.CallToolRequest, p string) (T, error) {
+func ExtractOptionalParam[T any](r mcp.CallToolRequest, p string) (T, error) {
 	var zero T
 
 	// Check if the parameter is present in the request
@@ -172,7 +169,7 @@ func OptionalParam[T any](r mcp.CallToolRequest, p string) (T, error) {
 // HOW: By checking parameter existence and type
 // EXTENT: All integer parameter processing
 func OptionalIntParam(r mcp.CallToolRequest, p string) (int, error) {
-	v, err := OptionalParam[float64](r, p)
+	v, err := ExtractOptionalParam[float64](r, p)
 	if err != nil {
 		return 0, err
 	}
@@ -277,17 +274,17 @@ func OptionalPaginationParams(r mcp.CallToolRequest) (PaginationParams, error) {
 // Extract common PR parameters from a request
 func extractPRParams(r mcp.CallToolRequest) (prParams, error) {
 	// Extract required parameters
-	owner, err := requiredParam[string](r, "owner")
+	owner, err := RequiredParam[string](r, "owner")
 	if err != nil {
 		return prParams{}, err
 	}
 
-	repo, err := requiredParam[string](r, "repo")
+	repo, err := RequiredParam[string](r, "repo")
 	if err != nil {
 		return prParams{}, err
 	}
 
-	number, err := RequiredInt(r, "pullNumber")
+	number, err := RequiredIntParam(r, "pullNumber")
 	if err != nil {
 		return prParams{}, err
 	}

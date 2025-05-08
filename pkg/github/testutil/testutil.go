@@ -15,11 +15,9 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/mark3labs/mcp-go/api"
-	"github.com/mark3labs/mcp-go/api/messages"
+	"github.com/google/go-github/v69/github"
+	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/stretchr/testify/require"
-
-	"tranquility-neuro-os/github-mcp-server/pkg/github"
 )
 
 // StubGetClientFn returns a function that returns the provided client, useful for testing
@@ -29,20 +27,22 @@ func StubGetClientFn(client *github.Client) func(context.Context) (*github.Clien
 	}
 }
 
+// Note: StubGetClientWithTokenFn is defined in test_helpers.go
+
 // CreateMCPRequest creates an MCP request with the provided arguments
-func CreateMCPRequest(args map[string]interface{}) *api.CallRequest {
-	return &api.CallRequest{
-		Arguments: args,
+func CreateMCPRequest(args map[string]interface{}) *mcp.CallToolRequest {
+	return &mcp.CallToolRequest{
+		Args: args,
 	}
 }
 
 // GetTextResult extracts text content from an MCP result
-func GetTextResult(t *testing.T, result *api.CallResult) *messages.TextContent {
+func GetTextResult(t *testing.T, result *mcp.CallToolResult) string {
 	require.NotNil(t, result)
 	require.NotNil(t, result.Value)
 
-	text, ok := result.Value.(*messages.TextContent)
-	require.True(t, ok, "Result value is not a TextContent")
+	text, ok := result.Value.(string)
+	require.True(t, ok, "Result value is not a string")
 	return text
 }
 
@@ -51,19 +51,19 @@ func Ptr[T any](v T) *T {
 	return &v
 }
 
+// QueryParamMatcher is a middleware that matches query parameters
+type QueryParamMatcher struct {
+	t        *testing.T
+	expected map[string]string
+	next     http.Handler
+}
+
 // ExpectQueryParams creates a middleware that verifies query parameters and then calls the next handler
 func ExpectQueryParams(t *testing.T, expected map[string]string) *QueryParamMatcher {
 	return &QueryParamMatcher{
 		t:        t,
 		expected: expected,
 	}
-}
-
-// QueryParamMatcher is a middleware that matches query parameters
-type QueryParamMatcher struct {
-	t        *testing.T
-	expected map[string]string
-	next     http.Handler
 }
 
 // AndThen chains the next handler to be called after parameter validation
