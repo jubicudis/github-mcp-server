@@ -19,7 +19,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/tranquility-dev/mcp-go/mcp"
 )
 
 // BridgeConfig contains configuration options for the TNOS MCP Bridge

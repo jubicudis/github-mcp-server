@@ -799,6 +799,35 @@ func (c *Client) doRequestWithHeaders(ctx context.Context, method, path string, 
 	return respBody, nil
 }
 
+// Request is a compatibility method for legacy code
+// It provides a simplified interface to perform HTTP requests
+// WHO: CompatibilityAdapter
+// WHAT: Legacy request adapter
+// WHEN: During API operations
+// WHERE: System Layer 6 (Integration)
+// WHY: To maintain compatibility
+// HOW: Using existing doRequest method
+// EXTENT: All legacy request operations
+func (c *Client) Request(method string, path string, body interface{}, target interface{}) error {
+	// Create context for the request
+	ctx := context.Background()
+
+	// Perform the actual request using the underlying implementation
+	respBody, err := c.doRequest(ctx, method, path, body)
+	if err != nil {
+		return err
+	}
+
+	// If a target object was provided, unmarshal the response into it
+	if target != nil {
+		if err := json.Unmarshal(respBody, target); err != nil {
+			return fmt.Errorf("failed to parse response: %w", err)
+		}
+	}
+
+	return nil
+}
+
 // checkRateLimit checks if we're rate limited and waits if needed
 func (c *Client) checkRateLimit() error {
 	// WHO: RateLimitManager

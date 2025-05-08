@@ -27,8 +27,8 @@ func Ptr[T any](v T) *T {
 	return &v
 }
 
-// TranslationHelperFunc defines a function type for translations
-type TranslationHelperFunc func(key string, defaultValue string) string
+// StringTranslationFunc defines a function type for string translations
+type StringTranslationFunc func(key string, defaultValue string) string
 
 // WHO: PaginationManager
 // WHAT: Pagination Parameter Structure

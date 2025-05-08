@@ -7,8 +7,9 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/google/go-github/v69/github"
 	"tranquility-neuro-os/github-mcp-server/pkg/translations"
+
+	"github.com/google/go-github/v69/github"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
@@ -759,7 +760,7 @@ func PushFiles(getClient GetClientFn, t translations.TranslationHelperFunc) (too
 				Message: Ptr(message),
 				Tree:    tree,
 				Parents: []*github.Commit{{SHA: baseCommit.SHA}},
-			})
+			}, nil)
 			if err != nil {
 				return nil, fmt.Errorf("failed to create commit: %w", err)
 			}

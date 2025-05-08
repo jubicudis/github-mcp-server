@@ -17,8 +17,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gorilla/websocket"
 	"tranquility-neuro-os/github-mcp-server/pkg/log"
+
+	"github.com/gorilla/websocket"
 )
 
 // MCPBridgeState represents the state of the MCP bridge
@@ -384,6 +385,16 @@ func (b *MCPBridge) GetStats() BridgeStats {
 
 	// Add translator statistics
 	translatorStats := b.translator.GetTranslationStats()
+	if success, ok := translatorStats["Success"]; ok {
+		if successVal, ok := success.(int64); ok {
+			b.stats.ContextTranslations.Success = successVal
+		}
+	}
+	if failure, ok := translatorStats["Failure"]; ok {
+		if failureVal, ok := failure.(int64); ok {
+			b.stats.ContextTranslations.Failure = failureVal
+		}
+	}
 
 	return b.stats
 }

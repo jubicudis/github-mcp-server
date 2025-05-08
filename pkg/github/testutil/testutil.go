@@ -39,9 +39,9 @@ func CreateMCPRequest(args map[string]interface{}) *mcp.CallToolRequest {
 // GetTextResult extracts text content from an MCP result
 func GetTextResult(t *testing.T, result *mcp.CallToolResult) string {
 	require.NotNil(t, result)
-	require.NotNil(t, result.Value)
+	require.NotNil(t, result.Data)
 
-	text, ok := result.Value.(string)
+	text, ok := result.Data.(string)
 	require.True(t, ok, "Result value is not a string")
 	return text
 }
@@ -58,8 +58,8 @@ type QueryParamMatcher struct {
 	next     http.Handler
 }
 
-// ExpectQueryParams creates a middleware that verifies query parameters and then calls the next handler
-func ExpectQueryParams(t *testing.T, expected map[string]string) *QueryParamMatcher {
+// CreateQueryParamMatcher creates a middleware that verifies query parameters and then calls the next handler
+func CreateQueryParamMatcher(t *testing.T, expected map[string]string) *QueryParamMatcher {
 	return &QueryParamMatcher{
 		t:        t,
 		expected: expected,

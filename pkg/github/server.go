@@ -207,7 +207,7 @@ func registerCodeScanningTools(s *server.MCPServer, getClient GetClientFn, t Tra
 // EXTENT: User identification
 func GetMe(getClient GetClientFn, t TranslationHelperFunc) (mcp.Tool, server.ToolHandlerFunc) {
 	return mcp.NewTool("get_me",
-			mcp.WithDescription(t("TOOL_GET_ME_DESCRIPTION", "Get details of the authenticated GitHub user. Use this when a request include \"me\", \"my\"...")),
+			mcp.WithDescription("Get details of the authenticated GitHub user. Use this when a request include \"me\", \"my\"..."),
 			mcp.WithString("reason",
 				mcp.Description("Optional: reason the session was created"),
 			),

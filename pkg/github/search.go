@@ -13,11 +13,34 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/google/go-github/v69/github"
 	"tranquility-neuro-os/github-mcp-server/pkg/translations"
+
+	"github.com/google/go-github/v69/github"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
+
+// WHO: ParamHelper
+// WHAT: Parameter extraction utility
+// WHEN: Tool request handling
+// WHERE: GitHub MCP Server
+// WHY: To extract parameters from tool requests
+// HOW: By type-safe extraction with error handling
+// EXTENT: All tool parameter processing
+func requiredParam[T any](request mcp.CallToolRequest, paramName string) (T, error) {
+	var zero T
+	val, ok := request.Params[paramName]
+	if !ok {
+		return zero, fmt.Errorf("missing required parameter: %s", paramName)
+	}
+
+	typedVal, ok := val.(T)
+	if !ok {
+		return zero, fmt.Errorf("parameter %s is not of expected type", paramName)
+	}
+
+	return typedVal, nil
+}
 
 // WHO: SearchRepositoriesTool
 // WHAT: GitHub Repository Search

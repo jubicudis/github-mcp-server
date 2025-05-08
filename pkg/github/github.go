@@ -16,30 +16,22 @@ import (
 	"strconv"
 	"strings"
 
-	"tranquility-neuro-os/github-mcp-server/pkg/log"
+	"github.com/mark3labs/mcp-go/log"
 
 	"github.com/google/go-github/v69/github"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
 
-// Bridge mode constants
-const (
-	// WHO: ConstantProvider
-	// WHAT: Bridge mode constants
-	// WHEN: During bridge configuration
-	// WHERE: System Layer 6 (Integration)
-	// WHY: To define valid bridge modes
-	// HOW: Using string constants
-	// EXTENT: Bridge mode configuration
+// WHO: ConstantReferencer
+// WHAT: Reference to bridge mode constants
+// WHEN: During bridge configuration
+// WHERE: System Layer 6 (Integration)
+// WHY: To use constants defined in constants.go
+// HOW: Using imported constants
+// EXTENT: Bridge mode configuration
 
-	// BridgeModeDirect indicates direct connection between GitHub MCP and TNOS
-	BridgeModeDirect = "direct"
-	// BridgeModeProxied indicates proxied connection through intermediary
-	BridgeModeProxied = "proxied"
-	// BridgeModeAsync indicates asynchronous communication
-	BridgeModeAsync = "async"
-)
+// Bridge mode constants are defined in constants.go
 
 // InitializeMCPBridge sets up the MCP bridge between GitHub and TNOS MCP
 func InitializeMCPBridge(enableCompression bool) error {
@@ -200,6 +192,16 @@ func StartMCPEventMonitor(logger *log.Logger) error {
 // GetClientFn is a function type for getting GitHub clients
 type GetClientFn func(ctx context.Context) (*github.Client, error)
 
+// TranslationHelperFunc defines a function type for context translation helpers
+// WHO: ContextTranslatorTypeDefinition
+// WHAT: Define context translator function type
+// WHEN: During type declarations
+// WHERE: System Layer 6 (Integration)
+// WHY: To enable context translation across components
+// HOW: Using function type definition
+// EXTENT: All translation operations
+type TranslationHelperFunc func(ctx context.Context, contextData map[string]interface{}) (map[string]interface{}, error)
+
 // WHO: ParameterExtractor
 // WHAT: Extract parameters from MCP requests
 // WHEN: During API request handling
@@ -210,7 +212,7 @@ type GetClientFn func(ctx context.Context) (*github.Client, error)
 // This function is renamed to avoid duplicate declaration with common.go
 func ExtractRequiredParam[T any](request mcp.CallToolRequest, name string) (T, error) {
 	var zero T
-	value, ok := request.Params[name]
+	value, ok := request.Parameters[name]
 	if !ok {
 		return zero, fmt.Errorf("missing required parameter: %s", name)
 	}
@@ -232,7 +234,7 @@ func ExtractRequiredParam[T any](request mcp.CallToolRequest, name string) (T, e
 // EXTENT: MCP request optional parameter handling
 func OptionalParam[T any](request mcp.CallToolRequest, name string) (T, error) {
 	var zero T
-	value, ok := request.Params[name]
+	value, ok := request.Parameters[name]
 	if !ok {
 		return zero, nil // Return zero value if parameter is missing
 	}
@@ -253,7 +255,7 @@ func OptionalParam[T any](request mcp.CallToolRequest, name string) (T, error) {
 // HOW: Using type conversion with validation
 // EXTENT: MCP request integer parameter handling
 func RequiredInt(request mcp.CallToolRequest, name string) (int, error) {
-	value, ok := request.Params[name]
+	value, ok := request.Parameters[name]
 	if !ok {
 		return 0, fmt.Errorf("missing required parameter: %s", name)
 	}
@@ -285,7 +287,7 @@ func RequiredInt(request mcp.CallToolRequest, name string) (int, error) {
 // HOW: Using type conversion with validation
 // EXTENT: MCP request optional integer handling
 func OptionalInt(request mcp.CallToolRequest, name string) (int, bool, error) {
-	value, ok := request.Params[name]
+	value, ok := request.Parameters[name]
 	if !ok {
 		return 0, false, nil // Parameter not provided
 	}
@@ -317,7 +319,7 @@ func OptionalInt(request mcp.CallToolRequest, name string) (int, bool, error) {
 // HOW: Using type conversion with validation
 // EXTENT: MCP request boolean parameter handling
 func OptionalBool(request mcp.CallToolRequest, name string) (bool, bool, error) {
-	value, ok := request.Params[name]
+	value, ok := request.Parameters[name]
 	if !ok {
 		return false, false, nil // Parameter not provided
 	}
@@ -362,7 +364,7 @@ func OptionalBool(request mcp.CallToolRequest, name string) (bool, bool, error) 
 // HOW: Using type conversion with validation
 // EXTENT: MCP request string list handling
 func StringList(request mcp.CallToolRequest, name string) ([]string, error) {
-	value, ok := request.Params[name]
+	value, ok := request.Parameters[name]
 	if !ok {
 		return nil, nil // Parameter not provided
 	}
@@ -404,7 +406,7 @@ func StringList(request mcp.CallToolRequest, name string) ([]string, error) {
 // HOW: Using type assertion with validation
 // EXTENT: MCP request map parameter handling
 func MapParam(request mcp.CallToolRequest, name string) (map[string]interface{}, error) {
-	value, ok := request.Params[name]
+	value, ok := request.Parameters[name]
 	if !ok {
 		return nil, nil // Parameter not provided
 	}

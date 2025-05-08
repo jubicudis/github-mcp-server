@@ -8,13 +8,22 @@ import (
 	"net/http"
 	"time"
 
-	"tranquility-neuro-os/github-mcp-server/pkg/translations"
-
-	"github.com/google/go-github/v69/github"
-	"github.com/mark3labs/mcp-go/mcp"
-	"github.com/mark3labs/mcp-go/server"
+"github.com/google/go-github/v50/github"
+	"github.com/tranquility-dev/github-mcp-server/pkg/translations"
+	"github.com/tranquility-dev/mcp-go/log"
+	"github.com/tranquility-dev/mcp-go/mcp"
+	"github.com/tranquility-dev/mcp-go/server"
 )
 
+/*
+ * WHO: IssueToolProvider
+ * WHAT: Get issue tool definition
+ * WHEN: During tool registration
+ * WHERE: System Layer 6 (Integration)
+ * WHY: To retrieve specific issue details via MCP
+ * HOW: Using GitHub API with MCP protocol adapters
+ * EXTENT: Single issue retrieval operation
+ */
 // GetIssue creates a tool to get details of a specific issue in a GitHub repository.
 func GetIssue(getClient GetClientFn, t translations.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
 	return mcp.NewTool("get_issue",
@@ -33,15 +42,23 @@ func GetIssue(getClient GetClientFn, t translations.TranslationHelperFunc) (tool
 			),
 		),
 		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			owner, err := requiredParam[string](request, "owner")
+			// WHO: IssueRequestHandler
+			// WHAT: Process issue retrieval request
+			// WHEN: During tool invocation
+			// WHERE: System Layer 6 (Integration)
+			// WHY: To fetch issue data from GitHub
+			// HOW: Using GitHub API client
+			// EXTENT: Single issue data retrieval
+
+			owner, err := RequiredParam[string](request, "owner")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			repo, err := requiredParam[string](request, "repo")
+			repo, err := RequiredParam[string](request, "repo")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			issueNumber, err := RequiredInt(request, "issue_number")
+			issueNumber, err := RequiredIntParam(request, "issue_number")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
@@ -95,20 +112,20 @@ func AddIssueComment(getClient GetClientFn, t translations.TranslationHelperFunc
 			),
 		),
 		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			owner, err := requiredParam[string](request, "owner")
+			owner, err := RequiredParam[string](request, "owner")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			repo, err := requiredParam[string](request, "repo")
+			repo, err := RequiredParam[string](request, "repo")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			issueNumber, err := RequiredInt(request, "issue_number")
+			issueNumber, err := RequiredIntParam(request, "issue_number")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
 
-			body, err := requiredParam[string](request, "body")
+			body, err := RequiredParam[string](request, "body")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
@@ -175,7 +192,7 @@ func SearchIssues(getClient GetClientFn, t translations.TranslationHelperFunc) (
 			WithPagination(),
 		),
 		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			query, err := requiredParam[string](request, "q")
+			query, err := RequiredParam[string](request, "q")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
@@ -268,15 +285,15 @@ func CreateIssue(getClient GetClientFn, t translations.TranslationHelperFunc) (t
 			),
 		),
 		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			owner, err := requiredParam[string](request, "owner")
+			owner, err := RequiredParam[string](request, "owner")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			repo, err := requiredParam[string](request, "repo")
+			repo, err := RequiredParam[string](request, "repo")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			title, err := requiredParam[string](request, "title")
+			title, err := RequiredParam[string](request, "title")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
@@ -379,11 +396,11 @@ func ListIssues(getClient GetClientFn, t translations.TranslationHelperFunc) (to
 			WithPagination(),
 		),
 		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			owner, err := requiredParam[string](request, "owner")
+			owner, err := RequiredParam[string](request, "owner")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			repo, err := requiredParam[string](request, "repo")
+			repo, err := RequiredParam[string](request, "repo")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
@@ -506,15 +523,15 @@ func UpdateIssue(getClient GetClientFn, t translations.TranslationHelperFunc) (t
 			),
 		),
 		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			owner, err := requiredParam[string](request, "owner")
+			owner, err := RequiredParam[string](request, "owner")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			repo, err := requiredParam[string](request, "repo")
+			repo, err := RequiredParam[string](request, "repo")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			issueNumber, err := RequiredInt(request, "issue_number")
+			issueNumber, err := RequiredIntParam(request, "issue_number")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
@@ -621,15 +638,15 @@ func GetIssueComments(getClient GetClientFn, t translations.TranslationHelperFun
 			),
 		),
 		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			owner, err := requiredParam[string](request, "owner")
+			owner, err := RequiredParam[string](request, "owner")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			repo, err := requiredParam[string](request, "repo")
+			repo, err := RequiredParam[string](request, "repo")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			issueNumber, err := RequiredInt(request, "issue_number")
+			issueNumber, err := RequiredIntParam(request, "issue_number")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
@@ -698,4 +715,578 @@ func parseISOTimestamp(timestamp string) (time.Time, error) {
 
 	// Return error with supported formats
 	return time.Time{}, fmt.Errorf("invalid ISO 8601 timestamp: %s (supported formats: YYYY-MM-DDThh:mm:ssZ or YYYY-MM-DD)", timestamp)
+}
+
+/*
+ * WHO: GitHubIssueHandler
+ * WHAT: Issue operations for GitHub MCP server
+ * WHEN: During issue API operations
+ * WHERE: System Layer 6 (Integration)
+ * WHY: To provide issue management via MCP
+ * HOW: Using GitHub API with MCP protocol adapters
+ * EXTENT: All issue operations
+ *
+ * Example implementation following 7D Context Framework:
+ */
+
+/*
+ * WHO: GitHubIssueHandler
+ * WHAT: Issue operations for GitHub MCP server
+ * WHEN: During issue API operations
+ * WHERE: System Layer 6 (Integration)
+ * WHY: To provide issue management via MCP
+ * HOW: Using GitHub API with MCP protocol adapters
+ * EXTENT: All issue operations
+ *
+ * Example implementation following 7D Context Framework:
+ */
+// Additional implementations below
+
+// WHO: IssueToolProvider
+// WHAT: Get issues tool definition
+// WHEN: During tool registration
+// WHERE: System Layer 6 (Integration)
+// WHY: To retrieve issues via MCP
+// HOW: Using MCP tool definition mechanism
+// EXTENT: Issue retrieval operations
+func GetIssues(getClient GetClientFn, t translations.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
+	tool = mcp.NewTool("get_issues",
+		mcp.WithDescription(t("TOOL_GET_ISSUES_DESCRIPTION", "Gets issues from a GitHub repository")),
+		mcp.WithString("owner",
+			mcp.Required(),
+			mcp.Description("Repository owner"),
+		),
+		mcp.WithString("repo",
+			mcp.Required(),
+			mcp.Description("Repository name"),
+		),
+		mcp.WithString("state",
+			mcp.Description("Issue state (open, closed, all)"),
+		),
+		mcp.WithString("labels",
+			mcp.Description("Comma-separated list of label names"),
+		),
+		// State already defined above, removing duplicate definition
+		mcp.WithString("sort",
+			mcp.Description("Sort field (created, updated, comments)"),
+		),
+		mcp.WithString("direction",
+			mcp.Description("Sort direction (asc or desc)"),
+		),
+		mcp.WithString("since",
+			mcp.Description("Only issues updated after this time (ISO 8601 format)"),
+		),
+		mcp.WithNumber("per_page",
+			mcp.Description("Results per page (max 100)"),
+		),
+		mcp.WithNumber("page",
+			mcp.Description("Page number"),
+		),
+	)
+
+	// Handler function
+	handler = func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		// WHO: IssueRequestHandler
+		// WHAT: Handle issue request
+		// WHEN: During tool invocation
+		// WHERE: System Layer 6 (Integration)
+		// WHY: To process issue requests
+		// HOW: Using GitHub API client
+		// EXTENT: Issue API operations
+
+		log.Debug("Handling get_issues request")
+
+		// Extract parameters
+		owner, err := ExtractRequiredParam[string](request, "owner")
+		if err != nil {
+			return nil, fmt.Errorf("invalid owner parameter: %w", err)
+		}
+
+		repo, err := ExtractRequiredParam[string](request, "repo")
+		if err != nil {
+			return nil, fmt.Errorf("invalid repo parameter: %w", err)
+		}
+
+		// Optional parameters
+		state, _ := OptionalParam[string](request, "state")
+		labels, _ := OptionalParam[string](request, "labels")
+		sort, _ := OptionalParam[string](request, "sort")
+		direction, _ := OptionalParam[string](request, "direction")
+		sinceStr, _ := OptionalParam[string](request, "since")
+
+		perPage, hasPerPage, err := OptionalInt(request, "per_page")
+		if err != nil {
+			return nil, fmt.Errorf("invalid per_page parameter: %w", err)
+		}
+
+		page, hasPage, err := OptionalInt(request, "page")
+		if err != nil {
+			return nil, fmt.Errorf("invalid page parameter: %w", err)
+		}
+
+		// Get GitHub client
+		client, err := getClient(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get GitHub client: %w", err)
+		}
+
+		// Apply context translation if provided
+		if t != nil {
+			contextData := map[string]interface{}{
+				"who":    "IssueHandler",
+				"what":   "GetIssues",
+				"when":   "APIRequest",
+				"where":  "GitHub_API",
+				"why":    "FetchIssueData",
+				"how":    "HTTPRequest",
+				"extent": "MultipleIssues",
+			}
+
+			translatedContext, err := t(ctx, contextData)
+			if err != nil {
+				log.Warn("Context translation failed:", err)
+			} else if translatedContext != nil {
+				log.Debug("Using translated context for issue request")
+				// Context would be used here in a real implementation
+			}
+		}
+
+		// Prepare list options
+		opts := &github.IssueListByRepoOptions{}
+
+		if state != "" {
+			opts.State = state
+		}
+
+		if labels != "" {
+			opts.Labels = []string{labels}
+		}
+
+		if sort != "" {
+			opts.Sort = sort
+		}
+
+		if direction != "" {
+			opts.Direction = direction
+		}
+
+		if sinceStr != "" {
+			since, err := time.Parse(time.RFC3339, sinceStr)
+			if err != nil {
+				return nil, fmt.Errorf("invalid since parameter: %w", err)
+			}
+			opts.Since = since
+		}
+
+		if hasPerPage {
+			opts.PerPage = perPage
+		} else {
+			opts.PerPage = 30 // Default
+		}
+
+		if hasPage {
+			opts.Page = page
+		} else {
+			opts.Page = 1 // Default
+		}
+
+		// Call GitHub API
+		issues, _, err := client.Issues.ListByRepo(ctx, owner, repo, opts)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get issues: %w", err)
+		}
+
+		// Transform to response format
+		issuesList := make([]map[string]interface{}, 0, len(issues))
+		for _, issue := range issues {
+			// Skip pull requests (which GitHub API returns as issues)
+			if issue.IsPullRequest() {
+				continue
+			}
+
+			// Map labels
+			labels := make([]map[string]interface{}, 0, len(issue.Labels))
+			for _, label := range issue.Labels {
+				labels = append(labels, map[string]interface{}{
+					"name":  label.GetName(),
+					"color": label.GetColor(),
+				})
+			}
+
+			// Map assignees
+			assignees := make([]map[string]interface{}, 0, len(issue.Assignees))
+			for _, assignee := range issue.Assignees {
+				assignees = append(assignees, map[string]interface{}{
+					"login": assignee.GetLogin(),
+				})
+			}
+
+			issuesList = append(issuesList, map[string]interface{}{
+				"number":     issue.GetNumber(),
+				"title":      issue.GetTitle(),
+				"state":      issue.GetState(),
+				"html_url":   issue.GetHTMLURL(),
+				"body":       issue.GetBody(),
+				"user":       map[string]interface{}{"login": issue.User.GetLogin()},
+				"labels":     labels,
+				"created_at": issue.GetCreatedAt().Format(time.RFC3339),
+				"updated_at": issue.GetUpdatedAt().Format(time.RFC3339),
+				"comments":   issue.GetComments(),
+				"assignees":  assignees,
+			})
+		}
+
+		response := map[string]interface{}{
+			"issues":      issuesList,
+			"total_count": len(issuesList),
+		}
+
+		responseJSON, err := json.Marshal(response)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal response: %w", err)
+		}
+		return mcp.NewToolResultText(string(responseJSON)), nil
+	}
+
+	return tool, handler
+}
+
+// WHO: IssueCreateToolProvider
+// WHAT: Create issue tool definition
+// WHEN: During tool registration
+// WHERE: System Layer 6 (Integration)
+// WHY: To create issues via MCP
+// HOW: Using MCP tool definition mechanism
+// EXTENT: Issue creation operations
+func CreateIssueEnhanced(getClient GetClientFn, t translations.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
+	// WHO: IssueCreateToolDefiner
+	// WHAT: Define create issue tool
+	// WHEN: During server initialization
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To register tool with MCP
+	// HOW: Using MCP tool definition
+	// EXTENT: Issue creation tool interface
+
+	tool = mcp.NewTool("create_issue",
+		mcp.WithDescription("Creates a new issue in a GitHub repository"),
+		mcp.WithString("owner",
+			mcp.Required(),
+			mcp.Description("Repository owner"),
+		),
+		mcp.WithString("repo",
+			mcp.Required(),
+			mcp.Description("Repository name"),
+		),
+		mcp.WithString("title",
+			mcp.Required(),
+			mcp.Description("Issue title"),
+		),
+		mcp.WithString("body",
+			mcp.Description("Issue body content in markdown format"),
+		),
+		mcp.WithArray("labels",
+			mcp.Description("Array of label names to apply"),
+			mcp.Items(
+				map[string]interface{}{
+					"type": "string",
+				},
+			),
+		),
+		mcp.WithArray("assignees",
+			mcp.Description("Array of usernames to assign"),
+			mcp.Items(
+				map[string]interface{}{
+					"type": "string",
+				},
+			),
+		),
+	)
+
+	// Handler function
+	handler = func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		// WHO: IssueCreateHandler
+		// WHAT: Handle issue creation
+		// WHEN: During tool invocation
+		// WHERE: System Layer 6 (Integration)
+		// WHY: To process issue creation
+		// HOW: Using GitHub API client
+		// EXTENT: Issue creation operations
+
+		log.Debug("Handling create_issue request")
+
+		// Extract parameters
+		owner, err := RequiredParam[string](request, "owner")
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
+
+		repo, err := RequiredParam[string](request, "repo")
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
+
+		title, err := RequiredParam[string](request, "title")
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
+
+		// Optional parameters
+		body, _ := OptionalParam[string](request, "body")
+		labels, err := OptionalStringArrayParam(request, "labels")
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
+
+		assignees, err := OptionalStringArrayParam(request, "assignees")
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
+
+		// Get GitHub client
+		client, err := getClient(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get GitHub client: %w", err)
+		}
+
+		// Apply context translation if provided
+		if t != nil {
+			contextData := map[string]interface{}{
+				"who":    "IssueCreateHandler",
+				"what":   "CreateIssue",
+				"when":   "APIRequest",
+				"where":  "GitHub_API",
+				"why":    "CreateIssueData",
+				"how":    "HTTPRequest",
+				"extent": "SingleIssue",
+			}
+
+			translatedContext, err := t(ctx, contextData)
+			if err != nil {
+				log.Warn("Context translation failed:", err)
+			} else if translatedContext != nil {
+				log.Debug("Using translated context for issue creation")
+				// Context would be used here in a real implementation
+			}
+		}
+
+		// Prepare request
+		issueRequest := &github.IssueRequest{
+			Title: Ptr(title),
+		}
+
+		if body != "" {
+			issueRequest.Body = Ptr(body)
+		}
+
+		if len(labels) > 0 {
+			issueRequest.Labels = &labels
+		}
+
+		if len(assignees) > 0 {
+			issueRequest.Assignees = &assignees
+		}
+
+		// Call GitHub API
+		issue, _, err := client.Issues.Create(ctx, owner, repo, issueRequest)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create issue: %w", err)
+		}
+
+		// Transform to response format
+		response := map[string]interface{}{
+			"number":     issue.GetNumber(),
+			"title":      issue.GetTitle(),
+			"state":      issue.GetState(),
+			"html_url":   issue.GetHTMLURL(),
+			"created_at": issue.GetCreatedAt().Format(time.RFC3339),
+		}
+
+		responseJSON, err := json.Marshal(response)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal response: %w", err)
+		}
+
+		return mcp.NewToolResultText(string(responseJSON)), nil
+	}
+
+	return tool, handler
+}
+
+// WHO: IssueUpdateToolProvider
+// WHAT: Update issue tool definition
+// WHEN: During tool registration
+// WHERE: System Layer 6 (Integration)
+// WHY: To update issues via MCP
+// HOW: Using MCP tool definition mechanism
+// EXTENT: Issue update operations
+// WHO: IssueUpdateToolProvider
+// WHAT: Update issue tool definition
+// WHEN: During tool registration
+// WHERE: System Layer 6 (Integration)
+// WHY: To update issues via MCP
+// HOW: Using MCP tool definition mechanism
+// EXTENT: Issue update operations
+func UpdateIssueEnhanced(getClient GetClientFn, t translations.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
+	// WHO: IssueUpdateToolDefiner
+	// WHAT: Define update issue tool
+	// WHEN: During server initialization
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To register tool with MCP
+	// HOW: Using MCP tool definition
+	// EXTENT: Issue update tool interface
+
+	tool = mcp.NewTool("update_issue",
+		mcp.WithDescription("Updates an existing issue in a GitHub repository"),
+		mcp.WithString("owner",
+			mcp.Required(),
+			mcp.Description("Repository owner"),
+		),
+		mcp.WithString("repo",
+			mcp.Required(),
+			mcp.Description("Repository name"),
+		),
+		mcp.WithNumber("number",
+			mcp.Required(),
+			mcp.Description("Issue number"),
+		),
+		mcp.WithString("title",
+			mcp.Description("New issue title"),
+		),
+		mcp.WithString("body",
+			mcp.Description("New issue body content in markdown format"),
+		),
+		mcp.WithString("state",
+			mcp.Description("Issue state (open, closed)"),
+		),
+		mcp.WithArray("labels",
+			mcp.Description("Array of label names to apply (replaces existing labels)"),
+			mcp.Items(
+				map[string]interface{}{
+					"type": "string",
+				},
+			),
+		),
+		mcp.WithArray("assignees",
+			mcp.Description("Array of usernames to assign (replaces existing assignees)"),
+			mcp.Items(
+				map[string]interface{}{
+					"type": "string",
+				},
+			),
+		),
+	)
+
+	// Handler function
+	handler = func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		// Extract parameters
+		owner, err := RequiredParam[string](request, "owner")
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
+
+		repo, err := RequiredParam[string](request, "repo")
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
+
+		number, err := RequiredIntParam(request, "number")
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
+
+		// Optional parameters
+		title, err := OptionalParam[string](request, "title")
+		hasTitle := title != "" && err == nil
+
+		body, err := OptionalParam[string](request, "body")
+		hasBody := body != "" && err == nil
+
+		state, err := OptionalParam[string](request, "state")
+		hasState := state != "" && err == nil
+
+		labels, err := OptionalStringArrayParam(request, "labels")
+		hasLabels := len(labels) > 0 && err == nil
+
+		assignees, err := OptionalStringArrayParam(request, "assignees")
+		hasAssignees := len(assignees) > 0 && err == nil
+
+		// Verify we have at least one update parameter
+		if !hasTitle && !hasBody && !hasState && !hasLabels && !hasAssignees {
+			return mcp.NewToolResultError("at least one update parameter (title, body, state, labels, assignees) must be provided"), nil
+		}
+
+		// Get GitHub client
+		client, err := getClient(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get GitHub client: %w", err)
+		}
+
+		// Apply context translation if provided
+		if t != nil {
+			contextData := map[string]interface{}{
+				"who":    "IssueUpdateHandler",
+				"what":   "UpdateIssue",
+				"when":   "APIRequest",
+				"where":  "GitHub_API",
+				"why":    "UpdateIssueData",
+				"how":    "HTTPRequest",
+				"extent": "SingleIssue",
+			}
+
+			translatedContext, err := t(ctx, contextData)
+			if err != nil {
+				log.Warn("Context translation failed:", err)
+			} else if translatedContext != nil {
+				log.Debug("Using translated context for issue update")
+				// Context would be used here in a real implementation
+			}
+		}
+
+		// Prepare request
+		issueRequest := &github.IssueRequest{}
+
+		if hasTitle {
+			issueRequest.Title = github.String(title)
+		}
+
+		if hasBody {
+			issueRequest.Body = github.String(body)
+		}
+
+		if hasState {
+			issueRequest.State = github.String(state)
+		}
+
+		if hasLabels {
+			issueRequest.Labels = &labels
+		}
+
+		if hasAssignees {
+			issueRequest.Assignees = &assignees
+		}
+
+		// Call GitHub API
+		issue, _, err := client.Issues.Edit(ctx, owner, repo, number, issueRequest)
+		if err != nil {
+			return nil, fmt.Errorf("failed to update issue: %w", err)
+		}
+
+		// Transform to response format
+		response := map[string]interface{}{
+			"number":     issue.GetNumber(),
+			"title":      issue.GetTitle(),
+			"state":      issue.GetState(),
+			"html_url":   issue.GetHTMLURL(),
+			"updated_at": issue.GetUpdatedAt().Format(time.RFC3339),
+		}
+
+		responseJSON, err := json.Marshal(response)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal response: %w", err)
+		}
+
+		return mcp.NewToolResultText(string(responseJSON)), nil
+	}
+
+	return tool, handler
 }

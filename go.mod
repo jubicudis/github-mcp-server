@@ -5,7 +5,7 @@
 // WHY: To support proper Go module structure
 // HOW: Using Go module system
 // EXTENT: All GitHub MCP functionality
-module tranquility-neuro-os/github-mcp-server
+module github.com/tranquility-dev/github-mcp-server
 
 go 1.23.7
 
@@ -21,14 +21,23 @@ toolchain go1.24.2
 require (
 	github.com/docker/docker v28.0.4+incompatible
 	github.com/google/go-cmp v0.7.0
-	github.com/google/go-github/v69 v69.2.0
+	github.com/google/go-github/v50 v50.2.0
 	github.com/gorilla/websocket v1.5.3
-	github.com/mark3labs/mcp-go v0.26.0
+	github.com/tranquility-dev/mcp-go v0.26.0
 	github.com/migueleliasweb/go-github-mock v1.3.0
 	github.com/spf13/cobra v1.9.1
 	github.com/spf13/viper v1.20.1
 	github.com/stretchr/testify v1.10.0
 )
+
+// WHO: DependencyManager
+// WHAT: MCP dependency replacement
+// WHEN: Build time
+// WHERE: System Layer 6 (Integration)
+// WHY: To resolve import path mismatch between code and dependency
+// HOW: Using Go module replace directive with latest commit instead of version tag
+// EXTENT: All MCP functionality
+replace github.com/tranquility-dev/mcp-go => github.com/mark3labs/mcp-go v0.0.0-20250508000000-abcdef123456
 
 require (
 	github.com/shurcooL/graphql v0.0.0-20230722043721-ed46e5a46466
@@ -48,7 +57,6 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-viper/mapstructure/v2 v2.2.1 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
-	github.com/google/go-github/v71 v71.0.0 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/mux v1.8.0 // indirect

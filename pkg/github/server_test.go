@@ -15,8 +15,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/go-github/v69/github"
 	"tranquility-neuro-os/github-mcp-server/pkg/translations"
+
+	"github.com/google/go-github/v69/github"
 	"github.com/migueleliasweb/go-github-mock/src/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -218,7 +219,7 @@ func Test_RequiredStringParam(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			request := createMCPRequest(tc.params)
-			result, err := requiredParam[string](request, tc.paramName)
+			result, err := RequiredParam[string](request, tc.paramName)
 
 			if tc.expectError {
 				assert.Error(t, err)
