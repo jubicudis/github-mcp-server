@@ -24,7 +24,7 @@ import traceback
 import threading
 import websockets
 import subprocess
-from typing import Dict, Any, Union
+from typing import Dict, Any, Optional, Tuple, Union
 
 # Import the dedicated Möbius compression module
 from .mobius_compression import MobiusCompression
@@ -323,6 +323,83 @@ class MessageQueue:
                 self.logger.info("Finished processing TNOS MCP message queue")
 
 
+# 7D Context Vector class
+class ContextVector7D:
+    """
+    WHO: ContextVector7D
+    WHAT: 7D Context vector implementation
+    WHEN: During protocol operations
+    WHERE: Layer 3 / Python
+    WHY: To provide structured context for all operations
+    HOW: Using the 7D context framework
+    EXTENT: All MCP communication
+    """
+    
+    def __init__(self, 
+                who: str = "System", 
+                what: str = "Operation", 
+                when: float = None, 
+                where: str = "MCP_Bridge", 
+                why: str = "SystemOperation", 
+                how: str = "Default", 
+                extent: Union[float, str] = 1.0,
+                metadata: Dict[str, Any] = None):
+        """
+        Initialize a new 7D context vector.
+        
+        Args:
+            who: Actor identity
+            what: Function or content
+            when: Timestamp or temporal marker (defaults to current time)
+            where: System location
+            why: Intent or purpose
+            how: Method or process
+            extent: Scope or impact (1.0 = full scope)
+            metadata: Additional contextual information
+        """
+        self.who = who
+        self.what = what
+        self.when = when if when is not None else time.time()
+        self.where = where
+        self.why = why
+        self.how = how
+        self.extent = extent
+        self.metadata = metadata or {}
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert context vector to dictionary representation."""
+        return {
+            "who": self.who,
+            "what": self.what,
+            "when": self.when,
+            "where": self.where,
+            "why": self.why,
+            "how": self.how,
+            "extent": self.extent,
+            "metadata": self.metadata
+        }
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> 'ContextVector7D':
+        """Create context vector from dictionary representation."""
+        return cls(
+            who=data.get("who", "System"),
+            what=data.get("what", "Operation"),
+            when=data.get("when", time.time()),
+            where=data.get("where", "MCP_Bridge"),
+            why=data.get("why", "SystemOperation"),
+            how=data.get("how", "Default"),
+            extent=data.get("extent", 1.0),
+            metadata=data.get("metadata", {})
+        )
+    
+    def derive(self, **kwargs) -> 'ContextVector7D':
+        """Create a derived context with specified overrides."""
+        data = self.to_dict()
+        data.update(kwargs)
+        return ContextVector7D.from_dict(data)
+
+
 # Context bridge module for Python
 class ContextBridge:
     """
@@ -381,227 +458,99 @@ class ContextBridge:
         return github_message
 
 
-# Möbius Compression Module for Python
-class MobiusCompression:
+def bridgeMCPContext(githubContext: Dict[str, Any], tnosContext: Dict[str, Any] = None) -> Dict[str, Any]:
     """
-    WHO: PythonMobiusCompression
-    WHAT: Python implementation of Möbius compression
-    WHEN: During data compression operations
-    WHERE: System Layer 3 (Higher Thought)
-    WHY: To provide efficient data compression
-    HOW: Using Möbius compression formula with context-awareness
-    EXTENT: All Python-managed compression operations
+    WHO: ContextBridge
+    WHAT: Bridge between GitHub MCP and TNOS MCP contexts
+    WHEN: During protocol translations
+    WHERE: Layer 3 / Python
+    WHY: To ensure context preservation across systems
+    HOW: By mapping between context formats
+    EXTENT: All cross-system communications
+    
+    Bridge function to convert between GitHub MCP context format and TNOS 7D context.
+    
+    Args:
+        githubContext: The GitHub context to convert
+        tnosContext: Optional existing TNOS context to merge with
+        
+    Returns:
+        A TNOS 7D context dictionary
     """
-
-    @staticmethod
-    def compress(data: Any, params: Dict[str, Any]) -> Dict[str, Any]:
-        """Compress data using Möbius formula"""
-        context = params.get("context", {})
-        use_time_factor = params.get("useTimeFactor", True)
-        use_energy_factor = params.get("useEnergyFactor", True)
-
-        # Convert data to string for compression if it's not already
-        if not isinstance(data, str):
-            data_str = json.dumps(data)
-        else:
-            data_str = data
-
-        # Calculate data size and Shannon entropy
-        original_size = len(data_str)
-        entropy = MobiusCompression._calculate_entropy(data_str)
-        
-        # Extract compression factors from 7D context
-        B = 1.5  # Base factor (who/what dimensions)
-        V = 2.3  # Variance factor (where/how dimensions)
-        I = 1.2  # Intent factor (why dimension)
-        G = 0.8  # Temporal gradient (when dimension)
-        F = 1.1  # Fidelity factor (extent dimension)
-        E = 0.5  # Energy/entropy coefficient
-        C_sum = 0.7  # Cumulative context factor
-        
-        # Modify factors based on context dimensions
-        try:
-            # WHO dimension affects B
-            if "who" in context:
-                who = context["who"]
-                if who == "MCPBridge":
-                    B += 0.2
-                elif who == "System":
-                    B += 0.1
-                    
-            # WHAT dimension affects B
-            if "what" in context:
-                what = context["what"]
-                if "Compression" in what:
-                    B += 0.1
-                if "Transform" in what:
-                    B += 0.05
-                    
-            # WHERE dimension affects V
-            if "where" in context:
-                where = context["where"]
-                if where == "MCP_Bridge":
-                    V += 0.1
-            
-            # HOW dimension affects V
-            if "how" in context:
-                how = context["how"]
-                if "Context_Translation" in how:
-                    V += 0.2
-            
-            # WHY dimension affects I
-            if "why" in context:
-                why = context["why"]
-                if "Optimize" in why:
-                    I += 0.2
-                elif "Protocol_Compliance" in why:
-                    I += 0.1
-            
-            # WHEN dimension affects G and t
-            if "when" in context:
-                when = context["when"]
-                if isinstance(when, (int, float)):
-                    current_time = time.time() * 1000
-                    time_diff = abs(current_time - when) / 1000  # in seconds
-                    G = max(0.5, G - (time_diff / 3600))  # Adjust based on recency
-            
-            # EXTENT dimension affects F
-            if "extent" in context:
-                extent = context["extent"]
-                if isinstance(extent, (int, float)):
-                    F = max(0.2, min(2.0, float(extent)))
-                
-        except (ValueError, TypeError):
-            pass  # Ignore context extraction errors
-        
-        # Calculate temporal factor
-        t = 1.0  # Default temporal factor
-        if use_time_factor:
-            t = MobiusCompression._get_temporal_factor(context.get("when"))
-            
-        # Apply the Möbius Compression Formula
-        # Formula: compressed = (value * B * I * (1 - (entropy / log2(1 + V))) * (G + F)) / (E * t + C_sum * entropy + alignment)
-        
-        # Get numeric representation of data
-        value = MobiusCompression._get_numeric_representation(data_str)
-        
-        # Calculate alignment
-        alignment = (B + V * I) * math.exp(-t * E)
-        
-        # Calculate entropy factor
-        try:
-            entropy_factor = 1 - (entropy / math.log2(1 + V))
-        except (ValueError, ZeroDivisionError):
-            entropy_factor = 0.5  # Fallback
-        
-        # Calculate numerator and denominator
-        numerator = value * B * I * entropy_factor * (G + F)
-        denominator = E * t + C_sum * entropy + alignment
-        
-        # Guard against division by zero
-        if abs(denominator) < 1e-10:
-            denominator = 1e-10
-            
-        # Calculate compressed value using the formula
-        compressed_value = numerator / denominator
-        
-        # Store the compressed value and metadata
-        compressed_data_dict = {
-            "value": compressed_value,
-            "entropy": entropy,
-            "factors": {
-                "B": B, "V": V, "I": I, "G": G, 
-                "F": F, "E": E, "t": t, "C_sum": C_sum,
-                "alignment": alignment
-            },
-            "orig": data_str  # Only for validation
+    # Convert external MCP format to internal 7D context
+    contextVector = {
+        "who": githubContext.get("identity") or githubContext.get("user") or "System",
+        "what": githubContext.get("operation") or githubContext.get("type") or "Transform",
+        "when": githubContext.get("timestamp") or time.time(),
+        "where": "MCP_Bridge",
+        "why": githubContext.get("purpose") or "Protocol_Compliance",
+        "how": "Context_Translation",
+        "extent": githubContext.get("scope") or 1.0,
+        "metadata": {
+            "original_github_context": githubContext,
+            "bridge_timestamp": time.time(),
+            "protocol_version": CONFIG.get("protocol_version", "3.0")
         }
+    }
+    
+    # If we have an existing TNOS context, merge with it
+    if tnosContext:
+        for key, value in tnosContext.items():
+            if key not in contextVector or not contextVector[key]:
+                contextVector[key] = value
         
-        # Convert to string and encode with base64 for transmission
-        compressed_data_json = json.dumps(compressed_data_dict)
-        compressed_data = base64.b64encode(compressed_data_json.encode("utf-8")).decode("utf-8")
+        # Merge metadata
+        if "metadata" in tnosContext:
+            contextVector["metadata"].update(tnosContext["metadata"])
+    
+    return contextVector
+
+
+def translateContext(context: Dict[str, Any], targetSystem: str = "tnos") -> Dict[str, Any]:
+    """
+    WHO: ContextTranslator
+    WHAT: Context translation function
+    WHEN: During cross-system communication
+    WHERE: MCP_Bridge
+    WHY: To ensure proper context mapping
+    HOW: Using system-specific mapping rules
+    EXTENT: All context translations
+    
+    Translate context format between systems.
+    
+    Args:
+        context: The context to translate
+        targetSystem: The target system format ("tnos" or "github")
         
-        compressed_size = len(compressed_data)
+    Returns:
+        Translated context dictionary
+    """
+    if not context:
+        return {}
         
-        # Calculate compression ratio
-        if original_size > 0:
-            compression_ratio = 1.0 - (compressed_size / original_size)
-        else:
-            compression_ratio = 0.0
-
-        # Return compression result
-        return {
-            "success": True,
-            "originalSize": original_size,
-            "compressedSize": compressed_size,
-            "compressionRatio": compression_ratio,
-            "data": compressed_data,
-            "metadata": {
-                "algorithm": "mobius7d",
-                "version": "1.0",
-                "timestamp": int(time.time() * 1000),
-                "B": B,
-                "V": V,
-                "I": I,
-                "G": G,
-                "F": F,
-                "E": E,
-                "t": t,
-                "C_sum": C_sum,
-                "alignment": alignment,
-                "useTimeFactor": use_time_factor,
-                "useEnergyFactor": use_energy_factor,
-            },
-            "contextVector": context,
-            "timestamp": int(time.time() * 1000),
-        }
-
-    @staticmethod
-    def decompress(compressed_data: Dict[str, Any]) -> Dict[str, Any]:
-        """Decompress data using Möbius formula"""
-        # Extract compressed data and metadata
-        data = compressed_data.get("data", "")
-        metadata = compressed_data.get("metadata", {})
-
-        # For demonstration, we'll implement a simple placeholder decompression
-        import base64
-        import zlib
-
-        try:
-            # Apply decompression
-            decompressed_data = zlib.decompress(base64.b64decode(data)).decode("utf-8")
-
-            # Try to parse as JSON if it looks like JSON
-            if decompressed_data.strip().startswith(("{", "[")):
-                try:
-                    decompressed_data = json.loads(decompressed_data)
-                except json.JSONDecodeError:
-                    # If not valid JSON, keep as string
-                    pass
-
+    if targetSystem.lower() == "tnos":
+        # GitHub to TNOS translation
+        if "user" in context or "identity" in context:
+            return bridgeMCPContext(context)
+        return context  # Already in TNOS format
+    
+    elif targetSystem.lower() == "github":
+        # TNOS to GitHub translation
+        if "who" in context:  # It's a TNOS 7D context
             return {
-                "success": True,
-                "data": decompressed_data,
-                "metadata": metadata,
-                "timestamp": int(time.time() * 1000),
+                "user": context.get("who", "System"),
+                "type": context.get("what", "Transform"),
+                "timestamp": context.get("when", time.time()),
+                "purpose": context.get("why", "Protocol_Compliance"),
+                "scope": context.get("extent", 1.0),
+                "metadata": {
+                    "tnos_context": context,
+                    "translation_timestamp": time.time()
+                }
             }
-        except Exception as e:
-            return {
-                "success": False,
-                "error": f"Decompression failed: {str(e)}",
-                "timestamp": int(time.time() * 1000),
-            }
-
-    @staticmethod
-    def get_statistics() -> Dict[str, Any]:
-        """Get compression statistics"""
-        return {
-            "compressionRatio": 0.75,  # Placeholder
-            "averageCompressionTime": 0.05,  # seconds
-            "totalCompressed": 1000,  # bytes
-            "totalDecompressed": 4000,  # bytes
-            "timestamp": int(time.time() * 1000),
-        }
+    
+    # Unknown target system, return original
+    return context
 
 
 # MCP Bridge Server class
@@ -625,6 +574,7 @@ class MCPBridgeServer:
         self.message_queue = MessageQueue(logger)
         self.context_bridge = ContextBridge()
         self.shutting_down = False
+        self.start_time = time.time()
 
         # Initialize backoff strategies
         self.backoff_strategies = {
@@ -658,8 +608,6 @@ class MCPBridgeServer:
 
     async def check_server_running(self, host: str, port: int) -> bool:
         """Check if a server is running using a connection test"""
-        pass
-
         try:
             reader, writer = await asyncio.open_connection(host, port)
             writer.close()
@@ -1186,7 +1134,6 @@ class MCPBridgeServer:
 
                     if message.get("type") == "command":
                         await self.process_client_command(message, websocket)
-
                     elif message.get("target") == "github":
                         if self.github_mcp_socket and not self.github_mcp_socket.closed:
                             await self.github_mcp_socket.send(
@@ -1203,7 +1150,6 @@ class MCPBridgeServer:
                                     }
                                 )
                             )
-
                     elif message.get("target") == "tnos":
                         if self.tnos_mcp_socket and not self.tnos_mcp_socket.closed:
                             await self.tnos_mcp_socket.send(
@@ -1225,17 +1171,14 @@ class MCPBridgeServer:
                     self.logger.error(
                         f"Received invalid JSON from client: {message_data}"
                     )
-
                 except Exception as e:
                     self.logger.error(f"Error processing client message: {str(e)}")
                     await websocket.send(json.dumps({"type": "error", "error": str(e)}))
 
         except websockets.exceptions.ConnectionClosedError:
             self.logger.info("Client disconnected from bridge")
-
         except Exception as e:
             self.logger.error(f"Client connection error: {str(e)}")
-
         finally:
             self.client_sockets.discard(websocket)
 
@@ -1337,7 +1280,7 @@ class MCPBridgeServer:
         try:
             # Ensure directories exist
             python_bridge_dir = os.path.dirname(CONFIG["paths"]["javascript_bridge"])
-            js_bridge_dir = os.path.dirname(CONFIG["paths"]["python_bridge_dir"])
+            js_bridge_dir = os.path.dirname(CONFIG["paths"]["diagnostic_bridge"])
 
             # Create directories if they don't exist
             os.makedirs(python_bridge_dir, exist_ok=True)
@@ -1380,6 +1323,9 @@ class MCPBridgeServer:
         try:
             # Load message queues
             self.message_queue.load_queues()
+
+            # Ensure bridge files exist
+            await self.ensure_bridge_files()
 
             # Ensure MCP servers are running
             servers_running = await self.ensure_servers_running()
@@ -1491,175 +1437,3 @@ if __name__ == "__main__":
     import signal
 
     main()
-
-
-# 7D Context Vector class
-class ContextVector7D:
-    """
-    WHO: ContextVector7D
-    WHAT: 7D Context vector implementation
-    WHEN: During protocol operations
-    WHERE: Layer 3 / Python
-    WHY: To provide structured context for all operations
-    HOW: Using the 7D context framework
-    EXTENT: All MCP communication
-    """
-    
-    def __init__(self, 
-                who: str = "System", 
-                what: str = "Operation", 
-                when: float = None, 
-                where: str = "MCP_Bridge", 
-                why: str = "SystemOperation", 
-                how: str = "Default", 
-                extent: Union[float, str] = 1.0,
-                metadata: Dict[str, Any] = None):
-        """
-        Initialize a new 7D context vector.
-        
-        Args:
-            who: Actor identity
-            what: Function or content
-            when: Timestamp or temporal marker (defaults to current time)
-            where: System location
-            why: Intent or purpose
-            how: Method or process
-            extent: Scope or impact (1.0 = full scope)
-            metadata: Additional contextual information
-        """
-        self.who = who
-        self.what = what
-        self.when = when if when is not None else time.time()
-        self.where = where
-        self.why = why
-        self.how = how
-        self.extent = extent
-        self.metadata = metadata or {}
-    
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert context vector to dictionary representation."""
-        return {
-            "who": self.who,
-            "what": self.what,
-            "when": self.when,
-            "where": self.where,
-            "why": self.why,
-            "how": self.how,
-            "extent": self.extent,
-            "metadata": self.metadata
-        }
-    
-    @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'ContextVector7D':
-        """Create context vector from dictionary representation."""
-        return cls(
-            who=data.get("who", "System"),
-            what=data.get("what", "Operation"),
-            when=data.get("when", time.time()),
-            where=data.get("where", "MCP_Bridge"),
-            why=data.get("why", "SystemOperation"),
-            how=data.get("how", "Default"),
-            extent=data.get("extent", 1.0),
-            metadata=data.get("metadata", {})
-        )
-    
-    def derive(self, **kwargs) -> 'ContextVector7D':
-        """Create a derived context with specified overrides."""
-        data = self.to_dict()
-        data.update(kwargs)
-        return ContextVector7D.from_dict(data)
-
-
-def bridgeMCPContext(githubContext: Dict[str, Any], tnosContext: Dict[str, Any] = None) -> Dict[str, Any]:
-    """
-    WHO: ContextBridge
-    WHAT: Bridge between GitHub MCP and TNOS MCP contexts
-    WHEN: During protocol translations
-    WHERE: Layer 3 / Python
-    WHY: To ensure context preservation across systems
-    HOW: By mapping between context formats
-    EXTENT: All cross-system communications
-    
-    Bridge function to convert between GitHub MCP context format and TNOS 7D context.
-    
-    Args:
-        githubContext: The GitHub context to convert
-        tnosContext: Optional existing TNOS context to merge with
-        
-    Returns:
-        A TNOS 7D context dictionary
-    """
-    # Convert external MCP format to internal 7D context
-    contextVector = {
-        "who": githubContext.get("identity") or githubContext.get("user") or "System",
-        "what": githubContext.get("operation") or githubContext.get("type") or "Transform",
-        "when": githubContext.get("timestamp") or time.time(),
-        "where": "MCP_Bridge",
-        "why": githubContext.get("purpose") or "Protocol_Compliance",
-        "how": "Context_Translation",
-        "extent": githubContext.get("scope") or 1.0,
-        "metadata": {
-            "original_github_context": githubContext,
-            "bridge_timestamp": time.time(),
-            "protocol_version": CONFIG.get("protocol_version", "3.0")
-        }
-    }
-    
-    # If we have an existing TNOS context, merge with it
-    if tnosContext:
-        for key, value in tnosContext.items():
-            if key not in contextVector or not contextVector[key]:
-                contextVector[key] = value
-        
-        # Merge metadata
-        if "metadata" in tnosContext:
-            contextVector["metadata"].update(tnosContext["metadata"])
-    
-    return contextVector
-
-
-def translateContext(context: Dict[str, Any], targetSystem: str = "tnos") -> Dict[str, Any]:
-    """
-    WHO: ContextTranslator
-    WHAT: Context translation function
-    WHEN: During cross-system communication
-    WHERE: MCP_Bridge
-    WHY: To ensure proper context mapping
-    HOW: Using system-specific mapping rules
-    EXTENT: All context translations
-    
-    Translate context format between systems.
-    
-    Args:
-        context: The context to translate
-        targetSystem: The target system format ("tnos" or "github")
-        
-    Returns:
-        Translated context dictionary
-    """
-    if not context:
-        return {}
-        
-    if targetSystem.lower() == "tnos":
-        # GitHub to TNOS translation
-        if "user" in context or "identity" in context:
-            return bridgeMCPContext(context)
-        return context  # Already in TNOS format
-    
-    elif targetSystem.lower() == "github":
-        # TNOS to GitHub translation
-        if "who" in context:  # It's a TNOS 7D context
-            return {
-                "user": context.get("who", "System"),
-                "type": context.get("what", "Transform"),
-                "timestamp": context.get("when", time.time()),
-                "purpose": context.get("why", "Protocol_Compliance"),
-                "scope": context.get("extent", 1.0),
-                "metadata": {
-                    "tnos_context": context,
-                    "translation_timestamp": time.time()
-                }
-            }
-    
-    # Unknown target system, return original
-    return context
