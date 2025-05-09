@@ -6,10 +6,8 @@ WHO: GitHubMCPBridgePython
 WHAT: Python bridge between GitHub MCP and TNOS MCP
 WHEN: During IDE runtime and system operations
 WHERE: System Layer 3 (Higher Thought)
-WHY: Enable communication between GitHub Copilot and TNOS with advanced
-Python capabilities
-HOW: WebSocket protocol with context translation and Python-specific
-enhancements
+WHY: Enable communication between GitHub Copilot and TNOS with advanced Python capabilities
+HOW: WebSocket protocol with context translation and Python-specific enhancements
 EXTENT: All Python-based MCP communications
 """
 
@@ -18,16 +16,13 @@ import sys
 import json
 import time
 import logging
-import asyncio
 import argparse
+import asyncio
 import traceback
 import threading
 import websockets
-import subprocess
-from typing import Dict, Any, Union
-
-# Import the dedicated Möbius compression module
-from .mobius_compression import MobiusCompression
+from datetime import datetime
+from typing import Dict, List, Any, Optional, Tuple, Union
 
 # Configuration
 CONFIG = {
@@ -52,28 +47,19 @@ CONFIG = {
     },
     "logging": {
         "log_dir": os.path.join(
-                os.environ.get(
-                    "TNOS_ROOT",
-                    "/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS"
-                ),
-                "logs",
-            ),
+            os.environ.get("TNOS_ROOT", "/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS"),
+            "logs",
+        ),
         "log_file": "mcp_bridge_python.log",
         "log_level": "info",  # debug, info, warning, error
     },
     "paths": {
         "javascript_bridge": os.path.join(
-            os.environ.get(
-                "TNOS_ROOT", 
-                "/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS"
-            ),
+            os.environ.get("TNOS_ROOT", "/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS"),
             "github-mcp-server/src/bridge/MCPBridge.js",
         ),
         "diagnostic_bridge": os.path.join(
-            os.environ.get(
-                "TNOS_ROOT", 
-                "/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS"
-            ),
+            os.environ.get("TNOS_ROOT", "/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS"),
             "github-mcp-server/bridge/mcp_bridge.js",
         ),
     },
@@ -113,10 +99,7 @@ def setup_logging(level_name: str) -> logging.Logger:
     os.makedirs(CONFIG["logging"]["log_dir"], exist_ok=True)
 
     # Create file handler
-    log_path = os.path.join(
-        CONFIG["logging"]["log_dir"],
-        CONFIG["logging"]["log_file"]
-    )
+    log_path = os.path.join(CONFIG["logging"]["log_dir"], CONFIG["logging"]["log_file"])
     file_handler = logging.FileHandler(log_path)
     file_handler.setLevel(level)
     file_handler.setFormatter(formatter)
@@ -154,23 +137,16 @@ class MessageQueue:
     def queue_for_github(self, message: Dict[str, Any]) -> None:
         """Add message to GitHub MCP queue"""
         with self.lock:
-            self.github_queue.append({
-                "message": message,
-                "timestamp": time.time()
-            })
+            self.github_queue.append({"message": message, "timestamp": time.time()})
             self._persist_queues()
         self.logger.info(
-            f"Message queued for GitHub MCP "
-            f"(queue size: {len(self.github_queue)})"
+            f"Message queued for GitHub MCP (queue size: {len(self.github_queue)})"
         )
 
     def queue_for_tnos(self, message: Dict[str, Any]) -> None:
         """Add message to TNOS MCP queue"""
         with self.lock:
-            self.tnos_queue.append({
-                "message": message,
-                "timestamp": time.time()
-            })
+            self.tnos_queue.append({"message": message, "timestamp": time.time()})
             self._persist_queues()
         self.logger.info(
             f"Message queued for TNOS MCP (queue size: {len(self.tnos_queue)})"
@@ -223,9 +199,7 @@ class MessageQueue:
                     ]
 
                     self.logger.info(
-                        f"Loaded message queues: "
-                        f"GitHub ({len(self.github_queue)}), "
-                        f"TNOS ({len(self.tnos_queue)})"
+                        f"Loaded message queues: GitHub ({len(self.github_queue)}), TNOS ({len(self.tnos_queue)})"
                     )
 
                     # Persist filtered queues
@@ -244,8 +218,7 @@ class MessageQueue:
                 return
 
             self.logger.info(
-                f"Processing {len(self.github_queue)} "
-                f"queued messages for GitHub MCP"
+                f"Processing {len(self.github_queue)} queued messages for GitHub MCP"
             )
 
             # Filter out messages that are too old (over 1 hour)
@@ -268,20 +241,16 @@ class MessageQueue:
                     try:
                         await websocket.send(json.dumps(item["message"]))
                         self.logger.debug(
-                            (f"Sent queued message {i + 1}/"
-                             f"{len(messages_to_process)} to GitHub MCP")
+                            f"Sent queued message {i + 1}/{len(messages_to_process)} to GitHub MCP"
                         )
                     except Exception as e:
                         self.logger.error(
-                            f"Error sending queued message to GitHub MCP: "
-                            f"{str(e)}"
+                            f"Error sending queued message to GitHub MCP: {str(e)}"
                         )
                         # Re-queue the failed message
                         self.queue_for_github(item["message"])
 
-                self.logger.info(
-                    "Finished processing GitHub MCP message queue"
-                )
+                self.logger.info("Finished processing GitHub MCP message queue")
 
     async def process_tnos_queue(self, websocket) -> None:
         """Process queued messages for TNOS"""
@@ -406,123 +375,43 @@ class MobiusCompression:
         else:
             data_str = data
 
-        # Calculate data size and Shannon entropy
+        # Calculate data size
         original_size = len(data_str)
-        entropy = MobiusCompression._calculate_entropy(data_str)
-        
-        # Extract compression factors from 7D context
-        B = 1.5  # Base factor (who/what dimensions)
-        V = 2.3  # Variance factor (where/how dimensions)
-        I = 1.2  # Intent factor (why dimension)
-        G = 0.8  # Temporal gradient (when dimension)
-        F = 1.1  # Fidelity factor (extent dimension)
-        E = 0.5  # Energy/entropy coefficient
-        C_sum = 0.7  # Cumulative context factor
-        
-        # Modify factors based on context dimensions
+
+        # For demonstration, we'll implement a simple placeholder compression
+        # In a real implementation, this would use the actual Möbius formula
+        import base64
+        import zlib
+
+        # Get compression factors from context
+        B = 0.8  # Base factor
+        V = 0.7  # Value factor
+        I = 0.9  # Intent factor
+        G = 1.2  # Growth factor
+        F = 0.6  # Flexibility factor
+
+        # Extract potential contextual factors
         try:
-            # WHO dimension affects B
-            if "who" in context:
-                who = context["who"]
-                if who == "MCPBridge":
-                    B += 0.2
-                elif who == "System":
-                    B += 0.1
-                    
-            # WHAT dimension affects B
-            if "what" in context:
-                what = context["what"]
-                if "Compression" in what:
-                    B += 0.1
-                if "Transform" in what:
-                    B += 0.05
-                    
-            # WHERE dimension affects V
-            if "where" in context:
-                where = context["where"]
-                if where == "MCP_Bridge":
-                    V += 0.1
-            
-            # HOW dimension affects V
-            if "how" in context:
-                how = context["how"]
-                if "Context_Translation" in how:
-                    V += 0.2
-            
-            # WHY dimension affects I
-            if "why" in context:
-                why = context["why"]
-                if "Optimize" in why:
-                    I += 0.2
-                elif "Protocol_Compliance" in why:
-                    I += 0.1
-            
-            # WHEN dimension affects G and t
-            if "when" in context:
-                when = context["when"]
-                if isinstance(when, (int, float)):
-                    current_time = time.time() * 1000
-                    time_diff = abs(current_time - when) / 1000  # in seconds
-                    G = max(0.5, G - (time_diff / 3600))  # Adjust based on recency
-            
-            # EXTENT dimension affects F
+            if "who" in context and context["who"] == "MCPBridge":
+                B += 0.1
+            if "what" in context and "Compression" in context["what"]:
+                V += 0.1
+            if "why" in context and "Optimize" in context["why"]:
+                I += 0.1
             if "extent" in context:
-                extent = context["extent"]
-                if isinstance(extent, (int, float)):
-                    F = max(0.2, min(2.0, float(extent)))
-                
+                F = max(0.2, min(1.0, float(context["extent"])))
         except (ValueError, TypeError):
             pass  # Ignore context extraction errors
-        
-        # Calculate temporal factor
-        t = 1.0  # Default temporal factor
-        if use_time_factor:
-            t = MobiusCompression._get_temporal_factor(context.get("when"))
-            
-        # Apply the Möbius Compression Formula
-        # Formula: compressed = (value * B * I * (1 - (entropy / log2(1 + V))) * (G + F)) / (E * t + C_sum * entropy + alignment)
-        
-        # Get numeric representation of data
-        value = MobiusCompression._get_numeric_representation(data_str)
-        
-        # Calculate alignment
-        alignment = (B + V * I) * math.exp(-t * E)
-        
-        # Calculate entropy factor
-        try:
-            entropy_factor = 1 - (entropy / math.log2(1 + V))
-        except (ValueError, ZeroDivisionError):
-            entropy_factor = 0.5  # Fallback
-        
-        # Calculate numerator and denominator
-        numerator = value * B * I * entropy_factor * (G + F)
-        denominator = E * t + C_sum * entropy + alignment
-        
-        # Guard against division by zero
-        if abs(denominator) < 1e-10:
-            denominator = 1e-10
-            
-        # Calculate compressed value using the formula
-        compressed_value = numerator / denominator
-        
-        # Store the compressed value and metadata
-        compressed_data_dict = {
-            "value": compressed_value,
-            "entropy": entropy,
-            "factors": {
-                "B": B, "V": V, "I": I, "G": G, 
-                "F": F, "E": E, "t": t, "C_sum": C_sum,
-                "alignment": alignment
-            },
-            "orig": data_str  # Only for validation
-        }
-        
-        # Convert to string and encode with base64 for transmission
-        compressed_data_json = json.dumps(compressed_data_dict)
-        compressed_data = base64.b64encode(compressed_data_json.encode("utf-8")).decode("utf-8")
-        
+
+        # Apply compression
+        compressed_data = base64.b64encode(
+            zlib.compress(
+                data_str.encode("utf-8"), level=CONFIG["compression"]["level"]
+            )
+        ).decode("utf-8")
+
         compressed_size = len(compressed_data)
-        
+
         # Calculate compression ratio
         if original_size > 0:
             compression_ratio = 1.0 - (compressed_size / original_size)
@@ -537,18 +426,11 @@ class MobiusCompression:
             "compressionRatio": compression_ratio,
             "data": compressed_data,
             "metadata": {
-                "algorithm": "mobius7d",
-                "version": "1.0",
-                "timestamp": int(time.time() * 1000),
                 "B": B,
                 "V": V,
                 "I": I,
                 "G": G,
                 "F": F,
-                "E": E,
-                "t": t,
-                "C_sum": C_sum,
-                "alignment": alignment,
                 "useTimeFactor": use_time_factor,
                 "useEnergyFactor": use_energy_factor,
             },
@@ -658,7 +540,7 @@ class MCPBridgeServer:
 
     async def check_server_running(self, host: str, port: int) -> bool:
         """Check if a server is running using a connection test"""
-        pass
+        import socket
 
         try:
             reader, writer = await asyncio.open_connection(host, port)
@@ -1395,8 +1277,8 @@ class MCPBridgeServer:
             self.logger.info(f"Starting MCP Bridge server on port {self.port}")
             async with websockets.serve(self.handle_client, "0.0.0.0", self.port):
                 # Set up periodic tasks
-                self.context_sync_task = asyncio.create_task(self.context_sync_loop())
-                self.health_check_task = asyncio.create_task(self.health_check_loop())
+                context_sync_task = asyncio.create_task(self.context_sync_loop())
+                health_check_task = asyncio.create_task(self.health_check_loop())
 
                 # Wait forever (or until interrupted)
                 await asyncio.Future()  # Run forever

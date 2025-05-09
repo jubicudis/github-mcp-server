@@ -14,11 +14,26 @@ import (
 	"context"
 	"fmt"
 
+	"tranquility-neuro-os/github-mcp-server/pkg/log"
+
 	"github.com/google/go-github/v69/github"
-	"github.com/mark3labs/mcp-go/log"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
+
+// WHO: TypeDefinitions
+// WHAT: Common type definitions for GitHub MCP server
+// WHEN: During component initialization
+// WHERE: System Layer 6 (Integration)
+// WHY: To provide consistent type signatures
+// HOW: Using Go type definitions
+// EXTENT: All GitHub MCP operations
+
+// GetClientFn is a function that returns a GitHub API client
+type GetClientFn func(ctx context.Context) (*github.Client, error)
+
+// TranslationHelperFunc is a function that translates context between MCP and TNOS formats
+type TranslationHelperFunc func(ctx context.Context, data map[string]interface{}) (map[string]interface{}, error)
 
 // WHO: RepositoryToolProvider
 // WHAT: Get repository tool definition
@@ -35,9 +50,9 @@ func GetRepository(getClient GetClientFn, t TranslationHelperFunc) (tool mcp.Too
 	// HOW: Using MCP tool definition
 	// EXTENT: Repository tool interface
 
-	return mcp.NewTool("get_repository",
+	tool = mcp.NewTool("get_repository",
 		mcp.WithDescription("Gets detailed information about a GitHub repository"),
-		mcp.WithString("owner", 
+		mcp.WithString("owner",
 			mcp.Required(),
 			mcp.Description(ConstRepoOwnerDesc),
 		),
@@ -45,8 +60,7 @@ func GetRepository(getClient GetClientFn, t TranslationHelperFunc) (tool mcp.Too
 			mcp.Required(),
 			mcp.Description(ConstRepoNameDesc),
 		),
-	),
-		ReturnSchema: map[string]interface{}{
+		mcp.WithReturnSchema(map[string]interface{}{
 			"name":        "string",
 			"full_name":   "string",
 			"description": "string",
@@ -66,28 +80,24 @@ func GetRepository(getClient GetClientFn, t TranslationHelperFunc) (tool mcp.Too
 			"updated_at":     "string",
 			"archived":       "boolean",
 			"private":        "boolean",
-		},
-	}
+		}),
+	)
 
-	// Handler function
-	handler := func(ctx context.Context, request mcp.CallToolRequest) (interface{}, error) {
-		// WHO: RepositoryRequestHandler
-		// WHAT: Handle repository request
-		// WHEN: During tool invocation
-		// WHERE: System Layer 6 (Integration)
-	// Handler function
-	func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		// EXTENT: Repository API operations
-
+	// WHO: RepositoryRequestHandler
+	// WHAT: Handle repository request
+	// WHEN: During tool invocation
+	// WHERE: System Layer 6 (Integration)
+	// EXTENT: Repository API operations
+	handler = func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		log.Debug("Handling get_repository request")
 
 		// Extract parameters
-		owner, err := ExtractRequiredParam[string](request, "owner")
+		owner, err := RequiredParam[string](request, "owner")
 		if err != nil {
 			return nil, fmt.Errorf("invalid owner parameter: %w", err)
 		}
 
-		repo, err := ExtractRequiredParam[string](request, "repo")
+		repo, err := RequiredParam[string](request, "repo")
 		if err != nil {
 			return nil, fmt.Errorf("invalid repo parameter: %w", err)
 		}
@@ -148,25 +158,19 @@ func GetRepository(getClient GetClientFn, t TranslationHelperFunc) (tool mcp.Too
 			"private":        repository.GetPrivate(),
 		}
 
-		return response, nil
+		return mcp.NewToolResult(response), nil
 	}
 
 	return tool, handler
 }
 
-		return mcp.NewToolResult(response), nil
-	}
-}
+// WHO: RepositoryListToolDefiner
+// WHAT: Define list repositories tool
+// WHEN: During server initialization
+// WHERE: System Layer 6 (Integration)
+// WHY: To register tool with MCP
 // HOW: Using MCP tool definition mechanism
 // EXTENT: Repository listing operations
-func ListRepositories(getClient GetClientFn, t TranslationHelperFunc) (mcp.ToolDefinition, mcp.CallToolHandlerFunc) {
-	// WHO: RepositoryListToolDefiner
-	// WHAT: Define list repositories tool
-	// WHEN: During server initialization
-	// WHERE: System Layer 6 (Integration)
-	// WHY: To register tool with MCP
-	// HOW: Using MCP tool definition
-	// EXTENT: Repository list tool interface
 func ListRepositories(getClient GetClientFn, t TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
 	// WHO: RepositoryListToolDefiner
 	// WHAT: Define list repositories tool
@@ -175,8 +179,7 @@ func ListRepositories(getClient GetClientFn, t TranslationHelperFunc) (tool mcp.
 	// WHY: To register tool with MCP
 	// HOW: Using MCP tool definition
 	// EXTENT: Repository list tool interface
-
-	return mcp.NewTool("list_repositories",
+	tool = mcp.NewTool("list_repositories",
 		mcp.WithDescription("Lists GitHub repositories for a user or organization"),
 		mcp.WithString("owner",
 			mcp.Required(),
@@ -197,39 +200,10 @@ func ListRepositories(getClient GetClientFn, t TranslationHelperFunc) (tool mcp.
 		mcp.WithInt("page",
 			mcp.Description("Page number for pagination"),
 		),
-	),
-				Description: "Type of repositories to list (all, owner, member, public, private)",
-				Type:        "string",
-				Required:    false,
-			},
-			{
-				Name:        "sort",
-				Description: "Sorting criteria (created, updated, pushed, full_name)",
-				Type:        "string",
-				Required:    false,
-			},
-			{
-				Name:        "direction",
-				Description: "Sort direction (asc, desc)",
-				Type:        "string",
-				Required:    false,
-			},
-			{
-				Name:        "per_page",
-				Description: "Number of results per page",
-				Type:        "number",
-				Required:    false,
-			},
-			{
-				Name:        "page",
-				Description: "Page number for pagination",
-				Type:        "number",
-				Required:    false,
-			},
-		},
-		ReturnSchema: map[string]interface{}{
-			"repositories": []map[string]interface{}{
-				{
+		mcp.WithReturnSchema(map[string]interface{}{
+			"total_count": "number",
+			"repositories": []interface{}{
+				map[string]interface{}{
 					"name":        "string",
 					"full_name":   "string",
 					"description": "string",
@@ -238,12 +212,10 @@ func ListRepositories(getClient GetClientFn, t TranslationHelperFunc) (tool mcp.
 					"private":     "boolean",
 				},
 			},
-			"total_count": "number",
-		},
-	}
-
+		}),
+	)
 	// Handler function
-	handler := func(ctx context.Context, request mcp.CallToolRequest) (interface{}, error) {
+	handler = func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		// WHO: RepositoryListRequestHandler
 		// WHAT: Handle repository list request
 		// WHEN: During tool invocation
@@ -255,7 +227,7 @@ func ListRepositories(getClient GetClientFn, t TranslationHelperFunc) (tool mcp.
 		log.Debug("Handling list_repositories request")
 
 		// Extract parameters
-		owner, err := ExtractRequiredParam[string](request, "owner")
+		owner, err := RequiredParam[string](request, "owner")
 		if err != nil {
 			return nil, fmt.Errorf("invalid owner parameter: %w", err)
 		}
@@ -347,7 +319,7 @@ func ListRepositories(getClient GetClientFn, t TranslationHelperFunc) (tool mcp.
 			"total_count":  len(repoList),
 		}
 
-		return response, nil
+		return mcp.NewToolResult(response), nil
 	}
 
 	return tool, handler

@@ -1,3 +1,16 @@
+// WHO: ModuleDefinition
+// WHAT: Fixed Go module configuration for GitHub MCP Server
+// WHEN: During module resolution
+// WHERE: System Layer 6 (Integration)
+// WHY: To support proper import resolution
+// HOW: Using module declarations and replace directives
+// EXTENT: All module imports
+
+module tranquility-neuro-os/github-mcp-server
+
+go 1.24
+
+// Preserve original requirements from go.mod
 // WHO: DependencyManager
 // WHAT: Module definition for GitHub MCP server
 // WHEN: Build time and dependency resolution
@@ -5,9 +18,7 @@
 // WHY: To support proper Go module structure
 // HOW: Using Go module system
 // EXTENT: All GitHub MCP functionality
-module tranquility-neuro-os/github-mcp-server
 
-go 1.23.7
 
 toolchain go1.24.2
 
@@ -96,3 +107,6 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	gotest.tools/v3 v3.5.2 // indirect
 )
+
+// Add replace directive to map module to local directory
+replace tranquility-neuro-os/github-mcp-server => ./

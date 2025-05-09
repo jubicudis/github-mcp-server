@@ -1,3 +1,11 @@
+// WHO: IssuesModule
+// WHAT: GitHub Issues functionality
+// WHEN: During issue operations
+// WHERE: System Layer 6 (Integration)
+// WHY: To provide GitHub issues access
+// HOW: Using GitHub API
+// EXTENT: All issue operations
+
 package github
 
 import (
@@ -8,11 +16,12 @@ import (
 	"net/http"
 	"time"
 
-"github.com/google/go-github/v50/github"
-	"github.com/tranquility-dev/github-mcp-server/pkg/translations"
-	"github.com/tranquility-dev/mcp-go/log"
-	"github.com/tranquility-dev/mcp-go/mcp"
-	"github.com/tranquility-dev/mcp-go/server"
+	"tranquility-neuro-os/github-mcp-server/pkg/log"
+	"tranquility-neuro-os/github-mcp-server/pkg/translations"
+
+	"github.com/google/go-github/v69/github"
+	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/mark3labs/mcp-go/server"
 )
 
 /*

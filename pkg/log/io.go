@@ -17,20 +17,54 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
-
-	log "github.com/sirupsen/logrus"
 )
+
+// WHO: ContextVector7D
+// WHAT: 7D Context vector representation
+// WHEN: During context handling operations
+// WHERE: System Layer 6 (Integration)
+// WHY: To maintain complete contextual awareness
+// HOW: Using structured context parameters
+// EXTENT: All context operations
+type ContextVector7D struct {
+	Who    string                 `json:"who"`
+	What   string                 `json:"what"`
+	When   interface{}            `json:"when"`
+	Where  string                 `json:"where"`
+	Why    string                 `json:"why"`
+	How    string                 `json:"how"`
+	Extent float64                `json:"extent"`
+	Meta   map[string]interface{} `json:"meta,omitempty"`
+	Source string                 `json:"source,omitempty"`
+}
+
+// The Logger interface is defined in logger.go
+// We use that interface here for IO logging operations
 
 // IOLogger is a wrapper around io.Reader and io.Writer that can be used
 // to log the data being read and written from the underlying streams
+// WHO: IOLogger
+// WHAT: Logging of IO operations
+// WHEN: During data transfer
+// WHERE: System Layer 6 (Integration)
+// WHY: To provide visibility into data flows
+// HOW: Using decorator pattern around io interfaces
+// EXTENT: All monitored IO operations
 type IOLogger struct {
 	reader io.Reader
 	writer io.Writer
-	logger *log.Logger
+	logger Logger
 }
 
 // NewIOLogger creates a new IOLogger instance
-func NewIOLogger(r io.Reader, w io.Writer, logger *log.Logger) *IOLogger {
+// WHO: LoggerFactory
+// WHAT: IO Logger creation
+// WHEN: During logger initialization
+// WHERE: System Layer 6 (Integration)
+// WHY: To facilitate IO monitoring
+// HOW: Using composition of IO interfaces
+// EXTENT: Logger instance lifecycle
+func NewIOLogger(r io.Reader, w io.Writer, logger Logger) *IOLogger {
 	return &IOLogger{
 		reader: r,
 		writer: w,
@@ -45,7 +79,7 @@ func (l *IOLogger) Read(p []byte) (n int, err error) {
 	}
 	n, err = l.reader.Read(p)
 	if n > 0 {
-		l.logger.Infof("[stdin]: received %d bytes: %s", n, string(p[:n]))
+		l.logger.Info(fmt.Sprintf("[stdin]: received %d bytes: %s", n, string(p[:n])))
 	}
 	return n, err
 }
@@ -55,7 +89,7 @@ func (l *IOLogger) Write(p []byte) (n int, err error) {
 	if l.writer == nil {
 		return 0, io.ErrClosedPipe
 	}
-	l.logger.Infof("[stdout]: sending %d bytes: %s", len(p), string(p))
+	l.logger.Info(fmt.Sprintf("[stdout]: sending %d bytes: %s", len(p), string(p)))
 	return l.writer.Write(p)
 }
 

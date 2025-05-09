@@ -1,11 +1,11 @@
 /*
  * WHO: GitHubPackage
- * WHAT: Core GitHub functionality for MCP
- * WHEN: During GitHub API operations
+ * WHAT: Main package for GitHub MCP server functionality
+ * WHEN: During API operations with GitHub
  * WHERE: System Layer 6 (Integration)
- * WHY: To provide GitHub API integration
- * HOW: Using MCP protocol adapters
- * EXTENT: All GitHub interfaces
+ * WHY: To provide GitHub integration with TNOS
+ * HOW: Using MCP protocol and GitHub API
+ * EXTENT: All GitHub operations
  */
 
 package github
@@ -16,7 +16,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/mark3labs/mcp-go/log"
+	"tranquility-neuro-os/github-mcp-server/pkg/log"
 
 	"github.com/google/go-github/v69/github"
 	"github.com/mark3labs/mcp-go/mcp"

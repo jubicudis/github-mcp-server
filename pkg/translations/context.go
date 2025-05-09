@@ -1,21 +1,21 @@
 /*
  * WHO: ContextTranslator
- * WHAT: 7D Context translation between GitHub and TNOS
- * WHEN: During cross-system communication
+ * WHAT: Context translation for GitHub MCP server
+ * WHEN: During context exchange between systems
  * WHERE: System Layer 6 (Integration)
- * WHY: To maintain context across systems
- * HOW: Using bidirectional translation with compression
- * EXTENT: All context exchanges
+ * WHY: To facilitate interoperability between GitHub and TNOS
+ * HOW: Using 7D context mapping with compression-first logic
+ * EXTENT: All cross-system context translation
  */
 
 package translations
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"math"
 	"time"
-
 	"tranquility-neuro-os/github-mcp-server/pkg/log"
 )
 
@@ -993,4 +993,192 @@ func ConvertJSONToContext(jsonData []byte, logger *log.Logger) (ContextVector7D,
 	}
 
 	return context, nil
+}
+
+// WHO: ContextTranslator
+// WHAT: Context translation for GitHub MCP server
+// WHEN: During context exchange between systems
+// WHERE: System Layer 6 (Integration)
+// WHY: To facilitate interoperability between GitHub and TNOS
+// HOW: Using 7D context mapping with compression-first logic
+// EXTENT: All cross-system context translation
+
+package translations
+
+import (
+	"context"
+	"fmt"
+)
+
+// ContextTranslatorFunc defines a standard interface for context translation functions
+// WHO: TranslationFunctionDefiner
+// WHAT: Define standard translation function signature
+// WHEN: During type declarations
+// WHERE: System Layer 6 (Integration)
+// WHY: To standardize context translation interfaces
+// HOW: Using function type definition
+// EXTENT: All context translation operations
+type ContextTranslatorFunc func(ctx context.Context, input map[string]interface{}) (map[string]interface{}, error)
+
+// GitHubContextTranslator translates GitHub context to TNOS context
+// WHO: GitHubToTNOSTranslator
+// WHAT: Translate GitHub context to TNOS format
+// WHEN: During inbound context translation
+// WHERE: System Layer 6 (Integration)
+// WHY: To provide TNOS compatibility
+// HOW: Using structured context mapping
+// EXTENT: All inbound context operations
+func GitHubContextTranslator(ctx context.Context, input map[string]interface{}) (map[string]interface{}, error) {
+	// Extract the 7D context from the GitHub context
+	cv := MCPContextToTNOS(input)
+	
+	// Apply compression to optimize the context
+	cv = CompressContext(cv)
+	
+	// Store the 7D context in the Go context
+	ctx = ContextWithVector(ctx, cv)
+	
+	// Convert back to map for further processing
+	result := TNOSContextToMCP(cv)
+	
+	return result, nil
+}
+
+// TNOSContextTranslator translates TNOS context to GitHub context
+// WHO: TNOSToGitHubTranslator
+// WHAT: Translate TNOS context to GitHub format
+// WHEN: During outbound context translation
+// WHERE: System Layer 6 (Integration)
+// WHY: To provide GitHub compatibility
+// HOW: Using structured context mapping
+// EXTENT: All outbound context operations
+func TNOSContextTranslator(ctx context.Context, input map[string]interface{}) (map[string]interface{}, error) {
+	// Extract existing context if available
+	var cv ContextVector7D
+	var exists bool
+	
+	if cv, exists = VectorFromContext(ctx); !exists {
+		// Create a new context from the input
+		strMap := make(map[string]string)
+		for k, v := range input {
+			if strVal, ok := v.(string); ok {
+				strMap[k] = strVal
+			}
+		}
+		cv = FromMap(strMap)
+	}
+	
+	// Apply compression per TNOS guidelines
+	cv = CompressContext(cv)
+	
+	// Convert to GitHub context format
+	result := map[string]interface{}{
+		"identity":  cv.Who,
+		"operation": cv.What,
+		"timestamp": cv.When,
+		"purpose":   cv.Why,
+		"scope":     cv.Extent,
+		// Store full TNOS context in a special field
+		"_tnos_context": cv.ToMap(),
+	}
+	
+	return result, nil
+}
+
+// ContextParseError represents an error parsing context
+// WHO: ErrorDefiner
+// WHAT: Define context parsing error type
+// WHEN: During error handling
+// WHERE: System Layer 6 (Integration)
+// WHY: To standardize error reporting
+// HOW: Using error type definition
+// EXTENT: All context parsing operations
+type ContextParseError struct {
+	Dimension string
+	Value     interface{}
+	Reason    string
+}
+
+// Error returns the error message string
+func (e ContextParseError) Error() string {
+	return fmt.Sprintf("unable to parse context dimension %s with value %v: %s", 
+		e.Dimension, e.Value, e.Reason)
+}
+
+// ValidateContextDimension checks if a context dimension is valid
+// WHO: ContextValidator
+// WHAT: Validate context dimension
+// WHEN: During context validation
+// WHERE: System Layer 6 (Integration)
+// WHY: To ensure context integrity
+// HOW: Using type checking and validation
+// EXTENT: All context validation operations
+func ValidateContextDimension(dim string, value interface{}) error {
+	// Validate based on dimension
+	switch dim {
+	case "who", "what", "where", "why", "how", "extent":
+		// These should be strings
+		if _, ok := value.(string); !ok {
+			return ContextParseError{
+				Dimension: dim,
+				Value:     value,
+				Reason:    "expected string value",
+			}
+		}
+	case "when":
+		// Should be a valid time string
+		if strVal, ok := value.(string); !ok {
+			return ContextParseError{
+				Dimension: dim,
+				Value:     value,
+				Reason:    "expected string value for timestamp",
+			}
+		} else if _, err := time.Parse(time.RFC3339, strVal); err != nil {
+			return ContextParseError{
+				Dimension: dim,
+				Value:     value,
+				Reason:    "invalid timestamp format, expected RFC3339",
+			}
+		}
+	}
+	
+	return nil
+}
+
+// CreateContextHelperFunc creates a context helper function
+// WHO: HelperFunctionFactory
+// WHAT: Create context helper function
+// WHEN: During system initialization
+// WHERE: System Layer 6 (Integration)
+// WHY: To provide context assistance
+// HOW: Using function factory pattern
+// EXTENT: All context helper operations
+func CreateContextHelperFunc(translator ContextTranslatorFunc) func(context.Context, map[string]interface{}) (context.Context, map[string]interface{}, error) {
+	return func(ctx context.Context, input map[string]interface{}) (context.Context, map[string]interface{}, error) {
+		// Translate the context
+		output, err := translator(ctx, input)
+		if err != nil {
+			return ctx, nil, err
+		}
+		
+		// Extract 7D context if available
+		var cv ContextVector7D
+		var exists bool
+		
+		if cv, exists = VectorFromContext(ctx); !exists {
+			// Create a new context from the output
+			strMap := make(map[string]string)
+			for k, v := range output {
+				if strVal, ok := v.(string); ok {
+					strMap[k] = strVal
+				}
+			}
+			cv = FromMap(strMap)
+			
+			// Store it in the context
+			ctx = ContextWithVector(ctx, cv)
+		}
+		
+		return ctx, output, nil
+	}
 }
