@@ -29,11 +29,7 @@ import (
 // HOW: Using Go type definitions
 // EXTENT: All GitHub MCP operations
 
-// GetClientFn is a function that returns a GitHub API client
-type GetClientFn func(ctx context.Context) (*github.Client, error)
-
-// TranslationHelperFunc is a function that translates context between MCP and TNOS formats
-type TranslationHelperFunc func(ctx context.Context, data map[string]interface{}) (map[string]interface{}, error)
+// Use GetClientFn and TranslationHelperFunc from github.go to avoid redeclaration
 
 // WHO: RepositoryToolProvider
 // WHAT: Get repository tool definition
