@@ -14,7 +14,7 @@ import (
 	"context"
 )
 
-// TranslationHelper provides methods to translate between different contexts
+// MessageTranslationHelper provides methods to translate between different contexts
 // WHO: TranslationProvider
 // WHAT: Interface for translation operations
 // WHEN: During communication
@@ -22,7 +22,7 @@ import (
 // WHY: To standardize context translation
 // HOW: Using Go interface definition
 // EXTENT: All translation implementations
-type TranslationHelper interface {
+type MessageTranslationHelper interface {
 	// TranslateMessageToTNOS converts GitHub messages to TNOS format
 	// WHO: MessageTranslator
 	// WHAT: Message conversion to TNOS
@@ -44,7 +44,7 @@ type TranslationHelper interface {
 	TranslateMessageFromTNOS(ctx context.Context, message interface{}) (interface{}, error)
 }
 
-// nullTranslationHelper provides a no-op implementation of TranslationHelper
+// nullMessageTranslationHelper provides a no-op implementation of MessageTranslationHelper
 // WHO: NullObjectProvider
 // WHAT: Empty translation implementation
 // WHEN: During testing or when translation is not needed
@@ -52,19 +52,19 @@ type TranslationHelper interface {
 // WHY: To provide a default implementation
 // HOW: Using the Null Object pattern
 // EXTENT: All test scenarios
-type nullTranslationHelper struct{}
+type nullMessageTranslationHelper struct{}
 
 // TranslateMessageToTNOS is a no-op implementation that returns the message unchanged
-func (n *nullTranslationHelper) TranslateMessageToTNOS(ctx context.Context, message interface{}) (interface{}, error) {
+func (n *nullMessageTranslationHelper) TranslateMessageToTNOS(ctx context.Context, message interface{}) (interface{}, error) {
 	return message, nil
 }
 
 // TranslateMessageFromTNOS is a no-op implementation that returns the message unchanged
-func (n *nullTranslationHelper) TranslateMessageFromTNOS(ctx context.Context, message interface{}) (interface{}, error) {
+func (n *nullMessageTranslationHelper) TranslateMessageFromTNOS(ctx context.Context, message interface{}) (interface{}, error) {
 	return message, nil
 }
 
-// NullTranslationHelper is a singleton instance of nullTranslationHelper
+// NullMessageTranslationHelper is a singleton instance of nullMessageTranslationHelper
 // WHO: SingletonProvider
 // WHAT: Global null translation helper
 // WHEN: During system initialization
@@ -72,4 +72,4 @@ func (n *nullTranslationHelper) TranslateMessageFromTNOS(ctx context.Context, me
 // WHY: To provide a consistent default implementation
 // HOW: Using Go variable initialization
 // EXTENT: All test and default scenarios
-var NullTranslationHelper TranslationHelper = &nullTranslationHelper{}
+var NullMessageTranslationHelper MessageTranslationHelper = &nullMessageTranslationHelper{}

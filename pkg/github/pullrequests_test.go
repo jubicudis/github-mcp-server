@@ -14,8 +14,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/go-github/v69/github"
-	githubMCP "github.com/google/go-github/v69/github"
+	"github.com/google/go-github/v49/github"
+	githubMCP "github.com/google/go-github/v49/github"
 	"tranquility-neuro-os/github-mcp-server/pkg/translations"
 	"github.com/migueleliasweb/go-github-mock/src/mock"
 	"github.com/stretchr/testify/assert"

@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"math"
 	"time"
+
 	"tranquility-neuro-os/github-mcp-server/pkg/log"
 )
 
@@ -951,7 +952,6 @@ func ConvertJSONToContext(jsonData []byte, logger *log.Logger) (ContextVector7D,
 
 	var context ContextVector7D
 	err := json.Unmarshal(jsonData, &context)
-
 	if err != nil {
 		if logger != nil {
 			logger.Error("Failed to convert JSON to context", "error", err.Error())
@@ -1003,13 +1003,6 @@ func ConvertJSONToContext(jsonData []byte, logger *log.Logger) (ContextVector7D,
 // HOW: Using 7D context mapping with compression-first logic
 // EXTENT: All cross-system context translation
 
-package translations
-
-import (
-	"context"
-	"fmt"
-)
-
 // ContextTranslatorFunc defines a standard interface for context translation functions
 // WHO: TranslationFunctionDefiner
 // WHAT: Define standard translation function signature
@@ -1031,16 +1024,16 @@ type ContextTranslatorFunc func(ctx context.Context, input map[string]interface{
 func GitHubContextTranslator(ctx context.Context, input map[string]interface{}) (map[string]interface{}, error) {
 	// Extract the 7D context from the GitHub context
 	cv := MCPContextToTNOS(input)
-	
+
 	// Apply compression to optimize the context
-	cv = CompressContext(cv)
-	
+	cv = CompressContext(cv, nil) // Pass nil logger as it's optional
+
 	// Store the 7D context in the Go context
 	ctx = ContextWithVector(ctx, cv)
-	
+
 	// Convert back to map for further processing
 	result := TNOSContextToMCP(cv)
-	
+
 	return result, nil
 }
 
@@ -1056,21 +1049,19 @@ func TNOSContextTranslator(ctx context.Context, input map[string]interface{}) (m
 	// Extract existing context if available
 	var cv ContextVector7D
 	var exists bool
-	
+
 	if cv, exists = VectorFromContext(ctx); !exists {
 		// Create a new context from the input
-		strMap := make(map[string]string)
+		ifaceMap := make(map[string]interface{})
 		for k, v := range input {
-			if strVal, ok := v.(string); ok {
-				strMap[k] = strVal
-			}
+			ifaceMap[k] = v
 		}
-		cv = FromMap(strMap)
+		cv = FromMap(ifaceMap)
 	}
-	
+
 	// Apply compression per TNOS guidelines
-	cv = CompressContext(cv)
-	
+	cv = CompressContext(cv, nil) // Pass nil logger as it's optional
+
 	// Convert to GitHub context format
 	result := map[string]interface{}{
 		"identity":  cv.Who,
@@ -1081,7 +1072,7 @@ func TNOSContextTranslator(ctx context.Context, input map[string]interface{}) (m
 		// Store full TNOS context in a special field
 		"_tnos_context": cv.ToMap(),
 	}
-	
+
 	return result, nil
 }
 
@@ -1101,7 +1092,7 @@ type ContextParseError struct {
 
 // Error returns the error message string
 func (e ContextParseError) Error() string {
-	return fmt.Sprintf("unable to parse context dimension %s with value %v: %s", 
+	return fmt.Sprintf("unable to parse context dimension %s with value %v: %s",
 		e.Dimension, e.Value, e.Reason)
 }
 
@@ -1141,7 +1132,7 @@ func ValidateContextDimension(dim string, value interface{}) error {
 			}
 		}
 	}
-	
+
 	return nil
 }
 
@@ -1160,25 +1151,23 @@ func CreateContextHelperFunc(translator ContextTranslatorFunc) func(context.Cont
 		if err != nil {
 			return ctx, nil, err
 		}
-		
+
 		// Extract 7D context if available
 		var cv ContextVector7D
 		var exists bool
-		
+
 		if cv, exists = VectorFromContext(ctx); !exists {
 			// Create a new context from the output
-			strMap := make(map[string]string)
+			ifaceMap := make(map[string]interface{})
 			for k, v := range output {
-				if strVal, ok := v.(string); ok {
-					strMap[k] = strVal
-				}
+				ifaceMap[k] = v
 			}
-			cv = FromMap(strMap)
-			
+			cv = FromMap(ifaceMap)
+
 			// Store it in the context
 			ctx = ContextWithVector(ctx, cv)
 		}
-		
+
 		return ctx, output, nil
 	}
 }

@@ -20,10 +20,8 @@ import (
 	"tranquility-neuro-os/github-mcp-server/models"
 )
 
-var (
-	// Global bridge connection - would be initialized during server startup
-	mcpBridge *mcp.TNOSMCPBridge
-)
+// Global bridge connection - would be initialized during server startup
+var mcpBridge *mcp.TNOSMCPBridge
 
 // InitializeMCPBridge sets up the MCP bridge connection
 func InitializeMCPBridge(config mcp.BridgeConfig) error {
@@ -44,6 +42,7 @@ func InitializeMCPBridge(config mcp.BridgeConfig) error {
 		return fmt.Errorf("failed to create MCP bridge")
 	}
 
+	log.Printf("Successfully initialized MCP bridge")
 	return nil
 }
 
@@ -74,45 +73,14 @@ func SendToTNOSMCP(message models.MCPMessage) (*models.MCPMessage, error) {
 		return nil, fmt.Errorf("MCP bridge not initialized")
 	}
 
-	// Create a tool request with the provided parameters
-	params := make(map[string]interface{})
-	params["tool"] = message.Tool
-	for k, v := range message.Parameters {
-		params[k] = v
-	}
-
-	// Build the required request structure for mcp.CallToolRequest
-	toolRequest := struct {
-		Name      string                 `json:"name"`
-		Arguments map[string]interface{} `json:"arguments"`
-	}{
-		Name:      message.Tool,
-		Arguments: message.Parameters,
-	}
-
-	// Create JSON string from the request
-	requestJSON, err := json.Marshal(toolRequest)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal tool request: %w", err)
-	}
-
 	// Send the request via the bridge
 	startTime := time.Now()
-	result, err := mcpBridge.SendRequest(struct {
-		Params struct {
-			Name      string
-			Arguments map[string]interface{}
-		}
-	}{
-		Params: struct {
-			Name      string
-			Arguments map[string]interface{}
-		}{
+	result, err := mcpBridge.SendRequest(mcp.CallToolRequest{
+		Params: mcp.CallToolParams{
 			Name:      message.Tool,
 			Arguments: message.Parameters,
 		},
 	})
-
 	if err != nil {
 		log.Printf("Error sending request to MCP bridge: %v", err)
 		return nil, fmt.Errorf("bridge communication error: %w", err)
@@ -130,21 +98,26 @@ func SendToTNOSMCP(message models.MCPMessage) (*models.MCPMessage, error) {
 	}
 
 	// Extract result from response
-	if result != nil && len(result.Contents) > 0 {
-		for _, content := range result.Contents {
-			if content.Type == "text" {
-				// Try to parse the text as JSON first
-				var resultData map[string]interface{}
-				if err := json.Unmarshal([]byte(content.Text), &resultData); err == nil {
-					response.Result = resultData
-				} else {
-					// If not JSON, use as plain text result
-					response.Result["text"] = content.Text
-				}
-			} else if content.Type == "error" {
-				response.Error = &models.MCPError{
-					Message: content.Text,
-				}
+	if result != nil {
+		// Convert the result to JSON
+		resultBytes, err := json.Marshal(result)
+		if err != nil {
+			log.Printf("Error marshaling result: %v", err)
+		} else {
+			// Try to parse the JSON
+			var resultData map[string]interface{}
+			if err := json.Unmarshal(resultBytes, &resultData); err == nil {
+				response.Result = resultData
+			} else {
+				// If parsing fails, store as string
+				response.Result["raw"] = string(resultBytes)
+			}
+		}
+
+		// Check if there's an error field
+		if errMsg, ok := result.Error.(string); ok && errMsg != "" {
+			response.Error = &models.MCPError{
+				Message: errMsg,
 			}
 		}
 	}
