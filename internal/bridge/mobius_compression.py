@@ -15,7 +15,7 @@ import json
 import time
 import math
 import base64
-from typing import Dict, Any, Union
+from typing import Dict, Any, Optional, Tuple
 
 
 class MobiusCompression:
@@ -75,7 +75,7 @@ class MobiusCompression:
             factors = MobiusCompression.extract_context_factors(context)
             B = factors["B"]
             V = factors["V"]
-            I = factors["I"]
+            intent_factor = factors["I"]  # renamed from I to intent_factor to avoid ambiguity
             G = factors["G"]
             F = factors["F"]
             E = factors["E"] if use_energy_factor else 0.3
@@ -83,14 +83,14 @@ class MobiusCompression:
             C_sum = factors["C_sum"]
 
             # Calculate alignment as per Möbius formula
-            alignment = (B + V * I) * math.exp(-t * E)
+            alignment = (B + V * intent_factor) * math.exp(-t * E)
 
             # Numeric representation of the data (can be enhanced in future)
             value = MobiusCompression.get_numeric_representation(data_str)
 
             # Apply the Möbius Compression Formula
             entropy_factor = 1 - (entropy / math.log2(1 + V))
-            numerator = value * B * I * entropy_factor * (G + F)
+            numerator = value * B * intent_factor * entropy_factor * (G + F)
             denominator = E * t + C_sum * entropy + alignment
 
             # Guard against division by zero
@@ -139,7 +139,7 @@ class MobiusCompression:
                     "version": "1.0",
                     "B": B,
                     "V": V,
-                    "I": I,
+                    "I": intent_factor,
                     "G": G,
                     "F": F,
                     "E": E,
@@ -235,7 +235,7 @@ class MobiusCompression:
             # Inverse formula: value = compressed * (E * t + C_sum * entropy + alignment) / (B * I * (1 - entropy/log2(1 + V)) * (G + F))
             B = factors.get("B", MobiusCompression.DEFAULT_FACTORS["B"])
             V = factors.get("V", MobiusCompression.DEFAULT_FACTORS["V"])
-            I = factors.get("I", MobiusCompression.DEFAULT_FACTORS["I"])
+            intent_factor = factors.get("I", MobiusCompression.DEFAULT_FACTORS["I"])
             G = factors.get("G", MobiusCompression.DEFAULT_FACTORS["G"])
             F = factors.get("F", MobiusCompression.DEFAULT_FACTORS["F"])
             E = factors.get("E", MobiusCompression.DEFAULT_FACTORS["E"])
@@ -243,11 +243,11 @@ class MobiusCompression:
             C_sum = factors.get("C_sum", MobiusCompression.DEFAULT_FACTORS["C_sum"])
             
             # Calculate alignment
-            alignment = (B + V * I) * math.exp(-t * E)
+            alignment = (B + V * intent_factor) * math.exp(-t * E)
             
             # Calculate inverse of Möbius formula
             entropy_factor = 1 - (entropy / math.log2(1 + V))
-            denominator = B * I * entropy_factor * (G + F)
+            denominator = B * intent_factor * entropy_factor * (G + F)
             numerator = E * t + C_sum * entropy + alignment
             
             # Guard against division by zero
@@ -343,7 +343,7 @@ class MobiusCompression:
         # Extract context-specific adjustments
         B = factors["B"]
         V = factors["V"]
-        I = factors["I"]
+        intent_factor = factors["I"]  # renamed to avoid ambiguity
         G = factors["G"]
         F = factors["F"]
         E = factors["E"]
@@ -374,7 +374,7 @@ class MobiusCompression:
                 why_factor = 1.2
             elif "Protocol" in str(context["why"]):
                 why_factor = 1.1
-            I *= why_factor
+            intent_factor *= why_factor
             
         # WHEN dimension influences temporal gradient
         if context.get("when"):
@@ -401,7 +401,7 @@ class MobiusCompression:
         return {
             "B": B,
             "V": V,
-            "I": I,
+            "I": intent_factor,
             "G": G,
             "F": F,
             "E": E,
