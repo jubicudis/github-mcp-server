@@ -46,6 +46,46 @@ The script fixes the dependency by using v49 instead of v69:
 **Solution:**
 The fix script removes duplicate package declarations and import statements.
 
+### 4. Gradle Client Connection Issues
+
+**Symptoms:**
+
+- Gradle client fails to connect after VS Code restart
+- Java Language Server not starting correctly
+- Error messages about Gradle daemon not being available
+- Build tasks failing with connection errors
+
+**Solution:**
+The project uses direct Gradle commands via VS Code tasks to manage the Gradle daemon. To ensure it's running properly:
+
+1. Press `Ctrl+Shift+P` (or `Cmd+Shift+P` on macOS)
+2. Select "Tasks: Run Task"
+3. Choose "check-gradle-daemon"
+
+This will check if the daemon is running. You should see output like:
+```
+PID STATUS   INFO
+XXXXX IDLE     8.7
+```
+
+If you need to restart the daemon:
+
+1. Press `Ctrl+Shift+P` (or `Cmd+Shift+P` on macOS)
+2. Select "Tasks: Run Task" 
+3. Choose "restart-gradle-daemon"
+4. After it finishes, run "keep-gradle-daemon-alive" to start a new daemon
+
+This sequence will stop the existing daemon and start a fresh one. To verify:
+3. Choose "check-gradle-daemon"
+
+To verify the daemon is working, you can also run:
+
+1. Press `Ctrl+Shift+P` (or `Cmd+Shift+P` on macOS)
+2. Select "Tasks: Run Task"
+3. Choose "keep-gradle-daemon-alive"
+
+This task runs a simple Gradle task to ensure the daemon is active and responsive.
+
 ## Development Setup
 
 For proper development environment configuration:

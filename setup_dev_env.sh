@@ -21,6 +21,13 @@ export GOFLAGS="-mod=mod"
 export GOPATH="/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS"
 export PATH="$GOPATH/bin:$PATH"
 
+# Ensure the Gradle daemon is running for Java components
+GRADLE_DAEMON_SCRIPT="${GOPATH}/scripts/shell/gradle_persistent_daemon.sh"
+if [ -f "$GRADLE_DAEMON_SCRIPT" ]; then
+    echo "Ensuring Gradle daemon is running..."
+    bash "$GRADLE_DAEMON_SCRIPT"
+fi
+
 # Create go/bin directory if it doesn't exist
 mkdir -p "$GOPATH/bin"
 
