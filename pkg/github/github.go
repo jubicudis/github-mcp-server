@@ -426,7 +426,12 @@ func MapParam(request mcp.CallToolRequest, name string) (map[string]interface{},
 // WHY: To register GitHub tools with MCP
 // HOW: Using MCP registration mechanisms
 // EXTENT: All GitHub MCP tool registration
-func RegisterTools(server *server.Server, getClient GetClientFn, t TranslationHelperFunc) {
+// MCPServer represents the MCP server interface
+type MCPServer interface {
+	RegisterTool(tool mcp.Tool, handler server.ToolHandlerFunc)
+}
+
+func RegisterTools(server MCPServer, getClient GetClientFn, t TranslationHelperFunc) {
 	// WHO: ToolRegistrar
 	// WHAT: Register GitHub tools
 	// WHEN: During server initialization

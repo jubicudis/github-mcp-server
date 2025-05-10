@@ -57,10 +57,7 @@ func NewContextTranslator(
 ) *ContextTranslator {
 	// Create default logger if none provided
 	if logger == nil {
-		logger = log.NewLogger(log.Config{
-			Level:      log.LevelInfo,
-			ConsoleOut: true,
-		})
+		logger = log.NewLogger()
 	}
 
 	return &ContextTranslator{

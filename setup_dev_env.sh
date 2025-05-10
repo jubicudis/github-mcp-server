@@ -15,7 +15,8 @@ GOROOT=$(go env GOROOT)
 export GOROOT
 export PATH="$GOROOT/bin:$PATH"
 export GO111MODULE=on
-export GOFLAGS="-mod=mod"
+# Using standard Go workspace mode with absolute path to go.work
+export GOWORK="/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/go.work"
 
 # Set up workspace-specific GOPATH pointing to the project's location
 export GOPATH="/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS"
@@ -55,7 +56,7 @@ echo
 echo "Development environment set up successfully!"
 echo
 echo "You can now run the following commands:"
-echo "  - Build the server: go build -o bin/github-mcp-server ./cmd/server"
+echo "  - Build the server: go build -mod=readonly -o bin/github-mcp-server ./cmd/server"
 echo "  - Run the server: ./bin/github-mcp-server"
 echo "  - Run tests: go test ./..."
 echo
@@ -67,7 +68,7 @@ echo
 # Handle command line arguments
 if [ "$1" = "run" ]; then
     echo "Building and running GitHub MCP server..."
-    go build -o bin/github-mcp-server ./cmd/server
+    go build -mod=readonly -o bin/github-mcp-server ./cmd/server
     ./bin/github-mcp-server
 elif [ "$1" = "test" ]; then
     echo "Running tests..."

@@ -2,11 +2,16 @@
  * WHO: CodeScanningProvider
  * WHAT: GitHub Code Scanning API integration for MCP
  * WHEN: During code scanning operations
- * WHERE: System Layer 6 (Integration)
+ * WHERE			// Note: Severity parameter kept for API compatibility but not used
+			// in the GitHub API client call as it's not supported in this version
+			_, severityErr := OptionalParam[string](request, "severity")
+			if severityErr != nil {
+				return mcp.NewToolResultError(severityErr.Error()), nil
+			}stem Layer 6 (Integration)
  * WHY: To provide security vulnerability information
  * HOW: Using GitHub Code Scanning API
  * EXTENT: All code scanning alerts and operations
- */
+*/
 
 package github
 
@@ -31,7 +36,7 @@ import (
 // EXTENT: Single alert retrieval
 func GetCodeScanningAlert(getClient GetClientFn, t TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
 	return mcp.NewTool("get_code_scanning_alert",
-			mcp.WithDescription(t("TOOL_GET_CODE_SCANNING_ALERT_DESCRIPTION", "Get details of a specific code scanning alert in a GitHub repository.")),
+			mcp.WithDescription("Get details of a specific code scanning alert in a GitHub repository"),
 			mcp.WithString("owner",
 				mcp.Required(),
 				mcp.Description("The owner of the repository."),
@@ -96,7 +101,7 @@ func GetCodeScanningAlert(getClient GetClientFn, t TranslationHelperFunc) (tool 
 // EXTENT: Repository-wide alert enumeration
 func ListCodeScanningAlerts(getClient GetClientFn, t TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
 	return mcp.NewTool("list_code_scanning_alerts",
-			mcp.WithDescription(t("TOOL_LIST_CODE_SCANNING_ALERTS_DESCRIPTION", "List code scanning alerts in a GitHub repository.")),
+			mcp.WithDescription("List code scanning alerts in a GitHub repository"),
 			mcp.WithString("owner",
 				mcp.Required(),
 				mcp.Description("The owner of the repository."),
@@ -133,16 +138,21 @@ func ListCodeScanningAlerts(getClient GetClientFn, t TranslationHelperFunc) (too
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			severity, err := OptionalParam[string](request, "severity")
+			_, err := OptionalParam[string](request, "severity")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
+			// Note: Severity field not supported in this version of the GitHub API
 
 			client, err := getClient(ctx)
 			if err != nil {
 				return nil, fmt.Errorf("failed to get GitHub client: %w", err)
 			}
-			alerts, resp, err := client.CodeScanning.ListAlertsForRepo(ctx, owner, repo, &github.AlertListOptions{Ref: ref, State: state, Severity: severity})
+			opts := &github.AlertListOptions{
+				Ref:   ref,
+				State: state,
+			}
+			alerts, resp, err := client.CodeScanning.ListAlertsForRepo(ctx, owner, repo, opts)
 			if err != nil {
 				return nil, fmt.Errorf("failed to list alerts: %w", err)
 			}
