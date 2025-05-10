@@ -138,7 +138,7 @@ func ListCodeScanningAlerts(getClient GetClientFn, t TranslationHelperFunc) (too
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			_, err := OptionalParam[string](request, "severity")
+			_, err = OptionalParam[string](request, "severity")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
