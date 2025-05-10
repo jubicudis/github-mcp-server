@@ -27,7 +27,9 @@ import (
 func Test_GetCodeScanningAlert(t *testing.T) {
 	// Verify tool definition once
 	mockClient := NewClient(nil)
-	tool, _ := GetCodeScanningAlert(testutil.StubGetClientFn(mockClient), translations.NullTranslationHelper)
+	tool, _ := GetCodeScanningAlert(testutil.StubGetClientFn(mockClient), func(ctx context.Context, key string, args ...interface{}) string {
+		return translations.NullTranslationHelper.Translate(ctx, key, args...)
+	})
 	assert.NotEmpty(t, tool.Description)
 	assert.Contains(t, tool.InputSchema.Properties, "owner")
 	assert.Contains(t, tool.InputSchema.Properties, "repo")
@@ -123,8 +125,10 @@ func Test_GetCodeScanningAlert(t *testing.T) {
 	}
 }
 
-func Test_ListCodeScanningAlerts(t *testing.T) {
-	// Verify tool definition once
+	mockClient := NewClient(nil)
+	tool, _ := ListCodeScanningAlerts(testutil.StubGetClientFn(mockClient), func(ctx context.Context, key string, args ...interface{}) string {
+		return translations.NullTranslationHelper.Translate(ctx, key, args...)
+	})
 	mockClient := NewClient(nil)
 	tool, _ := ListCodeScanningAlerts(testutil.StubGetClientFn(mockClient), translations.NullTranslationHelper)
 	assert.NotEmpty(t, tool.Description)
