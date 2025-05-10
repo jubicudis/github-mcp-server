@@ -19,6 +19,8 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	
+	"tranquility-neuro-os/github-mcp-server/pkg/translations"
 	"strings"
 	"sync"
 	"time"
@@ -27,22 +29,8 @@ import (
 	"golang.org/x/oauth2"
 )
 
-// ContextVector7D is defined in context_translator.go
-// This struct represents the 7-dimensional context vector used in GitHub MCP
-
-// ToMap converts ContextVector7D to a map representation
-func (cv *ContextVector7D) ToMap() map[string]interface{} {
-	return map[string]interface{}{
-		"who":    cv.Who,
-		"what":   cv.What,
-		"when":   cv.When,
-		"where":  cv.Where,
-		"why":    cv.Why,
-		"how":    cv.How,
-		"extent": cv.Extent,
-		"meta":   cv.Meta,
-	}
-}
+// We use translations.ContextVector7D defined in the translations package
+// Use translations.ToMap() function to convert the context vector to a map
 
 // We're using the Logger interface defined in client_adapter.go
 // Additional methods can be handled through interface composition if needed
@@ -132,7 +120,7 @@ type Client struct {
 	graphQLURL  *url.URL
 
 	// Context for requests
-	context *ContextVector7D
+	context *translations.ContextVector7D
 
 	// Cache for common operations
 	cache         map[string]*cacheItem
@@ -219,7 +207,7 @@ func NewAdvancedClient(options ClientOptions) (*Client, error) {
 
 	// Create 7D context for the client
 	now := time.Now().Unix()
-	contextVector := &ContextVector7D{
+	contextVector := &translations.ContextVector7D{
 		Who:    "GitHubClient",
 		What:   "GitHubIntegration",
 		When:   now,
@@ -250,7 +238,7 @@ func NewAdvancedClient(options ClientOptions) (*Client, error) {
 }
 
 // SetContext updates the client context
-func (c *Client) SetContext(context *ContextVector7D) {
+func (c *Client) SetContext(context *translations.ContextVector7D) {
 	// WHO: ContextManager
 	// WHAT: Update context
 	// WHEN: During context changes

@@ -17,6 +17,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+	
+	"tranquility-neuro-os/github-mcp-server/pkg/translations"
 )
 
 // Logger defines a custom logger interface that supports structured logging
@@ -41,7 +43,7 @@ type ClientCompatibilityAdapter struct {
 	logger Logger
 
 	// Legacy context data
-	legacyContext ContextVector7D
+	legacyContext translations.ContextVector7D
 
 	// Advanced client reference
 	advancedClient *Client
@@ -59,7 +61,7 @@ func NewClientCompatibilityAdapter(token string, logger Logger) *ClientCompatibi
 
 	// Initialize context
 	now := time.Now().Unix()
-	ctx := ContextVector7D{
+	ctx := translations.ContextVector7D{
 		Who:    "GitHubClient",
 		What:   "APIClient",
 		When:   now,
@@ -627,7 +629,7 @@ func (a *ClientCompatibilityAdapter) ApplyMobiusCompression(data interface{}) (m
 }
 
 // WithContext creates a copy of the client with updated context
-func (a *ClientCompatibilityAdapter) WithContext(ctx ContextVector7D) *ClientCompatibilityAdapter {
+func (a *ClientCompatibilityAdapter) WithContext(ctx translations.ContextVector7D) *ClientCompatibilityAdapter {
 	// WHO: ContextUpdater
 	// WHAT: Update client context
 	// WHEN: During context operations
@@ -645,7 +647,7 @@ func (a *ClientCompatibilityAdapter) WithContext(ctx ContextVector7D) *ClientCom
 }
 
 // GetContext returns the current context
-func (a *ClientCompatibilityAdapter) GetContext() ContextVector7D {
+func (a *ClientCompatibilityAdapter) GetContext() translations.ContextVector7D {
 	// WHO: ContextProvider
 	// WHAT: Get client context
 	// WHEN: During context operations
@@ -658,7 +660,7 @@ func (a *ClientCompatibilityAdapter) GetContext() ContextVector7D {
 }
 
 // CreateContext creates a new context with the given values
-func (a *ClientCompatibilityAdapter) CreateContext(what, why string, extent float64) ContextVector7D {
+func (a *ClientCompatibilityAdapter) CreateContext(what, why string, extent float64) translations.ContextVector7D {
 	// WHO: ContextCreator
 	// WHAT: Create new context
 	// WHEN: During context operations
@@ -668,7 +670,7 @@ func (a *ClientCompatibilityAdapter) CreateContext(what, why string, extent floa
 	// EXTENT: Context management operations
 
 	now := time.Now().Unix()
-	return ContextVector7D{
+	return translations.ContextVector7D{
 		Who:    a.legacyContext.Who,
 		What:   what,
 		When:   now,
