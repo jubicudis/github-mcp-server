@@ -14,9 +14,10 @@ import (
 	"io"
 	"net/http"
 
+	"tranquility-neuro-os/github-mcp-server/pkg/translations"
+
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
-	"github.com/mark3labs/mcp-go/translations"
 )
 
 // WHO: ConstantsManager
@@ -44,6 +45,7 @@ const (
 )
 
 // GetClientFn is defined in common.go
+// TranslationHelperFunc from translations package is used for string translations
 
 // WHO: ServerInitializer
 // WHAT: MCP Server Configuration
@@ -88,7 +90,7 @@ func NewServer(getClient GetClientFn, version string, readOnly bool, t translati
 // WHY: To provide access to GitHub resources
 // HOW: By defining resource templates for different access patterns
 // EXTENT: All GitHub resource types
-func registerResourceTemplates(s *server.MCPServer, getClient GetClientFn, t TranslationHelperFunc) {
+func registerResourceTemplates(s *server.MCPServer, getClient GetClientFn, t translations.TranslationHelperFunc) {
 	s.AddResourceTemplate(GetRepositoryResourceContent(getClient, t))
 	s.AddResourceTemplate(GetRepositoryResourceBranchContent(getClient, t))
 	s.AddResourceTemplate(GetRepositoryResourceCommitContent(getClient, t))
@@ -103,7 +105,7 @@ func registerResourceTemplates(s *server.MCPServer, getClient GetClientFn, t Tra
 // WHY: To provide GitHub issue operations
 // HOW: By registering issue-related tools
 // EXTENT: All issue operations
-func registerIssueTools(s *server.MCPServer, getClient GetClientFn, t TranslationHelperFunc, readOnly bool) {
+func registerIssueTools(s *server.MCPServer, getClient GetClientFn, t translations.TranslationHelperFunc, readOnly bool) {
 	// Import GetIssue from issues.go instead of using the local function
 	s.AddTool(GetIssue(getClient, t))
 	s.AddTool(SearchIssues(getClient, t))
@@ -124,7 +126,7 @@ func registerIssueTools(s *server.MCPServer, getClient GetClientFn, t Translatio
 // WHY: To provide GitHub PR operations
 // HOW: By registering PR-related tools
 // EXTENT: All pull request operations
-func registerPRTools(s *server.MCPServer, getClient GetClientFn, t TranslationHelperFunc, readOnly bool) {
+func registerPRTools(s *server.MCPServer, getClient GetClientFn, t translations.TranslationHelperFunc, readOnly bool) {
 	s.AddTool(GetPullRequest(getClient, t))
 	s.AddTool(ListPullRequests(getClient, t))
 	s.AddTool(GetPullRequestFiles(getClient, t))
@@ -148,7 +150,7 @@ func registerPRTools(s *server.MCPServer, getClient GetClientFn, t TranslationHe
 // WHY: To provide GitHub repository operations
 // HOW: By registering repository-related tools
 // EXTENT: All repository operations
-func registerRepositoryTools(s *server.MCPServer, getClient GetClientFn, t TranslationHelperFunc, readOnly bool) {
+func registerRepositoryTools(s *server.MCPServer, getClient GetClientFn, t translations.TranslationHelperFunc, readOnly bool) {
 	s.AddTool(SearchRepositories(getClient, t))
 	s.AddTool(GetFileContents(getClient, t))
 	s.AddTool(GetCommit(getClient, t))
@@ -171,7 +173,7 @@ func registerRepositoryTools(s *server.MCPServer, getClient GetClientFn, t Trans
 // WHY: To provide GitHub search operations
 // HOW: By registering search-related tools
 // EXTENT: All search operations
-func registerSearchTools(s *server.MCPServer, getClient GetClientFn, t TranslationHelperFunc) {
+func registerSearchTools(s *server.MCPServer, getClient GetClientFn, t translations.TranslationHelperFunc) {
 	s.AddTool(SearchCode(getClient, t))
 	s.AddTool(SearchUsers(getClient, t))
 }
@@ -183,7 +185,7 @@ func registerSearchTools(s *server.MCPServer, getClient GetClientFn, t Translati
 // WHY: To provide GitHub user operations
 // HOW: By registering user-related tools
 // EXTENT: All user operations
-func registerUserTools(s *server.MCPServer, getClient GetClientFn, t TranslationHelperFunc) {
+func registerUserTools(s *server.MCPServer, getClient GetClientFn, t translations.TranslationHelperFunc) {
 	s.AddTool(GetMe(getClient, t))
 }
 
@@ -194,7 +196,7 @@ func registerUserTools(s *server.MCPServer, getClient GetClientFn, t Translation
 // WHY: To provide GitHub code scanning operations
 // HOW: By registering code scanning-related tools
 // EXTENT: All code scanning operations
-func registerCodeScanningTools(s *server.MCPServer, getClient GetClientFn, t TranslationHelperFunc) {
+func registerCodeScanningTools(s *server.MCPServer, getClient GetClientFn, t translations.TranslationHelperFunc) {
 	s.AddTool(GetCodeScanningAlert(getClient, t))
 	s.AddTool(ListCodeScanningAlerts(getClient, t))
 }
@@ -206,7 +208,7 @@ func registerCodeScanningTools(s *server.MCPServer, getClient GetClientFn, t Tra
 // WHY: To provide user identity information
 // HOW: By fetching authenticated user details from GitHub
 // EXTENT: User identification
-func GetMe(getClient GetClientFn, t TranslationHelperFunc) (mcp.Tool, server.ToolHandlerFunc) {
+func GetMe(getClient GetClientFn, t translations.TranslationHelperFunc) (mcp.Tool, server.ToolHandlerFunc) {
 	return mcp.NewTool("get_me",
 			mcp.WithDescription("Get details of the authenticated GitHub user. Use this when a request include \"me\", \"my\"..."),
 			mcp.WithString("reason",

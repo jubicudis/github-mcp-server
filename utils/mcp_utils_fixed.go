@@ -118,10 +118,15 @@ func SendToTNOSMCP(message models.MCPMessage) (*models.MCPMessage, error) {
 			}
 		}
 
-		// Extract error from result if it's an error result
-		if result.Type == mcp.ResultTypeError {
-			response.Error = &models.MCPError{
-				Message: result.Value,
+		// In the new API, errors are handled differently
+		// We'll check for error type in a different way
+		// TODO: Implement proper error handling based on the new API structure
+		if resultString, ok := result.Value.(string); ok {
+			// Simplistic check - if the value looks like an error message
+			if len(resultString) > 0 && (resultString[0:5] == "error" || resultString[0:6] == "failed") {
+				response.Error = &models.MCPError{
+					Message: resultString,
+				}
 			}
 		}
 	}

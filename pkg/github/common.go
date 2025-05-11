@@ -30,6 +30,15 @@ func Ptr[T any](v T) *T {
 // StringTranslationFunc defines a function type for string translations
 type StringTranslationFunc func(key string, defaultValue string) string
 
+// WHO: ContextTranslator
+// WHAT: Context translation function type
+// WHEN: During API operations
+// WHERE: System Layer 6 (Integration)
+// WHY: To translate between context formats
+// HOW: Using context mapping with 7D awareness
+// EXTENT: All context translation operations
+type ContextTranslationFunc func(ctx context.Context, contextData map[string]interface{}) (map[string]interface{}, error)
+
 // WHO: PaginationManager
 // WHAT: Pagination Parameter Structure
 // WHEN: During parameter processing

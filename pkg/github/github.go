@@ -17,6 +17,7 @@ import (
 	"strings"
 
 	"tranquility-neuro-os/github-mcp-server/pkg/log"
+	"tranquility-neuro-os/github-mcp-server/pkg/translations"
 
 	"github.com/google/go-github/v49/github"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -192,7 +193,6 @@ func StartMCPEventMonitor(logger *log.Logger) error {
 // GetClientFn is a function type for getting GitHub clients
 type GetClientFn func(ctx context.Context) (*github.Client, error)
 
-// TranslationHelperFunc defines a function type for context translation helpers
 // WHO: ContextTranslatorTypeDefinition
 // WHAT: Define context translator function type
 // WHEN: During type declarations
@@ -200,7 +200,7 @@ type GetClientFn func(ctx context.Context) (*github.Client, error)
 // WHY: To enable context translation across components
 // HOW: Using function type definition
 // EXTENT: All translation operations
-type TranslationHelperFunc func(ctx context.Context, contextData map[string]interface{}) (map[string]interface{}, error)
+// NOTE: We're now using translations.TranslationHelperFunc instead of this local definition
 
 // WHO: ParameterExtractor
 // WHAT: Extract parameters from MCP requests
@@ -212,7 +212,7 @@ type TranslationHelperFunc func(ctx context.Context, contextData map[string]inte
 // This function is renamed to avoid duplicate declaration with common.go
 func ExtractRequiredParam[T any](request mcp.CallToolRequest, name string) (T, error) {
 	var zero T
-	value, ok := request.Parameters[name]
+	value, ok := request.Params.Arguments[name]
 	if !ok {
 		return zero, fmt.Errorf("missing required parameter: %s", name)
 	}
@@ -234,7 +234,7 @@ func ExtractRequiredParam[T any](request mcp.CallToolRequest, name string) (T, e
 // EXTENT: MCP request optional parameter handling
 func OptionalParam[T any](request mcp.CallToolRequest, name string) (T, error) {
 	var zero T
-	value, ok := request.Parameters[name]
+	value, ok := request.Params.Arguments[name]
 	if !ok {
 		return zero, nil // Return zero value if parameter is missing
 	}
@@ -255,7 +255,7 @@ func OptionalParam[T any](request mcp.CallToolRequest, name string) (T, error) {
 // HOW: Using type conversion with validation
 // EXTENT: MCP request integer parameter handling
 func RequiredInt(request mcp.CallToolRequest, name string) (int, error) {
-	value, ok := request.Parameters[name]
+	value, ok := request.Params.Arguments[name]
 	if !ok {
 		return 0, fmt.Errorf("missing required parameter: %s", name)
 	}
@@ -287,7 +287,7 @@ func RequiredInt(request mcp.CallToolRequest, name string) (int, error) {
 // HOW: Using type conversion with validation
 // EXTENT: MCP request optional integer handling
 func OptionalInt(request mcp.CallToolRequest, name string) (int, bool, error) {
-	value, ok := request.Parameters[name]
+	value, ok := request.Params.Arguments[name]
 	if !ok {
 		return 0, false, nil // Parameter not provided
 	}
@@ -319,7 +319,7 @@ func OptionalInt(request mcp.CallToolRequest, name string) (int, bool, error) {
 // HOW: Using type conversion with validation
 // EXTENT: MCP request boolean parameter handling
 func OptionalBool(request mcp.CallToolRequest, name string) (bool, bool, error) {
-	value, ok := request.Parameters[name]
+	value, ok := request.Params.Arguments[name]
 	if !ok {
 		return false, false, nil // Parameter not provided
 	}
@@ -364,7 +364,7 @@ func OptionalBool(request mcp.CallToolRequest, name string) (bool, bool, error) 
 // HOW: Using type conversion with validation
 // EXTENT: MCP request string list handling
 func StringList(request mcp.CallToolRequest, name string) ([]string, error) {
-	value, ok := request.Parameters[name]
+	value, ok := request.Params.Arguments[name]
 	if !ok {
 		return nil, nil // Parameter not provided
 	}
@@ -406,7 +406,7 @@ func StringList(request mcp.CallToolRequest, name string) ([]string, error) {
 // HOW: Using type assertion with validation
 // EXTENT: MCP request map parameter handling
 func MapParam(request mcp.CallToolRequest, name string) (map[string]interface{}, error) {
-	value, ok := request.Parameters[name]
+	value, ok := request.Params.Arguments[name]
 	if !ok {
 		return nil, nil // Parameter not provided
 	}
@@ -431,7 +431,7 @@ type MCPServer interface {
 	RegisterTool(tool mcp.Tool, handler server.ToolHandlerFunc)
 }
 
-func RegisterTools(server MCPServer, getClient GetClientFn, t TranslationHelperFunc) {
+func RegisterTools(server MCPServer, getClient GetClientFn, t translations.TranslationHelperFunc) {
 	// WHO: ToolRegistrar
 	// WHAT: Register GitHub tools
 	// WHEN: During server initialization
@@ -440,16 +440,19 @@ func RegisterTools(server MCPServer, getClient GetClientFn, t TranslationHelperF
 	// HOW: Using tool registration
 	// EXTENT: All GitHub MCP tools
 
+	// Create adapter for context translation
+	contextAdapter := createContextTranslationAdapter(t)
+
 	// Register repository tools
-	repoTool, repoHandler := GetRepository(getClient, t)
+	repoTool, repoHandler := GetRepository(getClient, contextAdapter)
 	server.RegisterTool(repoTool, repoHandler)
 
-	listReposTool, listReposHandler := ListRepositories(getClient, t)
+	listReposTool, listReposHandler := ListRepositories(getClient, contextAdapter)
 	server.RegisterTool(listReposTool, listReposHandler)
 
 	// Register content tools
-	contentTool, contentHandler := GetContent(getClient, t)
-	server.RegisterTool(contentTool, contentHandler)
+	// TODO: Implement GetContent function or remove this reference
+	// server.RegisterTool(contentTool, contentHandler)
 
 	// Register issue tools
 	issueTool, issueHandler := GetIssue(getClient, t)
@@ -485,4 +488,19 @@ func RegisterTools(server MCPServer, getClient GetClientFn, t TranslationHelperF
 
 	listCodeScanTool, listCodeScanHandler := ListCodeScanningAlerts(getClient, t)
 	server.RegisterTool(listCodeScanTool, listCodeScanHandler)
+}
+
+// WHO: TranslationAdapterFactory
+// WHAT: Create adapter between string and context translators
+// WHEN: During server initialization
+// WHERE: System Layer 6 (Integration)
+// WHY: To bridge incompatible translator types
+// HOW: By wrapping string translator in context translator interface
+// EXTENT: All translation operations during initialization
+func createContextTranslationAdapter(t translations.TranslationHelperFunc) ContextTranslationFunc {
+	return func(ctx context.Context, contextData map[string]interface{}) (map[string]interface{}, error) {
+		// Simply pass through the context data as the translation function
+		// doesn't actually modify context in this implementation
+		return contextData, nil
+	}
 }

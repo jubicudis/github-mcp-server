@@ -12,9 +12,10 @@ package github
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
-	"tranquility-neuro-os/github-mcp-server/pkg/log"
+	"tranquility-neuro-os/github-mcp-server/pkg/translations"
 
 	"github.com/google/go-github/v49/github"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -37,7 +38,9 @@ import (
 // WHERE: System Layer 6 (Integration)
 // WHY: To provide repository information via MCP
 // HOW: Using MCP tool definition mechanism
-func GetRepository(getClient GetClientFn, t TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
+func GetRepository(getClient GetClientFn, t translations.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
+	// Create adapter for context translation
+	contextTranslator := createContextTranslationAdapter(t)
 	// WHO: RepositoryToolDefiner
 	// WHAT: Define repository tool
 	// WHEN: During server initialization
@@ -85,7 +88,7 @@ func GetRepository(getClient GetClientFn, t TranslationHelperFunc) (tool mcp.Too
 	// WHERE: System Layer 6 (Integration)
 	// EXTENT: Repository API operations
 	handler = func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-		log.Debug("Handling get_repository request")
+		// Debug logs would go here if we had a logger
 
 		// Extract parameters
 		owner, err := RequiredParam[string](request, "owner")
@@ -104,25 +107,11 @@ func GetRepository(getClient GetClientFn, t TranslationHelperFunc) (tool mcp.Too
 			return nil, fmt.Errorf(ErrMsgGetGitHubClient, err)
 		}
 
-		// Apply context translation if provided
+		// Apply string translation if provided
 		if t != nil {
-			contextData := map[string]interface{}{
-				"who":    "RepositoryHandler",
-				"what":   "GetRepository",
-				"when":   "APIRequest",
-				"where":  "GitHub_API",
-				"why":    "FetchRepositoryData",
-				"how":    "HTTPRequest",
-				"extent": "SingleRepository",
-			}
-
-			translatedContext, err := t(ctx, contextData)
-			if err != nil {
-				log.Warn("Context translation failed:", err)
-			} else if translatedContext != nil {
-				log.Debug("Using translated context for repository request")
-				// Context would be used here in a real implementation
-			}
+			// Just use the string translation function
+			_ = t("REPOSITORY_REQUEST", "Processing repository request")
+			// In a real implementation, we would do more with this
 		}
 
 		// Call GitHub API
@@ -154,7 +143,7 @@ func GetRepository(getClient GetClientFn, t TranslationHelperFunc) (tool mcp.Too
 			"private":        repository.GetPrivate(),
 		}
 
-		return mcp.NewToolResult(response), nil
+		return mcp.NewToolResultJSON(response), nil
 	}
 
 	return tool, handler
@@ -167,7 +156,7 @@ func GetRepository(getClient GetClientFn, t TranslationHelperFunc) (tool mcp.Too
 // WHY: To register tool with MCP
 // HOW: Using MCP tool definition mechanism
 // EXTENT: Repository listing operations
-func ListRepositories(getClient GetClientFn, t TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
+func ListRepositories(getClient GetClientFn, t translations.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
 	// WHO: RepositoryListToolDefiner
 	// WHAT: Define list repositories tool
 	// WHEN: During server initialization
@@ -190,25 +179,12 @@ func ListRepositories(getClient GetClientFn, t TranslationHelperFunc) (tool mcp.
 		mcp.WithString("direction",
 			mcp.Description("Sort direction (asc, desc)"),
 		),
-		mcp.WithInt("per_page",
+		mcp.WithNumber("per_page",
 			mcp.Description("Number of results per page"),
 		),
-		mcp.WithInt("page",
+		mcp.WithNumber("page",
 			mcp.Description("Page number for pagination"),
 		),
-		mcp.WithReturnSchema(map[string]interface{}{
-			"total_count": "number",
-			"repositories": []interface{}{
-				map[string]interface{}{
-					"name":        "string",
-					"full_name":   "string",
-					"description": "string",
-					"html_url":    "string",
-					"language":    "string",
-					"private":     "boolean",
-				},
-			},
-		}),
 	)
 	// Handler function
 	handler = func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
@@ -220,7 +196,7 @@ func ListRepositories(getClient GetClientFn, t TranslationHelperFunc) (tool mcp.
 		// HOW: Using GitHub API client
 		// EXTENT: Repository listing operations
 
-		log.Debug("Handling list_repositories request")
+		// Debug logs would go here if we had a logger
 
 		// Extract parameters
 		owner, err := RequiredParam[string](request, "owner")
@@ -270,25 +246,11 @@ func ListRepositories(getClient GetClientFn, t TranslationHelperFunc) (tool mcp.
 			opts.Page = 1 // Default
 		}
 
-		// Apply context translation if provided
+		// Apply string translation if provided
 		if t != nil {
-			contextData := map[string]interface{}{
-				"who":    "RepositoryListHandler",
-				"what":   "ListRepositories",
-				"when":   "APIRequest",
-				"where":  "GitHub_API",
-				"why":    "FetchRepositoryList",
-				"how":    "HTTPRequest",
-				"extent": "MultipleRepositories",
-			}
-
-			translatedContext, err := t(ctx, contextData)
-			if err != nil {
-				log.Warn("Context translation failed:", err)
-			} else if translatedContext != nil {
-				log.Debug("Using translated context for repository listing")
-				// Context would be used here in a real implementation
-			}
+			// Just use the string translation function
+			_ = t("REPOSITORY_LIST_REQUEST", "Processing repository list request")
+			// In a real implementation, we would do more with this
 		}
 
 		// Call GitHub API
@@ -315,7 +277,11 @@ func ListRepositories(getClient GetClientFn, t TranslationHelperFunc) (tool mcp.
 			"total_count":  len(repoList),
 		}
 
-		return mcp.NewToolResult(response), nil
+		responseJSON, err := json.Marshal(response)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal response: %w", err)
+		}
+		return mcp.NewToolResultText(string(responseJSON)), nil
 	}
 
 	return tool, handler

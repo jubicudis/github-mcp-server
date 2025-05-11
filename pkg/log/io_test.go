@@ -459,6 +459,13 @@ type MockLogger struct {
 // Add a compile-time check to ensure MockLogger implements Logger
 var _ Logger = (*MockLogger)(nil)
 
+// This type assertion verifies that MockLogger implements the Logger interface
+
+// Ensure MockLogger implements all required methods of Logger interface
+func (m *MockLogger) Init() error {
+	return nil
+}
+
 func (m *MockLogger) Debug(args ...interface{}) {
 	if m.DebugFunc != nil {
 		m.DebugFunc(args...)
@@ -523,14 +530,52 @@ func (m *MockLogger) With(key string, value interface{}) Logger {
 	if m.WithFunc != nil {
 		return m.WithFunc(key, value)
 	}
-	return m
+	// Create a new logger instance to avoid type mismatch
+	newLogger := &MockLogger{
+		DebugFunc:       m.DebugFunc,
+		DebugfFunc:      m.DebugfFunc,
+		InfoFunc:        m.InfoFunc,
+		InfofFunc:       m.InfofFunc,
+		WarnFunc:        m.WarnFunc,
+		WarnfFunc:       m.WarnfFunc,
+		ErrorFunc:       m.ErrorFunc,
+		ErrorfFunc:      m.ErrorfFunc,
+		FatalFunc:       m.FatalFunc,
+		FatalfFunc:      m.FatalfFunc,
+		PanicFunc:       m.PanicFunc,
+		PanicfFunc:      m.PanicfFunc,
+		WithFunc:        m.WithFunc,
+		WithMapFunc:     m.WithMapFunc,
+		WithErrorFunc:   m.WithErrorFunc,
+		WithContextFunc: m.WithContextFunc,
+	}
+	return newLogger
 }
 
 func (m *MockLogger) WithMap(fields map[string]interface{}) Logger {
 	if m.WithMapFunc != nil {
 		return m.WithMapFunc(fields)
 	}
-	return m
+	// Create a new logger instance to avoid type mismatch
+	newLogger := &MockLogger{
+		DebugFunc:       m.DebugFunc,
+		DebugfFunc:      m.DebugfFunc,
+		InfoFunc:        m.InfoFunc,
+		InfofFunc:       m.InfofFunc,
+		WarnFunc:        m.WarnFunc,
+		WarnfFunc:       m.WarnfFunc,
+		ErrorFunc:       m.ErrorFunc,
+		ErrorfFunc:      m.ErrorfFunc,
+		FatalFunc:       m.FatalFunc,
+		FatalfFunc:      m.FatalfFunc,
+		PanicFunc:       m.PanicFunc,
+		PanicfFunc:      m.PanicfFunc,
+		WithFunc:        m.WithFunc,
+		WithMapFunc:     m.WithMapFunc,
+		WithErrorFunc:   m.WithErrorFunc,
+		WithContextFunc: m.WithContextFunc,
+	}
+	return newLogger
 }
 
 func (m *MockLogger) Panic(args ...interface{}) {
@@ -551,9 +596,29 @@ func (m *MockLogger) WithError(err error) Logger {
 	}
 	return m
 }
+
 func (m *MockLogger) WithContext(ctx interface{}) Logger {
 	if m.WithContextFunc != nil {
 		return m.WithContextFunc(ctx)
 	}
-	return m // No need for type conversion, MockLogger already implements Logger
+	// Create a new logger instance to avoid type mismatch
+	newLogger := &MockLogger{
+		DebugFunc:       m.DebugFunc,
+		DebugfFunc:      m.DebugfFunc,
+		InfoFunc:        m.InfoFunc,
+		InfofFunc:       m.InfofFunc,
+		WarnFunc:        m.WarnFunc,
+		WarnfFunc:       m.WarnfFunc,
+		ErrorFunc:       m.ErrorFunc,
+		ErrorfFunc:      m.ErrorfFunc,
+		FatalFunc:       m.FatalFunc,
+		FatalfFunc:      m.FatalfFunc,
+		PanicFunc:       m.PanicFunc,
+		PanicfFunc:      m.PanicfFunc,
+		WithFunc:        m.WithFunc,
+		WithMapFunc:     m.WithMapFunc,
+		WithErrorFunc:   m.WithErrorFunc,
+		WithContextFunc: m.WithContextFunc,
+	}
+	return newLogger
 }

@@ -22,6 +22,18 @@ import (
 )
 
 // WHO: ExecutionEntrypoint
+// WHAT: Main function as program entry point
+// WHEN: During program execution
+// WHERE: System Layer 6 (Integration)
+// WHY: To serve as the application entry point
+// HOW: Using Go's standard main function pattern
+// EXTENT: Program initialization
+func main() {
+	// Call the example function that demonstrates imports
+	importExampleMain()
+}
+
+// WHO: ExecutionEntrypoint
 // WHAT: Main function demonstrating imports
 // WHEN: During program execution
 // WHERE: System Layer 6 (Integration)
@@ -36,11 +48,9 @@ func importExampleMain() {
 	// WHY: To establish proper logging and context
 	// HOW: Using the log package with debug configuration
 	// EXTENT: MCP Bridge initialization
-	logger := log.NewLogger(log.Config{
-		Level:      log.LevelDebug,
-		ConsoleOut: true,
-		FileOut:    false,
-	})
+	logger := log.NewLogger()
+	logger.WithLevel(log.LevelDebug)
+	logger.WithOutput(os.Stdout)
 
 	logger.Info("Starting MCP Bridge Import Test",
 		"timestamp", time.Now().Format(time.RFC3339),
@@ -141,10 +151,20 @@ func importExampleMain() {
 	logger.Info("Translating GitHub context to TNOS 7D...")
 	tnosContext := translations.MCPContextToTNOS(githubContext)
 
-	// Apply compression (compression-first approach)
+	// WHO: CompressionEngine
+	// WHAT: Compress the translated context
+	// WHEN: After translation
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To maintain compression-first approach
+	// HOW: Using specialized translation compression
+	// EXTENT: Translation optimization
 	tnosContext = translations.CompressTranslationContext(tnosContext)
 
-	jsonTNOS, _ := json.MarshalIndent(tnosContext.ToMap(), "", "  ")
+	jsonTNOS, err := json.MarshalIndent(tnosContext.ToMap(), "", "  ")
+	if err != nil {
+		logger.Error("Failed to serialize TNOS context", "error", err.Error())
+		os.Exit(1)
+	}
 
 	fmt.Println("\n=== Translated Context (GitHub → TNOS) ===")
 	fmt.Println(string(jsonTNOS))

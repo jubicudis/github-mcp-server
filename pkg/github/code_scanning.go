@@ -2,16 +2,11 @@
  * WHO: CodeScanningProvider
  * WHAT: GitHub Code Scanning API integration for MCP
  * WHEN: During code scanning operations
- * WHERE			// Note: Severity parameter kept for API compatibility but not used
-			// in the GitHub API client call as it's not supported in this version
-			_, severityErr := OptionalParam[string](request, "severity")
-			if severityErr != nil {
-				return mcp.NewToolResultError(severityErr.Error()), nil
-			}stem Layer 6 (Integration)
+ * WHERE: System Layer 6 (Integration)
  * WHY: To provide security vulnerability information
  * HOW: Using GitHub Code Scanning API
  * EXTENT: All code scanning alerts and operations
-*/
+ */
 
 package github
 
@@ -21,6 +16,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"tranquility-neuro-os/github-mcp-server/pkg/translations"
 
 	"github.com/google/go-github/v49/github"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -34,7 +30,7 @@ import (
 // WHY: To provide vulnerability information
 // HOW: Using GitHub Code Scanning API
 // EXTENT: Single alert retrieval
-func GetCodeScanningAlert(getClient GetClientFn, t TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
+func GetCodeScanningAlert(getClient GetClientFn, t translations.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
 	return mcp.NewTool("get_code_scanning_alert",
 			mcp.WithDescription("Get details of a specific code scanning alert in a GitHub repository"),
 			mcp.WithString("owner",
@@ -99,7 +95,7 @@ func GetCodeScanningAlert(getClient GetClientFn, t TranslationHelperFunc) (tool 
 // WHY: To enumerate security vulnerabilities
 // HOW: Using GitHub Code Scanning API
 // EXTENT: Repository-wide alert enumeration
-func ListCodeScanningAlerts(getClient GetClientFn, t TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
+func ListCodeScanningAlerts(getClient GetClientFn, t translations.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
 	return mcp.NewTool("list_code_scanning_alerts",
 			mcp.WithDescription("List code scanning alerts in a GitHub repository"),
 			mcp.WithString("owner",

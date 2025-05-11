@@ -32,18 +32,18 @@ func StubGetClientFn(client *github.Client) func(context.Context) (*github.Clien
 // CreateMCPRequest creates an MCP request with the provided arguments
 func CreateMCPRequest(args map[string]interface{}) *mcp.CallToolRequest {
 	return &mcp.CallToolRequest{
-		Args: args,
+		Params: mcp.CallToolParams{
+			Arguments: args,
+		},
 	}
 }
 
 // GetTextResult extracts text content from an MCP result
 func GetTextResult(t *testing.T, result *mcp.CallToolResult) string {
 	require.NotNil(t, result)
-	require.NotNil(t, result.Data)
 
-	text, ok := result.Data.(string)
-	require.True(t, ok, "Result value is not a string")
-	return text
+	// Access the content directly
+	return result.Content
 }
 
 // Ptr returns a pointer to the provided value

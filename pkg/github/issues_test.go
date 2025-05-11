@@ -14,9 +14,10 @@ import (
 	"testing"
 	"time"
 
+	"tranquility-neuro-os/github-mcp-server/pkg/translations"
+
 	"github.com/google/go-github/v49/github"
 	githubMCP "github.com/google/go-github/v49/github"
-	"tranquility-neuro-os/github-mcp-server/pkg/translations"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/migueleliasweb/go-github-mock/src/mock"
 	"github.com/stretchr/testify/assert"
@@ -25,7 +26,7 @@ import (
 
 func Test_GetIssue(t *testing.T) {
 	// Verify tool definition once
-	mockClient := NewClient(nil)
+	mockClient := NewClient("", log.NewNopLogger()) // Empty token and no-op logger for testing
 	tool, _ := GetIssue(stubGetClientFn(mockClient), translations.NullTranslationHelper)
 
 	assert.Equal(t, "get_issue", tool.Name)

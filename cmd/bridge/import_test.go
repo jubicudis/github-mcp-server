@@ -8,12 +8,13 @@
  * EXTENT: Module import demonstration for GitHub MCP Bridge
  */
 
-package main
+package main_test
 
 import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"testing"
 	"time"
 
 	// Import using the module name as defined in go.mod
@@ -22,13 +23,13 @@ import (
 )
 
 // WHO: ExecutionEntrypoint
-// WHAT: Main function demonstrating imports
-// WHEN: During program execution
+// WHAT: Test function demonstrating imports
+// WHEN: During test execution
 // WHERE: System Layer 6 (Integration)
 // WHY: To showcase proper imports
-// HOW: Using standard Go initialization
+// HOW: Using Go testing framework
 // EXTENT: Entire demonstration program
-func main() {
+func TestMCPImports(t *testing.T) {
 	// WHO: MCPBridgeInitializer
 	// WHAT: Initialize MCP Bridge components
 	// WHEN: At program start
@@ -36,11 +37,9 @@ func main() {
 	// WHY: To establish proper logging and context
 	// HOW: Using the log package with debug configuration
 	// EXTENT: MCP Bridge initialization
-	logger := log.NewLogger(log.Config{
-		Level:      log.LevelDebug,
-		ConsoleOut: true,
-		FileOut:    false,
-	})
+	logger := log.NewLogger()
+	logger.WithLevel(log.LevelDebug)
+	logger.WithOutput(os.Stdout)
 
 	logger.Info("Starting MCP Bridge Import Test",
 		"timestamp", time.Now().Format(time.RFC3339),
@@ -92,11 +91,11 @@ func main() {
 	// HOW: Using standard encoding with context preservation
 	// EXTENT: Serialization demonstration
 	contextMap := compressedVector.ToMap()
-	
+
 	jsonData, err := json.MarshalIndent(contextMap, "", "  ")
 	if err != nil {
 		logger.Error("Failed to serialize context", "error", err.Error())
-		os.Exit(1)
+		t.Fatalf("Failed to serialize context: %v", err)
 	}
 
 	// WHO: ResultDisplayer
@@ -110,7 +109,7 @@ func main() {
 	fmt.Println("✅ Successfully imported and used translations package")
 	fmt.Println("✅ Successfully imported and used log package")
 	fmt.Println("✅ Module path resolution is working correctly")
-	
+
 	// WHO: ContextVectorDisplayer
 	// WHAT: Display compressed context vector
 	// WHEN: During results presentation
@@ -120,7 +119,7 @@ func main() {
 	// EXTENT: Context presentation
 	fmt.Println("\n=== Compressed 7D Context Vector ===")
 	fmt.Println(string(jsonData))
-	
+
 	// WHO: GitHubToTNOSTranslator
 	// WHAT: Demonstrate GitHub to TNOS context translation
 	// WHEN: During example execution
@@ -140,14 +139,38 @@ func main() {
 
 	logger.Info("Translating GitHub context to TNOS 7D...")
 	tnosContext := translations.MCPContextToTNOS(githubContext)
-	
-	// Apply compression (compression-first approach)
+
+	// WHO: CompressionEngine
+	// WHAT: Compress the translated context
+	// WHEN: After translation
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To maintain compression-first approach
+	// HOW: Using specialized translation compression
+	// EXTENT: Translation optimization
 	tnosContext = translations.CompressTranslationContext(tnosContext)
-	
-	jsonTNOS, _ := json.MarshalIndent(tnosContext.ToMap(), "", "  ")
-	
+
+	jsonTNOS, err := json.MarshalIndent(tnosContext.ToMap(), "", "  ")
+	if err != nil {
+		logger.Error("Failed to serialize TNOS context", "error", err.Error())
+		t.Fatalf("Failed to serialize TNOS context: %v", err)
+	}
+
+	// WHO: ResultDisplayer
+	// WHAT: Display translated context
+	// WHEN: After translation and compression
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To demonstrate successful translation
+	// HOW: Using formatted JSON output
+	// EXTENT: Translation verification
 	fmt.Println("\n=== Translated Context (GitHub → TNOS) ===")
 	fmt.Println(string(jsonTNOS))
-	
+
+	// WHO: TestCompleter
+	// WHAT: Log test completion
+	// WHEN: End of test execution
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To indicate successful execution
+	// HOW: Using logging system
+	// EXTENT: Final test report
 	logger.Info("Import test completed successfully")
 }
