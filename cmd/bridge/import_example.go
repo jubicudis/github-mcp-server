@@ -28,7 +28,7 @@ import (
 // WHY: To showcase proper imports
 // HOW: Using standard Go initialization
 // EXTENT: Entire demonstration program
-func main() {
+func importExampleMain() {
 	// WHO: MCPBridgeInitializer
 	// WHAT: Initialize MCP Bridge components
 	// WHEN: At program start
@@ -92,7 +92,7 @@ func main() {
 	// HOW: Using standard encoding with context preservation
 	// EXTENT: Serialization demonstration
 	contextMap := compressedVector.ToMap()
-	
+
 	jsonData, err := json.MarshalIndent(contextMap, "", "  ")
 	if err != nil {
 		logger.Error("Failed to serialize context", "error", err.Error())
@@ -110,7 +110,7 @@ func main() {
 	fmt.Println("✅ Successfully imported and used translations package")
 	fmt.Println("✅ Successfully imported and used log package")
 	fmt.Println("✅ Module path resolution is working correctly")
-	
+
 	// WHO: ContextVectorDisplayer
 	// WHAT: Display compressed context vector
 	// WHEN: During results presentation
@@ -120,7 +120,7 @@ func main() {
 	// EXTENT: Context presentation
 	fmt.Println("\n=== Compressed 7D Context Vector ===")
 	fmt.Println(string(jsonData))
-	
+
 	// WHO: GitHubToTNOSTranslator
 	// WHAT: Demonstrate GitHub to TNOS context translation
 	// WHEN: During example execution
@@ -140,14 +140,14 @@ func main() {
 
 	logger.Info("Translating GitHub context to TNOS 7D...")
 	tnosContext := translations.MCPContextToTNOS(githubContext)
-	
+
 	// Apply compression (compression-first approach)
 	tnosContext = translations.CompressTranslationContext(tnosContext)
-	
+
 	jsonTNOS, _ := json.MarshalIndent(tnosContext.ToMap(), "", "  ")
-	
+
 	fmt.Println("\n=== Translated Context (GitHub → TNOS) ===")
 	fmt.Println(string(jsonTNOS))
-	
+
 	logger.Info("Import test completed successfully")
 }

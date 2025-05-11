@@ -199,10 +199,9 @@ func NewBridge(options BridgeOptions) *Bridge {
 
 	// Create default logger if none provided
 	if options.Logger == nil {
-		options.Logger = log.NewLogger(log.Config{
-			Level:      "info", // Changed from log.LevelInfo to string "info"
-			ConsoleOut: true,
-		})
+		options.Logger = log.NewLogger()
+		// Use the correct method to configure logger
+		// If no configuration methods are available, use as is
 	}
 
 	// Create 7D context for the bridge
@@ -602,18 +601,7 @@ func (b *Bridge) readPump() {
 	// HOW: Using message deserialization
 	// EXTENT: All incoming messages
 
-	defer func() {
-		b.options.Logger.Info("Read pump stopping")
-
-		b.mu.Lock()
-		isShutdown := b.isShutdown
-		b.mu.Unlock()
-
-		if !isShutdown {
-			// Try to reconnect if not explicitly shut down
-			go b.reconnect()
-		}
-	}()
+	defer b.handleReadPumpShutdown()
 
 	// Configure read deadline
 	_ = b.conn.SetReadDeadline(time.Now().Add(ReadTimeout))
@@ -628,84 +616,202 @@ func (b *Bridge) readPump() {
 		// Read message
 		_, data, err := b.conn.ReadMessage()
 		if err != nil {
-			if websocket.IsUnexpectedCloseError(
-				err,
-				websocket.CloseNormalClosure,
-				websocket.CloseGoingAway) {
-
-				b.options.Logger.Error("WebSocket read error",
-					"error", err.Error())
-
-				b.mu.Lock()
-				b.stats.errors++
-				b.mu.Unlock()
-			}
+			b.handleReadError(err)
 			break
 		}
 
-		// Parse message
-		var message Message
-		if err := json.Unmarshal(data, &message); err != nil {
-			b.options.Logger.Error("Failed to parse message",
-				"error", err.Error())
-			continue
-		}
+		// Process the message data
+		b.processIncomingMessage(data)
+	}
+}
 
-		// Update stats
+// handleReadPumpShutdown manages the readPump shutdown process
+func (b *Bridge) handleReadPumpShutdown() {
+	// WHO: ShutdownManager
+	// WHAT: Manage read pump shutdown
+	// WHEN: When read pump exits
+	// WHERE: System Layer 6 (Integration)
+	// WHY: For clean shutdown handling
+	// HOW: Using deferred execution
+	// EXTENT: Read pump shutdown process
+
+	b.options.Logger.Info("Read pump stopping")
+
+	b.mu.Lock()
+	isShutdown := b.isShutdown
+	b.mu.Unlock()
+
+	if !isShutdown {
+		// Try to reconnect if not explicitly shut down
+		go b.reconnect()
+	}
+}
+
+// handleReadError processes WebSocket read errors
+func (b *Bridge) handleReadError(err error) {
+	// WHO: ErrorHandler
+	// WHAT: Process WebSocket errors
+	// WHEN: During read failures
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To handle connection issues
+	// HOW: Using error classification
+	// EXTENT: Read error handling
+
+	if websocket.IsUnexpectedCloseError(
+		err,
+		websocket.CloseNormalClosure,
+		websocket.CloseGoingAway) {
+
+		b.options.Logger.Error("WebSocket read error",
+			"error", err.Error())
+
 		b.mu.Lock()
-		b.stats.messagesReceived++
-		b.stats.lastActivity = time.Now()
+		b.stats.errors++
 		b.mu.Unlock()
+	}
+}
 
-		// Process incoming context
-		if message.Context != nil {
-			// Translate MCP context to 7D context
-			incomingContext := translations.TranslateFromMCP(message.Context)
+// processIncomingMessage parses and handles an incoming message
+func (b *Bridge) processIncomingMessage(data []byte) {
+	// WHO: MessageProcessor
+	// WHAT: Process message data
+	// WHEN: When message is received
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To handle incoming messages
+	// HOW: Using message parsing
+	// EXTENT: Single message processing
 
-			// Merge with existing context
-			if b.context != nil {
-				mergedContext := incomingContext.Merge(*b.context) // Store the result first
-				b.context = &mergedContext                         // Then assign the pointer
-			} else {
-				b.context = &incomingContext
-			}
-		}
+	// Parse message
+	var message Message
+	if err := json.Unmarshal(data, &message); err != nil {
+		b.options.Logger.Error("Failed to parse message",
+			"error", err.Error())
+		return
+	}
 
-		// Log message receipt
-		b.options.Logger.Debug("Received message",
-			"id", message.ID,
-			"type", message.Type)
+	// Update stats
+	b.updateMessageStats()
 
-		// Check if this is a response to a waiting request
-		b.mu.Lock()
-		responseCh, isWaiting := b.responseWaiters[message.ID]
-		b.mu.Unlock()
+	// Process incoming context
+	b.processIncomingContext(message)
 
-		if isWaiting {
-			// Send to waiter
-			responseCh <- message
-			continue
-		}
+	// Log message receipt
+	b.options.Logger.Debug("Received message",
+		"id", message.ID,
+		"type", message.Type)
 
-		// Otherwise, dispatch to handler
-		b.mu.Lock()
-		handler, hasHandler := b.handlers[message.Type]
-		b.mu.Unlock()
+	// Handle the parsed message
+	b.routeMessage(message)
+}
 
-		if hasHandler {
-			// Handle in goroutine to avoid blocking
-			go func() {
-				if err := handler(message); err != nil {
-					b.options.Logger.Error("Handler error",
-						"type", message.Type,
-						"id", message.ID,
-						"error", err.Error())
-				}
-			}()
+// updateMessageStats updates the message statistics
+func (b *Bridge) updateMessageStats() {
+	// WHO: StatsUpdater
+	// WHAT: Update message statistics
+	// WHEN: After message receipt
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To track message activity
+	// HOW: Using atomic counter updates
+	// EXTENT: Message statistics
+
+	b.mu.Lock()
+	b.stats.messagesReceived++
+	b.stats.lastActivity = time.Now()
+	b.mu.Unlock()
+}
+
+// processIncomingContext processes context from incoming messages
+func (b *Bridge) processIncomingContext(message Message) {
+	// WHO: ContextProcessor
+	// WHAT: Process message context
+	// WHEN: During message handling
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To maintain context state
+	// HOW: Using context translation
+	// EXTENT: Context processing
+
+	if message.Context != nil {
+		// Translate MCP context to 7D context
+		incomingContext := translations.TranslateFromMCP(message.Context)
+
+		// Merge with existing context
+		if b.context != nil {
+			mergedContext := incomingContext.Merge(*b.context)
+			b.context = &mergedContext
 		} else {
-			b.options.Logger.Debug("No handler for message",
-				"type", message.Type)
+			b.context = &incomingContext
 		}
+	}
+}
+
+// routeMessage sends the message to waiter or handler
+func (b *Bridge) routeMessage(message Message) {
+	// WHO: MessageRouter
+	// WHAT: Route message to destination
+	// WHEN: After message processing
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To deliver message to handler
+	// HOW: Using message routing logic
+	// EXTENT: Message routing
+
+	// Check if this is a response to a waiting request
+	if b.sendToWaiter(message) {
+		return
+	}
+
+	// Otherwise, dispatch to handler
+	b.dispatchToHandler(message)
+}
+
+// sendToWaiter sends message to waiting response channel
+func (b *Bridge) sendToWaiter(message Message) bool {
+	// WHO: ResponseHandler
+	// WHAT: Handle response messages
+	// WHEN: During message routing
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To complete request-response cycle
+	// HOW: Using channel communication
+	// EXTENT: Response handling
+
+	b.mu.Lock()
+	responseCh, isWaiting := b.responseWaiters[message.ID]
+	b.mu.Unlock()
+
+	if isWaiting {
+		// Send to waiter
+		responseCh <- message
+		return true
+	}
+	return false
+}
+
+// dispatchToHandler sends message to appropriate handler
+func (b *Bridge) dispatchToHandler(message Message) {
+	// WHO: HandlerDispatcher
+	// WHAT: Dispatch to message handler
+	// WHEN: During message routing
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To process message by type
+	// HOW: Using handler lookup
+	// EXTENT: Handler dispatching
+
+	b.mu.Lock()
+	handler, hasHandler := b.handlers[message.Type]
+	b.mu.Unlock()
+
+	if hasHandler {
+		// Handle in goroutine to avoid blocking
+		go func() {
+			if err := handler(message); err != nil {
+				b.options.Logger.Error("Handler error",
+					"type", message.Type,
+					"id", message.ID,
+					"error", err.Error())
+			}
+		}()
+	} else {
+		b.options.Logger.Debug("No handler for message",
+			"type", message.Type)
 	}
 }
 

@@ -654,6 +654,152 @@ func CreateBranch(getClient GetClientFn, t translations.TranslationHelperFunc) (
 		}
 }
 
+// FileEntry represents a file to be committed
+type FileEntry struct {
+	Path    string
+	Content string
+}
+
+// PushFilesParams holds all parameters for pushing files
+type PushFilesParams struct {
+	Owner   string
+	Repo    string
+	Branch  string
+	Message string
+	Files   []FileEntry
+}
+
+// extractPushFilesParams extracts and validates parameters for pushing files
+func extractPushFilesParams(request mcp.CallToolRequest) (*PushFilesParams, error) {
+	owner, err := requiredParam[string](request, "owner")
+	if err != nil {
+		return nil, err
+	}
+	repo, err := requiredParam[string](request, "repo")
+	if err != nil {
+		return nil, err
+	}
+	branch, err := requiredParam[string](request, "branch")
+	if err != nil {
+		return nil, err
+	}
+	message, err := requiredParam[string](request, "message")
+	if err != nil {
+		return nil, err
+	}
+
+	// Check that files is an array
+	filesObj, ok := request.Params.Arguments["files"].([]interface{})
+	if !ok {
+		return nil, fmt.Errorf("files parameter must be an array")
+	}
+
+	// Parse files
+	files, err := parseFileEntries(filesObj)
+	if err != nil {
+		return nil, err
+	}
+
+	return &PushFilesParams{
+		Owner:   owner,
+		Repo:    repo,
+		Branch:  branch,
+		Message: message,
+		Files:   files,
+	}, nil
+}
+
+// parseFileEntries converts file objects to FileEntry structs
+func parseFileEntries(filesObj []interface{}) ([]FileEntry, error) {
+	files := make([]FileEntry, 0, len(filesObj))
+
+	for _, fileObj := range filesObj {
+		fileMap, ok := fileObj.(map[string]interface{})
+		if !ok {
+			return nil, fmt.Errorf("each file must be an object")
+		}
+
+		path, ok := fileMap["path"].(string)
+		if !ok || path == "" {
+			return nil, fmt.Errorf("each file must have a path")
+		}
+
+		content, ok := fileMap["content"].(string)
+		if !ok {
+			return nil, fmt.Errorf("each file must have content")
+		}
+
+		files = append(files, FileEntry{
+			Path:    path,
+			Content: content,
+		})
+	}
+
+	return files, nil
+}
+
+// createTreeEntries converts FileEntry objects to GitHub TreeEntry objects
+func createTreeEntries(files []FileEntry) []*github.TreeEntry {
+	entries := make([]*github.TreeEntry, 0, len(files))
+
+	for _, file := range files {
+		entries = append(entries, &github.TreeEntry{
+			Path:    Ptr(file.Path),
+			Mode:    Ptr("100644"), // File mode
+			Type:    Ptr("blob"),
+			Content: Ptr(file.Content),
+		})
+	}
+
+	return entries
+}
+
+// commitFiles performs the Git operations to commit files
+func commitFiles(ctx context.Context, client *github.Client, params *PushFilesParams, entries []*github.TreeEntry) (*github.Reference, error) {
+	// Get the reference to the branch
+	refName := fmt.Sprintf("refs/heads/%s", params.Branch)
+	ref, resp, err := client.Git.GetRef(ctx, params.Owner, params.Repo, refName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get branch reference: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	// Get the commit that the branch points to
+	baseCommit, resp, err := client.Git.GetCommit(ctx, params.Owner, params.Repo, *ref.Object.SHA)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get base commit: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	// Create a tree with all the files
+	tree, resp, err := client.Git.CreateTree(ctx, params.Owner, params.Repo, *baseCommit.Tree.SHA, entries)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create tree: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	// Create a commit with the new tree
+	newCommit, resp, err := client.Git.CreateCommit(ctx, params.Owner, params.Repo, &github.Commit{
+		Message: Ptr(params.Message),
+		Tree:    tree,
+		Parents: []*github.Commit{{SHA: baseCommit.SHA}},
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create commit: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	// Update the branch to point to the new commit
+	ref.Object.SHA = newCommit.SHA
+	updatedRef, resp, err := client.Git.UpdateRef(ctx, params.Owner, params.Repo, ref, false)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update branch: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	return updatedRef, nil
+}
+
 // PushFiles creates a tool to push multiple files in a single commit to a GitHub repository.
 func PushFiles(getClient GetClientFn, t translations.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
 	return mcp.NewTool("push_files",
@@ -680,100 +826,28 @@ func PushFiles(getClient GetClientFn, t translations.TranslationHelperFunc) (too
 			),
 		),
 		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			owner, err := requiredParam[string](request, "owner")
-			if err != nil {
-				return mcp.NewToolResultError(err.Error()), nil
-			}
-			repo, err := requiredParam[string](request, "repo")
-			if err != nil {
-				return mcp.NewToolResultError(err.Error()), nil
-			}
-			branch, err := requiredParam[string](request, "branch")
-			if err != nil {
-				return mcp.NewToolResultError(err.Error()), nil
-			}
-			message, err := requiredParam[string](request, "message")
+			// Extract and validate parameters
+			params, err := extractPushFilesParams(request)
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
 
-			// Check that files is an array
-			filesObj, ok := request.Params.Arguments["files"].([]interface{})
-			if !ok {
-				return mcp.NewToolResultError("files parameter must be an array"), nil
-			}
-
+			// Get GitHub client
 			client, err := getClient(ctx)
 			if err != nil {
 				return nil, fmt.Errorf("failed to get GitHub client: %w", err)
 			}
 
-			// Get the reference to the branch
-			refName := fmt.Sprintf("refs/heads/%s", branch)
-			ref, resp, err := client.Git.GetRef(ctx, owner, repo, refName)
+			// Create tree entries from files
+			entries := createTreeEntries(params.Files)
+
+			// Commit the files
+			updatedRef, err := commitFiles(ctx, client, params, entries)
 			if err != nil {
-				return nil, fmt.Errorf("failed to get branch reference: %w", err)
-			}
-			defer func() { _ = resp.Body.Close() }()
-
-			// Get the commit that the branch points to
-			baseCommit, resp, err := client.Git.GetCommit(ctx, owner, repo, *ref.Object.SHA)
-			if err != nil {
-				return nil, fmt.Errorf("failed to get base commit: %w", err)
-			}
-			defer func() { _ = resp.Body.Close() }()
-
-			// Create a tree with all the files
-			entries := []*github.TreeEntry{}
-			for _, fileObj := range filesObj {
-				fileMap, ok := fileObj.(map[string]interface{})
-				if !ok {
-					return mcp.NewToolResultError("each file must be an object"), nil
-				}
-
-				path, ok := fileMap["path"].(string)
-				if !ok || path == "" {
-					return mcp.NewToolResultError("each file must have a path"), nil
-				}
-
-				content, ok := fileMap["content"].(string)
-				if !ok {
-					return mcp.NewToolResultError("each file must have content"), nil
-				}
-
-				entries = append(entries, &github.TreeEntry{
-					Path:    Ptr(path),
-					Mode:    Ptr("100644"), // File mode
-					Type:    Ptr("blob"),
-					Content: Ptr(content),
-				})
+				return nil, err
 			}
 
-			tree, resp, err := client.Git.CreateTree(ctx, owner, repo, *baseCommit.Tree.SHA, entries)
-			if err != nil {
-				return nil, fmt.Errorf("failed to create tree: %w", err)
-			}
-			defer func() { _ = resp.Body.Close() }()
-
-			// Create a commit with the new tree
-			newCommit, resp, err := client.Git.CreateCommit(ctx, owner, repo, &github.Commit{
-				Message: Ptr(message),
-				Tree:    tree,
-				Parents: []*github.Commit{{SHA: baseCommit.SHA}},
-			}, nil)
-			if err != nil {
-				return nil, fmt.Errorf("failed to create commit: %w", err)
-			}
-			defer func() { _ = resp.Body.Close() }()
-
-			// Update the branch to point to the new commit
-			ref.Object.SHA = newCommit.SHA
-			updatedRef, resp, err := client.Git.UpdateRef(ctx, owner, repo, ref, false)
-			if err != nil {
-				return nil, fmt.Errorf("failed to update branch: %w", err)
-			}
-			defer func() { _ = resp.Body.Close() }()
-
+			// Format the response
 			r, err := json.Marshal(updatedRef)
 			if err != nil {
 				return nil, fmt.Errorf("failed to marshal response: %w", err)

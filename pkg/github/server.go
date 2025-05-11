@@ -16,6 +16,7 @@ import (
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
+	"github.com/mark3labs/mcp-go/translations"
 )
 
 // WHO: ConstantsManager
@@ -50,8 +51,8 @@ const (
 // WHERE: GitHub Bridge
 // WHY: To configure all available GitHub MCP tools
 // HOW: By registering resource templates and tools
-// EXTENT: All GitHub API functionality
-func NewServer(getClient GetClientFn, version string, readOnly bool, t TranslationHelperFunc, opts ...server.ServerOption) *server.MCPServer {
+// EXTENT: All GitHub API functionalities
+func NewServer(getClient GetClientFn, version string, readOnly bool, t translations.TranslationHelperFunc, opts ...server.ServerOption) *server.MCPServer {
 	// Add default options
 	defaultOpts := []server.ServerOption{
 		server.WithResourceCapabilities(true, true),
