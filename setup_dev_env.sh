@@ -22,12 +22,8 @@ export GOWORK="/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/go.work"
 export GOPATH="/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS"
 export PATH="$GOPATH/bin:$PATH"
 
-# Ensure the Gradle daemon is running for Java components
-GRADLE_DAEMON_SCRIPT="${GOPATH}/scripts/shell/gradle_persistent_daemon.sh"
-if [ -f "$GRADLE_DAEMON_SCRIPT" ]; then
-    echo "Ensuring Gradle daemon is running..."
-    bash "$GRADLE_DAEMON_SCRIPT"
-fi
+# MCP server doesn't directly need Gradle
+# Skip Gradle daemon initialization to avoid terminal pollution
 
 # Create go/bin directory if it doesn't exist
 mkdir -p "$GOPATH/bin"
@@ -56,7 +52,7 @@ echo
 echo "Development environment set up successfully!"
 echo
 echo "You can now run the following commands:"
-echo "  - Build the server: go build -mod=readonly -o bin/github-mcp-server ./cmd/server"
+echo "  - Build the server: go build -o bin/github-mcp-server ./cmd/server"
 echo "  - Run the server: ./bin/github-mcp-server"
 echo "  - Run tests: go test ./..."
 echo
@@ -68,7 +64,10 @@ echo
 # Handle command line arguments
 if [ "$1" = "run" ]; then
     echo "Building and running GitHub MCP server..."
-    go build -mod=readonly -o bin/github-mcp-server ./cmd/server
+    # Fix mod dependencies first
+    go mod tidy
+    # Build without readonly flag to allow fetching dependencies
+    go build -o bin/github-mcp-server ./cmd/server
     ./bin/github-mcp-server
 elif [ "$1" = "test" ]; then
     echo "Running tests..."

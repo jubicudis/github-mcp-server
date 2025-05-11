@@ -75,12 +75,14 @@ func SendToTNOSMCP(message models.MCPMessage) (*models.MCPMessage, error) {
 
 	// Send the request via the bridge
 	startTime := time.Now()
-	result, err := mcpBridge.SendRequest(mcp.CallToolRequest{
-		Params: mcp.CallToolParams{
-			Name:      message.Tool,
-			Arguments: message.Parameters,
-		},
-	})
+
+	// Create a CallToolRequest as required by the MCP bridge
+	toolRequest := &mcp.CallToolRequest{
+		Tool:       message.Tool,
+		Parameters: message.Parameters,
+	}
+
+	result, err := mcpBridge.SendRequest(toolRequest)
 	if err != nil {
 		log.Printf("Error sending request to MCP bridge: %v", err)
 		return nil, fmt.Errorf("bridge communication error: %w", err)
@@ -114,10 +116,10 @@ func SendToTNOSMCP(message models.MCPMessage) (*models.MCPMessage, error) {
 			}
 		}
 
-		// Check if there's an error field
-		if errMsg, ok := result.Error.(string); ok && errMsg != "" {
+		// Check if there's an error message in the result
+		if result.Error != nil {
 			response.Error = &models.MCPError{
-				Message: errMsg,
+				Message: result.Error.Error(),
 			}
 		}
 	}
