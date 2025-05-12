@@ -11,7 +11,7 @@
 package github
 
 import (
-	"net/http"
+	"os"
 	"testing"
 	"time"
 
@@ -19,11 +19,11 @@ import (
 	"tranquility-neuro-os/github-mcp-server/pkg/translations"
 )
 
-// Ptr is a helper for getting a pointer to a value (for test data)
-func Ptr[T any](v T) *T { return &v }
-
-// NullTranslationHelperFunc for TranslationHelperFunc usage
-var NullTranslationHelperFunc = func(key, defaultValue string) string { return defaultValue }
+// Test constants for error messages and repeated strings
+const (
+	ErrFailedCreateBridge  = "Failed to create MCP Bridge: %v"
+	ErrExpectedBridgeState = "Expected bridge state to be %s, got %s"
+)
 
 // TestMCPBridgeCreation tests the creation of the MCP Bridge
 func TestMCPBridgeCreation(t *testing.T) {
@@ -36,10 +36,7 @@ func TestMCPBridgeCreation(t *testing.T) {
 	// EXTENT: Bridge creation process
 
 	// Create logger
-	logger := log.NewLogger(log.Config{
-		Level:      log.LevelDebug,
-		ConsoleOut: true,
-	})
+	logger := log.NewLogger().WithLevel(log.LevelDebug).WithOutput(os.Stdout)
 
 	// Create bridge with default options
 	options := DefaultMCPBridgeOptions()
@@ -48,13 +45,12 @@ func TestMCPBridgeCreation(t *testing.T) {
 
 	bridge, err := NewMCPBridge(options)
 	if err != nil {
-		t.Fatalf("Failed to create MCP Bridge: %v", err)
+		t.Fatalf(ErrFailedCreateBridge, err)
 	}
 
 	// Verify bridge was created with correct state
 	if bridge.GetState() != MCPBridgeStateInitializing {
-		t.Errorf("Expected bridge state to be %s, got %s",
-			MCPBridgeStateInitializing, bridge.GetState())
+		t.Errorf(ErrExpectedBridgeState, MCPBridgeStateInitializing, bridge.GetState())
 	}
 
 	// Verify bridge configuration
@@ -75,25 +71,18 @@ func TestContextTranslation(t *testing.T) {
 	// EXTENT: Translation operations
 
 	// Create logger
-	logger := log.NewLogger(log.Config{
-		Level:      log.LevelDebug,
-		ConsoleOut: true,
-	})
-
-	// Create translator
-	translator := NewContextTranslator(logger, true, true, false)
+	logger := log.NewLogger().WithLevel(log.LevelDebug).WithOutput(os.Stdout)
 
 	// Create test GitHub context
 	now := time.Now().Unix()
-	githubContext := &ContextVector7D{
-		Who:    "TestSystem",
-		What:   "ContextTranslation",
-		When:   now,
-		Where:  "TestEnvironment",
-		Why:    "UnitTesting",
-		How:    "AutomatedTest",
-		Extent: 0.95,
-		Meta: map[string]interface{}{
+	githubContext := translations.GitHubContext{
+		User:      "TestSystem",
+		Type:      "ContextTranslation",
+		Timestamp: now,
+		Purpose:   "UnitTesting",
+		Operation: "AutomatedTest",
+		Scope:     0.95,
+		Metadata: map[string]interface{}{
 			"B":       0.82,
 			"V":       0.75,
 			"I":       0.91,
@@ -104,19 +93,15 @@ func TestContextTranslation(t *testing.T) {
 	}
 
 	// Translate to TNOS format
-	tnosContext, err := translator.TranslateGitHubToTNOS(githubContext)
-	if err != nil {
-		t.Fatalf("Failed to translate GitHub context to TNOS: %v", err)
-	}
+	tnosContext := translations.TranslateGitHubToTNOS7D(githubContext, logger)
 
 	// Verify TNOS context
-	if tnosContext.Who != githubContext.Who ||
-		tnosContext.What != githubContext.What ||
-		tnosContext.When != githubContext.When ||
-		tnosContext.Where != githubContext.Where ||
-		tnosContext.Why != githubContext.Why ||
-		tnosContext.How != githubContext.How ||
-		tnosContext.Extent != githubContext.Extent {
+	if tnosContext.Who != githubContext.User ||
+		tnosContext.What != githubContext.Type ||
+		tnosContext.When != githubContext.Timestamp ||
+		tnosContext.Why != githubContext.Purpose ||
+		tnosContext.How != githubContext.Operation ||
+		tnosContext.Extent != githubContext.Scope {
 		t.Error("TNOS context does not match GitHub context")
 	}
 
@@ -135,15 +120,12 @@ func TestContextTranslation(t *testing.T) {
 	}
 
 	// Now translate back to GitHub
-	githubContext2, err := translator.TranslateTNOSToGitHub(tnosContext)
-	if err != nil {
-		t.Fatalf("Failed to translate TNOS context back to GitHub: %v", err)
-	}
+	roundTripContext := translations.TranslateTNOS7DToGitHub(tnosContext, logger)
 
 	// Verify the round-trip preserved essential information
-	if githubContext2.Who != githubContext.Who ||
-		githubContext2.What != githubContext.What ||
-		githubContext2.When != githubContext.When {
+	if roundTripContext.User != githubContext.User ||
+		roundTripContext.Type != githubContext.Type ||
+		roundTripContext.Timestamp != githubContext.Timestamp {
 		t.Error("Round-trip translation did not preserve essential context")
 	}
 }
@@ -158,11 +140,11 @@ func TestClientAdapter(t *testing.T) {
 	// HOW: Using interface comparison
 	// EXTENT: Adapter operations
 
-	// Create HTTP client
-	httpClient := &http.Client{}
+	// Create logger
+	logger := log.NewLogger().WithLevel(log.LevelDebug).WithOutput(os.Stdout)
 
 	// Create client using current interface
-	client := NewClient(httpClient)
+	client := NewClient("test_token_12345", logger)
 
 	// Verify client was created
 	if client == nil {
@@ -211,10 +193,7 @@ func TestMCPBridgeConnections(t *testing.T) {
 	// EXTENT: Connection operations
 
 	// Create logger
-	logger := log.NewLogger(log.Config{
-		Level:      log.LevelDebug,
-		ConsoleOut: true,
-	})
+	logger := log.NewLogger().WithLevel(log.LevelDebug).WithOutput(os.Stdout)
 
 	// Create bridge with default options and shorter reconnect interval
 	options := DefaultMCPBridgeOptions()
@@ -224,7 +203,7 @@ func TestMCPBridgeConnections(t *testing.T) {
 
 	bridge, err := NewMCPBridge(options)
 	if err != nil {
-		t.Fatalf("Failed to create MCP Bridge: %v", err)
+		t.Fatalf(ErrFailedCreateBridge, err)
 	}
 
 	// Start the bridge
@@ -238,8 +217,7 @@ func TestMCPBridgeConnections(t *testing.T) {
 
 	// Verify bridge state is connected
 	if bridge.GetState() != MCPBridgeStateConnected {
-		t.Errorf("Expected bridge state to be %s, got %s",
-			MCPBridgeStateConnected, bridge.GetState())
+		t.Errorf(ErrExpectedBridgeState, MCPBridgeStateConnected, bridge.GetState())
 	}
 
 	// Run health check
@@ -256,8 +234,7 @@ func TestMCPBridgeConnections(t *testing.T) {
 
 	// Verify bridge state is disconnected
 	if bridge.GetState() != MCPBridgeStateDisconnected {
-		t.Errorf("Expected bridge state to be %s, got %s",
-			MCPBridgeStateDisconnected, bridge.GetState())
+		t.Errorf(ErrExpectedBridgeState, MCPBridgeStateDisconnected, bridge.GetState())
 	}
 }
 
@@ -272,10 +249,7 @@ func TestMobiusCompression(t *testing.T) {
 	// EXTENT: Compression operations
 
 	// Create logger
-	logger := log.NewLogger(log.Config{
-		Level:      log.LevelDebug,
-		ConsoleOut: true,
-	})
+	logger := log.NewLogger().WithLevel(log.LevelDebug).WithOutput(os.Stdout)
 
 	// Create bridge with compression enabled
 	options := DefaultMCPBridgeOptions()
@@ -285,7 +259,7 @@ func TestMobiusCompression(t *testing.T) {
 
 	bridge, err := NewMCPBridge(options)
 	if err != nil {
-		t.Fatalf("Failed to create MCP Bridge: %v", err)
+		t.Fatalf(ErrFailedCreateBridge, err)
 	}
 
 	// Create test message
@@ -358,15 +332,14 @@ func TestContextVectorIntegration(t *testing.T) {
 	// EXTENT: Integration operations
 
 	// Create GitHub context vector
-	githubContext := ContextVector7D{
-		Who:    "GitHubSystem",
-		What:   "IntegrationTest",
-		When:   time.Now().Unix(),
-		Where:  "TestEnvironment",
-		Why:    "SystemVerification",
-		How:    "UnitTest",
-		Extent: 1.0,
-		Meta: map[string]interface{}{
+	githubContext := translations.GitHubContext{
+		User:      "GitHubSystem",
+		Type:      "IntegrationTest",
+		Timestamp: time.Now().Unix(),
+		Purpose:   "SystemVerification",
+		Operation: "UnitTest",
+		Scope:     1.0,
+		Metadata: map[string]interface{}{
 			"B": 0.8,
 			"V": 0.7,
 		},
@@ -390,31 +363,18 @@ func TestContextVectorIntegration(t *testing.T) {
 	}
 
 	// Create logger
-	logger := log.NewLogger(log.Config{
-		Level:      log.LevelDebug,
-		ConsoleOut: true,
-	})
-
-	// Create translator
-	translator := NewContextTranslator(logger, true, true, false)
+	logger := log.NewLogger().WithLevel(log.LevelDebug).WithOutput(os.Stdout)
 
 	// Convert between systems
-	convertedTNOS, err := translator.TranslateGitHubToTNOS(&githubContext)
-	if err != nil {
-		t.Fatalf("Failed GitHub→TNOS conversion: %v", err)
-	}
-
-	convertedGitHub, err := translator.TranslateTNOSToGitHub(&tnosContext)
-	if err != nil {
-		t.Fatalf("Failed TNOS→GitHub conversion: %v", err)
-	}
+	convertedTNOS := translations.TranslateGitHubToTNOS7D(githubContext, logger)
+	convertedGitHub := translations.TranslateTNOS7DToGitHub(tnosContext, logger)
 
 	// Verify conversions
-	if convertedTNOS.Who != githubContext.Who {
+	if convertedTNOS.Who != githubContext.User {
 		t.Errorf("WHO dimension not preserved in GitHub→TNOS conversion")
 	}
 
-	if convertedGitHub.Who != tnosContext.Who {
+	if convertedGitHub.User != tnosContext.Who {
 		t.Errorf("WHO dimension not preserved in TNOS→GitHub conversion")
 	}
 
