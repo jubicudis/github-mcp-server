@@ -1,24 +1,12 @@
 /*
-  - WHO: import (
-    "context"
-    "encoding/json"
-    "fmt"
-
-    pkggithub "tranquility-neuro-os/github-mcp-server/pkg/github"
-    "tranquility-neuro-os/github-mcp-server/pkg/log"
-    "tranquility-neuro-os/github-mcp-server/pkg/translations"
-
-    githubapi "github.com/google/go-github/v49/github" // Import the go-github client
-    "github.com/mark3labs/mcp-go/mcp"
-
-)er
-  - WHAT: Adapter for GitHub client
-  - WHEN: During GitHub API operations
-  - WHERE: System Layer 6 (Integration)
-  - WHY: To provide simplified client API
-  - HOW: Using adapter pattern
-  - EXTENT: Main server operations
-*/
+ * WHO: GitHubClientAdapter
+ * WHAT: Adapter for GitHub client
+ * WHEN: During GitHub API operations
+ * WHERE: System Layer 6 (Integration)
+ * WHY: To provide simplified client API
+ * HOW: Using adapter pattern
+ * EXTENT: Main server operations
+ */
 package main
 
 import (
@@ -26,9 +14,10 @@ import (
 	"encoding/json"
 	"fmt"
 
+	pkggithub "tranquility-neuro-os/github-mcp-server/pkg/github"
 	"tranquility-neuro-os/github-mcp-server/pkg/log"
 
-	"github.com/google/go-github/v49/github" // Import the go-github client
+	githubapi "github.com/google/go-github/v49/github" // Import the go-github client
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
@@ -100,7 +89,7 @@ func (a *GitHubClientAdapter) GetRepository(owner, repo string) (interface{}, er
 	}
 
 	// Use the repository tool handler
-	_, handler := github.GetRepository(a.getClient, translationHelper)
+	_, handler := pkggithub.GetRepository(a.getClient, translationHelper)
 	result, err := handler(ctx, *request)
 	if err != nil {
 		return nil, err
@@ -134,7 +123,7 @@ func (a *GitHubClientAdapter) GetIssues(owner, repo string) (interface{}, error)
 	}
 
 	// Use the issues tool handler
-	_, handler := github.GetIssues(a.getClient, translationHelper)
+	_, handler := pkggithub.GetIssues(a.getClient, translationHelper)
 	result, err := handler(ctx, *request)
 	if err != nil {
 		return nil, err
@@ -169,7 +158,7 @@ func (a *GitHubClientAdapter) GetPullRequests(owner, repo string) (interface{}, 
 	}
 
 	// Use the pull requests list tool handler
-	_, handler := github.ListPullRequests(a.getClient, translationHelper)
+	_, handler := pkggithub.ListPullRequests(a.getClient, translationHelper)
 	result, err := handler(ctx, *request)
 	if err != nil {
 		return nil, err
@@ -202,7 +191,7 @@ func (a *GitHubClientAdapter) SearchCode(query string) (interface{}, error) {
 	}
 
 	// Use the search code tool handler
-	_, handler := github.SearchCode(a.getClient, translationHelper)
+	_, handler := pkggithub.SearchCode(a.getClient, translationHelper)
 	result, err := handler(ctx, *request)
 	if err != nil {
 		return nil, err
@@ -236,7 +225,7 @@ func (a *GitHubClientAdapter) GetCodeScanningAlerts(owner, repo string) (interfa
 	}
 
 	// Use the code scanning alerts tool handler
-	_, handler := github.ListCodeScanningAlerts(a.getClient, translationHelper)
+	_, handler := pkggithub.ListCodeScanningAlerts(a.getClient, translationHelper)
 	result, err := handler(ctx, *request)
 	if err != nil {
 		return nil, err

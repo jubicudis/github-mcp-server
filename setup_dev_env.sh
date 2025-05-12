@@ -15,12 +15,28 @@ GOROOT=$(go env GOROOT)
 export GOROOT
 export PATH="$GOROOT/bin:$PATH"
 export GO111MODULE=on
-# Using standard Go workspace mode with absolute path to go.work
-export GOWORK="/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/go.work"
 
-# Set up workspace-specific GOPATH pointing to the project's location
-export GOPATH="/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS"
-export PATH="$GOPATH/bin:$PATH"
+# Get absolute path to the workspace root - handle both absolute and relative paths
+CURRENT_DIR=$(pwd)
+if [[ "$CURRENT_DIR" == *"/TNOS1/"* ]]; then
+    # Standardize path to make sure it's correctly formatted
+    if [[ "$CURRENT_DIR" != "/Users/"* ]]; then
+        # Handle case where path starts with /TNOS1/ instead of /Users/Jubicudis/TNOS1/
+        WORKSPACE_ROOT="/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS"
+    else
+        # Path is already correct
+        WORKSPACE_ROOT=${CURRENT_DIR%/github-mcp-server*}/Tranquility-Neuro-OS
+    fi
+else
+    WORKSPACE_ROOT="/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS"
+fi
+export WORKSPACE_ROOT
+
+# Set go.work file location
+export GOWORK="${WORKSPACE_ROOT}/go.work"
+
+# Do NOT set GOPATH to the project directory as it causes issues
+# Instead, use workspace mode with GOWORK
 
 # MCP server doesn't directly need Gradle
 # Skip Gradle daemon initialization to avoid terminal pollution
@@ -65,10 +81,24 @@ echo
 if [ "$1" = "run" ]; then
     echo "Building and running GitHub MCP server..."
     # Fix mod dependencies first
+    echo "Running go mod tidy..."
     go mod tidy
-    # Build without readonly flag to allow fetching dependencies
+    
+    # Build with explicit workspace mode
+    echo "Building with workspace mode..."
     go build -o bin/github-mcp-server ./cmd/server
-    ./bin/github-mcp-server
+    
+    if [ $? -eq 0 ]; then
+        echo "Build successful. Running server..."
+        ./bin/github-mcp-server
+    else
+        echo "Build failed. Trying alternative approach..."
+        # Try building without workspace mode, using direct module
+        SERVER_DIR="/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/github-mcp-server"
+        cd "$SERVER_DIR" && \
+        GO111MODULE=on go build -o bin/github-mcp-server ./cmd/server && \
+        ./bin/github-mcp-server
+    fi
 elif [ "$1" = "test" ]; then
     echo "Running tests..."
     go test ./...

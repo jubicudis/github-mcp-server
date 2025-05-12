@@ -10,6 +10,7 @@
 package translations
 
 import (
+	"context"
 	"encoding/json"
 )
 
@@ -60,4 +61,10 @@ func (n *nullTranslationHelper) FromJSON(data string, v interface{}) error {
 func (n *nullTranslationHelper) ApplyContextVector(v interface{}, context map[string]string) (interface{}, error) {
 	// No-op implementation for testing
 	return v, nil
+}
+
+// Translate implements a helper method for translation functions
+func (n *nullTranslationHelper) Translate(ctx context.Context, key string, args ...interface{}) string {
+	// Return the key as is for testing purposes
+	return key
 }

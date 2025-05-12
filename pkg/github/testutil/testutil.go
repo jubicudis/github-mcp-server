@@ -29,6 +29,39 @@ func StubGetClientFn(client *github.Client) func(context.Context) (*github.Clien
 
 // Note: StubGetClientWithTokenFn is defined in test_helpers.go
 
+// StubGetClientFnForCustomClient creates a GetClientFn that works with any type that provides the client interface
+func StubGetClientFnForCustomClient(client interface{}) func(context.Context) (*github.Client, error) {
+	// For tests, we can just return nil as the actual client implementation doesn't matter
+	return func(context.Context) (*github.Client, error) {
+		return nil, nil
+	}
+}
+
+// StubGetClientFnWithClient returns a function that returns a GitHub client,
+// useful for testing with the custom Client type
+func StubGetClientFnWithClient(mockClient interface{}) func(context.Context) (*github.Client, error) {
+	return func(context.Context) (*github.Client, error) {
+		// If we're passed an http.Client, use it to create a new GitHub client
+		if httpClient, ok := mockClient.(*http.Client); ok {
+			return github.NewClient(httpClient), nil
+		}
+
+		// For tests, when we don't have the actual client structure,
+		// we can just return a basic client that won't be called
+		return github.NewClient(nil), nil
+	}
+}
+
+// TranslateFunc is a type that matches the translation function signature expected by tests
+type TranslateFunc func(ctx context.Context, key string, args ...interface{}) string
+
+// CreateTestTranslateFunc creates a simple translation function for tests
+func CreateTestTranslateFunc() TranslateFunc {
+	return func(ctx context.Context, key string, args ...interface{}) string {
+		return key // Just return the key for testing
+	}
+}
+
 // CreateMCPRequest creates an MCP request with the provided arguments
 func CreateMCPRequest(args map[string]interface{}) *mcp.CallToolRequest {
 	req := &mcp.CallToolRequest{}
@@ -62,6 +95,7 @@ type QueryParamMatcher struct {
 	t        *testing.T
 	expected map[string]string
 	next     http.Handler
+	handler  http.HandlerFunc
 }
 
 // CreateQueryParamMatcher creates a middleware that verifies query parameters and then calls the next handler
@@ -89,15 +123,36 @@ func (m *QueryParamMatcher) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// ExpectQueryParams creates a middleware that validates query parameters
+func ExpectQueryParams(t *testing.T, expected map[string]string) *QueryParamMatcher {
+	return CreateQueryParamMatcher(t, expected)
+}
+
 // MockResponse creates an HTTP handler that returns the provided response
 func MockResponse(t *testing.T, statusCode int, body interface{}) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(statusCode)
-		if body != nil {
-			bytes, err := json.Marshal(body)
-			require.NoError(t, err)
-			_, err = w.Write(bytes)
-			require.NoError(t, err)
+
+		if body == nil {
+			return
 		}
-	})
+
+		var data []byte
+		var err error
+
+		switch v := body.(type) {
+		case []byte:
+			data = v
+		case string:
+			data = []byte(v)
+		default:
+			data, err = json.Marshal(body)
+			require.NoError(t, err, "Failed to marshal response body")
+		}
+
+		_, err = w.Write(data)
+		require.NoError(t, err, "Failed to write response body")
+	}
+
+	return http.HandlerFunc(handler)
 }

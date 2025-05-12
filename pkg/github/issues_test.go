@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"tranquility-neuro-os/github-mcp-server/pkg/github/testutil"
-	"tranquility-neuro-os/github-mcp-server/pkg/log"
 	"tranquility-neuro-os/github-mcp-server/pkg/translations"
 
 	"github.com/google/go-github/v49/github"
@@ -28,8 +27,11 @@ import (
 
 func Test_GetIssue(t *testing.T) {
 	// Verify tool definition once
-	mockClient := NewClient("", log.NewNopLogger()) // Empty token and no-op logger for testing
-	tool, _ := GetIssue(testutil.StubGetClientFn(mockClient), translations.NullTranslationHelper)
+	mockClient := mock.NewMockedHTTPClient()
+	translateFn := func(key string, defaultValue string) string {
+		return key // Simple translation function for testing
+	}
+	tool, _ := GetIssue(testutil.StubGetClientFnWithClient(mockClient), translateFn)
 
 	assert.Equal(t, "get_issue", tool.Name)
 	assert.NotEmpty(t, tool.Description)

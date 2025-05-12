@@ -16,6 +16,9 @@ import (
 	"time"
 )
 
+// Compile-time assertion to ensure Logger implements LoggerInterface
+var _ LoggerInterface = (*Logger)(nil)
+
 // LogLevel defines logging level constants
 type LogLevel int
 
@@ -87,6 +90,21 @@ func NewLogger() *Logger {
 		},
 		useCompression: true,
 	}
+}
+
+// NewNopLogger creates a logger that discards all output
+// WHO: LoggerFactory
+// WHAT: Create no-operation logger
+// WHEN: During testing
+// WHERE: System Layer 6 (Integration)
+// WHY: To provide a silent logger for testing
+// HOW: Using discard writer
+// EXTENT: Testing operations
+func NewNopLogger() *Logger {
+	logger := NewLogger()
+	logger.output = io.Discard
+	logger.level = LevelCritical // Only log critical messages
+	return logger
 }
 
 // WithLevel sets the minimum log level

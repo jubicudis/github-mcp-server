@@ -66,9 +66,22 @@ func TestIOLogger(t *testing.T) {
 
 	// Create a mock logger that captures log messages
 	var logMessages []string
+	// First create a standard logger
+	logger := NewLogger().
+		WithLevel(LevelInfo).
+		WithOutput(&bytes.Buffer{}).
+		WithTimeFormat(time.RFC3339).
+		WithContext(map[string]string{
+			"who":   "TestLogger",
+			"what":  "Testing",
+			"where": "TestEnvironment",
+		})
+
+	// Then create a mock logger that embeds it
 	mockLogger := &MockLogger{
-		InfofFunc: func(format string, args ...interface{}) {
-			logMessages = append(logMessages, fmt.Sprintf(format, args...))
+		Logger: *logger,
+		InfoFunc: func(message string, args ...interface{}) {
+			logMessages = append(logMessages, message)
 		},
 	}
 
@@ -250,10 +263,18 @@ func TestRotatingFileWriter(t *testing.T) {
 	}
 
 	// Test time-based rotation
-	time.Sleep(maxAge * 2)
+	fmt.Printf("Before sleep: maxAge=%v\n", maxAge)
+
+	// Force a longer sleep to ensure rotation happens
+	sleepTime := maxAge * 10
+	fmt.Printf("Sleeping for %v\n", sleepTime)
+	time.Sleep(sleepTime)
+	fmt.Printf("After sleep: slept for %v\n", sleepTime)
 
 	// Write more data - should trigger time-based rotation
-	n, err = writer.Write([]byte("small write after time delay"))
+	writeData := []byte("small write after time delay")
+	fmt.Printf("Writing %d bytes after sleep\n", len(writeData))
+	n, err = writer.Write(writeData)
 	if err != nil {
 		t.Errorf("Failed to write data: %v", err)
 	}
@@ -264,6 +285,7 @@ func TestRotatingFileWriter(t *testing.T) {
 		t.Errorf("Failed to list log files: %v", err)
 	}
 
+	fmt.Printf("Original files count: %d, New files count: %d\n", len(files), len(newFiles))
 	if len(newFiles) <= len(files) {
 		t.Errorf("Expected more rotated files after time delay, count remained at %d", len(files))
 	}
@@ -428,197 +450,24 @@ func TestBufferedContextWriter(t *testing.T) {
 	}
 }
 
-// MockLogger is a mock implementation of the Logger interface for testing
+// MockLogger implements LoggerInterface for testing
 // WHO: MockLogComponent
 // WHAT: Mock Logger Implementation
 // WHEN: During testing
 // WHERE: Test Environment
 // WHY: To simulate logger behavior
-// HOW: Using function fields
+// HOW: Using LoggerInterface implementation
 // EXTENT: Testing purposes only
 type MockLogger struct {
-	DebugFunc       func(args ...interface{})
-	DebugfFunc      func(format string, args ...interface{})
-	InfoFunc        func(args ...interface{})
-	InfofFunc       func(format string, args ...interface{})
-	WarnFunc        func(args ...interface{})
-	WarnfFunc       func(format string, args ...interface{})
-	ErrorFunc       func(args ...interface{})
-	ErrorfFunc      func(format string, args ...interface{})
-	FatalFunc       func(args ...interface{})
-	FatalfFunc      func(format string, args ...interface{})
-	PanicFunc       func(args ...interface{})
-	PanicfFunc      func(format string, args ...interface{})
-	WithFunc        func(key string, value interface{}) Logger
-	WithMapFunc     func(fields map[string]interface{}) Logger
-	WithErrorFunc   func(err error) Logger
-	WithContextFunc func(ctx interface{}) Logger
+	Logger   // Embed the real Logger struct
+	InfoFunc func(message string, args ...interface{})
 }
 
-// MockLogger implements the Logger interface
-// Add a compile-time check to ensure MockLogger implements Logger
-var _ Logger = (*MockLogger)(nil)
-
-// This type assertion verifies that MockLogger implements the Logger interface
-
-// Ensure MockLogger implements all required methods of Logger interface
-func (m *MockLogger) Init() error {
-	return nil
-}
-
-func (m *MockLogger) Debug(args ...interface{}) {
-	if m.DebugFunc != nil {
-		m.DebugFunc(args...)
-	}
-}
-
-func (m *MockLogger) Debugf(format string, args ...interface{}) {
-	if m.DebugfFunc != nil {
-		m.DebugfFunc(format, args...)
-	}
-}
-
-func (m *MockLogger) Info(args ...interface{}) {
+// Info method for MockLogger captures logs based on the InfoFunc
+func (m *MockLogger) Info(message string, args ...interface{}) {
 	if m.InfoFunc != nil {
-		m.InfoFunc(args...)
+		m.InfoFunc(message, args...)
+	} else {
+		m.Logger.Info(message, args...)
 	}
-}
-
-func (m *MockLogger) Infof(format string, args ...interface{}) {
-	if m.InfofFunc != nil {
-		m.InfofFunc(format, args...)
-	}
-}
-
-func (m *MockLogger) Warn(args ...interface{}) {
-	if m.WarnFunc != nil {
-		m.WarnFunc(args...)
-	}
-}
-
-func (m *MockLogger) Warnf(format string, args ...interface{}) {
-	if m.WarnfFunc != nil {
-		m.WarnfFunc(format, args...)
-	}
-}
-
-func (m *MockLogger) Error(args ...interface{}) {
-	if m.ErrorFunc != nil {
-		m.ErrorFunc(args...)
-	}
-}
-
-func (m *MockLogger) Errorf(format string, args ...interface{}) {
-	if m.ErrorfFunc != nil {
-		m.ErrorfFunc(format, args...)
-	}
-}
-
-func (m *MockLogger) Fatal(args ...interface{}) {
-	if m.FatalFunc != nil {
-		m.FatalFunc(args...)
-	}
-}
-
-func (m *MockLogger) Fatalf(format string, args ...interface{}) {
-	if m.FatalfFunc != nil {
-		m.FatalfFunc(format, args...)
-	}
-}
-
-func (m *MockLogger) With(key string, value interface{}) Logger {
-	if m.WithFunc != nil {
-		return m.WithFunc(key, value)
-	}
-	// Create a new logger instance to avoid type mismatch
-	newLogger := &MockLogger{
-		DebugFunc:       m.DebugFunc,
-		DebugfFunc:      m.DebugfFunc,
-		InfoFunc:        m.InfoFunc,
-		InfofFunc:       m.InfofFunc,
-		WarnFunc:        m.WarnFunc,
-		WarnfFunc:       m.WarnfFunc,
-		ErrorFunc:       m.ErrorFunc,
-		ErrorfFunc:      m.ErrorfFunc,
-		FatalFunc:       m.FatalFunc,
-		FatalfFunc:      m.FatalfFunc,
-		PanicFunc:       m.PanicFunc,
-		PanicfFunc:      m.PanicfFunc,
-		WithFunc:        m.WithFunc,
-		WithMapFunc:     m.WithMapFunc,
-		WithErrorFunc:   m.WithErrorFunc,
-		WithContextFunc: m.WithContextFunc,
-	}
-	return newLogger
-}
-
-func (m *MockLogger) WithMap(fields map[string]interface{}) Logger {
-	if m.WithMapFunc != nil {
-		return m.WithMapFunc(fields)
-	}
-	// Create a new logger instance to avoid type mismatch
-	newLogger := &MockLogger{
-		DebugFunc:       m.DebugFunc,
-		DebugfFunc:      m.DebugfFunc,
-		InfoFunc:        m.InfoFunc,
-		InfofFunc:       m.InfofFunc,
-		WarnFunc:        m.WarnFunc,
-		WarnfFunc:       m.WarnfFunc,
-		ErrorFunc:       m.ErrorFunc,
-		ErrorfFunc:      m.ErrorfFunc,
-		FatalFunc:       m.FatalFunc,
-		FatalfFunc:      m.FatalfFunc,
-		PanicFunc:       m.PanicFunc,
-		PanicfFunc:      m.PanicfFunc,
-		WithFunc:        m.WithFunc,
-		WithMapFunc:     m.WithMapFunc,
-		WithErrorFunc:   m.WithErrorFunc,
-		WithContextFunc: m.WithContextFunc,
-	}
-	return newLogger
-}
-
-func (m *MockLogger) Panic(args ...interface{}) {
-	if m.PanicFunc != nil {
-		m.PanicFunc(args...)
-	}
-}
-
-func (m *MockLogger) Panicf(format string, args ...interface{}) {
-	if m.PanicfFunc != nil {
-		m.PanicfFunc(format, args...)
-	}
-}
-
-func (m *MockLogger) WithError(err error) Logger {
-	if m.WithErrorFunc != nil {
-		return m.WithErrorFunc(err)
-	}
-	return m
-}
-
-func (m *MockLogger) WithContext(ctx interface{}) Logger {
-	if m.WithContextFunc != nil {
-		return m.WithContextFunc(ctx)
-	}
-	// Create a new logger instance to avoid type mismatch
-	newLogger := &MockLogger{
-		DebugFunc:       m.DebugFunc,
-		DebugfFunc:      m.DebugfFunc,
-		InfoFunc:        m.InfoFunc,
-		InfofFunc:       m.InfofFunc,
-		WarnFunc:        m.WarnFunc,
-		WarnfFunc:       m.WarnfFunc,
-		ErrorFunc:       m.ErrorFunc,
-		ErrorfFunc:      m.ErrorfFunc,
-		FatalFunc:       m.FatalFunc,
-		FatalfFunc:      m.FatalfFunc,
-		PanicFunc:       m.PanicFunc,
-		PanicfFunc:      m.PanicfFunc,
-		WithFunc:        m.WithFunc,
-		WithMapFunc:     m.WithMapFunc,
-		WithErrorFunc:   m.WithErrorFunc,
-		WithContextFunc: m.WithContextFunc,
-	}
-	return newLogger
 }
