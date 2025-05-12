@@ -19,6 +19,17 @@ import (
 	"time"
 )
 
+// WHO: LoggerInterface
+// WHAT: Interface for logging operations
+// WHEN: During logging operations
+// WHERE: System Layer 6 (Integration)
+// WHY: To provide a common interface for different logger implementations
+// HOW: Using Go's interface mechanism
+// EXTENT: All logger implementations
+type LoggerInterface interface {
+	Info(message string, args ...interface{})
+}
+
 // WHO: ContextVector7D
 // WHAT: 7D Context vector representation
 // WHEN: During context handling operations
@@ -38,7 +49,7 @@ type ContextVector7D struct {
 	Source string                 `json:"source,omitempty"`
 }
 
-// The Logger interface is defined in logger.go
+// The LoggerInterface is defined above
 // We use that interface here for IO logging operations
 
 // IOLogger is a wrapper around io.Reader and io.Writer that can be used
@@ -53,7 +64,7 @@ type ContextVector7D struct {
 type IOLogger struct {
 	reader io.Reader
 	writer io.Writer
-	logger Logger
+	logger LoggerInterface
 }
 
 // NewIOLogger creates a new IOLogger instance
@@ -64,7 +75,7 @@ type IOLogger struct {
 // WHY: To facilitate IO monitoring
 // HOW: Using composition of IO interfaces
 // EXTENT: Logger instance lifecycle
-func NewIOLogger(r io.Reader, w io.Writer, logger Logger) *IOLogger {
+func NewIOLogger(r io.Reader, w io.Writer, logger LoggerInterface) *IOLogger {
 	return &IOLogger{
 		reader: r,
 		writer: w,
@@ -295,11 +306,16 @@ func (rw *RotatingFileWriter) shouldRotate(additionalBytes int64) bool {
 
 	// Check size-based rotation
 	if rw.maxSize > 0 && rw.currentSize+additionalBytes > rw.maxSize {
+		fmt.Printf("Size-based rotation: currentSize=%d, additionalBytes=%d, maxSize=%d\n",
+			rw.currentSize, additionalBytes, rw.maxSize)
 		return true
 	}
 
 	// Check time-based rotation
-	if rw.maxAge > 0 && time.Since(rw.lastRotation) > rw.maxAge {
+	timeSinceLastRotation := time.Since(rw.lastRotation)
+	if rw.maxAge > 0 && timeSinceLastRotation > rw.maxAge {
+		fmt.Printf("Time-based rotation: timeSince=%v, maxAge=%v\n",
+			timeSinceLastRotation, rw.maxAge)
 		return true
 	}
 
@@ -316,25 +332,36 @@ func (rw *RotatingFileWriter) rotate() error {
 	// HOW: Using file rename and reopen
 	// EXTENT: File rotation
 
+	fmt.Printf("Rotating log file: %s\n", rw.baseFilename)
+
 	// Close the current file
 	if rw.currentFile != nil {
 		if err := rw.currentFile.Close(); err != nil {
+			fmt.Printf("Error closing file: %v\n", err)
 			return err
 		}
 	}
 
 	// Generate timestamp for the rotated file
-	timestamp := time.Now().Format("20060102-150405")
+	timestamp := time.Now().Format("20060102-150405.000")
 	rotatedName := fmt.Sprintf("%s.%s", rw.baseFilename, timestamp)
 
+	fmt.Printf("Renaming %s to %s\n", rw.baseFilename, rotatedName)
+
 	// Rename the current file
-	if err := os.Rename(rw.baseFilename, rotatedName); err != nil && !os.IsNotExist(err) {
-		return err
+	if err := os.Rename(rw.baseFilename, rotatedName); err != nil {
+		if os.IsNotExist(err) {
+			fmt.Printf("Warning: source file doesn't exist: %v\n", err)
+		} else {
+			fmt.Printf("Error renaming file: %v\n", err)
+			return err
+		}
 	}
 
 	// Open a new file
 	file, err := os.OpenFile(rw.baseFilename, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
+		fmt.Printf("Error opening new file: %v\n", err)
 		return err
 	}
 
@@ -343,6 +370,7 @@ func (rw *RotatingFileWriter) rotate() error {
 	rw.currentSize = 0
 	rw.lastRotation = time.Now()
 
+	fmt.Printf("Log rotation complete\n")
 	return nil
 }
 

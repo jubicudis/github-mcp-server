@@ -720,7 +720,7 @@ func (b *TNOSMCPBridge) TranslateContextBack(tnos7D *ContextVector7D) (map[strin
 }
 
 // SendRequest sends a request to TNOS MCP and returns the response
-func (b *TNOSMCPBridge) SendRequest(req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+func (b *TNOSMCPBridge) SendRequest(req mcpGo.CallToolRequest) (*mcpGo.CallToolResult, error) {
 	// WHO: Request handler
 	// WHAT: Request transmission
 	// WHEN: During tool invocation

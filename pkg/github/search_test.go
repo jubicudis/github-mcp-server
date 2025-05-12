@@ -12,7 +12,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"testing"
-	"tranquility-neuro-os/github-mcp-server/pkg/translations"
+	"tranquility-neuro-os/github-mcp-server/pkg/github/testutil"
 
 	"github.com/google/go-github/v49/github"
 	"github.com/migueleliasweb/go-github-mock/src/mock"
@@ -23,7 +23,7 @@ import (
 func Test_SearchRepositories(t *testing.T) {
 	// Verify tool definition once
 	mockClient := NewClient(nil)
-	tool, _ := SearchRepositories(stubGetClientFn(mockClient), translations.NullTranslationHelper)
+	tool, _ := SearchRepositories(testutil.StubGetClientFn(mockClient), testutil.NullTranslationHelperFunc)
 
 	assert.Equal(t, "search_repositories", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -129,10 +129,10 @@ func Test_SearchRepositories(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
 			client := NewClient(tc.mockedClient)
-			_, handler := SearchRepositories(stubGetClientFn(client), translations.NullTranslationHelper)
+			_, handler := SearchRepositories(testutil.StubGetClientFn(client), testutil.NullTranslationHelperFunc)
 
 			// Create call request
-			request := createMCPRequest(tc.requestArgs)
+			request := *testutil.CreateMCPRequest(tc.requestArgs)
 
 			// Call handler
 			result, err := handler(context.Background(), request)
@@ -147,11 +147,11 @@ func Test_SearchRepositories(t *testing.T) {
 			require.NoError(t, err)
 
 			// Parse the result and get the text content if no error
-			textContent := getTextResult(t, result)
+			text := testutil.GetTextResult(t, result)
 
 			// Unmarshal and verify the result
 			var returnedResult github.RepositoriesSearchResult
-			err = json.Unmarshal([]byte(textContent.Text), &returnedResult)
+			err = json.Unmarshal([]byte(text), &returnedResult)
 			require.NoError(t, err)
 			assert.Equal(t, *tc.expectedResult.Total, *returnedResult.Total)
 			assert.Equal(t, *tc.expectedResult.IncompleteResults, *returnedResult.IncompleteResults)
@@ -170,7 +170,7 @@ func Test_SearchRepositories(t *testing.T) {
 func Test_SearchCode(t *testing.T) {
 	// Verify tool definition once
 	mockClient := NewClient(nil)
-	tool, _ := SearchCode(stubGetClientFn(mockClient), translations.NullTranslationHelper)
+	tool, _ := SearchCode(testutil.StubGetClientFn(mockClient), testutil.NullTranslationHelperFunc)
 
 	assert.Equal(t, "search_code", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -280,10 +280,10 @@ func Test_SearchCode(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
 			client := NewClient(tc.mockedClient)
-			_, handler := SearchCode(stubGetClientFn(client), translations.NullTranslationHelper)
+			_, handler := SearchCode(testutil.StubGetClientFn(client), testutil.NullTranslationHelperFunc)
 
 			// Create call request
-			request := createMCPRequest(tc.requestArgs)
+			request := testutil.CreateMCPRequest(tc.requestArgs)
 
 			// Call handler
 			result, err := handler(context.Background(), request)
@@ -298,11 +298,11 @@ func Test_SearchCode(t *testing.T) {
 			require.NoError(t, err)
 
 			// Parse the result and get the text content if no error
-			textContent := getTextResult(t, result)
+			text := testutil.GetTextResult(t, result)
 
 			// Unmarshal and verify the result
 			var returnedResult github.CodeSearchResult
-			err = json.Unmarshal([]byte(textContent.Text), &returnedResult)
+			err = json.Unmarshal([]byte(text), &returnedResult)
 			require.NoError(t, err)
 			assert.Equal(t, *tc.expectedResult.Total, *returnedResult.Total)
 			assert.Equal(t, *tc.expectedResult.IncompleteResults, *returnedResult.IncompleteResults)
@@ -321,7 +321,7 @@ func Test_SearchCode(t *testing.T) {
 func Test_SearchUsers(t *testing.T) {
 	// Verify tool definition once
 	mockClient := NewClient(nil)
-	tool, _ := SearchUsers(stubGetClientFn(mockClient), translations.NullTranslationHelper)
+	tool, _ := SearchUsers(testutil.StubGetClientFn(mockClient), testutil.NullTranslationHelperFunc)
 
 	assert.Equal(t, "search_users", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -435,10 +435,10 @@ func Test_SearchUsers(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
 			client := NewClient(tc.mockedClient)
-			_, handler := SearchUsers(stubGetClientFn(client), translations.NullTranslationHelper)
+			_, handler := SearchUsers(testutil.StubGetClientFnForCustomClient(client), testutil.NullTranslationHelperFunc)
 
 			// Create call request
-			request := createMCPRequest(tc.requestArgs)
+			request := testutil.CreateMCPRequest(tc.requestArgs)
 
 			// Call handler
 			result, err := handler(context.Background(), request)
@@ -455,11 +455,11 @@ func Test_SearchUsers(t *testing.T) {
 			// Parse the result and get the text content if no error
 			require.NotNil(t, result)
 
-			textContent := getTextResult(t, result)
+			text := testutil.GetTextResult(t, result)
 
 			// Unmarshal and verify the result
 			var returnedResult github.UsersSearchResult
-			err = json.Unmarshal([]byte(textContent.Text), &returnedResult)
+			err = json.Unmarshal([]byte(text), &returnedResult)
 			require.NoError(t, err)
 			assert.Equal(t, *tc.expectedResult.Total, *returnedResult.Total)
 			assert.Equal(t, *tc.expectedResult.IncompleteResults, *returnedResult.IncompleteResults)

@@ -1,12 +1,29 @@
 /*
  * WHO: MCPUtilities
  * WHAT: MCP communication utilities
- * WHEN: During tool execution
+ * WHEN: During too	/	// Send the request via the bridge
+	startTime := time.Now()
+
+	// Create a CallToolRequest as required by the MCP bridge
+	toolRequest := &mcpGo.CallToolRequest{}
+	toolRequest.Params.Name = message.Tool
+	toolRequest.Params.Arguments = message.Parameters
+
+	result, err := mcpBridge.SendRequest(*toolRequest)
+	if err != nil {
+		log.Printf("Error sending request to MCP bridge: %v", err)
+		return nil, fmt.Errorf("bridge communication error: %w", err)
+	}llToolRequest as required by the MCP bridge
+	toolRequest := &mcpGo.CallToolRequest{}
+	toolRequest.Params.Name = message.Tool
+	toolRequest.Params.Arguments = message.Parameters
+
+	result, err := mcpBridge.SendRequest(*toolRequest)ution
  * WHERE: System Layer 6 (Integration)
  * WHY: To standardize MCP communication
  * HOW: Using structured messaging
  * EXTENT: All MCP bridge operations
- */
+*/
 
 package utils
 
@@ -23,10 +40,10 @@ import (
 )
 
 // Global bridge connection - would be initialized during server startup
-var mcpBridge *mcp.TNOSMCPBridge
+var utilsMcpBridge *mcp.TNOSMCPBridge
 
-// InitializeMCPBridge sets up the MCP bridge connection
-func InitializeMCPBridge(config mcp.BridgeConfig) error {
+// InitializeUtilsMCPBridge sets up the MCP bridge connection for utils package
+func InitializeUtilsMCPBridge(config mcp.BridgeConfig) error {
 	// WHO: BridgeInitializer
 	// WHAT: Bridge setup
 	// WHEN: During server initialization
@@ -35,21 +52,21 @@ func InitializeMCPBridge(config mcp.BridgeConfig) error {
 	// HOW: Using bridge creation
 	// EXTENT: Single bridge instance
 
-	if mcpBridge != nil {
+	if utilsMcpBridge != nil {
 		return nil // Already initialized
 	}
 
-	mcpBridge = mcp.NewTNOSMCPBridge(config)
-	if mcpBridge == nil {
+	utilsMcpBridge = mcp.NewTNOSMCPBridge(config)
+	if utilsMcpBridge == nil {
 		return fmt.Errorf("failed to create MCP bridge")
 	}
 
-	log.Printf("Successfully initialized MCP bridge")
+	log.Printf("Successfully initialized Utils MCP bridge")
 	return nil
 }
 
-// GetMCPBridge returns the global bridge instance
-func GetMCPBridge() *mcp.TNOSMCPBridge {
+// GetUtilsMCPBridge returns the global bridge instance
+func GetUtilsMCPBridge() *mcp.TNOSMCPBridge {
 	// WHO: BridgeProvider
 	// WHAT: Bridge access
 	// WHEN: During tool execution
@@ -58,11 +75,11 @@ func GetMCPBridge() *mcp.TNOSMCPBridge {
 	// HOW: Using singleton pattern
 	// EXTENT: Bridge instance
 
-	return mcpBridge
+	return utilsMcpBridge
 }
 
-// SendToTNOSMCP sends a message to TNOS MCP and returns the response
-func SendToTNOSMCP(message models.MCPMessage) (*models.MCPMessage, error) {
+// SendToUtilsTNOSMCP sends a message to TNOS MCP and returns the response
+func SendToUtilsTNOSMCP(message models.MCPMessage) (*models.MCPMessage, error) {
 	// WHO: MessageSender
 	// WHAT: MCP communication
 	// WHEN: During tool execution
@@ -71,19 +88,19 @@ func SendToTNOSMCP(message models.MCPMessage) (*models.MCPMessage, error) {
 	// HOW: Using bridge protocol
 	// EXTENT: Complete request-response cycle
 
-	if mcpBridge == nil {
-		return nil, fmt.Errorf("MCP bridge not initialized")
+	if utilsMcpBridge == nil {
+		return nil, fmt.Errorf("Utils MCP bridge not initialized")
 	}
 
 	// Send the request via the bridge
 	startTime := time.Now()
 
 	// Create a CallToolRequest as required by the MCP bridge
-	toolRequest := &mcp.CallToolRequest{}
+	toolRequest := mcpGo.CallToolRequest{}
 	toolRequest.Params.Name = message.Tool
 	toolRequest.Params.Arguments = message.Parameters
 
-	result, err := mcpBridge.SendRequest(toolRequest)
+	result, err := utilsMcpBridge.SendRequest(toolRequest)
 	if err != nil {
 		log.Printf("Error sending request to MCP bridge: %v", err)
 		return nil, fmt.Errorf("bridge communication error: %w", err)

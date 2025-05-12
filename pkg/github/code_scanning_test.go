@@ -16,8 +16,6 @@ import (
 	"testing"
 
 	"tranquility-neuro-os/github-mcp-server/pkg/github/testutil"
-	"tranquility-neuro-os/github-mcp-server/pkg/log"
-	"tranquility-neuro-os/github-mcp-server/pkg/translations"
 
 	"github.com/google/go-github/v49/github"
 	"github.com/migueleliasweb/go-github-mock/src/mock"
@@ -27,10 +25,12 @@ import (
 
 func Test_GetCodeScanningAlert(t *testing.T) {
 	// Verify tool definition once
-	mockClient := NewClient("", log.NewNopLogger())
-	tool, _ := GetCodeScanningAlert(testutil.StubGetClientFn(mockClient), func(ctx context.Context, key string, args ...interface{}) string {
-		return translations.NullTranslationHelper.Translate(ctx, key, args...)
-	})
+	mockClient := mock.NewMockedHTTPClient()
+	translateFn := testutil.CreateTestTranslateFunc()
+	adaptedTranslateFn := func(key string, defaultValue string) string {
+		return translateFn(context.Background(), key)
+	}
+	tool, _ := GetCodeScanningAlert(testutil.StubGetClientFnWithClient(mockClient), adaptedTranslateFn)
 	assert.NotEmpty(t, tool.Description)
 	assert.Contains(t, tool.InputSchema.Properties, "owner")
 	assert.Contains(t, tool.InputSchema.Properties, "repo")
@@ -92,10 +92,11 @@ func Test_GetCodeScanningAlert(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			// Setup client with mock
-			client := NewClient("", log.NewNopLogger())
-			client.Client = tc.mockedClient
-			_, handler := GetCodeScanningAlert(testutil.StubGetClientFn(client), translations.NullTranslationHelper)
+			// Setup with mock client and translation function
+			translateFn := func(key string, defaultValue string) string {
+				return key // Simple translation function for testing
+			}
+			_, handler := GetCodeScanningAlert(testutil.StubGetClientFnWithClient(tc.mockedClient), translateFn)
 
 			// Create call request
 			request := testutil.CreateMCPRequest(tc.requestArgs)
@@ -117,7 +118,7 @@ func Test_GetCodeScanningAlert(t *testing.T) {
 
 			// Unmarshal and verify the result
 			var returnedAlert github.Alert
-			err = json.Unmarshal([]byte(textContent.Text), &returnedAlert)
+			err = json.Unmarshal([]byte(textContent), &returnedAlert)
 			require.NoError(t, err)
 			assert.Equal(t, *tc.expectedAlert.Number, *returnedAlert.Number)
 			assert.Equal(t, *tc.expectedAlert.State, *returnedAlert.State)
@@ -129,8 +130,11 @@ func Test_GetCodeScanningAlert(t *testing.T) {
 
 func Test_ListCodeScanningAlerts(t *testing.T) {
 	// Verify tool definition once
-	mockClient := NewClient("", log.NewNopLogger())
-	tool, _ := ListCodeScanningAlerts(testutil.StubGetClientFn(mockClient), translations.NullTranslationHelper)
+	mockHttpClient := mock.NewMockedHTTPClient()
+	translateFn := func(key string, defaultValue string) string {
+		return key // Simple translation function for testing
+	}
+	tool, _ := ListCodeScanningAlerts(testutil.StubGetClientFnWithClient(mockHttpClient), translateFn)
 	assert.NotEmpty(t, tool.Description)
 	assert.Contains(t, tool.InputSchema.Properties, "owner")
 	assert.Contains(t, tool.InputSchema.Properties, "repo")
@@ -207,10 +211,11 @@ func Test_ListCodeScanningAlerts(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			// Setup client with mock
-			client := NewClient("", log.NewNopLogger())
-			client.Client = tc.mockedClient
-			_, handler := ListCodeScanningAlerts(testutil.StubGetClientFn(client), translations.NullTranslationHelper)
+			// Setup with mock client and translation function
+			translateFn := func(key string, defaultValue string) string {
+				return key // Simple translation function for testing
+			}
+			_, handler := ListCodeScanningAlerts(testutil.StubGetClientFnWithClient(tc.mockedClient), translateFn)
 			request := testutil.CreateMCPRequest(tc.requestArgs)
 
 			// Call handler
@@ -230,7 +235,7 @@ func Test_ListCodeScanningAlerts(t *testing.T) {
 
 			// Unmarshal and verify the result
 			var returnedAlerts []*github.Alert
-			err = json.Unmarshal([]byte(textContent.Text), &returnedAlerts)
+			err = json.Unmarshal([]byte(textContent), &returnedAlerts)
 			require.NoError(t, err)
 			assert.Len(t, returnedAlerts, len(tc.expectedAlerts))
 			for i, alert := range returnedAlerts {

@@ -25,7 +25,7 @@ import (
 	"time"
 
 	// Import internal packages with proper module paths
-	"tranquility-neuro-os/github-mcp-server/pkg/github"
+
 	"tranquility-neuro-os/github-mcp-server/pkg/log"
 	"tranquility-neuro-os/github-mcp-server/pkg/translations"
 
@@ -58,7 +58,7 @@ var (
 	clients      = make(map[*Client]bool)
 	clientsMtx   sync.Mutex
 	broadcast    = make(chan []byte)
-	gitHubClient *github.Client
+	gitHubClient GitHubService
 	startTime    = time.Now() // Start time for uptime calculation
 )
 
@@ -153,7 +153,8 @@ func main() {
 	logger.Info("Configuration loaded", "host", config.Host, "port", config.Port)
 
 	// Initialize GitHub client
-	gitHubClient = github.NewClient(config.GitHubToken, logger)
+	gitHubClientAdapter := NewClient(config.GitHubToken, logger)
+	gitHubClient = gitHubClientAdapter
 	logger.Info("GitHub client initialized")
 
 	// Define HTTP routes
@@ -180,7 +181,9 @@ func main() {
 	go func() {
 		logger.Info("Server listening", "address", addr)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.Fatal("Server failed to start", "error", err.Error())
+			logger.Error("Server failed to start", "error", err.Error())
+			// Use os.Exit for fatal errors since we don't have a Fatal method
+			os.Exit(1)
 		}
 	}()
 
@@ -227,12 +230,29 @@ func initLogger(config Config) *log.Logger {
 	}
 
 	// Initialize logger
-	return log.NewLogger(log.Config{
-		Level:       config.LogLevel,
-		FilePath:    filepath.Join(logDir, config.LogFile),
-		ConsoleOut:  true,
-		ContextMode: getEnv("TNOS_CONTEXT_MODE", "normal"),
-	})
+	logger := log.NewLogger()
+
+	// Configure the logger based on the config
+	if config.LogLevel == "debug" {
+		logger = logger.WithLevel(log.LevelDebug)
+	} else if config.LogLevel == "info" {
+		logger = logger.WithLevel(log.LevelInfo)
+	} else if config.LogLevel == "warn" {
+		logger = logger.WithLevel(log.LevelWarn)
+	} else if config.LogLevel == "error" {
+		logger = logger.WithLevel(log.LevelError)
+	} else {
+		logger = logger.WithLevel(log.LevelInfo) // Default level
+	}
+
+	// Add file output if needed
+	logFilePath := filepath.Join(logDir, config.LogFile)
+	logFile, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	if err == nil {
+		logger = logger.WithOutput(logFile)
+	}
+
+	return logger
 }
 
 // Root handler
