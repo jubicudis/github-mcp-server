@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"tranquility-neuro-os/github-mcp-server/pkg/github/testutil"
-	"tranquility-neuro-os/github-mcp-server/pkg/translations"
 
 	"github.com/google/go-github/v49/github"
 	"github.com/migueleliasweb/go-github-mock/src/mock"
@@ -24,12 +23,26 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Using the StubGetClientFn from the testutil package
+func Ptr[T any](v T) *T { return &v }
+
+var NullTranslationHelperFunc = func(key, defaultValue string) string { return defaultValue }
+
+const (
+	testUserLogin    = "testuser"
+	testUserName     = "Test User"
+	testUserEmail    = "test@example.com"
+	testUserBio      = "GitHub user for testing"
+	testUserCompany  = "Test Company"
+	testUserLocation = "Test Location"
+	testUserHTMLURL  = "https://github.com/testuser"
+	testUserType     = "User"
+	testUserPlan     = "pro"
+)
 
 func Test_GetMe(t *testing.T) {
 	// Verify tool definition
 	mockClient := github.NewClient(nil)
-	tool, _ := GetMe(testutil.StubGetClientFn(mockClient), translations.NullTranslationHelper)
+	tool, _ := GetMe(testutil.StubGetClientFn(mockClient), NullTranslationHelperFunc)
 
 	assert.Equal(t, "get_me", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -38,17 +51,17 @@ func Test_GetMe(t *testing.T) {
 
 	// Setup mock user response
 	mockUser := &github.User{
-		Login:     github.String("testuser"),
-		Name:      github.String("Test User"),
-		Email:     github.String("test@example.com"),
-		Bio:       github.String("GitHub user for testing"),
-		Company:   github.String("Test Company"),
-		Location:  github.String("Test Location"),
-		HTMLURL:   github.String("https://github.com/testuser"),
-		CreatedAt: &github.Timestamp{Time: time.Now().Add(-365 * 24 * time.Hour)},
-		Type:      github.String("User"),
+		Login:     Ptr(testUserLogin),
+		Name:      Ptr(testUserName),
+		Email:     Ptr(testUserEmail),
+		Bio:       Ptr(testUserBio),
+		Company:   Ptr(testUserCompany),
+		Location:  Ptr(testUserLocation),
+		HTMLURL:   Ptr(testUserHTMLURL),
+		CreatedAt: Ptr(time.Now().Add(-365 * 24 * time.Hour)),
+		Type:      Ptr(testUserType),
 		Plan: &github.Plan{
-			Name: github.String("pro"),
+			Name: Ptr(testUserPlan),
 		},
 	}
 
@@ -107,7 +120,7 @@ func Test_GetMe(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
 			client := github.NewClient(tc.mockedClient)
-			_, handler := GetMe(testutil.StubGetClientFn(client), translations.NullTranslationHelper)
+			_, handler := GetMe(testutil.StubGetClientFn(client), NullTranslationHelperFunc)
 
 			// Create call request
 			request := *testutil.CreateMCPRequest(tc.requestArgs)

@@ -16,24 +16,18 @@ export GOROOT
 export PATH="$GOROOT/bin:$PATH"
 export GO111MODULE=on
 
-# Get absolute path to the workspace root - handle both absolute and relative paths
-CURRENT_DIR=$(pwd)
-if [[ "$CURRENT_DIR" == *"/TNOS1/"* ]]; then
-    # Standardize path to make sure it's correctly formatted
-    if [[ "$CURRENT_DIR" != "/Users/"* ]]; then
-        # Handle case where path starts with /TNOS1/ instead of /Users/Jubicudis/TNOS1/
-        WORKSPACE_ROOT="/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS"
-    else
-        # Path is already correct
-        WORKSPACE_ROOT=${CURRENT_DIR%/github-mcp-server*}/Tranquility-Neuro-OS
-    fi
-else
-    WORKSPACE_ROOT="/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS"
-fi
+# Robustly detect the workspace root (directory containing this script's parent)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+WORKSPACE_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 export WORKSPACE_ROOT
 
-# Set go.work file location
-export GOWORK="${WORKSPACE_ROOT}/go.work"
+# Set go.work file location (absolute path)
+export GOWORK="$WORKSPACE_ROOT/go.work"
+
+if [ ! -f "$GOWORK" ]; then
+    echo "ERROR: go.work file not found at $GOWORK. Please ensure it exists at the workspace root."
+    exit 1
+fi
 
 # Do NOT set GOPATH to the project directory as it causes issues
 # Instead, use workspace mode with GOWORK

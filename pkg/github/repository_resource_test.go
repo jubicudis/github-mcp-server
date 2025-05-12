@@ -13,13 +13,16 @@ import (
 	"testing"
 
 	"tranquility-neuro-os/github-mcp-server/pkg/github/testutil"
-	"tranquility-neuro-os/github-mcp-server/pkg/translations"
 
 	"github.com/google/go-github/v49/github"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/migueleliasweb/go-github-mock/src/mock"
 	"github.com/stretchr/testify/require"
 )
+
+func Ptr[T any](v T) *T { return &v }
+
+var NullTranslationHelperFunc = func(key, defaultValue string) string { return defaultValue }
 
 var GetRawReposContentsByOwnerByRepoByPath mock.EndpointPattern = mock.EndpointPattern{
 	Pattern: "/{owner}/{repo}/main/{path:.+}",
@@ -29,21 +32,21 @@ var GetRawReposContentsByOwnerByRepoByPath mock.EndpointPattern = mock.EndpointP
 func Test_repositoryResourceContentsHandler(t *testing.T) {
 	mockDirContent := []*github.RepositoryContent{
 		{
-			Type:        github.Ptr("file"),
-			Name:        github.Ptr("README.md"),
-			Path:        github.Ptr("README.md"),
-			SHA:         github.Ptr("abc123"),
-			Size:        github.Ptr(42),
-			HTMLURL:     github.Ptr("https://github.com/owner/repo/blob/main/README.md"),
-			DownloadURL: github.Ptr("https://raw.githubusercontent.com/owner/repo/main/README.md"),
+			Type:        Ptr("file"),
+			Name:        Ptr("README.md"),
+			Path:        Ptr("README.md"),
+			SHA:         Ptr("abc123"),
+			Size:        Ptr(42),
+			HTMLURL:     Ptr("https://github.com/owner/repo/blob/main/README.md"),
+			DownloadURL: Ptr("https://raw.githubusercontent.com/owner/repo/main/README.md"),
 		},
 		{
-			Type:        github.Ptr("dir"),
-			Name:        github.Ptr("src"),
-			Path:        github.Ptr("src"),
-			SHA:         github.Ptr("def456"),
-			HTMLURL:     github.Ptr("https://github.com/owner/repo/tree/main/src"),
-			DownloadURL: github.Ptr("https://raw.githubusercontent.com/owner/repo/main/src"),
+			Type:        Ptr("dir"),
+			Name:        Ptr("src"),
+			Path:        Ptr("src"),
+			SHA:         Ptr("def456"),
+			HTMLURL:     Ptr("https://github.com/owner/repo/tree/main/src"),
+			DownloadURL: Ptr("https://raw.githubusercontent.com/owner/repo/main/src"),
 		},
 	}
 	expectedDirContent := []mcp.TextResourceContents{
@@ -60,25 +63,25 @@ func Test_repositoryResourceContentsHandler(t *testing.T) {
 	}
 
 	mockTextContent := &github.RepositoryContent{
-		Type:        github.Ptr("file"),
-		Name:        github.Ptr("README.md"),
-		Path:        github.Ptr("README.md"),
-		Content:     github.Ptr("# Test Repository\n\nThis is a test repository."),
-		SHA:         github.Ptr("abc123"),
-		Size:        github.Ptr(42),
-		HTMLURL:     github.Ptr("https://github.com/owner/repo/blob/main/README.md"),
-		DownloadURL: github.Ptr("https://raw.githubusercontent.com/owner/repo/main/README.md"),
+		Type:        Ptr("file"),
+		Name:        Ptr("README.md"),
+		Path:        Ptr("README.md"),
+		Content:     Ptr("# Test Repository\n\nThis is a test repository."),
+		SHA:         Ptr("abc123"),
+		Size:        Ptr(42),
+		HTMLURL:     Ptr("https://github.com/owner/repo/blob/main/README.md"),
+		DownloadURL: Ptr("https://raw.githubusercontent.com/owner/repo/main/README.md"),
 	}
 
 	mockFileContent := &github.RepositoryContent{
-		Type:        github.Ptr("file"),
-		Name:        github.Ptr("data.png"),
-		Path:        github.Ptr("data.png"),
-		Content:     github.Ptr("IyBUZXN0IFJlcG9zaXRvcnkKClRoaXMgaXMgYSB0ZXN0IHJlcG9zaXRvcnku"), // Base64 encoded "# Test Repository\n\nThis is a test repository."
-		SHA:         github.Ptr("abc123"),
-		Size:        github.Ptr(42),
-		HTMLURL:     github.Ptr("https://github.com/owner/repo/blob/main/data.png"),
-		DownloadURL: github.Ptr("https://raw.githubusercontent.com/owner/repo/main/data.png"),
+		Type:        Ptr("file"),
+		Name:        Ptr("data.png"),
+		Path:        Ptr("data.png"),
+		Content:     Ptr("IyBUZXN0IFJlcG9zaXRvcnkKClRoaXMgaXMgYSB0ZXN0IHJlcG9zaXRvcnku"), // Base64 encoded "# Test Repository\n\nThis is a test repository."
+		SHA:         Ptr("abc123"),
+		Size:        Ptr(42),
+		HTMLURL:     Ptr("https://github.com/owner/repo/blob/main/data.png"),
+		DownloadURL: Ptr("https://raw.githubusercontent.com/owner/repo/main/data.png"),
 	}
 
 	expectedFileContent := []mcp.BlobResourceContents{
@@ -268,25 +271,25 @@ func Test_repositoryResourceContentsHandler(t *testing.T) {
 }
 
 func Test_GetRepositoryResourceContent(t *testing.T) {
-	tmpl, _ := GetRepositoryResourceContent(nil, translations.NullTranslationHelper)
+	tmpl, _ := GetRepositoryResourceContent(nil, NullTranslationHelperFunc)
 	require.Equal(t, "repo://{owner}/{repo}/contents{/path*}", tmpl.URITemplate.Raw())
 }
 
 func Test_GetRepositoryResourceBranchContent(t *testing.T) {
-	tmpl, _ := GetRepositoryResourceBranchContent(nil, translations.NullTranslationHelper)
+	tmpl, _ := GetRepositoryResourceBranchContent(nil, NullTranslationHelperFunc)
 	require.Equal(t, "repo://{owner}/{repo}/refs/heads/{branch}/contents{/path*}", tmpl.URITemplate.Raw())
 }
 func Test_GetRepositoryResourceCommitContent(t *testing.T) {
-	tmpl, _ := GetRepositoryResourceCommitContent(nil, translations.NullTranslationHelper)
+	tmpl, _ := GetRepositoryResourceCommitContent(nil, NullTranslationHelperFunc)
 	require.Equal(t, "repo://{owner}/{repo}/sha/{sha}/contents{/path*}", tmpl.URITemplate.Raw())
 }
 
 func Test_GetRepositoryResourceTagContent(t *testing.T) {
-	tmpl, _ := GetRepositoryResourceTagContent(nil, translations.NullTranslationHelper)
+	tmpl, _ := GetRepositoryResourceTagContent(nil, NullTranslationHelperFunc)
 	require.Equal(t, "repo://{owner}/{repo}/refs/tags/{tag}/contents{/path*}", tmpl.URITemplate.Raw())
 }
 
 func Test_GetRepositoryResourcePrContent(t *testing.T) {
-	tmpl, _ := GetRepositoryResourcePrContent(nil, translations.NullTranslationHelper)
+	tmpl, _ := GetRepositoryResourcePrContent(nil, NullTranslationHelperFunc)
 	require.Equal(t, "repo://{owner}/{repo}/refs/pull/{prNumber}/head/contents{/path*}", tmpl.URITemplate.Raw())
 }

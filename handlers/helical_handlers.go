@@ -2,198 +2,146 @@ package handlers
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
-	"fmt"
-	"log"
 	"net/http"
 
-	"tranquility-neuro-os/github-mcp-server/models"
 	"tranquility-neuro-os/github-mcp-server/utils"
 )
 
 // WHO: HelicalToolsHandler
-// WHAT: External MCP handlers for helical storage operations
+// WHAT: External MCP handlers for helical storage operations (Mobius/Helical)
 // WHEN: During helical storage API requests
 // WHERE: GitHub MCP Server
-// WHY: To provide helical storage functionality to external clients
-// HOW: Using Go handlers that route to TNOS via MCP bridge
+// WHY: To provide helical storage functionality to external clients using Möbius compression and dual-helix encoding
+// HOW: Using Go handlers that route to TNOS via MCP bridge, leveraging Mobius and recursive helical algorithms
 // EXTENT: All helical storage operations via MCP API
 
-// HelicalEncodeHandler handles requests to encode data using helical algorithm
+const errInvalidRequestPayload = "Invalid request payload"
+const errContextSyncFailed = "Context sync failed"
+
+// HelicalEncodeHandler handles requests to encode data using the Möbius/Helical algorithm
 func HelicalEncodeHandler(w http.ResponseWriter, r *http.Request, ctx context.Context) {
-	// Extract request parameters
 	var params struct {
-		Data        string                 `json:"data"`
+		Data        []byte                 `json:"data"` // Accept raw bytes (not base64)
 		StrandCount int                    `json:"strand_count,omitempty"`
 		Context     map[string]interface{} `json:"context,omitempty"`
 	}
 
 	err := json.NewDecoder(r.Body).Decode(&params)
 	if err != nil {
-		utils.RespondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		utils.RespondWithError(w, http.StatusBadRequest, errInvalidRequestPayload)
 		return
 	}
 
-	// Decode base64 data
-	rawData, err := base64.StdEncoding.DecodeString(params.Data)
-	if err != nil {
-		utils.RespondWithError(w, http.StatusBadRequest, "Invalid base64 data encoding")
-		return
-	}
-
-	// Set default strand count if not provided
 	if params.StrandCount == 0 {
 		params.StrandCount = 2
 	}
 
-	// Prepare MCP message for TNOS
-	message := models.MCPMessage{
-		Tool: "helical_encode",
-		Parameters: map[string]interface{}{
-			"data":         rawData,
-			"strand_count": params.StrandCount,
-		},
-		Context: params.Context,
-	}
-
-	// Send message to TNOS MCP bridge
-	response, err := utils.SendToTNOSMCP(message)
+	// Sync context with TNOS MCP bridge (7D + Planck)
+	newContext, err := utils.Sync7DContext(params.Context)
 	if err != nil {
-		log.Printf("Error sending to TNOS MCP: %v", err)
-		utils.RespondWithError(w, http.StatusInternalServerError, "Error processing request")
+		utils.RespondWithError(w, http.StatusInternalServerError, errContextSyncFailed)
 		return
 	}
 
-	// Process and return response
-	encodedData, exists := response.Result["encoded_data"]
-	if !exists {
-		utils.RespondWithError(w, http.StatusInternalServerError, "Invalid response from TNOS")
+	// Use bridge for Möbius compression (Planck-aware)
+	compressed, meta, err := utils.MobiusCompress(params.Data, newContext)
+	if err != nil {
+		utils.RespondWithError(w, http.StatusInternalServerError, "Compression failed")
+		return
+	}
+	encoded, err := utils.HelicalEncode(compressed, params.StrandCount, meta)
+	if err != nil {
+		utils.RespondWithError(w, http.StatusInternalServerError, "Helical encoding failed")
 		return
 	}
 
-	// Convert binary data to base64 for JSON response
-	if binData, ok := encodedData.([]byte); ok {
-		response.Result["encoded_data"] = base64.StdEncoding.EncodeToString(binData)
+	response := map[string]interface{}{
+		"encoded_data":     encoded,
+		"compression_meta": meta,
 	}
-
 	utils.RespondWithJSON(w, http.StatusOK, response)
 }
 
 // HelicalDecodeHandler handles requests to decode helically encoded data
 func HelicalDecodeHandler(w http.ResponseWriter, r *http.Request, ctx context.Context) {
-	// Extract request parameters
 	var params struct {
-		EncodedData string                 `json:"encoded_data"`
-		Metadata    map[string]interface{} `json:"metadata"`
-		Context     map[string]interface{} `json:"context,omitempty"`
+		EncodedData []byte                       `json:"encoded_data"`
+		Meta        *utils.MobiusCompressionMeta `json:"compression_meta"`
+		Context     map[string]interface{}       `json:"context,omitempty"`
 	}
 
 	err := json.NewDecoder(r.Body).Decode(&params)
 	if err != nil {
-		utils.RespondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		utils.RespondWithError(w, http.StatusBadRequest, errInvalidRequestPayload)
 		return
 	}
 
-	// Decode base64 data
-	rawData, err := base64.StdEncoding.DecodeString(params.EncodedData)
+	compressed, err := utils.HelicalDecode(params.EncodedData, params.Meta)
 	if err != nil {
-		utils.RespondWithError(w, http.StatusBadRequest, "Invalid base64 data encoding")
+		utils.RespondWithError(w, http.StatusInternalServerError, "Helical decoding failed")
 		return
 	}
 
-	// Prepare MCP message for TNOS
-	message := models.MCPMessage{
-		Tool: "helical_decode",
-		Parameters: map[string]interface{}{
-			"encoded_data": rawData,
-			"metadata":     params.Metadata,
-		},
-		Context: params.Context,
-	}
-
-	// Send message to TNOS MCP bridge
-	response, err := utils.SendToTNOSMCP(message)
+	decompressed, err := utils.MobiusDecompress(compressed, params.Meta)
 	if err != nil {
-		log.Printf("Error sending to TNOS MCP: %v", err)
-		utils.RespondWithError(w, http.StatusInternalServerError, "Error processing request")
+		utils.RespondWithError(w, http.StatusInternalServerError, "Decompression failed")
 		return
 	}
-
-	// Process and return response
-	decodedData, exists := response.Result["decoded_data"]
-	if !exists {
-		utils.RespondWithError(w, http.StatusInternalServerError, "Invalid response from TNOS")
-		return
+	response := map[string]interface{}{
+		"decoded_data": decompressed,
 	}
-
-	// Convert binary data to base64 for JSON response
-	if binData, ok := decodedData.([]byte); ok {
-		response.Result["decoded_data"] = base64.StdEncoding.EncodeToString(binData)
-	}
-
 	utils.RespondWithJSON(w, http.StatusOK, response)
 }
 
 // HelicalStoreHandler handles requests to store data using helical encoding
 func HelicalStoreHandler(w http.ResponseWriter, r *http.Request, ctx context.Context) {
-	// Extract request parameters
 	var params struct {
 		Key         string                 `json:"key"`
-		Data        string                 `json:"data"`
+		Data        []byte                 `json:"data"`
 		StrandCount int                    `json:"strand_count,omitempty"`
 		Context     map[string]interface{} `json:"context,omitempty"`
 	}
 
 	err := json.NewDecoder(r.Body).Decode(&params)
 	if err != nil {
-		utils.RespondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		utils.RespondWithError(w, http.StatusBadRequest, errInvalidRequestPayload)
 		return
 	}
-
-	// Validate required parameters
 	if params.Key == "" {
 		utils.RespondWithError(w, http.StatusBadRequest, "Key is required")
 		return
 	}
-
-	// Decode base64 data
-	rawData, err := base64.StdEncoding.DecodeString(params.Data)
-	if err != nil {
-		utils.RespondWithError(w, http.StatusBadRequest, "Invalid base64 data encoding")
-		return
-	}
-
-	// Set default strand count if not provided
 	if params.StrandCount == 0 {
 		params.StrandCount = 2
 	}
 
-	// Prepare MCP message for TNOS
-	message := models.MCPMessage{
-		Tool: "helical_store",
-		Parameters: map[string]interface{}{
-			"key":          params.Key,
-			"data":         rawData,
-			"strand_count": params.StrandCount,
-		},
-		Context: params.Context,
-	}
-
-	// Send message to TNOS MCP bridge
-	response, err := utils.SendToTNOSMCP(message)
+	newContext, err := utils.Sync7DContext(params.Context)
 	if err != nil {
-		log.Printf("Error sending to TNOS MCP: %v", err)
-		utils.RespondWithError(w, http.StatusInternalServerError, "Error processing request")
+		utils.RespondWithError(w, http.StatusInternalServerError, errContextSyncFailed)
 		return
 	}
 
-	utils.RespondWithJSON(w, http.StatusOK, response)
+	compressed, meta, err := utils.MobiusCompress(params.Data, newContext)
+	if err != nil {
+		utils.RespondWithError(w, http.StatusInternalServerError, "Compression failed")
+		return
+	}
+	encoded, err := utils.HelicalEncode(compressed, params.StrandCount, meta)
+	if err != nil {
+		utils.RespondWithError(w, http.StatusInternalServerError, "Helical encoding failed")
+		return
+	}
+	err = utils.HelicalStore(params.Key, encoded, meta, newContext)
+	if err != nil {
+		utils.RespondWithError(w, http.StatusInternalServerError, "Storage failed")
+		return
+	}
+	utils.RespondWithJSON(w, http.StatusOK, map[string]interface{}{"status": "success"})
 }
 
 // HelicalRetrieveHandler handles requests to retrieve helically encoded data
 func HelicalRetrieveHandler(w http.ResponseWriter, r *http.Request, ctx context.Context) {
-	// Extract request parameters
 	var params struct {
 		Key     string                 `json:"key"`
 		Context map[string]interface{} `json:"context,omitempty"`
@@ -201,44 +149,37 @@ func HelicalRetrieveHandler(w http.ResponseWriter, r *http.Request, ctx context.
 
 	err := json.NewDecoder(r.Body).Decode(&params)
 	if err != nil {
-		utils.RespondWithError(w, http.StatusBadRequest, "Invalid request payload")
+		utils.RespondWithError(w, http.StatusBadRequest, errInvalidRequestPayload)
 		return
 	}
-
-	// Validate required parameters
 	if params.Key == "" {
 		utils.RespondWithError(w, http.StatusBadRequest, "Key is required")
 		return
 	}
-
-	// Prepare MCP message for TNOS
-	message := models.MCPMessage{
-		Tool: "helical_retrieve",
-		Parameters: map[string]interface{}{
-			"key": params.Key,
-		},
-		Context: params.Context,
-	}
-
-	// Send message to TNOS MCP bridge
-	response, err := utils.SendToTNOSMCP(message)
+	encoded, meta, err := utils.HelicalRetrieve(params.Key, params.Context)
 	if err != nil {
-		log.Printf("Error sending to TNOS MCP: %v", err)
-		utils.RespondWithError(w, http.StatusInternalServerError, fmt.Sprintf("Error processing request: %v", err))
+		utils.RespondWithError(w, http.StatusInternalServerError, "Retrieval failed")
+		return
+	}
+	compressed, err := utils.HelicalDecode(encoded, meta)
+	if err != nil {
+		utils.RespondWithError(w, http.StatusInternalServerError, "Helical decoding failed")
 		return
 	}
 
-	// Process and return response
-	data, exists := response.Result["data"]
-	if !exists {
-		utils.RespondWithError(w, http.StatusInternalServerError, "Invalid response from TNOS")
+	decompressed, err := utils.MobiusDecompress(compressed, meta)
+	if err != nil {
+		utils.RespondWithError(w, http.StatusInternalServerError, "Decompression failed")
 		return
 	}
-
-	// Convert binary data to base64 for JSON response
-	if binData, ok := data.([]byte); ok {
-		response.Result["data"] = base64.StdEncoding.EncodeToString(binData)
-	}
-
-	utils.RespondWithJSON(w, http.StatusOK, response)
+	utils.RespondWithJSON(w, http.StatusOK, map[string]interface{}{"data": decompressed})
 }
+
+// Example: Optionally sync context or use remote compression via TNOS MCP bridge
+// import "tranquility-neuro-os/github-mcp-server/utils/tnos_bridge_client"
+//
+// In handler, e.g.:
+//   newContext, err := utils.Sync7DContext(params.Context)
+//   compressed, meta, err := utils.MobiusCompressRemote(params.Data, newContext)
+//
+// This enables cross-system context and compression integration.
