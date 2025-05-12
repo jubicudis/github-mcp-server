@@ -10,6 +10,7 @@
 package github
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/mark3labs/mcp-go/mcp"
@@ -30,7 +31,8 @@ func GetTextContent(t *testing.T, result *mcp.CallToolResult) string {
 	require.NotNil(t, result)
 	require.NotEmpty(t, result.Content, "CallToolResult has no content")
 
-	// For now, return the Content directly as it appears to be a string in our implementation
-	// This will need to be updated once the MCP protocol is fully implemented
-	return result.Content
+	// For testing purposes, we'll convert the first content item to JSON
+	contentJSON, err := json.Marshal(result.Content[0])
+	require.NoError(t, err)
+	return string(contentJSON)
 }
