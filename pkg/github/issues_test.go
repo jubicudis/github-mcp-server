@@ -95,7 +95,8 @@ func Test_GetIssue(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
 			client := githubMCP.NewClient(tc.mockedClient)
-			_, handler := GetIssue(testutil.StubGetClientFn(client), translations.NullTranslationHelper)
+			translateFn := CreateTestTranslateFunc()
+			_, handler := GetIssue(testutil.StubGetClientFn(client), translateFn)
 
 			// Create call request
 			request := *testutil.CreateMCPRequest(tc.requestArgs)
@@ -115,7 +116,7 @@ func Test_GetIssue(t *testing.T) {
 
 			// Unmarshal and verify the result
 			var returnedIssue github.Issue
-			err = json.Unmarshal([]byte(textContent.Text), &returnedIssue)
+			err = json.Unmarshal([]byte(textContent), &returnedIssue)
 			require.NoError(t, err)
 			assert.Equal(t, *tc.expectedIssue.Number, *returnedIssue.Number)
 			assert.Equal(t, *tc.expectedIssue.Title, *returnedIssue.Title)
@@ -126,8 +127,9 @@ func Test_GetIssue(t *testing.T) {
 
 func Test_AddIssueComment(t *testing.T) {
 	// Verify tool definition once
-	mockClient := githubMCP.NewClient(nil)
-	tool, _ := AddIssueComment(testutil.StubGetClientFn(mockClient), translations.NullTranslationHelper)
+	mockClient := mock.NewMockedHTTPClient()
+	translateFn := CreateTestTranslateFunc()
+	tool, _ := AddIssueComment(testutil.StubGetClientFnWithClient(mockClient), translateFn)
 
 	assert.Equal(t, "add_issue_comment", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -139,12 +141,12 @@ func Test_AddIssueComment(t *testing.T) {
 
 	// Setup mock comment for success case
 	mockComment := &github.IssueComment{
-		ID:   githubMCP.Ptr(int64(123)),
-		Body: githubMCP.Ptr("This is a test comment"),
+		ID:   Ptr(int64(123)),
+		Body: Ptr("This is a test comment"),
 		User: &github.User{
-			Login: githubMCP.Ptr("testuser"),
+			Login: Ptr("testuser"),
 		},
-		HTMLURL: githubMCP.Ptr("https://github.com/owner/repo/issues/42#issuecomment-123"),
+		HTMLURL: Ptr("https://github.com/owner/repo/issues/42#issuecomment-123"),
 	}
 
 	tests := []struct {
@@ -198,7 +200,7 @@ func Test_AddIssueComment(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
 			client := githubMCP.NewClient(tc.mockedClient)
-			_, handler := AddIssueComment(testutil.StubGetClientFn(client), translations.NullTranslationHelper)
+			_, handler := AddIssueComment(testutil.StubGetClientFn(client), CreateTestTranslateFunc())
 
 			// Create call request
 			request := mcp.CallToolRequest{
@@ -226,7 +228,7 @@ func Test_AddIssueComment(t *testing.T) {
 			if tc.expectedErrMsg != "" {
 				require.NotNil(t, result)
 				textContent := getTextResult(t, result)
-				assert.Contains(t, textContent.Text, tc.expectedErrMsg)
+				assert.Contains(t, textContent, tc.expectedErrMsg)
 				return
 			}
 
@@ -237,7 +239,7 @@ func Test_AddIssueComment(t *testing.T) {
 
 			// Unmarshal and verify the result
 			var returnedComment github.IssueComment
-			err = json.Unmarshal([]byte(textContent.Text), &returnedComment)
+			err = json.Unmarshal([]byte(textContent), &returnedComment)
 			require.NoError(t, err)
 			assert.Equal(t, *tc.expectedComment.ID, *returnedComment.ID)
 			assert.Equal(t, *tc.expectedComment.Body, *returnedComment.Body)
@@ -250,7 +252,7 @@ func Test_AddIssueComment(t *testing.T) {
 func Test_SearchIssues(t *testing.T) {
 	// Verify tool definition once
 	mockClient := githubMCP.NewClient(nil)
-	tool, _ := SearchIssues(testutil.StubGetClientFn(mockClient), translations.NullTranslationHelper)
+	tool, _ := SearchIssues(testutil.StubGetClientFn(mockClient), CreateTestTranslateFunc())
 
 	assert.Equal(t, "search_issues", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -365,7 +367,7 @@ func Test_SearchIssues(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
 			client := githubMCP.NewClient(tc.mockedClient)
-			_, handler := SearchIssues(testutil.StubGetClientFn(client), translations.NullTranslationHelper)
+			_, handler := SearchIssues(testutil.StubGetClientFn(client), CreateTestTranslateFunc())
 
 			// Create call request
 			request := *testutil.CreateMCPRequest(tc.requestArgs)
@@ -387,7 +389,7 @@ func Test_SearchIssues(t *testing.T) {
 
 			// Unmarshal and verify the result
 			var returnedResult github.IssuesSearchResult
-			err = json.Unmarshal([]byte(textContent.Text), &returnedResult)
+			err = json.Unmarshal([]byte(textContent), &returnedResult)
 			require.NoError(t, err)
 			assert.Equal(t, *tc.expectedResult.Total, *returnedResult.Total)
 			assert.Equal(t, *tc.expectedResult.IncompleteResults, *returnedResult.IncompleteResults)
@@ -537,7 +539,7 @@ func Test_CreateIssue(t *testing.T) {
 			if tc.expectedErrMsg != "" {
 				require.NotNil(t, result)
 				textContent := getTextResult(t, result)
-				assert.Contains(t, textContent.Text, tc.expectedErrMsg)
+				assert.Contains(t, textContent, tc.expectedErrMsg)
 				return
 			}
 
@@ -546,7 +548,7 @@ func Test_CreateIssue(t *testing.T) {
 
 			// Unmarshal and verify the result
 			var returnedIssue github.Issue
-			err = json.Unmarshal([]byte(textContent.Text), &returnedIssue)
+			err = json.Unmarshal([]byte(textContent), &returnedIssue)
 			require.NoError(t, err)
 
 			assert.Equal(t, *tc.expectedIssue.Number, *returnedIssue.Number)
@@ -727,7 +729,7 @@ func Test_ListIssues(t *testing.T) {
 					// For errors returned as part of the result, not as an error
 					assert.NotNil(t, result)
 					textContent := getTextResult(t, result)
-					assert.Contains(t, textContent.Text, tc.expectedErrMsg)
+					assert.Contains(t, textContent, tc.expectedErrMsg)
 				}
 				return
 			}
@@ -739,7 +741,7 @@ func Test_ListIssues(t *testing.T) {
 
 			// Unmarshal and verify the result
 			var returnedIssues []*github.Issue
-			err = json.Unmarshal([]byte(textContent.Text), &returnedIssues)
+			err = json.Unmarshal([]byte(textContent), &returnedIssues)
 			require.NoError(t, err)
 
 			assert.Len(t, returnedIssues, len(tc.expectedIssues))
@@ -911,7 +913,7 @@ func Test_UpdateIssue(t *testing.T) {
 					// For errors returned as part of the result, not as an error
 					require.NotNil(t, result)
 					textContent := getTextResult(t, result)
-					assert.Contains(t, textContent.Text, tc.expectedErrMsg)
+					assert.Contains(t, textContent, tc.expectedErrMsg)
 				}
 				return
 			}
@@ -923,7 +925,7 @@ func Test_UpdateIssue(t *testing.T) {
 
 			// Unmarshal and verify the result
 			var returnedIssue github.Issue
-			err = json.Unmarshal([]byte(textContent.Text), &returnedIssue)
+			err = json.Unmarshal([]byte(textContent), &returnedIssue)
 			require.NoError(t, err)
 
 			assert.Equal(t, *tc.expectedIssue.Number, *returnedIssue.Number)
@@ -1133,7 +1135,7 @@ func Test_GetIssueComments(t *testing.T) {
 
 			// Unmarshal and verify the result
 			var returnedComments []*github.IssueComment
-			err = json.Unmarshal([]byte(textContent.Text), &returnedComments)
+			err = json.Unmarshal([]byte(textContent), &returnedComments)
 			require.NoError(t, err)
 			assert.Equal(t, len(tc.expectedComments), len(returnedComments))
 			if len(returnedComments) > 0 {

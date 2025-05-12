@@ -122,17 +122,13 @@ func mockResponse(t *testing.T, code int, body interface{}) http.HandlerFunc {
 func getTextResult(t *testing.T, result *mcp_go.CallToolResult) string {
 	t.Helper()
 	assert.NotNil(t, result)
+	assert.NotEmpty(t, result.Content, "CallToolResult has no content")
 
-	// Check if Content slice is available and has elements
-	if len(result.Content) > 0 {
-		// Extract the text content from the first content element
-		// Assuming the first content is TextContent
-		textContent, ok := result.Content[0].(mcp_go.TextContent)
-		if ok {
-			return textContent.Text
-		}
-	}
-	return ""
+	// In a real implementation, we would extract text from various content types
+	// But for our tests, we'll marshal the content as JSON and return that
+	contentJson, err := json.Marshal(result.Content[0])
+	require.NoError(t, err)
+	return string(contentJson)
 }
 
 func TestOptionalParamOK(t *testing.T) {
