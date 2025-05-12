@@ -440,14 +440,11 @@ func RegisterTools(server MCPServer, getClient GetClientFn, t translations.Trans
 	// HOW: Using tool registration
 	// EXTENT: All GitHub MCP tools
 
-	// Create adapter for context translation
-	contextAdapter := createContextTranslationAdapter(t)
-
-	// Register repository tools
-	repoTool, repoHandler := GetRepository(getClient, contextAdapter)
+	// Register repository tools directly using translation helper
+	repoTool, repoHandler := GetRepository(getClient, t)
 	server.RegisterTool(repoTool, repoHandler)
 
-	listReposTool, listReposHandler := ListRepositories(getClient, contextAdapter)
+	listReposTool, listReposHandler := ListRepositories(getClient, t)
 	server.RegisterTool(listReposTool, listReposHandler)
 
 	// Register content tools

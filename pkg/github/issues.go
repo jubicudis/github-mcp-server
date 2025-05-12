@@ -23,156 +23,16 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
-// Types needed for compatibility
-type GetClientFn func(ctx context.Context) (*github.Client, error)
-
-// ContextTranslationFunc is used for translating context data between formats
-type ContextTranslationFunc func(ctx context.Context, contextData map[string]interface{}) (map[string]interface{}, error)
-
-// RequiredParam extracts a required parameter from the MCP request
-func RequiredParam[T any](request mcp.CallToolRequest, name string) (T, error) {
-	var zero T
-	value, ok := request.Params.Arguments[name]
-	if !ok {
-		return zero, fmt.Errorf("missing required parameter: %s", name)
-	}
-
-	if typed, ok := value.(T); ok {
-		return typed, nil
-	}
-
-	return zero, fmt.Errorf("invalid parameter type for %s", name)
-}
-
-// RequiredIntParam extracts a required integer parameter from the MCP request
-func RequiredIntParam(request mcp.CallToolRequest, name string) (int, error) {
-	value, ok := request.Params.Arguments[name]
-	if !ok {
-		return 0, fmt.Errorf("missing required parameter: %s", name)
-	}
-
-	if numVal, ok := value.(float64); ok {
-		return int(numVal), nil
-	}
-
-	if numVal, ok := value.(int); ok {
-		return numVal, nil
-	}
-
-	return 0, fmt.Errorf("invalid parameter type for %s", name)
-}
-
-// OptionalParam extracts an optional parameter from the MCP request
-func OptionalParam[T any](request mcp.CallToolRequest, name string) (T, error) {
-	var zero T
-	value, ok := request.Params.Arguments[name]
-	if !ok {
-		return zero, nil
-	}
-
-	if value == nil {
-		return zero, nil
-	}
-
-	if typed, ok := value.(T); ok {
-		return typed, nil
-	}
-
-	return zero, fmt.Errorf("invalid parameter type for %s", name)
-}
-
-// OptionalStringArrayParam extracts an optional string array parameter
-func OptionalStringArrayParam(request mcp.CallToolRequest, name string) ([]string, error) {
-	// Check if the parameter is present
-	if _, ok := request.Params.Arguments[name]; !ok {
-		return []string{}, nil
-	}
-
-	value := request.Params.Arguments[name]
-	switch v := value.(type) {
-	case nil:
-		return []string{}, nil
-	case []string:
-		return v, nil
-	case []interface{}:
-		strSlice := make([]string, len(v))
-		for i, item := range v {
-			s, ok := item.(string)
-			if !ok {
-				return []string{}, fmt.Errorf("parameter %s contains non-string elements", name)
-			}
-			strSlice[i] = s
-		}
-		return strSlice, nil
-	default:
-		return []string{}, fmt.Errorf("parameter %s is not a string array", name)
-	}
-}
-
-// OptionalIntParam extracts an optional integer parameter
-func OptionalIntParamWithDefault(request mcp.CallToolRequest, name string, defaultVal int) (int, error) {
-	if _, ok := request.Params.Arguments[name]; !ok {
-		return defaultVal, nil
-	}
-
-	value := request.Params.Arguments[name]
-	if value == nil {
-		return defaultVal, nil
-	}
-
-	if numVal, ok := value.(float64); ok {
-		return int(numVal), nil
-	}
-
-	if numVal, ok := value.(int); ok {
-		return numVal, nil
-	}
-
-	return defaultVal, fmt.Errorf("parameter %s is not a number", name)
-}
-
-// OptionalInt extracts an optional integer parameter and returns whether it was found
-func OptionalInt(request mcp.CallToolRequest, name string) (int, bool, error) {
-	if _, ok := request.Params.Arguments[name]; !ok {
-		return 0, false, nil
-	}
-
-	value := request.Params.Arguments[name]
-	if value == nil {
-		return 0, false, nil
-	}
-
-	if numVal, ok := value.(float64); ok {
-		return int(numVal), true, nil
-	}
-
-	if numVal, ok := value.(int); ok {
-		return numVal, true, nil
-	}
-
-	return 0, false, fmt.Errorf("parameter %s is not a number", name)
-}
-
-// Ptr returns a pointer to the provided value
-func Ptr[T any](v T) *T {
-	return &v
-}
-
-// WithPagination adds standard pagination parameters to a tool
-func WithPagination() mcp.ToolOption {
-	return func(tool *mcp.Tool) {
-		mcp.WithNumber("page",
-			mcp.Description("Page number for pagination (min 1)"),
-			mcp.Min(1),
-		)(tool)
-
-		mcp.WithNumber("perPage",
-			mcp.Description("Results per page for pagination (min 1, max 100)"),
-			mcp.Min(1),
-			mcp.Max(100),
-		)(tool)
-	}
-}
+// The following imports are available from other package files:
+// - GetClientFn from github.go
+// - ContextTranslationFunc from common.go
+// - RequiredParam, RequiredIntParam from common.go
+// - OptionalParam from github.go
+// - OptionalStringArrayParam from common.go
+// - OptionalIntParamWithDefault from common.go
+// - OptionalInt from github.go
+// - Ptr from common.go
+// - WithPagination from common.go
 
 /*
  * WHO: IssueToolProvider

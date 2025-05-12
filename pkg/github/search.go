@@ -29,7 +29,7 @@ import (
 // EXTENT: All tool parameter processing
 func requiredParam[T any](request mcp.CallToolRequest, paramName string) (T, error) {
 	var zero T
-	val, ok := request.Arguments[paramName]
+	val, ok := request.Params.Arguments[paramName]
 	if !ok {
 		return zero, fmt.Errorf("missing required parameter: %s", paramName)
 	}

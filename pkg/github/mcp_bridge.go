@@ -226,10 +226,8 @@ func NewMCPBridge(options MCPBridgeOptions) (*MCPBridge, error) {
 	// Create logger if none provided
 	logger := options.Logger
 	if logger == nil {
-		logger = log.NewLogger(log.Config{
-			Level:      log.LevelInfo,
-			ConsoleOut: true,
-		})
+		logger = log.NewLogger()
+		// Logger already has default level LevelInfo
 	}
 
 	// Create context translator

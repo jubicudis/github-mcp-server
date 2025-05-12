@@ -17,6 +17,8 @@ import (
 	mcp_go "github.com/mark3labs/mcp-go/mcp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"tranquility-neuro-os/github-mcp-server/pkg/github/testutil"
 )
 
 // WHO: TestUtility
@@ -39,7 +41,7 @@ func stubGetClientFn(client *github.Client) GetClientFn {
 // WHY: To provide mock clients with consistent interface
 // HOW: Using httpclient wrapping
 // EXTENT: For all GitHub API test cases
-func NewClient(httpClient *http.Client) *github.Client {
+func NewTestClient(httpClient *http.Client) *github.Client {
 	if httpClient == nil {
 		httpClient = http.DefaultClient
 	}
@@ -111,20 +113,7 @@ func mockResponse(t *testing.T, code int, body interface{}) http.HandlerFunc {
 	}
 }
 
-// createMCPRequest is a helper function to create a MCP request with the given arguments.
-func createMCPRequest(args map[string]interface{}) mcp_go.CallToolRequest {
-	return mcp_go.CallToolRequest{
-		Params: struct {
-			Name      string                 `json:"name"`
-			Arguments map[string]interface{} `json:"arguments,omitempty"`
-			Meta      *struct {
-				ProgressToken mcp_go.ProgressToken `json:"progressToken,omitempty"`
-			} `json:"_meta,omitempty"`
-		}{
-			Arguments: args,
-		},
-	}
-}
+// Use testutil.CreateMCPRequest instead of this local function
 
 // getTextResult is a helper function that returns a text result from a tool call.
 func getTextResult(t *testing.T, result *mcp_go.CallToolResult) mcp_go.TextContent {
@@ -201,7 +190,7 @@ func TestOptionalParamOK(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			request := createMCPRequest(tc.args)
+			request := *testutil.CreateMCPRequest(tc.args)
 
 			// Test with string type assertion
 			if _, isString := tc.expectedVal.(string); isString || tc.errorMsg == "parameter myParam is not of type string, is bool" {
@@ -220,6 +209,8 @@ func TestOptionalParamOK(t *testing.T) {
 
 			// Test with bool type assertion
 			if _, isBool := tc.expectedVal.(bool); isBool || tc.errorMsg == "parameter myParam is not of type bool, is string" {
+				// Convert to the format expected by the test
+				request := *testutil.CreateMCPRequest(tc.args)
 				val, ok, err := OptionalParamOK[bool](request, tc.paramName)
 				if tc.expectError {
 					require.Error(t, err)

@@ -12,8 +12,10 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/google/go-github/v49/github"
+	"tranquility-neuro-os/github-mcp-server/pkg/github/testutil"
 	"tranquility-neuro-os/github-mcp-server/pkg/translations"
+
+	"github.com/google/go-github/v49/github"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/migueleliasweb/go-github-mock/src/mock"
 	"github.com/stretchr/testify/require"
@@ -241,7 +243,7 @@ func Test_repositoryResourceContentsHandler(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			client := github.NewClient(tc.mockedClient)
-			handler := RepositoryResourceContentsHandler((stubGetClientFn(client)))
+			handler := RepositoryResourceContentsHandler((testutil.StubGetClientFn(client)))
 
 			request := mcp.ReadResourceRequest{
 				Params: struct {

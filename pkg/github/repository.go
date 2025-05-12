@@ -39,8 +39,7 @@ import (
 // WHY: To provide repository information via MCP
 // HOW: Using MCP tool definition mechanism
 func GetRepository(getClient GetClientFn, t translations.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
-	// Create adapter for context translation
-	contextTranslator := createContextTranslationAdapter(t)
+	// Use translation helper directly for request handling
 	// WHO: RepositoryToolDefiner
 	// WHAT: Define repository tool
 	// WHEN: During server initialization
@@ -59,27 +58,6 @@ func GetRepository(getClient GetClientFn, t translations.TranslationHelperFunc) 
 			mcp.Required(),
 			mcp.Description(ConstRepoNameDesc),
 		),
-		mcp.WithReturnSchema(map[string]interface{}{
-			"name":        "string",
-			"full_name":   "string",
-			"description": "string",
-			"owner": map[string]interface{}{
-				"login": "string",
-				"id":    "number",
-			},
-			"html_url":       "string",
-			"language":       "string",
-			"fork":           "boolean",
-			"stargazers":     "number",
-			"watchers":       "number",
-			"forks":          "number",
-			"open_issues":    "number",
-			"default_branch": "string",
-			"created_at":     "string",
-			"updated_at":     "string",
-			"archived":       "boolean",
-			"private":        "boolean",
-		}),
 	)
 
 	// WHO: RepositoryRequestHandler
@@ -143,7 +121,11 @@ func GetRepository(getClient GetClientFn, t translations.TranslationHelperFunc) 
 			"private":        repository.GetPrivate(),
 		}
 
-		return mcp.NewToolResultJSON(response), nil
+		responseJSON, err := json.Marshal(response)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal response: %w", err)
+		}
+		return mcp.NewToolResultText(string(responseJSON)), nil
 	}
 
 	return tool, handler

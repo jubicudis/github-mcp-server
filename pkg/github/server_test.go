@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"tranquility-neuro-os/github-mcp-server/pkg/github/testutil"
 	"tranquility-neuro-os/github-mcp-server/pkg/translations"
 
 	"github.com/google/go-github/v49/github"
@@ -23,12 +24,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Using the stubGetClientFn defined in helper_test.go instead of redefining it here
+// Using the StubGetClientFn from the testutil package
 
 func Test_GetMe(t *testing.T) {
 	// Verify tool definition
 	mockClient := github.NewClient(nil)
-	tool, _ := GetMe(stubGetClientFn(mockClient), translations.NullTranslationHelper)
+	tool, _ := GetMe(testutil.StubGetClientFn(mockClient), translations.NullTranslationHelper)
 
 	assert.Equal(t, "get_me", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -106,10 +107,10 @@ func Test_GetMe(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
 			client := github.NewClient(tc.mockedClient)
-			_, handler := GetMe(stubGetClientFn(client), translations.NullTranslationHelper)
+			_, handler := GetMe(testutil.StubGetClientFn(client), translations.NullTranslationHelper)
 
 			// Create call request
-			request := createMCPRequest(tc.requestArgs)
+			request := *testutil.CreateMCPRequest(tc.requestArgs)
 
 			// Call handler
 			result, err := handler(context.Background(), request)
@@ -124,7 +125,7 @@ func Test_GetMe(t *testing.T) {
 			require.NoError(t, err)
 
 			// Parse result and get text content if no error
-			textContent := getTextResult(t, result)
+			textContent := testutil.GetTextResult(t, result)
 
 			// Unmarshal and verify the result
 			var returnedUser github.User
@@ -218,7 +219,7 @@ func Test_RequiredStringParam(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			request := createMCPRequest(tc.params)
+			request := *testutil.CreateMCPRequest(tc.params)
 			result, err := RequiredParam[string](request, tc.paramName)
 
 			if tc.expectError {
@@ -271,7 +272,7 @@ func Test_OptionalStringParam(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			request := createMCPRequest(tc.params)
+			request := *testutil.CreateMCPRequest(tc.params)
 			result, err := OptionalParam[string](request, tc.paramName)
 
 			if tc.expectError {
@@ -317,7 +318,7 @@ func Test_RequiredNumberParam(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			request := createMCPRequest(tc.params)
+			request := *testutil.CreateMCPRequest(tc.params)
 			result, err := RequiredInt(request, tc.paramName)
 
 			if tc.expectError {
@@ -370,7 +371,7 @@ func Test_OptionalNumberParam(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			request := createMCPRequest(tc.params)
+			request := *testutil.CreateMCPRequest(tc.params)
 			result, err := OptionalIntParam(request, tc.paramName)
 
 			if tc.expectError {
@@ -428,7 +429,7 @@ func Test_OptionalNumberParamWithDefault(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			request := createMCPRequest(tc.params)
+			request := *testutil.CreateMCPRequest(tc.params)
 			result, err := OptionalIntParamWithDefault(request, tc.paramName, tc.defaultVal)
 
 			if tc.expectError {
@@ -481,7 +482,7 @@ func Test_OptionalBooleanParam(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			request := createMCPRequest(tc.params)
+			request := *testutil.CreateMCPRequest(tc.params)
 			result, err := OptionalParam[bool](request, tc.paramName)
 
 			if tc.expectError {
@@ -549,7 +550,7 @@ func TestOptionalStringArrayParam(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			request := createMCPRequest(tc.params)
+			request := *testutil.CreateMCPRequest(tc.params)
 			result, err := OptionalStringArrayParam(request, tc.paramName)
 
 			if tc.expectError {
@@ -632,7 +633,7 @@ func TestOptionalPaginationParams(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			request := createMCPRequest(tc.params)
+			request := *testutil.CreateMCPRequest(tc.params)
 			result, err := OptionalPaginationParams(request)
 
 			if tc.expectError {

@@ -18,6 +18,8 @@ import (
 
 	"tranquility-neuro-os/github-mcp-server/internal/mcp"
 	"tranquility-neuro-os/github-mcp-server/models"
+
+	mcpGo "github.com/mark3labs/mcp-go/mcp"
 )
 
 // Global bridge connection - would be initialized during server startup
@@ -77,12 +79,9 @@ func SendToTNOSMCP(message models.MCPMessage) (*models.MCPMessage, error) {
 	startTime := time.Now()
 
 	// Create a CallToolRequest as required by the MCP bridge
-	toolRequest := &mcp.CallToolRequest{
-		Tool: message.Tool,
-		Params: mcp.CallToolParams{
-			Arguments: message.Parameters,
-		},
-	}
+	toolRequest := &mcp.CallToolRequest{}
+	toolRequest.Params.Name = message.Tool
+	toolRequest.Params.Arguments = message.Parameters
 
 	result, err := mcpBridge.SendRequest(toolRequest)
 	if err != nil {
@@ -103,25 +102,33 @@ func SendToTNOSMCP(message models.MCPMessage) (*models.MCPMessage, error) {
 
 	// Extract result from response
 	if result != nil {
-		// Convert the result to JSON
-		resultBytes, err := json.Marshal(result)
-		if err != nil {
-			log.Printf("Error marshaling result: %v", err)
-		} else {
-			// Try to parse the JSON
-			var resultData map[string]interface{}
-			if err := json.Unmarshal(resultBytes, &resultData); err == nil {
-				response.Result = resultData
-			} else {
-				// If parsing fails, store as string
-				response.Result["raw"] = string(resultBytes)
+		// Extract text content from the first content item
+		if len(result.Content) > 0 {
+			if textContent, ok := result.Content[0].(mcpGo.TextContent); ok {
+				// Try to parse the text as JSON
+				var resultData map[string]interface{}
+				if err := json.Unmarshal([]byte(textContent.Text), &resultData); err == nil {
+					response.Result = resultData
+				} else {
+					// If parsing fails, store as raw text
+					response.Result["raw"] = textContent.Text
+				}
 			}
 		}
 
-		// Extract error from result if it's an error result
-		if result.Type == mcp.ResultTypeError {
+		// Check if the result was an error
+		if result.IsError {
+			errorMsg := "Error from tool execution"
+
+			// Try to extract error message from content
+			if len(result.Content) > 0 {
+				if textContent, ok := result.Content[0].(mcpGo.TextContent); ok {
+					errorMsg = textContent.Text
+				}
+			}
+
 			response.Error = &models.MCPError{
-				Message: result.Value,
+				Message: errorMsg,
 			}
 		}
 	}
