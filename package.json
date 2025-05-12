@@ -16,10 +16,7 @@
     "onLanguage:typescript",
     "onLanguage:python",
     "onLanguage:java",
-    "onLanguage:cpp",
-    "onCommand:tnos.healthCheck",
-    "onCommand:tnos.compress",
-    "onCommand:tnos.analyzeContext"
+    "onLanguage:cpp"
   ],
   "main": "./src/extension.js",
   "contributes": {
