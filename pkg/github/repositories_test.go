@@ -8,55 +8,74 @@ import (
 	"time"
 
 	"github.com/google/go-github/v49/github"
-	githubMCP "github.com/google/go-github/v49/github"
-	"tranquility-neuro-os/github-mcp-server/pkg/translations"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/migueleliasweb/go-github-mock/src/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
+func Ptr[T any](v T) *T { return &v }
+
+var NullTranslationHelperFunc = func(key, defaultValue string) string { return defaultValue }
+
+const (
+	ownerKey       = "owner"
+	repoKey        = "repo"
+	pathKey        = "path"
+	branchKey      = "branch"
+	shaKey         = "sha"
+	commitMessage  = "message"
+	contentKey     = "content"
+	filesKey       = "files"
+	nameKey        = "name"
+	descriptionKey = "description"
+	privateKey     = "private"
+	autoInitKey    = "autoInit"
+	pageKey        = "page"
+	perPageKey     = "perPage"
+)
+
 func Test_GetFileContents(t *testing.T) {
 	// Verify tool definition once
-	mockClient := githubMCP.NewClient(nil)
-	tool, _ := GetFileContents(stubGetClientFn(mockClient), translations.NullTranslationHelper)
+	mockClient := github.NewClient(nil)
+	tool, _ := GetFileContents(stubGetClientFn(mockClient), NullTranslationHelperFunc)
 
 	assert.Equal(t, "get_file_contents", tool.Name)
 	assert.NotEmpty(t, tool.Description)
-	assert.Contains(t, tool.InputSchema.Properties, "owner")
-	assert.Contains(t, tool.InputSchema.Properties, "repo")
-	assert.Contains(t, tool.InputSchema.Properties, "path")
-	assert.Contains(t, tool.InputSchema.Properties, "branch")
-	assert.ElementsMatch(t, tool.InputSchema.Required, []string{"owner", "repo", "path"})
+	assert.Contains(t, tool.InputSchema.Properties, ownerKey)
+	assert.Contains(t, tool.InputSchema.Properties, repoKey)
+	assert.Contains(t, tool.InputSchema.Properties, pathKey)
+	assert.Contains(t, tool.InputSchema.Properties, branchKey)
+	assert.ElementsMatch(t, tool.InputSchema.Required, []string{ownerKey, repoKey, pathKey})
 
 	// Setup mock file content for success case
 	mockFileContent := &github.RepositoryContent{
-		Type:        githubMCP.Ptr("file"),
-		Name:        githubMCP.Ptr("README.md"),
-		Path:        githubMCP.Ptr("README.md"),
-		Content:     githubMCP.Ptr("IyBUZXN0IFJlcG9zaXRvcnkKClRoaXMgaXMgYSB0ZXN0IHJlcG9zaXRvcnku"), // Base64 encoded "# Test Repository\n\nThis is a test repository."
-		SHA:         githubMCP.Ptr("abc123"),
-		Size:        githubMCP.Ptr(42),
-		HTMLURL:     githubMCP.Ptr("https://github.com/owner/repo/blob/main/README.md"),
-		DownloadURL: githubMCP.Ptr("https://raw.githubusercontent.com/owner/repo/main/README.md"),
+		Type:        Ptr("file"),
+		Name:        Ptr("README.md"),
+		Path:        Ptr("README.md"),
+		Content:     Ptr("IyBUZXN0IFJlcG9zaXRvcnkKClRoaXMgaXMgYSB0ZXN0IHJlcG9zaXRvcnku"), // Base64 encoded "# Test Repository\n\nThis is a test repository."
+		SHA:         Ptr("abc123"),
+		Size:        Ptr(42),
+		HTMLURL:     Ptr("https://github.com/owner/repo/blob/main/README.md"),
+		DownloadURL: Ptr("https://raw.githubusercontent.com/owner/repo/main/README.md"),
 	}
 
 	// Setup mock directory content for success case
 	mockDirContent := []*github.RepositoryContent{
 		{
-			Type:    githubMCP.Ptr("file"),
-			Name:    githubMCP.Ptr("README.md"),
-			Path:    githubMCP.Ptr("README.md"),
-			SHA:     githubMCP.Ptr("abc123"),
-			Size:    githubMCP.Ptr(42),
-			HTMLURL: githubMCP.Ptr("https://github.com/owner/repo/blob/main/README.md"),
+			Type:    Ptr("file"),
+			Name:    Ptr("README.md"),
+			Path:    Ptr("README.md"),
+			SHA:     Ptr("abc123"),
+			Size:    Ptr(42),
+			HTMLURL: Ptr("https://github.com/owner/repo/blob/main/README.md"),
 		},
 		{
-			Type:    githubMCP.Ptr("dir"),
-			Name:    githubMCP.Ptr("src"),
-			Path:    githubMCP.Ptr("src"),
-			SHA:     githubMCP.Ptr("def456"),
-			HTMLURL: githubMCP.Ptr("https://github.com/owner/repo/tree/main/src"),
+			Type:    Ptr("dir"),
+			Name:    Ptr("src"),
+			Path:    Ptr("src"),
+			SHA:     Ptr("def456"),
+			HTMLURL: Ptr("https://github.com/owner/repo/tree/main/src"),
 		},
 	}
 
@@ -81,10 +100,10 @@ func Test_GetFileContents(t *testing.T) {
 				),
 			),
 			requestArgs: map[string]interface{}{
-				"owner":  "owner",
-				"repo":   "repo",
-				"path":   "README.md",
-				"branch": "main",
+				ownerKey:  "owner",
+				repoKey:   "repo",
+				pathKey:   "README.md",
+				branchKey: "main",
 			},
 			expectError:    false,
 			expectedResult: mockFileContent,
@@ -100,9 +119,9 @@ func Test_GetFileContents(t *testing.T) {
 				),
 			),
 			requestArgs: map[string]interface{}{
-				"owner": "owner",
-				"repo":  "repo",
-				"path":  "src",
+				ownerKey: "owner",
+				repoKey:  "repo",
+				pathKey:  "src",
 			},
 			expectError:    false,
 			expectedResult: mockDirContent,
@@ -119,10 +138,10 @@ func Test_GetFileContents(t *testing.T) {
 				),
 			),
 			requestArgs: map[string]interface{}{
-				"owner":  "owner",
-				"repo":   "repo",
-				"path":   "nonexistent.md",
-				"branch": "main",
+				ownerKey:  "owner",
+				repoKey:   "repo",
+				pathKey:   "nonexistent.md",
+				branchKey: "main",
 			},
 			expectError:    true,
 			expectedErrMsg: "failed to get file contents",
@@ -132,8 +151,8 @@ func Test_GetFileContents(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
-			client := githubMCP.NewClient(tc.mockedClient)
-			_, handler := GetFileContents(stubGetClientFn(client), translations.NullTranslationHelper)
+			client := github.NewClient(tc.mockedClient)
+			_, handler := GetFileContents(stubGetClientFn(client), NullTranslationHelperFunc)
 
 			// Create call request
 			request := mcp.CallToolRequest{
@@ -189,28 +208,28 @@ func Test_GetFileContents(t *testing.T) {
 
 func Test_ForkRepository(t *testing.T) {
 	// Verify tool definition once
-	mockClient := githubMCP.NewClient(nil)
-	tool, _ := ForkRepository(stubGetClientFn(mockClient), translations.NullTranslationHelper)
+	mockClient := github.NewClient(nil)
+	tool, _ := ForkRepository(stubGetClientFn(mockClient), NullTranslationHelperFunc)
 
 	assert.Equal(t, "fork_repository", tool.Name)
 	assert.NotEmpty(t, tool.Description)
-	assert.Contains(t, tool.InputSchema.Properties, "owner")
-	assert.Contains(t, tool.InputSchema.Properties, "repo")
+	assert.Contains(t, tool.InputSchema.Properties, ownerKey)
+	assert.Contains(t, tool.InputSchema.Properties, repoKey)
 	assert.Contains(t, tool.InputSchema.Properties, "organization")
-	assert.ElementsMatch(t, tool.InputSchema.Required, []string{"owner", "repo"})
+	assert.ElementsMatch(t, tool.InputSchema.Required, []string{ownerKey, repoKey})
 
 	// Setup mock forked repo for success case
 	mockForkedRepo := &github.Repository{
-		ID:       githubMCP.Ptr(int64(123456)),
-		Name:     githubMCP.Ptr("repo"),
-		FullName: githubMCP.Ptr("new-owner/repo"),
+		ID:       Ptr(int64(123456)),
+		Name:     Ptr("repo"),
+		FullName: Ptr("new-owner/repo"),
 		Owner: &github.User{
-			Login: githubMCP.Ptr("new-owner"),
+			Login: Ptr("new-owner"),
 		},
-		HTMLURL:       githubMCP.Ptr("https://github.com/new-owner/repo"),
-		DefaultBranch: githubMCP.Ptr("main"),
-		Fork:          githubMCP.Ptr(true),
-		ForksCount:    githubMCP.Ptr(0),
+		HTMLURL:       Ptr("https://github.com/new-owner/repo"),
+		DefaultBranch: Ptr("main"),
+		Fork:          Ptr(true),
+		ForksCount:    Ptr(0),
 	}
 
 	tests := []struct {
@@ -230,8 +249,8 @@ func Test_ForkRepository(t *testing.T) {
 				),
 			),
 			requestArgs: map[string]interface{}{
-				"owner": "owner",
-				"repo":  "repo",
+				ownerKey: "owner",
+				repoKey:  "repo",
 			},
 			expectError:  false,
 			expectedRepo: mockForkedRepo,
@@ -248,8 +267,8 @@ func Test_ForkRepository(t *testing.T) {
 				),
 			),
 			requestArgs: map[string]interface{}{
-				"owner": "owner",
-				"repo":  "repo",
+				ownerKey: "owner",
+				repoKey:  "repo",
 			},
 			expectError:    true,
 			expectedErrMsg: "failed to fork repository",
@@ -259,8 +278,8 @@ func Test_ForkRepository(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
-			client := githubMCP.NewClient(tc.mockedClient)
-			_, handler := ForkRepository(stubGetClientFn(client), translations.NullTranslationHelper)
+			client := github.NewClient(tc.mockedClient)
+			_, handler := ForkRepository(stubGetClientFn(client), NullTranslationHelperFunc)
 
 			// Create call request
 			request := createMCPRequest(tc.requestArgs)
@@ -287,35 +306,35 @@ func Test_ForkRepository(t *testing.T) {
 
 func Test_CreateBranch(t *testing.T) {
 	// Verify tool definition once
-	mockClient := githubMCP.NewClient(nil)
-	tool, _ := CreateBranch(stubGetClientFn(mockClient), translations.NullTranslationHelper)
+	mockClient := github.NewClient(nil)
+	tool, _ := CreateBranch(stubGetClientFn(mockClient), NullTranslationHelperFunc)
 
 	assert.Equal(t, "create_branch", tool.Name)
 	assert.NotEmpty(t, tool.Description)
-	assert.Contains(t, tool.InputSchema.Properties, "owner")
-	assert.Contains(t, tool.InputSchema.Properties, "repo")
+	assert.Contains(t, tool.InputSchema.Properties, ownerKey)
+	assert.Contains(t, tool.InputSchema.Properties, repoKey)
 	assert.Contains(t, tool.InputSchema.Properties, "branch")
 	assert.Contains(t, tool.InputSchema.Properties, "from_branch")
-	assert.ElementsMatch(t, tool.InputSchema.Required, []string{"owner", "repo", "branch"})
+	assert.ElementsMatch(t, tool.InputSchema.Required, []string{ownerKey, repoKey, "branch"})
 
 	// Setup mock repository for default branch test
 	mockRepo := &github.Repository{
-		DefaultBranch: githubMCP.Ptr("main"),
+		DefaultBranch: Ptr("main"),
 	}
 
 	// Setup mock reference for from_branch tests
 	mockSourceRef := &github.Reference{
-		Ref: githubMCP.Ptr("refs/heads/main"),
+		Ref: Ptr("refs/heads/main"),
 		Object: &github.GitObject{
-			SHA: githubMCP.Ptr("abc123def456"),
+			SHA: Ptr("abc123def456"),
 		},
 	}
 
 	// Setup mock created reference
 	mockCreatedRef := &github.Reference{
-		Ref: githubMCP.Ptr("refs/heads/new-feature"),
+		Ref: Ptr("refs/heads/new-feature"),
 		Object: &github.GitObject{
-			SHA: githubMCP.Ptr("abc123def456"),
+			SHA: Ptr("abc123def456"),
 		},
 	}
 
@@ -340,8 +359,8 @@ func Test_CreateBranch(t *testing.T) {
 				),
 			),
 			requestArgs: map[string]interface{}{
-				"owner":       "owner",
-				"repo":        "repo",
+				ownerKey:      "owner",
+				repoKey:       "repo",
 				"branch":      "new-feature",
 				"from_branch": "main",
 			},
@@ -370,8 +389,8 @@ func Test_CreateBranch(t *testing.T) {
 				),
 			),
 			requestArgs: map[string]interface{}{
-				"owner":  "owner",
-				"repo":   "repo",
+				ownerKey: "owner",
+				repoKey:  "repo",
 				"branch": "new-feature",
 			},
 			expectError: false,
@@ -389,8 +408,8 @@ func Test_CreateBranch(t *testing.T) {
 				),
 			),
 			requestArgs: map[string]interface{}{
-				"owner":  "owner",
-				"repo":   "nonexistent-repo",
+				ownerKey: "owner",
+				repoKey:  "nonexistent-repo",
 				"branch": "new-feature",
 			},
 			expectError:    true,
@@ -408,8 +427,8 @@ func Test_CreateBranch(t *testing.T) {
 				),
 			),
 			requestArgs: map[string]interface{}{
-				"owner":       "owner",
-				"repo":        "repo",
+				ownerKey:      "owner",
+				repoKey:       "repo",
 				"branch":      "new-feature",
 				"from_branch": "nonexistent-branch",
 			},
@@ -432,8 +451,8 @@ func Test_CreateBranch(t *testing.T) {
 				),
 			),
 			requestArgs: map[string]interface{}{
-				"owner":       "owner",
-				"repo":        "repo",
+				ownerKey:      "owner",
+				repoKey:       "repo",
 				"branch":      "existing-branch",
 				"from_branch": "main",
 			},
@@ -445,8 +464,8 @@ func Test_CreateBranch(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
-			client := githubMCP.NewClient(tc.mockedClient)
-			_, handler := CreateBranch(stubGetClientFn(client), translations.NullTranslationHelper)
+			client := github.NewClient(tc.mockedClient)
+			_, handler := CreateBranch(stubGetClientFn(client), NullTranslationHelperFunc)
 
 			// Create call request
 			request := createMCPRequest(tc.requestArgs)
@@ -478,43 +497,43 @@ func Test_CreateBranch(t *testing.T) {
 
 func Test_GetCommit(t *testing.T) {
 	// Verify tool definition once
-	mockClient := githubMCP.NewClient(nil)
-	tool, _ := GetCommit(stubGetClientFn(mockClient), translations.NullTranslationHelper)
+	mockClient := github.NewClient(nil)
+	tool, _ := GetCommit(stubGetClientFn(mockClient), NullTranslationHelperFunc)
 
 	assert.Equal(t, "get_commit", tool.Name)
 	assert.NotEmpty(t, tool.Description)
-	assert.Contains(t, tool.InputSchema.Properties, "owner")
-	assert.Contains(t, tool.InputSchema.Properties, "repo")
-	assert.Contains(t, tool.InputSchema.Properties, "sha")
-	assert.ElementsMatch(t, tool.InputSchema.Required, []string{"owner", "repo", "sha"})
+	assert.Contains(t, tool.InputSchema.Properties, ownerKey)
+	assert.Contains(t, tool.InputSchema.Properties, repoKey)
+	assert.Contains(t, tool.InputSchema.Properties, shaKey)
+	assert.ElementsMatch(t, tool.InputSchema.Required, []string{ownerKey, repoKey, shaKey})
 
 	mockCommit := &github.RepositoryCommit{
-		SHA: githubMCP.Ptr("abc123def456"),
+		SHA: Ptr("abc123def456"),
 		Commit: &github.Commit{
-			Message: githubMCP.Ptr("First commit"),
+			Message: Ptr("First commit"),
 			Author: &github.CommitAuthor{
-				Name:  githubMCP.Ptr("Test User"),
-				Email: githubMCP.Ptr("test@example.com"),
-				Date:  &github.Timestamp{Time: time.Now().Add(-48 * time.Hour)},
+				Name:  Ptr("Test User"),
+				Email: Ptr("test@example.com"),
+				Date:  Ptr(time.Now().Add(-48 * time.Hour)),
 			},
 		},
 		Author: &github.User{
-			Login: githubMCP.Ptr("testuser"),
+			Login: Ptr("testuser"),
 		},
-		HTMLURL: githubMCP.Ptr("https://github.com/owner/repo/commit/abc123def456"),
+		HTMLURL: Ptr("https://github.com/owner/repo/commit/abc123def456"),
 		Stats: &github.CommitStats{
-			Additions: githubMCP.Ptr(10),
-			Deletions: githubMCP.Ptr(2),
-			Total:     githubMCP.Ptr(12),
+			Additions: Ptr(10),
+			Deletions: Ptr(2),
+			Total:     Ptr(12),
 		},
 		Files: []*github.CommitFile{
 			{
-				Filename:  githubMCP.Ptr("file1.go"),
-				Status:    githubMCP.Ptr("modified"),
-				Additions: githubMCP.Ptr(10),
-				Deletions: githubMCP.Ptr(2),
-				Changes:   githubMCP.Ptr(12),
-				Patch:     githubMCP.Ptr("@@ -1,2 +1,10 @@"),
+				Filename:  Ptr("file1.go"),
+				Status:    Ptr("modified"),
+				Additions: Ptr(10),
+				Deletions: Ptr(2),
+				Changes:   Ptr(12),
+				Patch:     Ptr("@@ -1,2 +1,10 @@"),
 			},
 		},
 	}
@@ -541,9 +560,9 @@ func Test_GetCommit(t *testing.T) {
 				),
 			),
 			requestArgs: map[string]interface{}{
-				"owner": "owner",
-				"repo":  "repo",
-				"sha":   "abc123def456",
+				ownerKey: "owner",
+				repoKey:  "repo",
+				shaKey:   "abc123def456",
 			},
 			expectError:    false,
 			expectedCommit: mockCommit,
@@ -560,9 +579,9 @@ func Test_GetCommit(t *testing.T) {
 				),
 			),
 			requestArgs: map[string]interface{}{
-				"owner": "owner",
-				"repo":  "repo",
-				"sha":   "nonexistent-sha",
+				ownerKey: "owner",
+				repoKey:  "repo",
+				shaKey:   "nonexistent-sha",
 			},
 			expectError:    true,
 			expectedErrMsg: "failed to get commit",
@@ -572,8 +591,8 @@ func Test_GetCommit(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
-			client := githubMCP.NewClient(tc.mockedClient)
-			_, handler := GetCommit(stubGetClientFn(client), translations.NullTranslationHelper)
+			client := github.NewClient(tc.mockedClient)
+			_, handler := GetCommit(stubGetClientFn(client), NullTranslationHelperFunc)
 
 			// Create call request
 			request := createMCPRequest(tc.requestArgs)
@@ -608,49 +627,49 @@ func Test_GetCommit(t *testing.T) {
 
 func Test_ListCommits(t *testing.T) {
 	// Verify tool definition once
-	mockClient := githubMCP.NewClient(nil)
-	tool, _ := ListCommits(stubGetClientFn(mockClient), translations.NullTranslationHelper)
+	mockClient := github.NewClient(nil)
+	tool, _ := ListCommits(stubGetClientFn(mockClient), NullTranslationHelperFunc)
 
 	assert.Equal(t, "list_commits", tool.Name)
 	assert.NotEmpty(t, tool.Description)
-	assert.Contains(t, tool.InputSchema.Properties, "owner")
-	assert.Contains(t, tool.InputSchema.Properties, "repo")
-	assert.Contains(t, tool.InputSchema.Properties, "sha")
-	assert.Contains(t, tool.InputSchema.Properties, "page")
-	assert.Contains(t, tool.InputSchema.Properties, "perPage")
-	assert.ElementsMatch(t, tool.InputSchema.Required, []string{"owner", "repo"})
+	assert.Contains(t, tool.InputSchema.Properties, ownerKey)
+	assert.Contains(t, tool.InputSchema.Properties, repoKey)
+	assert.Contains(t, tool.InputSchema.Properties, shaKey)
+	assert.Contains(t, tool.InputSchema.Properties, pageKey)
+	assert.Contains(t, tool.InputSchema.Properties, perPageKey)
+	assert.ElementsMatch(t, tool.InputSchema.Required, []string{ownerKey, repoKey})
 
 	// Setup mock commits for success case
 	mockCommits := []*github.RepositoryCommit{
 		{
-			SHA: githubMCP.Ptr("abc123def456"),
+			SHA: Ptr("abc123def456"),
 			Commit: &github.Commit{
-				Message: githubMCP.Ptr("First commit"),
+				Message: Ptr("First commit"),
 				Author: &github.CommitAuthor{
-					Name:  githubMCP.Ptr("Test User"),
-					Email: githubMCP.Ptr("test@example.com"),
-					Date:  &github.Timestamp{Time: time.Now().Add(-48 * time.Hour)},
+					Name:  Ptr("Test User"),
+					Email: Ptr("test@example.com"),
+					Date:  Ptr(time.Now().Add(-48 * time.Hour)),
 				},
 			},
 			Author: &github.User{
-				Login: githubMCP.Ptr("testuser"),
+				Login: Ptr("testuser"),
 			},
-			HTMLURL: githubMCP.Ptr("https://github.com/owner/repo/commit/abc123def456"),
+			HTMLURL: Ptr("https://github.com/owner/repo/commit/abc123def456"),
 		},
 		{
-			SHA: githubMCP.Ptr("def456abc789"),
+			SHA: Ptr("def456abc789"),
 			Commit: &github.Commit{
-				Message: githubMCP.Ptr("Second commit"),
+				Message: Ptr("Second commit"),
 				Author: &github.CommitAuthor{
-					Name:  githubMCP.Ptr("Another User"),
-					Email: githubMCP.Ptr("another@example.com"),
-					Date:  &github.Timestamp{Time: time.Now().Add(-24 * time.Hour)},
+					Name:  Ptr("Another User"),
+					Email: Ptr("another@example.com"),
+					Date:  Ptr(time.Now().Add(-24 * time.Hour)),
 				},
 			},
 			Author: &github.User{
-				Login: githubMCP.Ptr("anotheruser"),
+				Login: Ptr("anotheruser"),
 			},
-			HTMLURL: githubMCP.Ptr("https://github.com/owner/repo/commit/def456abc789"),
+			HTMLURL: Ptr("https://github.com/owner/repo/commit/def456abc789"),
 		},
 	}
 
@@ -671,8 +690,8 @@ func Test_ListCommits(t *testing.T) {
 				),
 			),
 			requestArgs: map[string]interface{}{
-				"owner": "owner",
-				"repo":  "repo",
+				ownerKey: "owner",
+				repoKey:  "repo",
 			},
 			expectError:     false,
 			expectedCommits: mockCommits,
@@ -692,9 +711,9 @@ func Test_ListCommits(t *testing.T) {
 				),
 			),
 			requestArgs: map[string]interface{}{
-				"owner": "owner",
-				"repo":  "repo",
-				"sha":   "main",
+				ownerKey: "owner",
+				repoKey:  "repo",
+				shaKey:   "main",
 			},
 			expectError:     false,
 			expectedCommits: mockCommits,
@@ -713,10 +732,10 @@ func Test_ListCommits(t *testing.T) {
 				),
 			),
 			requestArgs: map[string]interface{}{
-				"owner":   "owner",
-				"repo":    "repo",
-				"page":    float64(2),
-				"perPage": float64(10),
+				ownerKey:   "owner",
+				repoKey:    "repo",
+				pageKey:    float64(2),
+				perPageKey: float64(10),
 			},
 			expectError:     false,
 			expectedCommits: mockCommits,
@@ -733,8 +752,8 @@ func Test_ListCommits(t *testing.T) {
 				),
 			),
 			requestArgs: map[string]interface{}{
-				"owner": "owner",
-				"repo":  "nonexistent-repo",
+				ownerKey: "owner",
+				repoKey:  "nonexistent-repo",
 			},
 			expectError:    true,
 			expectedErrMsg: "failed to list commits",
@@ -744,8 +763,8 @@ func Test_ListCommits(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
-			client := githubMCP.NewClient(tc.mockedClient)
-			_, handler := ListCommits(stubGetClientFn(client), translations.NullTranslationHelper)
+			client := github.NewClient(tc.mockedClient)
+			_, handler := ListCommits(stubGetClientFn(client), NullTranslationHelperFunc)
 
 			// Create call request
 			request := createMCPRequest(tc.requestArgs)
@@ -782,39 +801,39 @@ func Test_ListCommits(t *testing.T) {
 
 func Test_CreateOrUpdateFile(t *testing.T) {
 	// Verify tool definition once
-	mockClient := githubMCP.NewClient(nil)
-	tool, _ := CreateOrUpdateFile(stubGetClientFn(mockClient), translations.NullTranslationHelper)
+	mockClient := github.NewClient(nil)
+	tool, _ := CreateOrUpdateFile(stubGetClientFn(mockClient), NullTranslationHelperFunc)
 
 	assert.Equal(t, "create_or_update_file", tool.Name)
 	assert.NotEmpty(t, tool.Description)
-	assert.Contains(t, tool.InputSchema.Properties, "owner")
-	assert.Contains(t, tool.InputSchema.Properties, "repo")
-	assert.Contains(t, tool.InputSchema.Properties, "path")
-	assert.Contains(t, tool.InputSchema.Properties, "content")
-	assert.Contains(t, tool.InputSchema.Properties, "message")
-	assert.Contains(t, tool.InputSchema.Properties, "branch")
-	assert.Contains(t, tool.InputSchema.Properties, "sha")
-	assert.ElementsMatch(t, tool.InputSchema.Required, []string{"owner", "repo", "path", "content", "message", "branch"})
+	assert.Contains(t, tool.InputSchema.Properties, ownerKey)
+	assert.Contains(t, tool.InputSchema.Properties, repoKey)
+	assert.Contains(t, tool.InputSchema.Properties, pathKey)
+	assert.Contains(t, tool.InputSchema.Properties, contentKey)
+	assert.Contains(t, tool.InputSchema.Properties, commitMessage)
+	assert.Contains(t, tool.InputSchema.Properties, branchKey)
+	assert.Contains(t, tool.InputSchema.Properties, shaKey)
+	assert.ElementsMatch(t, tool.InputSchema.Required, []string{ownerKey, repoKey, pathKey, contentKey, commitMessage, branchKey})
 
 	// Setup mock file content response
 	mockFileResponse := &github.RepositoryContentResponse{
 		Content: &github.RepositoryContent{
-			Name:        githubMCP.Ptr("example.md"),
-			Path:        githubMCP.Ptr("docs/example.md"),
-			SHA:         githubMCP.Ptr("abc123def456"),
-			Size:        githubMCP.Ptr(42),
-			HTMLURL:     githubMCP.Ptr("https://github.com/owner/repo/blob/main/docs/example.md"),
-			DownloadURL: githubMCP.Ptr("https://raw.githubusercontent.com/owner/repo/main/docs/example.md"),
+			Name:        Ptr("example.md"),
+			Path:        Ptr("docs/example.md"),
+			SHA:         Ptr("abc123def456"),
+			Size:        Ptr(42),
+			HTMLURL:     Ptr("https://github.com/owner/repo/blob/main/docs/example.md"),
+			DownloadURL: Ptr("https://raw.githubusercontent.com/owner/repo/main/docs/example.md"),
 		},
 		Commit: github.Commit{
-			SHA:     githubMCP.Ptr("def456abc789"),
-			Message: githubMCP.Ptr("Add example file"),
+			SHA:     Ptr("def456abc789"),
+			Message: Ptr("Add example file"),
 			Author: &github.CommitAuthor{
-				Name:  githubMCP.Ptr("Test User"),
-				Email: githubMCP.Ptr("test@example.com"),
-				Date:  &github.Timestamp{Time: time.Now()},
+				Name:  Ptr("Test User"),
+				Email: Ptr("test@example.com"),
+				Date:  Ptr(time.Now()),
 			},
-			HTMLURL: githubMCP.Ptr("https://github.com/owner/repo/commit/def456abc789"),
+			HTMLURL: Ptr("https://github.com/owner/repo/commit/def456abc789"),
 		},
 	}
 
@@ -832,21 +851,21 @@ func Test_CreateOrUpdateFile(t *testing.T) {
 				mock.WithRequestMatchHandler(
 					mock.PutReposContentsByOwnerByRepoByPath,
 					expectRequestBody(t, map[string]interface{}{
-						"message": "Add example file",
-						"content": "IyBFeGFtcGxlCgpUaGlzIGlzIGFuIGV4YW1wbGUgZmlsZS4=", // Base64 encoded content
-						"branch":  "main",
+						commitMessage: "Add example file",
+						contentKey:    "IyBFeGFtcGxlCgpUaGlzIGlzIGFuIGV4YW1wbGUgZmlsZS4=", // Base64 encoded content
+						branchKey:     "main",
 					}).andThen(
 						mockResponse(t, http.StatusOK, mockFileResponse),
 					),
 				),
 			),
 			requestArgs: map[string]interface{}{
-				"owner":   "owner",
-				"repo":    "repo",
-				"path":    "docs/example.md",
-				"content": "# Example\n\nThis is an example file.",
-				"message": "Add example file",
-				"branch":  "main",
+				ownerKey:      "owner",
+				repoKey:       "repo",
+				pathKey:       "docs/example.md",
+				contentKey:    "# Example\n\nThis is an example file.",
+				commitMessage: "Add example file",
+				branchKey:     "main",
 			},
 			expectError:     false,
 			expectedContent: mockFileResponse,
@@ -857,23 +876,23 @@ func Test_CreateOrUpdateFile(t *testing.T) {
 				mock.WithRequestMatchHandler(
 					mock.PutReposContentsByOwnerByRepoByPath,
 					expectRequestBody(t, map[string]interface{}{
-						"message": "Update example file",
-						"content": "IyBVcGRhdGVkIEV4YW1wbGUKClRoaXMgZmlsZSBoYXMgYmVlbiB1cGRhdGVkLg==", // Base64 encoded content
-						"branch":  "main",
-						"sha":     "abc123def456",
+						commitMessage: "Update example file",
+						contentKey:    "IyBVcGRhdGVkIEV4YW1wbGUKClRoaXMgZmlsZSBoYXMgYmVlbiB1cGRhdGVkLg==", // Base64 encoded content
+						branchKey:     "main",
+						shaKey:        "abc123def456",
 					}).andThen(
 						mockResponse(t, http.StatusOK, mockFileResponse),
 					),
 				),
 			),
 			requestArgs: map[string]interface{}{
-				"owner":   "owner",
-				"repo":    "repo",
-				"path":    "docs/example.md",
-				"content": "# Updated Example\n\nThis file has been updated.",
-				"message": "Update example file",
-				"branch":  "main",
-				"sha":     "abc123def456",
+				ownerKey:      "owner",
+				repoKey:       "repo",
+				pathKey:       "docs/example.md",
+				contentKey:    "# Updated Example\n\nThis file has been updated.",
+				commitMessage: "Update example file",
+				branchKey:     "main",
+				shaKey:        "abc123def456",
 			},
 			expectError:     false,
 			expectedContent: mockFileResponse,
@@ -890,12 +909,12 @@ func Test_CreateOrUpdateFile(t *testing.T) {
 				),
 			),
 			requestArgs: map[string]interface{}{
-				"owner":   "owner",
-				"repo":    "repo",
-				"path":    "docs/example.md",
-				"content": "#Invalid Content",
-				"message": "Invalid request",
-				"branch":  "nonexistent-branch",
+				ownerKey:      "owner",
+				repoKey:       "repo",
+				pathKey:       "docs/example.md",
+				contentKey:    "#Invalid Content",
+				commitMessage: "Invalid request",
+				branchKey:     "nonexistent-branch",
 			},
 			expectError:    true,
 			expectedErrMsg: "failed to create/update file",
@@ -905,8 +924,8 @@ func Test_CreateOrUpdateFile(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
-			client := githubMCP.NewClient(tc.mockedClient)
-			_, handler := CreateOrUpdateFile(stubGetClientFn(client), translations.NullTranslationHelper)
+			client := github.NewClient(tc.mockedClient)
+			_, handler := CreateOrUpdateFile(stubGetClientFn(client), NullTranslationHelperFunc)
 
 			// Create call request
 			request := createMCPRequest(tc.requestArgs)
@@ -945,27 +964,27 @@ func Test_CreateOrUpdateFile(t *testing.T) {
 
 func Test_CreateRepository(t *testing.T) {
 	// Verify tool definition once
-	mockClient := githubMCP.NewClient(nil)
-	tool, _ := CreateRepository(stubGetClientFn(mockClient), translations.NullTranslationHelper)
+	mockClient := github.NewClient(nil)
+	tool, _ := CreateRepository(stubGetClientFn(mockClient), NullTranslationHelperFunc)
 
 	assert.Equal(t, "create_repository", tool.Name)
 	assert.NotEmpty(t, tool.Description)
-	assert.Contains(t, tool.InputSchema.Properties, "name")
-	assert.Contains(t, tool.InputSchema.Properties, "description")
-	assert.Contains(t, tool.InputSchema.Properties, "private")
-	assert.Contains(t, tool.InputSchema.Properties, "autoInit")
-	assert.ElementsMatch(t, tool.InputSchema.Required, []string{"name"})
+	assert.Contains(t, tool.InputSchema.Properties, nameKey)
+	assert.Contains(t, tool.InputSchema.Properties, descriptionKey)
+	assert.Contains(t, tool.InputSchema.Properties, privateKey)
+	assert.Contains(t, tool.InputSchema.Properties, autoInitKey)
+	assert.ElementsMatch(t, tool.InputSchema.Required, []string{nameKey})
 
 	// Setup mock repository response
 	mockRepo := &github.Repository{
-		Name:        githubMCP.Ptr("test-repo"),
-		Description: githubMCP.Ptr("Test repository"),
-		Private:     githubMCP.Ptr(true),
-		HTMLURL:     githubMCP.Ptr("https://github.com/testuser/test-repo"),
-		CloneURL:    githubMCP.Ptr("https://github.com/testuser/test-repo.git"),
-		CreatedAt:   &github.Timestamp{Time: time.Now()},
+		Name:        Ptr("test-repo"),
+		Description: Ptr("Test repository"),
+		Private:     Ptr(true),
+		HTMLURL:     Ptr("https://github.com/testuser/test-repo"),
+		CloneURL:    Ptr("https://github.com/testuser/test-repo.git"),
+		CreatedAt:   Ptr(time.Now()),
 		Owner: &github.User{
-			Login: githubMCP.Ptr("testuser"),
+			Login: Ptr("testuser"),
 		},
 	}
 
@@ -986,20 +1005,20 @@ func Test_CreateRepository(t *testing.T) {
 						Method:  "POST",
 					},
 					expectRequestBody(t, map[string]interface{}{
-						"name":        "test-repo",
-						"description": "Test repository",
-						"private":     true,
-						"auto_init":   true,
+						nameKey:        "test-repo",
+						descriptionKey: "Test repository",
+						privateKey:     true,
+						autoInitKey:    true,
 					}).andThen(
 						mockResponse(t, http.StatusCreated, mockRepo),
 					),
 				),
 			),
 			requestArgs: map[string]interface{}{
-				"name":        "test-repo",
-				"description": "Test repository",
-				"private":     true,
-				"autoInit":    true,
+				nameKey:        "test-repo",
+				descriptionKey: "Test repository",
+				privateKey:     true,
+				autoInitKey:    true,
 			},
 			expectError:  false,
 			expectedRepo: mockRepo,
@@ -1013,17 +1032,17 @@ func Test_CreateRepository(t *testing.T) {
 						Method:  "POST",
 					},
 					expectRequestBody(t, map[string]interface{}{
-						"name":        "test-repo",
-						"auto_init":   false,
-						"description": "",
-						"private":     false,
+						nameKey:        "test-repo",
+						autoInitKey:    false,
+						descriptionKey: "",
+						privateKey:     false,
 					}).andThen(
 						mockResponse(t, http.StatusCreated, mockRepo),
 					),
 				),
 			),
 			requestArgs: map[string]interface{}{
-				"name": "test-repo",
+				nameKey: "test-repo",
 			},
 			expectError:  false,
 			expectedRepo: mockRepo,
@@ -1043,7 +1062,7 @@ func Test_CreateRepository(t *testing.T) {
 				),
 			),
 			requestArgs: map[string]interface{}{
-				"name": "invalid-repo",
+				nameKey: "invalid-repo",
 			},
 			expectError:    true,
 			expectedErrMsg: "failed to create repository",
@@ -1053,8 +1072,8 @@ func Test_CreateRepository(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
-			client := githubMCP.NewClient(tc.mockedClient)
-			_, handler := CreateRepository(stubGetClientFn(client), translations.NullTranslationHelper)
+			client := github.NewClient(tc.mockedClient)
+			_, handler := CreateRepository(stubGetClientFn(client), NullTranslationHelperFunc)
 
 			// Create call request
 			request := createMCPRequest(tc.requestArgs)
@@ -1091,49 +1110,49 @@ func Test_CreateRepository(t *testing.T) {
 
 func Test_PushFiles(t *testing.T) {
 	// Verify tool definition once
-	mockClient := githubMCP.NewClient(nil)
-	tool, _ := PushFiles(stubGetClientFn(mockClient), translations.NullTranslationHelper)
+	mockClient := github.NewClient(nil)
+	tool, _ := PushFiles(stubGetClientFn(mockClient), NullTranslationHelperFunc)
 
 	assert.Equal(t, "push_files", tool.Name)
 	assert.NotEmpty(t, tool.Description)
-	assert.Contains(t, tool.InputSchema.Properties, "owner")
-	assert.Contains(t, tool.InputSchema.Properties, "repo")
-	assert.Contains(t, tool.InputSchema.Properties, "branch")
-	assert.Contains(t, tool.InputSchema.Properties, "files")
-	assert.Contains(t, tool.InputSchema.Properties, "message")
-	assert.ElementsMatch(t, tool.InputSchema.Required, []string{"owner", "repo", "branch", "files", "message"})
+	assert.Contains(t, tool.InputSchema.Properties, ownerKey)
+	assert.Contains(t, tool.InputSchema.Properties, repoKey)
+	assert.Contains(t, tool.InputSchema.Properties, branchKey)
+	assert.Contains(t, tool.InputSchema.Properties, filesKey)
+	assert.Contains(t, tool.InputSchema.Properties, commitMessage)
+	assert.ElementsMatch(t, tool.InputSchema.Required, []string{ownerKey, repoKey, branchKey, filesKey, commitMessage})
 
 	// Setup mock objects
 	mockRef := &github.Reference{
-		Ref: githubMCP.Ptr("refs/heads/main"),
+		Ref: Ptr("refs/heads/main"),
 		Object: &github.GitObject{
-			SHA: githubMCP.Ptr("abc123"),
-			URL: githubMCP.Ptr("https://api.github.com/repos/owner/repo/git/trees/abc123"),
+			SHA: Ptr("abc123"),
+			URL: Ptr("https://api.github.com/repos/owner/repo/git/trees/abc123"),
 		},
 	}
 
 	mockCommit := &github.Commit{
-		SHA: githubMCP.Ptr("abc123"),
+		SHA: Ptr("abc123"),
 		Tree: &github.Tree{
-			SHA: githubMCP.Ptr("def456"),
+			SHA: Ptr("def456"),
 		},
 	}
 
 	mockTree := &github.Tree{
-		SHA: githubMCP.Ptr("ghi789"),
+		SHA: Ptr("ghi789"),
 	}
 
 	mockNewCommit := &github.Commit{
-		SHA:     githubMCP.Ptr("jkl012"),
-		Message: githubMCP.Ptr("Update multiple files"),
-		HTMLURL: githubMCP.Ptr("https://github.com/owner/repo/commit/jkl012"),
+		SHA:     Ptr("jkl012"),
+		Message: Ptr("Update multiple files"),
+		HTMLURL: Ptr("https://github.com/owner/repo/commit/jkl012"),
 	}
 
 	mockUpdatedRef := &github.Reference{
-		Ref: githubMCP.Ptr("refs/heads/main"),
+		Ref: Ptr("refs/heads/main"),
 		Object: &github.GitObject{
-			SHA: githubMCP.Ptr("jkl012"),
-			URL: githubMCP.Ptr("https://api.github.com/repos/owner/repo/git/trees/jkl012"),
+			SHA: Ptr("jkl012"),
+			URL: Ptr("https://api.github.com/repos/owner/repo/git/trees/jkl012"),
 		},
 	}
 
@@ -1186,9 +1205,9 @@ func Test_PushFiles(t *testing.T) {
 				mock.WithRequestMatchHandler(
 					mock.PostReposGitCommitsByOwnerByRepo,
 					expectRequestBody(t, map[string]interface{}{
-						"message": "Update multiple files",
-						"tree":    "ghi789",
-						"parents": []interface{}{"abc123"},
+						commitMessage: "Update multiple files",
+						"tree":        "ghi789",
+						"parents":     []interface{}{"abc123"},
 					}).andThen(
 						mockResponse(t, http.StatusCreated, mockNewCommit),
 					),
@@ -1205,20 +1224,20 @@ func Test_PushFiles(t *testing.T) {
 				),
 			),
 			requestArgs: map[string]interface{}{
-				"owner":  "owner",
-				"repo":   "repo",
-				"branch": "main",
-				"files": []interface{}{
+				ownerKey:  "owner",
+				repoKey:   "repo",
+				branchKey: "main",
+				filesKey: []interface{}{
 					map[string]interface{}{
-						"path":    "README.md",
-						"content": "# Updated README\n\nThis is an updated README file.",
+						"path":     "README.md",
+						contentKey: "# Updated README\n\nThis is an updated README file.",
 					},
 					map[string]interface{}{
-						"path":    "docs/example.md",
-						"content": "# Example\n\nThis is an example file.",
+						"path":     "docs/example.md",
+						contentKey: "# Example\n\nThis is an example file.",
 					},
 				},
-				"message": "Update multiple files",
+				commitMessage: "Update multiple files",
 			},
 			expectError: false,
 			expectedRef: mockUpdatedRef,
@@ -1229,11 +1248,11 @@ func Test_PushFiles(t *testing.T) {
 			// No requests expected
 			),
 			requestArgs: map[string]interface{}{
-				"owner":   "owner",
-				"repo":    "repo",
-				"branch":  "main",
-				"files":   "invalid-files-parameter", // Not an array
-				"message": "Update multiple files",
+				ownerKey:      "owner",
+				repoKey:       "repo",
+				branchKey:     "main",
+				filesKey:      "invalid-files-parameter", // Not an array
+				commitMessage: "Update multiple files",
 			},
 			expectError:    false, // This returns a tool error, not a Go error
 			expectedErrMsg: "files parameter must be an array",
@@ -1253,15 +1272,15 @@ func Test_PushFiles(t *testing.T) {
 				),
 			),
 			requestArgs: map[string]interface{}{
-				"owner":  "owner",
-				"repo":   "repo",
-				"branch": "main",
-				"files": []interface{}{
+				ownerKey:  "owner",
+				repoKey:   "repo",
+				branchKey: "main",
+				filesKey: []interface{}{
 					map[string]interface{}{
-						"content": "# Missing path",
+						contentKey: "# Missing path",
 					},
 				},
-				"message": "Update file",
+				commitMessage: "Update file",
 			},
 			expectError:    false, // This returns a tool error, not a Go error
 			expectedErrMsg: "each file must have a path",
@@ -1281,16 +1300,16 @@ func Test_PushFiles(t *testing.T) {
 				),
 			),
 			requestArgs: map[string]interface{}{
-				"owner":  "owner",
-				"repo":   "repo",
-				"branch": "main",
-				"files": []interface{}{
+				ownerKey:  "owner",
+				repoKey:   "repo",
+				branchKey: "main",
+				filesKey: []interface{}{
 					map[string]interface{}{
 						"path": "README.md",
 						// Missing content
 					},
 				},
-				"message": "Update file",
+				commitMessage: "Update file",
 			},
 			expectError:    false, // This returns a tool error, not a Go error
 			expectedErrMsg: "each file must have content",
@@ -1304,16 +1323,16 @@ func Test_PushFiles(t *testing.T) {
 				),
 			),
 			requestArgs: map[string]interface{}{
-				"owner":  "owner",
-				"repo":   "repo",
-				"branch": "non-existent-branch",
-				"files": []interface{}{
+				ownerKey:  "owner",
+				repoKey:   "repo",
+				branchKey: "non-existent-branch",
+				filesKey: []interface{}{
 					map[string]interface{}{
-						"path":    "README.md",
-						"content": "# README",
+						"path":     "README.md",
+						contentKey: "# README",
 					},
 				},
-				"message": "Update file",
+				commitMessage: "Update file",
 			},
 			expectError:    true,
 			expectedErrMsg: "failed to get branch reference",
@@ -1333,16 +1352,16 @@ func Test_PushFiles(t *testing.T) {
 				),
 			),
 			requestArgs: map[string]interface{}{
-				"owner":  "owner",
-				"repo":   "repo",
-				"branch": "main",
-				"files": []interface{}{
+				ownerKey:  "owner",
+				repoKey:   "repo",
+				branchKey: "main",
+				filesKey: []interface{}{
 					map[string]interface{}{
-						"path":    "README.md",
-						"content": "# README",
+						"path":     "README.md",
+						contentKey: "# README",
 					},
 				},
-				"message": "Update file",
+				commitMessage: "Update file",
 			},
 			expectError:    true,
 			expectedErrMsg: "failed to get base commit",
@@ -1367,16 +1386,16 @@ func Test_PushFiles(t *testing.T) {
 				),
 			),
 			requestArgs: map[string]interface{}{
-				"owner":  "owner",
-				"repo":   "repo",
-				"branch": "main",
-				"files": []interface{}{
+				ownerKey:  "owner",
+				repoKey:   "repo",
+				branchKey: "main",
+				filesKey: []interface{}{
 					map[string]interface{}{
-						"path":    "README.md",
-						"content": "# README",
+						"path":     "README.md",
+						contentKey: "# README",
 					},
 				},
-				"message": "Update file",
+				commitMessage: "Update file",
 			},
 			expectError:    true,
 			expectedErrMsg: "failed to create tree",
@@ -1386,8 +1405,8 @@ func Test_PushFiles(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
-			client := githubMCP.NewClient(tc.mockedClient)
-			_, handler := PushFiles(stubGetClientFn(client), translations.NullTranslationHelper)
+			client := github.NewClient(tc.mockedClient)
+			_, handler := PushFiles(stubGetClientFn(client), NullTranslationHelperFunc)
 
 			// Create call request
 			request := createMCPRequest(tc.requestArgs)
@@ -1427,26 +1446,26 @@ func Test_PushFiles(t *testing.T) {
 
 func Test_ListBranches(t *testing.T) {
 	// Verify tool definition once
-	mockClient := githubMCP.NewClient(nil)
-	tool, _ := ListBranches(stubGetClientFn(mockClient), translations.NullTranslationHelper)
+	mockClient := github.NewClient(nil)
+	tool, _ := ListBranches(stubGetClientFn(mockClient), NullTranslationHelperFunc)
 
 	assert.Equal(t, "list_branches", tool.Name)
 	assert.NotEmpty(t, tool.Description)
-	assert.Contains(t, tool.InputSchema.Properties, "owner")
-	assert.Contains(t, tool.InputSchema.Properties, "repo")
-	assert.Contains(t, tool.InputSchema.Properties, "page")
-	assert.Contains(t, tool.InputSchema.Properties, "perPage")
-	assert.ElementsMatch(t, tool.InputSchema.Required, []string{"owner", "repo"})
+	assert.Contains(t, tool.InputSchema.Properties, ownerKey)
+	assert.Contains(t, tool.InputSchema.Properties, repoKey)
+	assert.Contains(t, tool.InputSchema.Properties, pageKey)
+	assert.Contains(t, tool.InputSchema.Properties, perPageKey)
+	assert.ElementsMatch(t, tool.InputSchema.Required, []string{ownerKey, repoKey})
 
 	// Setup mock branches for success case
 	mockBranches := []*github.Branch{
 		{
-			Name:   githubMCP.Ptr("main"),
-			Commit: &github.RepositoryCommit{SHA: githubMCP.Ptr("abc123")},
+			Name:   Ptr("main"),
+			Commit: &github.RepositoryCommit{SHA: Ptr("abc123")},
 		},
 		{
-			Name:   githubMCP.Ptr("develop"),
-			Commit: &github.RepositoryCommit{SHA: githubMCP.Ptr("def456")},
+			Name:   Ptr("develop"),
+			Commit: &github.RepositoryCommit{SHA: Ptr("def456")},
 		},
 	}
 
@@ -1461,9 +1480,9 @@ func Test_ListBranches(t *testing.T) {
 		{
 			name: "success",
 			args: map[string]interface{}{
-				"owner": "owner",
-				"repo":  "repo",
-				"page":  float64(2),
+				ownerKey: "owner",
+				repoKey:  "repo",
+				pageKey:  float64(2),
 			},
 			mockResponses: []mock.MockBackendOption{
 				mock.WithRequestMatch(
@@ -1476,7 +1495,7 @@ func Test_ListBranches(t *testing.T) {
 		{
 			name: "missing owner",
 			args: map[string]interface{}{
-				"repo": "repo",
+				repoKey: "repo",
 			},
 			mockResponses: []mock.MockBackendOption{},
 			wantErr:       false,
@@ -1485,7 +1504,7 @@ func Test_ListBranches(t *testing.T) {
 		{
 			name: "missing repo",
 			args: map[string]interface{}{
-				"owner": "owner",
+				ownerKey: "owner",
 			},
 			mockResponses: []mock.MockBackendOption{},
 			wantErr:       false,
@@ -1496,8 +1515,8 @@ func Test_ListBranches(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create mock client
-			mockClient := githubMCP.NewClient(mock.NewMockedHTTPClient(tt.mockResponses...))
-			_, handler := ListBranches(stubGetClientFn(mockClient), translations.NullTranslationHelper)
+			mockClient := github.NewClient(mock.NewMockedHTTPClient(tt.mockResponses...))
+			_, handler := ListBranches(stubGetClientFn(mockClient), NullTranslationHelperFunc)
 
 			// Create request
 			request := createMCPRequest(tt.args)

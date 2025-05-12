@@ -20,10 +20,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func Ptr[T any](v T) *T { return &v }
+
+var NullTranslationHelperFunc = func(key, defaultValue string) string { return defaultValue }
+
 func Test_SearchRepositories(t *testing.T) {
 	// Verify tool definition once
 	mockClient := NewClient(nil)
-	tool, _ := SearchRepositories(testutil.StubGetClientFn(mockClient), testutil.NullTranslationHelperFunc)
+	tool, _ := SearchRepositories(testutil.StubGetClientFn(mockClient), NullTranslationHelperFunc)
 
 	assert.Equal(t, "search_repositories", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -129,7 +133,7 @@ func Test_SearchRepositories(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
 			client := NewClient(tc.mockedClient)
-			_, handler := SearchRepositories(testutil.StubGetClientFn(client), testutil.NullTranslationHelperFunc)
+			_, handler := SearchRepositories(testutil.StubGetClientFn(client), NullTranslationHelperFunc)
 
 			// Create call request
 			request := *testutil.CreateMCPRequest(tc.requestArgs)
@@ -170,7 +174,7 @@ func Test_SearchRepositories(t *testing.T) {
 func Test_SearchCode(t *testing.T) {
 	// Verify tool definition once
 	mockClient := NewClient(nil)
-	tool, _ := SearchCode(testutil.StubGetClientFn(mockClient), testutil.NullTranslationHelperFunc)
+	tool, _ := SearchCode(testutil.StubGetClientFn(mockClient), NullTranslationHelperFunc)
 
 	assert.Equal(t, "search_code", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -280,7 +284,7 @@ func Test_SearchCode(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
 			client := NewClient(tc.mockedClient)
-			_, handler := SearchCode(testutil.StubGetClientFn(client), testutil.NullTranslationHelperFunc)
+			_, handler := SearchCode(testutil.StubGetClientFn(client), NullTranslationHelperFunc)
 
 			// Create call request
 			request := testutil.CreateMCPRequest(tc.requestArgs)
@@ -321,7 +325,7 @@ func Test_SearchCode(t *testing.T) {
 func Test_SearchUsers(t *testing.T) {
 	// Verify tool definition once
 	mockClient := NewClient(nil)
-	tool, _ := SearchUsers(testutil.StubGetClientFn(mockClient), testutil.NullTranslationHelperFunc)
+	tool, _ := SearchUsers(testutil.StubGetClientFn(mockClient), NullTranslationHelperFunc)
 
 	assert.Equal(t, "search_users", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -435,7 +439,7 @@ func Test_SearchUsers(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
 			client := NewClient(tc.mockedClient)
-			_, handler := SearchUsers(testutil.StubGetClientFnForCustomClient(client), testutil.NullTranslationHelperFunc)
+			_, handler := SearchUsers(testutil.StubGetClientFnForCustomClient(client), NullTranslationHelperFunc)
 
 			// Create call request
 			request := testutil.CreateMCPRequest(tc.requestArgs)

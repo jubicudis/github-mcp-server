@@ -19,6 +19,12 @@ import (
 	"tranquility-neuro-os/github-mcp-server/pkg/translations"
 )
 
+// Ptr is a helper for getting a pointer to a value (for test data)
+func Ptr[T any](v T) *T { return &v }
+
+// NullTranslationHelperFunc for TranslationHelperFunc usage
+var NullTranslationHelperFunc = func(key, defaultValue string) string { return defaultValue }
+
 // TestMCPBridgeCreation tests the creation of the MCP Bridge
 func TestMCPBridgeCreation(t *testing.T) {
 	// WHO: BridgeTestRunner

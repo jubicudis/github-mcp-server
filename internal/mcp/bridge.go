@@ -719,8 +719,121 @@ func (b *TNOSMCPBridge) TranslateContextBack(tnos7D *ContextVector7D) (map[strin
 	return githubContext, nil
 }
 
+// prepareContext handles retrieving or creating the context for a request
+func (b *TNOSMCPBridge) prepareContext(githubContext map[string]interface{}) (*ContextVector7D, string, error) {
+	// WHO: Context preparer
+	// WHAT: Context preparation
+	// WHEN: During request setup
+	// WHERE: Bridge context handling
+	// WHY: To establish request context
+	// HOW: Using existing or new context
+	// EXTENT: Single context preparation
+
+	// Check for persistent context ID
+	contextID := extractStringWithDefault(githubContext, "contextId", "")
+	var tnos7D *ContextVector7D
+	var err error
+
+	if contextID != "" {
+		// Try to retrieve existing context
+		if existingContext, exists := b.GetPersistentContext(contextID); exists {
+			tnos7D = existingContext
+			// Update with any new values from the request
+			if tnos7D.Meta == nil {
+				tnos7D.Meta = make(map[string]interface{})
+			}
+			tnos7D.Meta["lastUsed"] = time.Now().Format(time.RFC3339)
+			return tnos7D, contextID, nil
+		}
+	}
+
+	// If no existing context, translate from GitHub context
+	tnos7D, err = b.TranslateContext(githubContext)
+	if err != nil {
+		return nil, contextID, fmt.Errorf("failed to translate context: %w", err)
+	}
+
+	return tnos7D, contextID, nil
+}
+
+// createTNOSRequest builds the request based on protocol version
+func (b *TNOSMCPBridge) createTNOSRequest(
+	protocolVersion ProtocolVersion,
+	req mcp.CallToolRequest,
+	tnos7D *ContextVector7D,
+) map[string]interface{} {
+	// WHO: Request builder
+	// WHAT: Protocol-specific request creation
+	// WHEN: Before request transmission
+	// WHERE: Bridge request preparation
+	// WHY: To create protocol-compliant request
+	// HOW: Using version-based format selection
+	// EXTENT: Complete request structure
+
+	switch protocolVersion.Major {
+	case 3:
+		// MCP 3.0 format
+		return map[string]interface{}{
+			"tool":    req.Params.Name,
+			"params":  req.Params.Arguments,
+			"context": tnos7D.ToMap(),
+			"meta": map[string]interface{}{
+				"version":   protocolVersion.String(),
+				"requestId": generateRequestID(),
+				"timestamp": time.Now().Format(time.RFC3339),
+				"source":    "github_mcp_server",
+			},
+		}
+	case 2:
+		// MCP 2.0 format
+		return map[string]interface{}{
+			"tool":       req.Params.Name,
+			"parameters": req.Params.Arguments,
+			"context":    tnos7D.TranslateToMCP(),
+			"requestId":  generateRequestID(),
+		}
+	default:
+		// MCP 1.0 format (fallback)
+		return map[string]interface{}{
+			"tool":    req.Params.Name,
+			"params":  req.Params.Arguments,
+			"context": tnos7D.TranslateToMCP(),
+		}
+	}
+}
+
+// processResponse handles the response from TNOS MCP
+func (b *TNOSMCPBridge) processResponse(
+	response *mcp.CallToolResult,
+	tnos7D *ContextVector7D,
+	protocolVersion ProtocolVersion,
+) {
+	// WHO: Response processor
+	// WHAT: Response handling
+	// WHEN: After request completion
+	// WHERE: Bridge response handling
+	// WHY: To process and enrich response
+	// HOW: Using protocol-specific format
+	// EXTENT: Complete response processing
+
+	// Add context information to the response based on protocol version
+	if protocolVersion.Major >= 2 {
+		// For MCP 2.0+, include context in the response
+		contextJSON, _ := json.Marshal(tnos7D.ToMap())
+
+		// The actual MCP library might store context in a different way
+		// Here we're assuming it might use a Metadata field
+		if metadataField := reflect.ValueOf(response).Elem().FieldByName("Metadata"); metadataField.IsValid() && metadataField.CanSet() {
+			metadata := map[string]interface{}{
+				"context": string(contextJSON),
+			}
+			metadataField.Set(reflect.ValueOf(metadata))
+		}
+	}
+}
+
 // SendRequest sends a request to TNOS MCP and returns the response
-func (b *TNOSMCPBridge) SendRequest(req mcpGo.CallToolRequest) (*mcpGo.CallToolResult, error) {
+func (b *TNOSMCPBridge) SendRequest(req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	// WHO: Request handler
 	// WHAT: Request transmission
 	// WHEN: During tool invocation
@@ -744,29 +857,10 @@ func (b *TNOSMCPBridge) SendRequest(req mcpGo.CallToolRequest) (*mcpGo.CallToolR
 		githubContext = contextValue
 	}
 
-	// Check for persistent context ID
-	contextID := extractStringWithDefault(githubContext, "contextId", "")
-	var tnos7D *ContextVector7D
-	var err error
-
-	if contextID != "" {
-		// Try to retrieve existing context
-		if existingContext, exists := b.GetPersistentContext(contextID); exists {
-			tnos7D = existingContext
-			// Update with any new values from the request
-			if tnos7D.Meta == nil {
-				tnos7D.Meta = make(map[string]interface{})
-			}
-			tnos7D.Meta["lastUsed"] = time.Now().Format(time.RFC3339)
-		}
-	}
-
-	// If no existing context, translate from GitHub context
-	if tnos7D == nil {
-		tnos7D, err = b.TranslateContext(githubContext)
-		if err != nil {
-			return nil, fmt.Errorf("failed to translate context: %w", err)
-		}
+	// Prepare context for the request
+	tnos7D, contextID, err := b.prepareContext(githubContext)
+	if err != nil {
+		return nil, err
 	}
 
 	// Apply compression to optimize context
@@ -778,42 +872,10 @@ func (b *TNOSMCPBridge) SendRequest(req mcpGo.CallToolRequest) (*mcpGo.CallToolR
 	}
 
 	// Prepare request for TNOS MCP based on protocol version
-	var tnosRequest map[string]interface{}
-
-	switch protocolVersion.Major {
-	case 3:
-		// MCP 3.0 format
-		tnosRequest = map[string]interface{}{
-			"tool":    req.Params.Name,
-			"params":  req.Params.Arguments,
-			"context": tnos7D.ToMap(),
-			"meta": map[string]interface{}{
-				"version":   protocolVersion.String(),
-				"requestId": generateRequestID(),
-				"timestamp": time.Now().Format(time.RFC3339),
-				"source":    "github_mcp_server",
-			},
-		}
-	case 2:
-		// MCP 2.0 format
-		tnosRequest = map[string]interface{}{
-			"tool":       req.Params.Name,
-			"parameters": req.Params.Arguments,
-			"context":    tnos7D.TranslateToMCP(),
-			"requestId":  generateRequestID(),
-		}
-	default:
-		// MCP 1.0 format (fallback)
-		tnosRequest = map[string]interface{}{
-			"tool":    req.Params.Name,
-			"params":  req.Params.Arguments,
-			"context": tnos7D.TranslateToMCP(),
-		}
-	}
+	tnosRequest := b.createTNOSRequest(protocolVersion, req, tnos7D)
 
 	// Log the request with timing
 	startTime := time.Now()
-
 	if b.config.DebugMode {
 		reqJSON, _ := json.Marshal(tnosRequest)
 		log.Printf("[MCP-BRIDGE] Sending request to TNOS MCP: %s", string(reqJSON))
@@ -821,39 +883,21 @@ func (b *TNOSMCPBridge) SendRequest(req mcpGo.CallToolRequest) (*mcpGo.CallToolR
 
 	// Simulate sending request to TNOS MCP
 	// In a real implementation, this would use HTTP, WebSockets, etc.
-
-	// Simulate processing time
 	time.Sleep(10 * time.Millisecond)
 
-	// Simulate receiving response
-	// In a real implementation, this would parse the actual response
-	// Creating a simple response with the correct type structure
+	// Create response
 	tnosResponse := &mcp.CallToolResult{}
-
-	// Use a safe approach by checking if we can use JSON marshaling to set fields
 	responseJSON := []byte(`{"result":"Response from TNOS MCP"}`)
 	if err := json.Unmarshal(responseJSON, tnosResponse); err != nil && b.config.DebugMode {
 		log.Printf("[MCP-BRIDGE] Warning: Failed to construct response: %v", err)
 	}
 
-	// Add context information to the response based on protocol version
-	if protocolVersion.Major >= 2 {
-		// For MCP 2.0+, include context in the response
-		contextJSON, _ := json.Marshal(tnos7D.ToMap())
-
-		// The actual MCP library might store context in a different way
-		// Here we're assuming it might use a Metadata field
-		if metadataField := reflect.ValueOf(tnosResponse).Elem().FieldByName("Metadata"); metadataField.IsValid() && metadataField.CanSet() {
-			metadata := map[string]interface{}{
-				"context": string(contextJSON),
-			}
-			metadataField.Set(reflect.ValueOf(metadata))
-		}
-	}
+	// Process and enrich the response
+	b.processResponse(tnosResponse, tnos7D, protocolVersion)
 
 	// Log performance metrics
-	duration := time.Since(startTime)
 	if b.config.DebugMode {
+		duration := time.Since(startTime)
 		log.Printf("[MCP-BRIDGE] Request completed in %v", duration)
 	}
 
