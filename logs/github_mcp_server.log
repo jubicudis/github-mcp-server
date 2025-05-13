@@ -1,0 +1,7 @@
+[2025-05-13T10:12:24-05:00] [INFO] [who:System,what:Log,where:TNOS_MCP_Bridge,why:SystemMonitoring,how:LoggerComponent,extent:SystemWide] Starting GitHub MCP Server%!(EXTRA string=version, string=1.0)
+[2025-05-13T10:12:24-05:00] [INFO] [extent:SystemWide,who:System,what:Log,where:TNOS_MCP_Bridge,why:SystemMonitoring,how:LoggerComponent] Configuration loaded%!(EXTRA string=host, string=localhost, string=port, int=8888)
+[2025-05-13T10:12:24-05:00] [INFO] [extent:SystemWide,who:System,what:Log,where:TNOS_MCP_Bridge,why:SystemMonitoring,how:LoggerComponent] GitHub client initialized
+[2025-05-13T10:12:24-05:00] [INFO] [what:Log,where:TNOS_MCP_Bridge,why:SystemMonitoring,how:LoggerComponent,extent:SystemWide,who:System] Server listening%!(EXTRA string=address, string=localhost:8888)
+[2025-05-13T10:12:24-05:00] [INFO] [who:System,what:Log,where:TNOS_MCP_Bridge,why:SystemMonitoring,how:LoggerComponent,extent:SystemWide] Connecting to MCP bridge%!(EXTRA string=port, int=10619)
+[2025-05-13T10:12:24-05:00] [INFO] [why:SystemMonitoring,how:LoggerComponent,extent:SystemWide,who:System,what:Log,where:TNOS_MCP_Bridge] MCP bridge connection simulated%!(EXTRA string=context, string=BridgeConnector:Bridge_Connection)
+[2025-05-13T10:12:24-05:00] [ERROR] [extent:SystemWide,who:System,what:Log,where:TNOS_MCP_Bridge,why:SystemMonitoring,how:LoggerComponent] [COMPRESSED:108->103] Server failed to start%!(EXTRA string=error, strin... tcp 127.0.0.1:8888: bind: address already in use)
