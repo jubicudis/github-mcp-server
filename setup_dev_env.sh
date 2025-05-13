@@ -103,6 +103,7 @@ if [ "$1" = "run" ]; then
     echo "Building with workspace mode..."
     go build -o bin/github-mcp-server ./cmd/server
     
+    # shellcheck disable=SC2181
     if [ $? -eq 0 ]; then
         echo "Build successful. Running server..."
         ./bin/github-mcp-server
@@ -126,6 +127,7 @@ elif [ "$1" = "start-all" ]; then
     # Build the full Go implementation of the GitHub MCP Server
     echo "Building GitHub MCP Server..."
     go build -o ./bin/github-mcp-server ./cmd/server
+    # shellcheck disable=SC2181
     if [ $? -eq 0 ]; then
         echo "Build successful. Starting GitHub MCP Server..."
         # Debug log to confirm the port being used
