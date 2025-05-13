@@ -131,12 +131,38 @@ func getTextResult(t *testing.T, result *mcp_go.CallToolResult) string {
 	return string(contentJson)
 }
 
-func TestOptionalParamOK(t *testing.T) {
+// WHO: TestUtility
+// WHAT: Helper function to check parameter validation
+// WHEN: During test execution
+// WHERE: Test context for OptionalParamOK
+// WHY: To reduce cognitive complexity
+// HOW: By extracting common test logic
+// EXTENT: All parameter validation tests
+func testTypedParam[T any](t *testing.T, args map[string]interface{},
+	paramName string, expectedVal T, expectedOk bool,
+	expectError bool, errorMsg string) {
+
+	t.Helper()
+	request := testutil.CreateMCPRequest(args)
+	val, ok, err := OptionalParamOK[T](request, paramName)
+
+	if expectError {
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), errorMsg)
+	} else {
+		require.NoError(t, err)
+	}
+	assert.Equal(t, expectedOk, ok)
+	assert.Equal(t, expectedVal, val)
+}
+
+// Test string parameters
+func TestOptionalParamOKString(t *testing.T) {
 	tests := []struct {
 		name        string
 		args        map[string]interface{}
 		paramName   string
-		expectedVal interface{}
+		expectedVal string
 		expectedOk  bool
 		expectError bool
 		errorMsg    string
@@ -150,6 +176,43 @@ func TestOptionalParamOK(t *testing.T) {
 			expectError: false,
 		},
 		{
+			name:        "present but wrong type (string expected, got bool)",
+			args:        map[string]interface{}{"myParam": true},
+			paramName:   "myParam",
+			expectedVal: "",
+			expectedOk:  true,
+			expectError: true,
+			errorMsg:    "parameter myParam is not of type string, is bool",
+		},
+		{
+			name:        "parameter not present",
+			args:        map[string]interface{}{"anotherParam": "value"},
+			paramName:   "myParam",
+			expectedVal: "",
+			expectedOk:  false,
+			expectError: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			testTypedParam(t, tc.args, tc.paramName, tc.expectedVal, tc.expectedOk, tc.expectError, tc.errorMsg)
+		})
+	}
+}
+
+// Test bool parameters
+func TestOptionalParamOKBool(t *testing.T) {
+	tests := []struct {
+		name        string
+		args        map[string]interface{}
+		paramName   string
+		expectedVal bool
+		expectedOk  bool
+		expectError bool
+		errorMsg    string
+	}{
+		{
 			name:        "present and correct type (bool)",
 			args:        map[string]interface{}{"myParam": true},
 			paramName:   "myParam",
@@ -157,6 +220,43 @@ func TestOptionalParamOK(t *testing.T) {
 			expectedOk:  true,
 			expectError: false,
 		},
+		{
+			name:        "present but wrong type (bool expected, got string)",
+			args:        map[string]interface{}{"myParam": "true"},
+			paramName:   "myParam",
+			expectedVal: false,
+			expectedOk:  true,
+			expectError: true,
+			errorMsg:    "parameter myParam is not of type bool, is string",
+		},
+		{
+			name:        "parameter not present",
+			args:        map[string]interface{}{"anotherParam": "value"},
+			paramName:   "myParam",
+			expectedVal: false,
+			expectedOk:  false,
+			expectError: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			testTypedParam(t, tc.args, tc.paramName, tc.expectedVal, tc.expectedOk, tc.expectError, tc.errorMsg)
+		})
+	}
+}
+
+// Test float64 parameters
+func TestOptionalParamOKFloat64(t *testing.T) {
+	tests := []struct {
+		name        string
+		args        map[string]interface{}
+		paramName   string
+		expectedVal float64
+		expectedOk  bool
+		expectError bool
+		errorMsg    string
+	}{
 		{
 			name:        "present and correct type (number)",
 			args:        map[string]interface{}{"myParam": float64(123)},
@@ -166,28 +266,10 @@ func TestOptionalParamOK(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name:        "present but wrong type (string expected, got bool)",
-			args:        map[string]interface{}{"myParam": true},
-			paramName:   "myParam",
-			expectedVal: "",   // Zero value for string
-			expectedOk:  true, // ok is true because param exists
-			expectError: true,
-			errorMsg:    "parameter myParam is not of type string, is bool",
-		},
-		{
-			name:        "present but wrong type (bool expected, got string)",
-			args:        map[string]interface{}{"myParam": "true"},
-			paramName:   "myParam",
-			expectedVal: false, // Zero value for bool
-			expectedOk:  true,  // ok is true because param exists
-			expectError: true,
-			errorMsg:    "parameter myParam is not of type bool, is string",
-		},
-		{
 			name:        "parameter not present",
 			args:        map[string]interface{}{"anotherParam": "value"},
 			paramName:   "myParam",
-			expectedVal: "", // Zero value for string
+			expectedVal: 0,
 			expectedOk:  false,
 			expectError: false,
 		},
@@ -195,52 +277,7 @@ func TestOptionalParamOK(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			request := testutil.CreateMCPRequest(tc.args)
-
-			// Test with string type assertion
-			if _, isString := tc.expectedVal.(string); isString || tc.errorMsg == "parameter myParam is not of type string, is bool" {
-				val, ok, err := OptionalParamOK[string](request, tc.paramName)
-				if tc.expectError {
-					require.Error(t, err)
-					assert.Contains(t, err.Error(), tc.errorMsg)
-					assert.Equal(t, tc.expectedOk, ok)   // Check ok even on error
-					assert.Equal(t, tc.expectedVal, val) // Check zero value on error
-				} else {
-					require.NoError(t, err)
-					assert.Equal(t, tc.expectedOk, ok)
-					assert.Equal(t, tc.expectedVal, val)
-				}
-			}
-
-			// Test with bool type assertion
-			if _, isBool := tc.expectedVal.(bool); isBool || tc.errorMsg == "parameter myParam is not of type bool, is string" {
-				// Convert to the format expected by the test
-				request := testutil.CreateMCPRequest(tc.args)
-				val, ok, err := OptionalParamOK[bool](request, tc.paramName)
-				if tc.expectError {
-					require.Error(t, err)
-					assert.Contains(t, err.Error(), tc.errorMsg)
-					assert.Equal(t, tc.expectedOk, ok)   // Check ok even on error
-					assert.Equal(t, tc.expectedVal, val) // Check zero value on error
-				} else {
-					require.NoError(t, err)
-					assert.Equal(t, tc.expectedOk, ok)
-					assert.Equal(t, tc.expectedVal, val)
-				}
-			}
-
-			// Test with float64 type assertion (for number case)
-			if _, isFloat := tc.expectedVal.(float64); isFloat {
-				val, ok, err := OptionalParamOK[float64](request, tc.paramName)
-				if tc.expectError {
-					// This case shouldn't happen for float64 in the defined tests
-					require.Fail(t, "Unexpected error case for float64")
-				} else {
-					require.NoError(t, err)
-					assert.Equal(t, tc.expectedOk, ok)
-					assert.Equal(t, tc.expectedVal, val)
-				}
-			}
+			testTypedParam(t, tc.args, tc.paramName, tc.expectedVal, tc.expectedOk, tc.expectError, tc.errorMsg)
 		})
 	}
 }

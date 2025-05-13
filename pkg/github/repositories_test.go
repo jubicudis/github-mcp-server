@@ -32,6 +32,7 @@ const (
 	exampleContent      = "# Example\n\nThis is an example file."
 	refsHeadsMain       = "refs/heads/main"
 	userReposPattern    = "/user/repos"
+	readmeFileName      = "README.md"
 )
 
 const (
@@ -54,7 +55,7 @@ const (
 func TestGetFileContents(t *testing.T) {
 	logger := log.NewLogger().WithLevel(log.LevelDebug)
 	mockClient := NewClient("", logger)
-	tool, _ := GetFileContents(stubGetClientFn(mockClient), testutil.NullTranslationHelperFunc)
+	tool, _ := GetFileContents(testutil.StubGetClientFnWithClient(mockClient), testutil.NullTranslationHelperFunc)
 
 	assert.Equal(t, "get_file_contents", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -67,8 +68,8 @@ func TestGetFileContents(t *testing.T) {
 	// Setup mock file content for success case
 	mockFileContent := &github.RepositoryContent{
 		Type:        testutil.Ptr("file"),
-		Name:        testutil.Ptr("README.md"),
-		Path:        testutil.Ptr("README.md"),
+		Name:        testutil.Ptr(readmeFileName),
+		Path:        testutil.Ptr(readmeFileName),
 		Content:     testutil.Ptr("IyBUZXN0IFJlcG9zaXRvcnkKClRoaXMgaXMgYSB0ZXN0IHJlcG9zaXRvcnku"), // Base64 encoded "# Test Repository\n\nThis is a test repository."
 		SHA:         testutil.Ptr("abc123"),
 		Size:        testutil.Ptr(42),
@@ -80,8 +81,8 @@ func TestGetFileContents(t *testing.T) {
 	mockDirContent := []*github.RepositoryContent{
 		{
 			Type:    testutil.Ptr("file"),
-			Name:    testutil.Ptr("README.md"),
-			Path:    testutil.Ptr("README.md"),
+			Name:    testutil.Ptr(readmeFileName),
+			Path:    testutil.Ptr(readmeFileName),
 			SHA:     testutil.Ptr("abc123"),
 			Size:    testutil.Ptr(42),
 			HTMLURL: testutil.Ptr("https://github.com/owner/repo/blob/main/README.md"),
@@ -118,7 +119,7 @@ func TestGetFileContents(t *testing.T) {
 			requestArgs: map[string]interface{}{
 				ownerKey:  "owner",
 				repoKey:   "repo",
-				pathKey:   "README.md",
+				pathKey:   readmeFileName,
 				branchKey: branchMain,
 			},
 			expectError:    false,
@@ -168,7 +169,7 @@ func TestGetFileContents(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
 			client := NewClient("", logger)
-			_, handler := GetFileContents(stubGetClientFn(client), testutil.NullTranslationHelperFunc)
+			_, handler := GetFileContents(testutil.StubGetClientFnWithClient(client), testutil.NullTranslationHelperFunc)
 
 			// Create call request
 			request := testutil.CreateMCPRequest(tc.requestArgs)
@@ -215,7 +216,7 @@ func TestGetFileContents(t *testing.T) {
 func TestForkRepository(t *testing.T) {
 	logger := log.NewLogger().WithLevel(log.LevelDebug)
 	mockClient := NewClient("", logger)
-	tool, _ := ForkRepository(stubGetClientFn(mockClient), testutil.NullTranslationHelperFunc)
+	tool, _ := ForkRepository(testutil.StubGetClientFnWithClient(mockClient), testutil.NullTranslationHelperFunc)
 
 	assert.Equal(t, "fork_repository", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -285,7 +286,7 @@ func TestForkRepository(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
 			client := NewClient("", logger)
-			_, handler := ForkRepository(stubGetClientFn(client), testutil.NullTranslationHelperFunc)
+			_, handler := ForkRepository(testutil.StubGetClientFnWithClient(client), testutil.NullTranslationHelperFunc)
 
 			// Create call request
 			request := testutil.CreateMCPRequest(tc.requestArgs)
@@ -313,7 +314,7 @@ func TestForkRepository(t *testing.T) {
 func TestCreateBranch(t *testing.T) {
 	logger := log.NewLogger().WithLevel(log.LevelDebug)
 	mockClient := NewClient("", logger)
-	tool, _ := CreateBranch(stubGetClientFn(mockClient), testutil.NullTranslationHelperFunc)
+	tool, _ := CreateBranch(testutil.StubGetClientFnWithClient(mockClient), testutil.NullTranslationHelperFunc)
 
 	assert.Equal(t, "create_branch", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -471,7 +472,7 @@ func TestCreateBranch(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
 			client := NewClient("", logger)
-			_, handler := CreateBranch(stubGetClientFn(client), testutil.NullTranslationHelperFunc)
+			_, handler := CreateBranch(testutil.StubGetClientFnWithClient(client), testutil.NullTranslationHelperFunc)
 
 			// Create call request
 			request := testutil.CreateMCPRequest(tc.requestArgs)
@@ -504,7 +505,7 @@ func TestCreateBranch(t *testing.T) {
 func TestGetCommit(t *testing.T) {
 	logger := log.NewLogger().WithLevel(log.LevelDebug)
 	mockClient := NewClient("", logger)
-	tool, _ := GetCommit(stubGetClientFn(mockClient), testutil.NullTranslationHelperFunc)
+	tool, _ := GetCommit(testutil.StubGetClientFnWithClient(mockClient), testutil.NullTranslationHelperFunc)
 
 	assert.Equal(t, "get_commit", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -598,7 +599,7 @@ func TestGetCommit(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
 			client := NewClient("", logger)
-			_, handler := GetCommit(stubGetClientFn(client), testutil.NullTranslationHelperFunc)
+			_, handler := GetCommit(testutil.StubGetClientFnWithClient(client), testutil.NullTranslationHelperFunc)
 
 			// Create call request
 			request := testutil.CreateMCPRequest(tc.requestArgs)
@@ -634,7 +635,7 @@ func TestGetCommit(t *testing.T) {
 func TestListCommits(t *testing.T) {
 	logger := log.NewLogger().WithLevel(log.LevelDebug)
 	mockClient := NewClient("", logger)
-	tool, _ := ListCommits(stubGetClientFn(mockClient), testutil.NullTranslationHelperFunc)
+	tool, _ := ListCommits(testutil.StubGetClientFnWithClient(mockClient), testutil.NullTranslationHelperFunc)
 
 	assert.Equal(t, "list_commits", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -770,7 +771,7 @@ func TestListCommits(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
 			client := NewClient("", logger)
-			_, handler := ListCommits(stubGetClientFn(client), testutil.NullTranslationHelperFunc)
+			_, handler := ListCommits(testutil.StubGetClientFnWithClient(client), testutil.NullTranslationHelperFunc)
 
 			// Create call request
 			request := testutil.CreateMCPRequest(tc.requestArgs)
@@ -808,7 +809,7 @@ func TestListCommits(t *testing.T) {
 func TestCreateOrUpdateFile(t *testing.T) {
 	logger := log.NewLogger().WithLevel(log.LevelDebug)
 	mockClient := NewClient("", logger)
-	tool, _ := CreateOrUpdateFile(stubGetClientFn(mockClient), testutil.NullTranslationHelperFunc)
+	tool, _ := CreateOrUpdateFile(testutil.StubGetClientFnWithClient(mockClient), testutil.NullTranslationHelperFunc)
 
 	assert.Equal(t, "create_or_update_file", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -837,7 +838,7 @@ func TestCreateOrUpdateFile(t *testing.T) {
 			Author: &github.CommitAuthor{
 				Name:  testutil.Ptr(testUser),
 				Email: testutil.Ptr(testUserEmail),
-				Date:  &github.Timestamp{Time: time.Now()},
+				Date:  testutil.Ptr(time.Now()),
 			},
 			HTMLURL: testutil.Ptr("https://github.com/owner/repo/commit/def456abc789"),
 		},
@@ -931,7 +932,7 @@ func TestCreateOrUpdateFile(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
 			client := NewClient("", logger)
-			_, handler := CreateOrUpdateFile(stubGetClientFn(client), testutil.NullTranslationHelperFunc)
+			_, handler := CreateOrUpdateFile(testutil.StubGetClientFnWithClient(client), testutil.NullTranslationHelperFunc)
 
 			// Create call request
 			request := testutil.CreateMCPRequest(tc.requestArgs)
@@ -971,7 +972,7 @@ func TestCreateOrUpdateFile(t *testing.T) {
 func TestCreateRepository(t *testing.T) {
 	logger := log.NewLogger().WithLevel(log.LevelDebug)
 	mockClient := NewClient("", logger)
-	tool, _ := CreateRepository(stubGetClientFn(mockClient), testutil.NullTranslationHelperFunc)
+	tool, _ := CreateRepository(testutil.StubGetClientFnWithClient(mockClient), testutil.NullTranslationHelperFunc)
 
 	assert.Equal(t, "create_repository", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -988,7 +989,7 @@ func TestCreateRepository(t *testing.T) {
 		Private:     testutil.Ptr(true),
 		HTMLURL:     testutil.Ptr("https://github.com/testuser/test-repo"),
 		CloneURL:    testutil.Ptr("https://github.com/testuser/test-repo.git"),
-		CreatedAt:   &github.Timestamp{Time: time.Now()},
+		CreatedAt:   testutil.Ptr(time.Now()),
 		Owner: &github.User{
 			Login: testutil.Ptr("testuser"),
 		},
@@ -1079,7 +1080,7 @@ func TestCreateRepository(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
 			client := NewClient("", logger)
-			_, handler := CreateRepository(stubGetClientFn(client), testutil.NullTranslationHelperFunc)
+			_, handler := CreateRepository(testutil.StubGetClientFnWithClient(client), testutil.NullTranslationHelperFunc)
 
 			// Create call request
 			request := testutil.CreateMCPRequest(tc.requestArgs)
@@ -1117,7 +1118,7 @@ func TestCreateRepository(t *testing.T) {
 func TestPushFiles(t *testing.T) {
 	logger := log.NewLogger().WithLevel(log.LevelDebug)
 	mockClient := NewClient("", logger)
-	tool, _ := PushFiles(stubGetClientFn(mockClient), testutil.NullTranslationHelperFunc)
+	tool, _ := PushFiles(testutil.StubGetClientFnWithClient(mockClient), testutil.NullTranslationHelperFunc)
 
 	assert.Equal(t, "push_files", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -1191,7 +1192,7 @@ func TestPushFiles(t *testing.T) {
 						"base_tree": "def456",
 						"tree": []interface{}{
 							map[string]interface{}{
-								"path":    "README.md",
+								"path":    readmeFileName,
 								"mode":    "100644",
 								"type":    "blob",
 								"content": "# Updated README\n\nThis is an updated README file.",
@@ -1235,7 +1236,7 @@ func TestPushFiles(t *testing.T) {
 				branchKey: branchMain,
 				filesKey: []interface{}{
 					map[string]interface{}{
-						"path":     "README.md",
+						"path":     readmeFileName,
 						contentKey: "# Updated README\n\nThis is an updated README file.",
 					},
 					map[string]interface{}{
@@ -1334,7 +1335,7 @@ func TestPushFiles(t *testing.T) {
 				branchKey: "non-existent-branch",
 				filesKey: []interface{}{
 					map[string]interface{}{
-						"path":     "README.md",
+						"path":     readmeFileName,
 						contentKey: readmeContent,
 					},
 				},
@@ -1363,7 +1364,7 @@ func TestPushFiles(t *testing.T) {
 				branchKey: branchMain,
 				filesKey: []interface{}{
 					map[string]interface{}{
-						"path":     "README.md",
+						"path":     readmeFileName,
 						contentKey: readmeContent,
 					},
 				},
@@ -1397,7 +1398,7 @@ func TestPushFiles(t *testing.T) {
 				branchKey: branchMain,
 				filesKey: []interface{}{
 					map[string]interface{}{
-						"path":     "README.md",
+						"path":     readmeFileName,
 						contentKey: readmeContent,
 					},
 				},
@@ -1412,7 +1413,7 @@ func TestPushFiles(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
 			client := NewClient("", logger)
-			_, handler := PushFiles(stubGetClientFn(client), testutil.NullTranslationHelperFunc)
+			_, handler := PushFiles(testutil.StubGetClientFnWithClient(client), testutil.NullTranslationHelperFunc)
 
 			// Create call request
 			request := testutil.CreateMCPRequest(tc.requestArgs)
@@ -1453,7 +1454,7 @@ func TestPushFiles(t *testing.T) {
 func TestListBranches(t *testing.T) {
 	logger := log.NewLogger().WithLevel(log.LevelDebug)
 	mockClient := NewClient("", logger)
-	tool, _ := ListBranches(stubGetClientFn(mockClient), testutil.NullTranslationHelperFunc)
+	tool, _ := ListBranches(testutil.StubGetClientFnWithClient(mockClient), testutil.NullTranslationHelperFunc)
 
 	assert.Equal(t, "list_branches", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -1522,7 +1523,7 @@ func TestListBranches(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Create mock client
 			mockClient := github.NewClient(mock.NewMockedHTTPClient(tt.mockResponses...))
-			_, handler := ListBranches(stubGetClientFn(mockClient), testutil.NullTranslationHelperFunc)
+			_, handler := ListBranches(testutil.StubGetClientFn(mockClient), testutil.NullTranslationHelperFunc)
 
 			// Create request
 			request := testutil.CreateMCPRequest(tt.args)
