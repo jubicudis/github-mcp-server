@@ -46,46 +46,72 @@ func GetCodeScanningAlert(getClient GetClientFn, t translations.TranslationHelpe
 				mcp.Description("The number of the alert."),
 			),
 		),
-		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			owner, err := RequiredParam[string](request, "owner")
-			if err != nil {
-				return mcp.NewToolResultError(err.Error()), nil
-			}
-			repo, err := RequiredParam[string](request, "repo")
-			if err != nil {
-				return mcp.NewToolResultError(err.Error()), nil
-			}
-			alertNumber, err := RequiredInt(request, "alertNumber")
-			if err != nil {
-				return mcp.NewToolResultError(err.Error()), nil
-			}
+		handleGetCodeScanningAlert(getClient)
+}
 
-			client, err := getClient(ctx)
-			if err != nil {
-				return nil, fmt.Errorf("failed to get GitHub client: %w", err)
-			}
+// extractAlertParams extracts parameters for getting a specific code scanning alert
+func extractAlertParams(request mcp.CallToolRequest) (owner, repo string, alertNumber int, err error) {
+	owner, err = RequiredParam[string](request, "owner")
+	if err != nil {
+		return
+	}
 
-			alert, resp, err := client.CodeScanning.GetAlert(ctx, owner, repo, int64(alertNumber))
-			if err != nil {
-				return nil, fmt.Errorf("failed to get alert: %w", err)
-			}
-			defer func() { _ = resp.Body.Close() }()
+	repo, err = RequiredParam[string](request, "repo")
+	if err != nil {
+		return
+	}
 
-			if resp.StatusCode != http.StatusOK {
-				body, err := io.ReadAll(resp.Body)
-				if err != nil {
-					return nil, fmt.Errorf("failed to read response body: %w", err)
-				}
-				return mcp.NewToolResultError(fmt.Sprintf("failed to get alert: %s", string(body))), nil
-			}
+	alertNumberInt, err := RequiredInt(request, "alertNumber")
+	if err != nil {
+		return
+	}
 
-			r, err := json.Marshal(alert)
-			if err != nil {
-				return nil, fmt.Errorf("failed to marshal alert: %w", err)
-			}
+	return owner, repo, alertNumberInt, nil
+}
 
-			return mcp.NewToolResultText(string(r)), nil
+// fetchCodeScanningAlert fetches a specific alert from GitHub API
+func fetchCodeScanningAlert(ctx context.Context, client *github.Client, owner, repo string, alertNumber int64) ([]byte, error) {
+	alert, resp, err := client.CodeScanning.GetAlert(ctx, owner, repo, alertNumber)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get alert: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read response body: %w", err)
 		}
+		return nil, fmt.Errorf("failed to get alert: %s", string(body))
+	}
+
+	return json.Marshal(alert)
+}
+
+// handleGetCodeScanningAlert implements the handler logic for getting a code scanning alert
+func handleGetCodeScanningAlert(getClient GetClientFn) server.ToolHandlerFunc {
+	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		owner, repo, alertNumber, err := extractAlertParams(request)
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
+
+		client, err := getClient(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get GitHub client: %w", err)
+		}
+
+		alertJSON, err := fetchCodeScanningAlert(ctx, client, owner, repo, int64(alertNumber))
+		if err != nil {
+			// Check if this is already a formatted error
+			if e, ok := err.(interface{ Error() string }); ok {
+				return mcp.NewToolResultError(e.Error()), nil
+			}
+			return nil, err
+		}
+
+		return mcp.NewToolResultText(string(alertJSON)), nil
+	}
 }
 
 // WHO: SecurityAlertLister
@@ -117,56 +143,82 @@ func ListCodeScanningAlerts(getClient GetClientFn, t translations.TranslationHel
 				mcp.Description("Only code scanning alerts with this severity will be returned. Possible values are: critical, high, medium, low, warning, note, error."),
 			),
 		),
-		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			owner, err := RequiredParam[string](request, "owner")
-			if err != nil {
-				return mcp.NewToolResultError(err.Error()), nil
-			}
-			repo, err := RequiredParam[string](request, "repo")
-			if err != nil {
-				return mcp.NewToolResultError(err.Error()), nil
-			}
-			ref, err := OptionalParam[string](request, "ref")
-			if err != nil {
-				return mcp.NewToolResultError(err.Error()), nil
-			}
-			state, err := OptionalParam[string](request, "state")
-			if err != nil {
-				return mcp.NewToolResultError(err.Error()), nil
-			}
-			_, err = OptionalParam[string](request, "severity")
-			if err != nil {
-				return mcp.NewToolResultError(err.Error()), nil
-			}
-			// Note: Severity field not supported in this version of the GitHub API
+		handleListCodeScanningAlerts(getClient)
+}
 
-			client, err := getClient(ctx)
-			if err != nil {
-				return nil, fmt.Errorf("failed to get GitHub client: %w", err)
-			}
-			opts := &github.AlertListOptions{
-				Ref:   ref,
-				State: state,
-			}
-			alerts, resp, err := client.CodeScanning.ListAlertsForRepo(ctx, owner, repo, opts)
-			if err != nil {
-				return nil, fmt.Errorf("failed to list alerts: %w", err)
-			}
-			defer func() { _ = resp.Body.Close() }()
+// extractCodeScanningParams extracts parameters for code scanning API
+func extractCodeScanningParams(request mcp.CallToolRequest) (owner, repo, ref, state string, err error) {
+	owner, err = RequiredParam[string](request, "owner")
+	if err != nil {
+		return
+	}
 
-			if resp.StatusCode != http.StatusOK {
-				body, err := io.ReadAll(resp.Body)
-				if err != nil {
-					return nil, fmt.Errorf("failed to read response body: %w", err)
-				}
-				return mcp.NewToolResultError(fmt.Sprintf("failed to list alerts: %s", string(body))), nil
-			}
+	repo, err = RequiredParam[string](request, "repo")
+	if err != nil {
+		return
+	}
 
-			r, err := json.Marshal(alerts)
-			if err != nil {
-				return nil, fmt.Errorf("failed to marshal alerts: %w", err)
-			}
+	ref, err = OptionalParam[string](request, "ref")
+	if err != nil {
+		return
+	}
 
-			return mcp.NewToolResultText(string(r)), nil
+	state, err = OptionalParam[string](request, "state")
+	if err != nil {
+		return
+	}
+
+	// Note: Severity field not supported in this version of the GitHub API
+	_, err = OptionalParam[string](request, "severity")
+	return
+}
+
+// fetchCodeScanningAlerts fetches alerts from GitHub API
+func fetchCodeScanningAlerts(ctx context.Context, client *github.Client, owner, repo, ref, state string) ([]byte, error) {
+	opts := &github.AlertListOptions{
+		Ref:   ref,
+		State: state,
+	}
+
+	alerts, resp, err := client.CodeScanning.ListAlertsForRepo(ctx, owner, repo, opts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list alerts: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read response body: %w", err)
 		}
+		return nil, fmt.Errorf("failed to list alerts: %s", string(body))
+	}
+
+	return json.Marshal(alerts)
+}
+
+// handleListCodeScanningAlerts implements the handler logic for listing code scanning alerts
+func handleListCodeScanningAlerts(getClient GetClientFn) server.ToolHandlerFunc {
+	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+		owner, repo, ref, state, err := extractCodeScanningParams(request)
+		if err != nil {
+			return mcp.NewToolResultError(err.Error()), nil
+		}
+
+		client, err := getClient(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get GitHub client: %w", err)
+		}
+
+		alertsJSON, err := fetchCodeScanningAlerts(ctx, client, owner, repo, ref, state)
+		if err != nil {
+			// Check if this is already a formatted error message
+			if e, ok := err.(interface{ Error() string }); ok {
+				return mcp.NewToolResultError(e.Error()), nil
+			}
+			return nil, err
+		}
+
+		return mcp.NewToolResultText(string(alertsJSON)), nil
+	}
 }

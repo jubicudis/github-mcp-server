@@ -19,11 +19,13 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	
-	"tranquility-neuro-os/github-mcp-server/pkg/translations"
+
 	"strings"
 	"sync"
 	"time"
+	"tranquility-neuro-os/github-mcp-server/pkg/translations"
+
+	"encoding/base64"
 
 	"github.com/shurcooL/graphql"
 	"golang.org/x/oauth2"
@@ -697,6 +699,44 @@ func (c *Client) doRequestWithHeaders(ctx context.Context, method, path string, 
 		return nil, err
 	}
 
+	// Prepare request
+	req, err := c.prepareHTTPRequest(ctx, method, path, body)
+	if err != nil {
+		return nil, err
+	}
+
+	// Set headers
+	c.setHTTPRequestHeaders(req, headers, body != nil)
+
+	// Execute request
+	if c.options.Logger != nil {
+		c.options.Logger.Debug("Making API request",
+			"method", method,
+			"path", path)
+	}
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	// Update rate limit info
+	c.updateRateLimit(resp)
+
+	return c.processHTTPResponse(resp)
+}
+
+// prepareHTTPRequest creates and prepares an HTTP request
+func (c *Client) prepareHTTPRequest(ctx context.Context, method, path string, body interface{}) (*http.Request, error) {
+	// WHO: RequestPreparer
+	// WHAT: Prepare HTTP request
+	// WHEN: Before API operations
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To build proper request
+	// HOW: Using HTTP request creation
+	// EXTENT: Single API request
+
 	// Create request URL
 	reqURL, err := url.Parse(path)
 	if err != nil {
@@ -724,6 +764,19 @@ func (c *Client) doRequestWithHeaders(ctx context.Context, method, path string, 
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
+	return req, nil
+}
+
+// setHTTPRequestHeaders sets headers for the HTTP request
+func (c *Client) setHTTPRequestHeaders(req *http.Request, headers map[string]string, hasBody bool) {
+	// WHO: HeaderSetter
+	// WHAT: Set request headers
+	// WHEN: Before API operations
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To configure request headers
+	// HOW: Using header configuration
+	// EXTENT: Single API request
+
 	// Set default headers
 	req.Header.Set("Accept", c.options.AcceptHeader)
 	req.Header.Set("User-Agent", c.options.UserAgent)
@@ -734,7 +787,7 @@ func (c *Client) doRequestWithHeaders(ctx context.Context, method, path string, 
 	}
 
 	// Set content type for requests with body
-	if body != nil {
+	if hasBody {
 		req.Header.Set("Content-Type", "application/json")
 	}
 
@@ -743,22 +796,17 @@ func (c *Client) doRequestWithHeaders(ctx context.Context, method, path string, 
 		contextJSON, _ := json.Marshal(c.context.ToMap())
 		req.Header.Set("X-MCP-Context", string(contextJSON))
 	}
+}
 
-	// Execute request
-	if c.options.Logger != nil {
-		c.options.Logger.Debug("Making API request",
-			"method", method,
-			"path", path)
-	}
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	// Update rate limit info
-	c.updateRateLimit(resp)
+// processHTTPResponse processes the HTTP response
+func (c *Client) processHTTPResponse(resp *http.Response) ([]byte, error) {
+	// WHO: ResponseProcessor
+	// WHAT: Process HTTP response
+	// WHEN: After API operations
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To handle API responses
+	// HOW: Using response parsing
+	// EXTENT: Single API response
 
 	// Read response body
 	respBody, err := io.ReadAll(resp.Body)
@@ -768,23 +816,36 @@ func (c *Client) doRequestWithHeaders(ctx context.Context, method, path string, 
 
 	// Check for error response
 	if resp.StatusCode >= 400 {
-		var errResp struct {
-			Message string `json:"message"`
-			Errors  []struct {
-				Resource string `json:"resource"`
-				Field    string `json:"field"`
-				Code     string `json:"code"`
-			} `json:"errors,omitempty"`
-		}
-
-		if err := json.Unmarshal(respBody, &errResp); err == nil && errResp.Message != "" {
-			return nil, fmt.Errorf("GitHub API error (%d): %s", resp.StatusCode, errResp.Message)
-		}
-
-		return nil, fmt.Errorf("GitHub API error: status %d", resp.StatusCode)
+		return nil, c.createErrorFromResponse(resp.StatusCode, respBody)
 	}
 
 	return respBody, nil
+}
+
+// createErrorFromResponse creates an error from an error response
+func (c *Client) createErrorFromResponse(statusCode int, respBody []byte) error {
+	// WHO: ErrorProcessor
+	// WHAT: Create error from response
+	// WHEN: During error handling
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To standardize error format
+	// HOW: Using error parsing
+	// EXTENT: Single API error
+
+	var errResp struct {
+		Message string `json:"message"`
+		Errors  []struct {
+			Resource string `json:"resource"`
+			Field    string `json:"field"`
+			Code     string `json:"code"`
+		} `json:"errors,omitempty"`
+	}
+
+	if err := json.Unmarshal(respBody, &errResp); err == nil && errResp.Message != "" {
+		return fmt.Errorf("GitHub API error (%d): %s", statusCode, errResp.Message)
+	}
+
+	return fmt.Errorf("GitHub API error: status %d", statusCode)
 }
 
 // Request is a compatibility method for legacy code
@@ -831,7 +892,7 @@ func (c *Client) checkRateLimit() error {
 
 	// Check if we're in rate limit and need to wait
 	if c.rateLimitRemain <= c.options.RateLimitBuffer && time.Now().Before(c.rateLimitReset) {
-		waitTime := c.rateLimitReset.Sub(time.Now())
+		waitTime := time.Until(c.rateLimitReset)
 		if waitTime > 0 {
 			if c.options.Logger != nil {
 				c.options.Logger.Info("Rate limit exceeded, waiting",
@@ -995,46 +1056,74 @@ func parseRepoURI(path string) (map[string]string, error) {
 	// EXTENT: Repo URI components
 
 	components := strings.Split(path, "/")
-	result := make(map[string]string)
-
 	if len(components) < 2 {
 		return nil, fmt.Errorf("invalid repo URI format")
 	}
 
-	// Extract owner and repo
-	result["owner"] = components[0]
-	result["repo"] = components[1]
-
-	// Handle different path formats
-	if len(components) > 2 {
-		switch components[2] {
-		case "contents":
-			result["type"] = "contents"
-			if len(components) > 3 {
-				result["path"] = strings.Join(components[3:], "/")
-			}
-		case "refs":
-			if len(components) >= 5 && components[3] == "heads" {
-				result["type"] = "branch"
-				result["branch"] = components[4]
-
-				if len(components) > 6 && components[5] == "contents" {
-					result["path"] = strings.Join(components[6:], "/")
-				}
-			}
-		case "sha":
-			if len(components) >= 4 {
-				result["type"] = "commit"
-				result["sha"] = components[3]
-
-				if len(components) > 5 && components[4] == "contents" {
-					result["path"] = strings.Join(components[5:], "/")
-				}
-			}
-		}
+	// Initialize with owner and repo
+	result := map[string]string{
+		"owner": components[0],
+		"repo":  components[1],
 	}
 
+	// If we only have owner/repo, we're done
+	if len(components) <= 2 {
+		return result, nil
+	}
+
+	// Process path type
+	processRepoPathType(components, result)
 	return result, nil
+}
+
+// processRepoPathType handles different repository path types
+func processRepoPathType(components []string, result map[string]string) {
+	pathType := components[2]
+
+	switch pathType {
+	case "contents":
+		processContentsPath(components, result)
+	case "refs":
+		processRefsPath(components, result)
+	case "sha":
+		processShaPath(components, result)
+	}
+}
+
+// processContentsPath handles contents path format
+func processContentsPath(components []string, result map[string]string) {
+	result["type"] = "contents"
+	if len(components) > 3 {
+		result["path"] = strings.Join(components[3:], "/")
+	}
+}
+
+// processRefsPath handles refs path format
+func processRefsPath(components []string, result map[string]string) {
+	if len(components) < 5 || components[3] != "heads" {
+		return
+	}
+
+	result["type"] = "branch"
+	result["branch"] = components[4]
+
+	if len(components) > 6 && components[5] == "contents" {
+		result["path"] = strings.Join(components[6:], "/")
+	}
+}
+
+// processShaPath handles sha path format
+func processShaPath(components []string, result map[string]string) {
+	if len(components) < 4 {
+		return
+	}
+
+	result["type"] = "commit"
+	result["sha"] = components[3]
+
+	if len(components) > 5 && components[4] == "contents" {
+		result["path"] = strings.Join(components[5:], "/")
+	}
 }
 
 // parseIssueURI parses an issue URI
@@ -1121,5 +1210,5 @@ func base64DecodeString(s string) ([]byte, error) {
 	// HOW: Using Go standard library
 	// EXTENT: String decoding
 
-	return nil, nil // Implementation would use "encoding/base64"
+	return base64.StdEncoding.DecodeString(s)
 }

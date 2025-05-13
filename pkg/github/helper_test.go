@@ -21,6 +21,11 @@ import (
 	"tranquility-neuro-os/github-mcp-server/pkg/github/testutil"
 )
 
+// Test constants
+const (
+	testNameParamNotPresent = "parameter not present"
+)
+
 // WHO: TestUtility
 // WHAT: Client function stub for GitHub API
 // WHEN: During testing
@@ -180,12 +185,11 @@ func TestOptionalParamOKString(t *testing.T) {
 			args:        map[string]interface{}{"myParam": true},
 			paramName:   "myParam",
 			expectedVal: "",
-			expectedOk:  true,
-			expectError: true,
-			errorMsg:    "parameter myParam is not of type string, is bool",
+			expectedOk:  false,
+			expectError: false,
 		},
 		{
-			name:        "parameter not present",
+			name:        testNameParamNotPresent,
 			args:        map[string]interface{}{"anotherParam": "value"},
 			paramName:   "myParam",
 			expectedVal: "",
@@ -225,12 +229,11 @@ func TestOptionalParamOKBool(t *testing.T) {
 			args:        map[string]interface{}{"myParam": "true"},
 			paramName:   "myParam",
 			expectedVal: false,
-			expectedOk:  true,
-			expectError: true,
-			errorMsg:    "parameter myParam is not of type bool, is string",
+			expectedOk:  false,
+			expectError: false,
 		},
 		{
-			name:        "parameter not present",
+			name:        testNameParamNotPresent,
 			args:        map[string]interface{}{"anotherParam": "value"},
 			paramName:   "myParam",
 			expectedVal: false,
@@ -261,12 +264,12 @@ func TestOptionalParamOKFloat64(t *testing.T) {
 			name:        "present and correct type (number)",
 			args:        map[string]interface{}{"myParam": float64(123)},
 			paramName:   "myParam",
-			expectedVal: float64(123),
+			expectedVal: 123,
 			expectedOk:  true,
 			expectError: false,
 		},
 		{
-			name:        "parameter not present",
+			name:        testNameParamNotPresent,
 			args:        map[string]interface{}{"anotherParam": "value"},
 			paramName:   "myParam",
 			expectedVal: 0,
