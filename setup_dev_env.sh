@@ -35,12 +35,29 @@ fi
 # MCP server doesn't directly need Gradle
 # Skip Gradle daemon initialization to avoid terminal pollution
 
+# Detect Go bin directory
+GOBIN=$(go env GOBIN)
+if [ -z "$GOBIN" ]; then
+    GOBIN="$HOME/go/bin"
+fi
+export PATH="$GOBIN:$PATH"
+
 # Create go/bin directory if it doesn't exist
 mkdir -p "$GOPATH/bin"
 
 # Install Go tools if needed
 echo "Ensuring necessary Go tools are installed..."
-which gopls > /dev/null 2>&1 || { echo "Installing gopls..."; go install golang.org/x/tools/gopls@latest; }
+GOPLS_PATH=$(command -v gopls 2>/dev/null)
+if [ -z "$GOPLS_PATH" ]; then
+    echo "Installing gopls..."
+    go install golang.org/x/tools/gopls@latest
+    GOPLS_PATH=$(command -v gopls 2>/dev/null)
+fi
+if [ -n "$GOPLS_PATH" ]; then
+    echo "gopls is installed at: $GOPLS_PATH"
+else
+    echo "ERROR: gopls installation failed or not found in PATH!"
+fi
 which golint > /dev/null 2>&1 || { echo "Installing golint..."; go install golang.org/x/lint/golint@latest; }
 which errcheck > /dev/null 2>&1 || { echo "Installing errcheck..."; go install github.com/kisielk/errcheck@latest; }
 
