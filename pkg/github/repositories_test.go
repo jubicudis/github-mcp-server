@@ -32,7 +32,7 @@ const (
 	exampleContent      = "# Example\n\nThis is an example file."
 	refsHeadsMain       = "refs/heads/main"
 	userReposPattern    = "/user/repos"
-	readmeFileName      = "README.md"
+	testReadmeFileName  = "README.md"
 )
 
 const (
@@ -68,8 +68,8 @@ func TestGetFileContents(t *testing.T) {
 	// Setup mock file content for success case
 	mockFileContent := &github.RepositoryContent{
 		Type:        testutil.Ptr("file"),
-		Name:        testutil.Ptr(readmeFileName),
-		Path:        testutil.Ptr(readmeFileName),
+		Name:        testutil.Ptr(testReadmeFileName),
+		Path:        testutil.Ptr(testReadmeFileName),
 		Content:     testutil.Ptr("IyBUZXN0IFJlcG9zaXRvcnkKClRoaXMgaXMgYSB0ZXN0IHJlcG9zaXRvcnku"), // Base64 encoded "# Test Repository\n\nThis is a test repository."
 		SHA:         testutil.Ptr("abc123"),
 		Size:        testutil.Ptr(42),
@@ -989,7 +989,7 @@ func TestCreateRepository(t *testing.T) {
 		Private:     testutil.Ptr(true),
 		HTMLURL:     testutil.Ptr("https://github.com/testuser/test-repo"),
 		CloneURL:    testutil.Ptr("https://github.com/testuser/test-repo.git"),
-		CreatedAt:   testutil.Ptr(time.Now()),
+		CreatedAt:   &github.Timestamp{Time: time.Now()},
 		Owner: &github.User{
 			Login: testutil.Ptr("testuser"),
 		},
@@ -1192,7 +1192,7 @@ func TestPushFiles(t *testing.T) {
 						"base_tree": "def456",
 						"tree": []interface{}{
 							map[string]interface{}{
-								"path":    readmeFileName,
+								"path":    testReadmeFileName,
 								"mode":    "100644",
 								"type":    "blob",
 								"content": "# Updated README\n\nThis is an updated README file.",
@@ -1236,7 +1236,7 @@ func TestPushFiles(t *testing.T) {
 				branchKey: branchMain,
 				filesKey: []interface{}{
 					map[string]interface{}{
-						"path":     readmeFileName,
+						"path":     testReadmeFileName,
 						contentKey: "# Updated README\n\nThis is an updated README file.",
 					},
 					map[string]interface{}{
@@ -1335,7 +1335,7 @@ func TestPushFiles(t *testing.T) {
 				branchKey: "non-existent-branch",
 				filesKey: []interface{}{
 					map[string]interface{}{
-						"path":     readmeFileName,
+						"path":     testReadmeFileName,
 						contentKey: readmeContent,
 					},
 				},

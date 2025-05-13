@@ -23,7 +23,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Test_GetCodeScanningAlert(t *testing.T) {
+func TestGetCodeScanningAlert(t *testing.T) {
 	// Verify tool definition once
 	mockClient := mock.NewMockedHTTPClient()
 	translateFn := testutil.CreateTestTranslateFunc()
@@ -128,7 +128,7 @@ func Test_GetCodeScanningAlert(t *testing.T) {
 	}
 }
 
-func Test_ListCodeScanningAlerts(t *testing.T) {
+func TestListCodeScanningAlerts(t *testing.T) {
 	// Verify tool definition once
 	mockHttpClient := mock.NewMockedHTTPClient()
 	translateFn := func(key string, defaultValue string) string {

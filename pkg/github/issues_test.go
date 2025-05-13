@@ -24,9 +24,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Ptr is a helper for getting a pointer to a value (for test data)
-func Ptr[T any](v T) *T { return &v }
-
 // Add a NullTranslationHelperFunc to this test file for use in tests
 var NullTranslationHelperFunc = func(key, defaultValue string) string { return defaultValue }
 
@@ -43,10 +40,21 @@ const (
 	repoOpenQuery           = "repo:owner/repo is:issue is:open"
 )
 
+var mockIssue = &github.Issue{
+	Number:    testutil.Ptr(123),
+	Title:     testutil.Ptr(testIssueTitle),
+	Body:      testutil.Ptr(testIssueBody),
+	State:     testutil.Ptr("open"),
+	HTMLURL:   testutil.Ptr(urlIssue123),
+	Assignees: []*github.User{{Login: testutil.Ptr("user1")}, {Login: testutil.Ptr("user2")}},
+	Labels:    []*github.Label{{Name: testutil.Ptr("bug")}, {Name: testutil.Ptr(helpWanted)}},
+	Milestone: &github.Milestone{Number: testutil.Ptr(5)},
+}
+
 func TestGetIssue(t *testing.T) {
 	// Verify tool definition once
 	mockClient := mock.NewMockedHTTPClient()
-	translateFn := func(key string, defaultValue string) string {
+	translateFn := func(key, defaultValue string) string {
 		return key // Simple translation function for testing
 	}
 	tool, _ := GetIssue(testutil.StubGetClientFnWithClient(mockClient), translateFn)
@@ -60,11 +68,11 @@ func TestGetIssue(t *testing.T) {
 
 	// Setup mock issue for success case
 	mockIssue := &github.Issue{
-		Number:  Ptr(42),
-		Title:   Ptr("Test Issue"),
-		Body:    Ptr("This is a test issue"),
-		State:   Ptr("open"),
-		HTMLURL: Ptr("https://github.com/owner/repo/issues/42"),
+		Number:  testutil.Ptr(42),
+		Title:   testutil.Ptr(testIssueTitle),
+		Body:    testutil.Ptr(testIssueBody),
+		State:   testutil.Ptr("open"),
+		HTMLURL: testutil.Ptr("https://github.com/owner/repo/issues/42"),
 	}
 
 	tests := []struct {
@@ -159,12 +167,12 @@ func TestAddIssueComment(t *testing.T) {
 
 	// Setup mock comment for success case
 	mockComment := &github.IssueComment{
-		ID:   Ptr(int64(123)),
-		Body: Ptr("This is a test comment"),
+		ID:   testutil.Ptr(int64(123)),
+		Body: testutil.Ptr("This is a test comment"),
 		User: &github.User{
-			Login: Ptr("testuser"),
+			Login: testutil.Ptr("testuser"),
 		},
-		HTMLURL: Ptr("https://github.com/owner/repo/issues/42#issuecomment-123"),
+		HTMLURL: testutil.Ptr("https://github.com/owner/repo/issues/42#issuecomment-123"),
 	}
 
 	tests := []struct {
@@ -283,29 +291,29 @@ func TestSearchIssues(t *testing.T) {
 
 	// Setup mock search results
 	mockSearchResult := &github.IssuesSearchResult{
-		Total:             Ptr(2),
-		IncompleteResults: Ptr(false),
+		Total:             testutil.Ptr(2),
+		IncompleteResults: testutil.Ptr(false),
 		Issues: []*github.Issue{
 			{
-				Number:   Ptr(42),
-				Title:    Ptr("Bug: Something is broken"),
-				Body:     Ptr("This is a bug report"),
-				State:    Ptr("open"),
-				HTMLURL:  Ptr("https://github.com/owner/repo/issues/42"),
-				Comments: Ptr(5),
+				Number:   testutil.Ptr(42),
+				Title:    testutil.Ptr("Bug: Something is broken"),
+				Body:     testutil.Ptr("This is a bug report"),
+				State:    testutil.Ptr("open"),
+				HTMLURL:  testutil.Ptr("https://github.com/owner/repo/issues/42"),
+				Comments: testutil.Ptr(5),
 				User: &github.User{
-					Login: Ptr("user1"),
+					Login: testutil.Ptr("user1"),
 				},
 			},
 			{
-				Number:   Ptr(43),
-				Title:    Ptr("Feature: Add new functionality"),
-				Body:     Ptr("This is a feature request"),
-				State:    Ptr("open"),
-				HTMLURL:  Ptr("https://github.com/owner/repo/issues/43"),
-				Comments: Ptr(3),
+				Number:   testutil.Ptr(43),
+				Title:    testutil.Ptr("Feature: Add new functionality"),
+				Body:     testutil.Ptr("This is a feature request"),
+				State:    testutil.Ptr("open"),
+				HTMLURL:  testutil.Ptr("https://github.com/owner/repo/issues/43"),
+				Comments: testutil.Ptr(3),
 				User: &github.User{
-					Login: Ptr("user2"),
+					Login: testutil.Ptr("user2"),
 				},
 			},
 		},
@@ -423,6 +431,33 @@ func TestSearchIssues(t *testing.T) {
 	}
 }
 
+func assertIssueResult(t *testing.T, expected, actual *github.Issue) {
+	require.NotNil(t, actual)
+	assert.Equal(t, *expected.Number, *actual.Number)
+	assert.Equal(t, *expected.Title, *actual.Title)
+	assert.Equal(t, *expected.State, *actual.State)
+	assert.Equal(t, *expected.HTMLURL, *actual.HTMLURL)
+	if expected.Body != nil {
+		assert.Equal(t, *expected.Body, *actual.Body)
+	}
+	if len(expected.Assignees) > 0 {
+		assert.Equal(t, len(expected.Assignees), len(actual.Assignees))
+		for i, assignee := range actual.Assignees {
+			assert.Equal(t, *expected.Assignees[i].Login, *assignee.Login)
+		}
+	}
+	if len(expected.Labels) > 0 {
+		assert.Equal(t, len(expected.Labels), len(actual.Labels))
+		for i, label := range actual.Labels {
+			assert.Equal(t, *expected.Labels[i].Name, *label.Name)
+		}
+	}
+	if expected.Milestone != nil {
+		assert.NotNil(t, actual.Milestone)
+		assert.Equal(t, *expected.Milestone.Number, *actual.Milestone.Number)
+	}
+}
+
 func TestCreateIssue(t *testing.T) {
 	// Verify tool definition once
 	mockClient := githubMCP.NewClient(nil)
@@ -439,18 +474,6 @@ func TestCreateIssue(t *testing.T) {
 	assert.Contains(t, tool.InputSchema.Properties, "milestone")
 	assert.ElementsMatch(t, tool.InputSchema.Required, []string{"owner", "repo", "title"})
 
-	// Setup mock issue for success case
-	mockIssue := &github.Issue{
-		Number:    Ptr(123),
-		Title:     Ptr(testIssueTitle),
-		Body:      Ptr(testIssueBody),
-		State:     Ptr("open"),
-		HTMLURL:   Ptr(urlIssue123),
-		Assignees: []*github.User{{Login: Ptr("user1")}, {Login: Ptr("user2")}},
-		Labels:    []*github.Label{{Name: Ptr("bug")}, {Name: Ptr(helpWanted)}},
-		Milestone: &github.Milestone{Number: Ptr(5)},
-	}
-
 	tests := []struct {
 		name           string
 		mockedClient   *http.Client
@@ -465,8 +488,8 @@ func TestCreateIssue(t *testing.T) {
 				mock.WithRequestMatchHandler(
 					mock.PostReposIssuesByOwnerByRepo,
 					expectRequestBody(t, map[string]any{
-						"title":     testIssueTitle,
-						"body":      testIssueBody,
+						"title":     testutil.Ptr(testIssueTitle),
+						"body":      testutil.Ptr(testIssueBody),
 						"labels":    []any{"bug", helpWanted},
 						"assignees": []any{"user1", "user2"},
 						"milestone": float64(5),
@@ -478,8 +501,8 @@ func TestCreateIssue(t *testing.T) {
 			requestArgs: map[string]interface{}{
 				"owner":     "owner",
 				"repo":      "repo",
-				"title":     testIssueTitle,
-				"body":      testIssueBody,
+				"title":     testutil.Ptr(testIssueTitle),
+				"body":      testutil.Ptr(testIssueBody),
 				"assignees": []any{"user1", "user2"},
 				"labels":    []any{"bug", helpWanted},
 				"milestone": float64(5),
@@ -493,25 +516,25 @@ func TestCreateIssue(t *testing.T) {
 				mock.WithRequestMatchHandler(
 					mock.PostReposIssuesByOwnerByRepo,
 					mockResponse(t, http.StatusCreated, &github.Issue{
-						Number:  Ptr(124),
-						Title:   Ptr(minimalIssue),
-						HTMLURL: Ptr("https://github.com/owner/repo/issues/124"),
-						State:   Ptr("open"),
+						Number:  testutil.Ptr(124),
+						Title:   testutil.Ptr(minimalIssue),
+						HTMLURL: testutil.Ptr("https://github.com/owner/repo/issues/124"),
+						State:   testutil.Ptr("open"),
 					}),
 				),
 			),
 			requestArgs: map[string]interface{}{
 				"owner":     "owner",
 				"repo":      "repo",
-				"title":     minimalIssue,
+				"title":     testutil.Ptr(minimalIssue),
 				"assignees": nil, // Expect no failure with nil optional value.
 			},
 			expectError: false,
 			expectedIssue: &github.Issue{
-				Number:  Ptr(124),
-				Title:   Ptr(minimalIssue),
-				HTMLURL: Ptr("https://github.com/owner/repo/issues/124"),
-				State:   Ptr("open"),
+				Number:  testutil.Ptr(124),
+				Title:   testutil.Ptr(minimalIssue),
+				HTMLURL: testutil.Ptr("https://github.com/owner/repo/issues/124"),
+				State:   testutil.Ptr("open"),
 			},
 		},
 		{
@@ -528,7 +551,7 @@ func TestCreateIssue(t *testing.T) {
 			requestArgs: map[string]interface{}{
 				"owner": "owner",
 				"repo":  "repo",
-				"title": "",
+				"title": testutil.Ptr(""),
 			},
 			expectError:    false,
 			expectedErrMsg: "missing required parameter: title",
@@ -568,31 +591,7 @@ func TestCreateIssue(t *testing.T) {
 			var returnedIssue github.Issue
 			err = json.Unmarshal([]byte(textContent), &returnedIssue)
 			require.NoError(t, err)
-
-			assert.Equal(t, *tc.expectedIssue.Number, *returnedIssue.Number)
-			assert.Equal(t, *tc.expectedIssue.Title, *returnedIssue.Title)
-			assert.Equal(t, *tc.expectedIssue.State, *returnedIssue.State)
-			assert.Equal(t, *tc.expectedIssue.HTMLURL, *returnedIssue.HTMLURL)
-
-			if tc.expectedIssue.Body != nil {
-				assert.Equal(t, *tc.expectedIssue.Body, *returnedIssue.Body)
-			}
-
-			// Check assignees if expected
-			if len(tc.expectedIssue.Assignees) > 0 {
-				assert.Equal(t, len(tc.expectedIssue.Assignees), len(returnedIssue.Assignees))
-				for i, assignee := range returnedIssue.Assignees {
-					assert.Equal(t, *tc.expectedIssue.Assignees[i].Login, *assignee.Login)
-				}
-			}
-
-			// Check labels if expected
-			if len(tc.expectedIssue.Labels) > 0 {
-				assert.Equal(t, len(tc.expectedIssue.Labels), len(returnedIssue.Labels))
-				for i, label := range returnedIssue.Labels {
-					assert.Equal(t, *tc.expectedIssue.Labels[i].Name, *label.Name)
-				}
-			}
+			assertIssueResult(t, tc.expectedIssue, &returnedIssue)
 		})
 	}
 }
@@ -618,21 +617,21 @@ func TestListIssues(t *testing.T) {
 	// Setup mock issues for success case
 	mockIssues := []*github.Issue{
 		{
-			Number:    Ptr(123),
-			Title:     Ptr("First Issue"),
-			Body:      Ptr("This is the first test issue"),
-			State:     Ptr("open"),
-			HTMLURL:   Ptr("https://github.com/owner/repo/issues/123"),
-			CreatedAt: Ptr(time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)),
+			Number:    testutil.Ptr(123),
+			Title:     testutil.Ptr("First Issue"),
+			Body:      testutil.Ptr("This is the first test issue"),
+			State:     testutil.Ptr("open"),
+			HTMLURL:   testutil.Ptr("https://github.com/owner/repo/issues/123"),
+			CreatedAt: testutil.Ptr(time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)),
 		},
 		{
-			Number:    Ptr(456),
-			Title:     Ptr("Second Issue"),
-			Body:      Ptr("This is the second test issue"),
-			State:     Ptr("open"),
-			HTMLURL:   Ptr("https://github.com/owner/repo/issues/456"),
-			Labels:    []*github.Label{{Name: Ptr("bug")}},
-			CreatedAt: Ptr(time.Date(2023, 2, 1, 0, 0, 0, 0, time.UTC)),
+			Number:    testutil.Ptr(456),
+			Title:     testutil.Ptr("Second Issue"),
+			Body:      testutil.Ptr("This is the second test issue"),
+			State:     testutil.Ptr("open"),
+			HTMLURL:   testutil.Ptr("https://github.com/owner/repo/issues/456"),
+			Labels:    []*github.Label{{Name: testutil.Ptr("bug")}},
+			CreatedAt: testutil.Ptr(time.Date(2023, 2, 1, 0, 0, 0, 0, time.UTC)),
 		},
 	}
 
@@ -774,35 +773,6 @@ func TestListIssues(t *testing.T) {
 }
 
 func TestUpdateIssue(t *testing.T) {
-	// Verify tool definition
-	mockClient := githubMCP.NewClient(nil)
-	tool, _ := UpdateIssue(testutil.StubGetClientFn(mockClient), NullTranslationHelperFunc)
-
-	assert.Equal(t, "update_issue", tool.Name)
-	assert.NotEmpty(t, tool.Description)
-	assert.Contains(t, tool.InputSchema.Properties, "owner")
-	assert.Contains(t, tool.InputSchema.Properties, "repo")
-	assert.Contains(t, tool.InputSchema.Properties, "issue_number")
-	assert.Contains(t, tool.InputSchema.Properties, "title")
-	assert.Contains(t, tool.InputSchema.Properties, "body")
-	assert.Contains(t, tool.InputSchema.Properties, "state")
-	assert.Contains(t, tool.InputSchema.Properties, "labels")
-	assert.Contains(t, tool.InputSchema.Properties, "assignees")
-	assert.Contains(t, tool.InputSchema.Properties, "milestone")
-	assert.ElementsMatch(t, tool.InputSchema.Required, []string{"owner", "repo", "issue_number"})
-
-	// Setup mock issue for success case
-	mockIssue := &github.Issue{
-		Number:    Ptr(123),
-		Title:     Ptr(updatedIssueTitle),
-		Body:      Ptr(updatedIssueDescription),
-		State:     Ptr("closed"),
-		HTMLURL:   Ptr(urlIssue123),
-		Assignees: []*github.User{{Login: Ptr("assignee1")}, {Login: Ptr("assignee2")}},
-		Labels:    []*github.Label{{Name: Ptr("bug")}, {Name: Ptr("priority")}},
-		Milestone: &github.Milestone{Number: Ptr(5)},
-	}
-
 	tests := []struct {
 		name           string
 		mockedClient   *http.Client
@@ -817,9 +787,9 @@ func TestUpdateIssue(t *testing.T) {
 				mock.WithRequestMatchHandler(
 					mock.PatchReposIssuesByOwnerByRepoByIssueNumber,
 					expectRequestBody(t, map[string]any{
-						"title":     updatedIssueTitle,
-						"body":      updatedIssueDescription,
-						"state":     "closed",
+						"title":     testutil.Ptr(updatedIssueTitle),
+						"body":      testutil.Ptr(updatedIssueDescription),
+						"state":     testutil.Ptr("closed"),
 						"labels":    []any{"bug", "priority"},
 						"assignees": []any{"assignee1", "assignee2"},
 						"milestone": float64(5),
@@ -832,9 +802,9 @@ func TestUpdateIssue(t *testing.T) {
 				"owner":        "owner",
 				"repo":         "repo",
 				"issue_number": float64(123),
-				"title":        updatedIssueTitle,
-				"body":         updatedIssueDescription,
-				"state":        "closed",
+				"title":        testutil.Ptr(updatedIssueTitle),
+				"body":         testutil.Ptr(updatedIssueDescription),
+				"state":        testutil.Ptr("closed"),
 				"labels":       []any{"bug", "priority"},
 				"assignees":    []any{"assignee1", "assignee2"},
 				"milestone":    float64(5),
@@ -848,10 +818,10 @@ func TestUpdateIssue(t *testing.T) {
 				mock.WithRequestMatchHandler(
 					mock.PatchReposIssuesByOwnerByRepoByIssueNumber,
 					mockResponse(t, http.StatusOK, &github.Issue{
-						Number:  Ptr(123),
-						Title:   Ptr(onlyTitleUpdated),
-						HTMLURL: Ptr(urlIssue123),
-						State:   Ptr("open"),
+						Number:  testutil.Ptr(123),
+						Title:   testutil.Ptr(onlyTitleUpdated),
+						HTMLURL: testutil.Ptr(urlIssue123),
+						State:   testutil.Ptr("open"),
 					}),
 				),
 			),
@@ -859,14 +829,14 @@ func TestUpdateIssue(t *testing.T) {
 				"owner":        "owner",
 				"repo":         "repo",
 				"issue_number": float64(123),
-				"title":        onlyTitleUpdated,
+				"title":        testutil.Ptr(onlyTitleUpdated),
 			},
 			expectError: false,
 			expectedIssue: &github.Issue{
-				Number:  Ptr(123),
-				Title:   Ptr(onlyTitleUpdated),
-				HTMLURL: Ptr(urlIssue123),
-				State:   Ptr("open"),
+				Number:  testutil.Ptr(123),
+				Title:   testutil.Ptr(onlyTitleUpdated),
+				HTMLURL: testutil.Ptr(urlIssue123),
+				State:   testutil.Ptr("open"),
 			},
 		},
 		{
@@ -884,7 +854,7 @@ func TestUpdateIssue(t *testing.T) {
 				"owner":        "owner",
 				"repo":         "repo",
 				"issue_number": float64(999),
-				"title":        "This issue doesn't exist",
+				"title":        testutil.Ptr("This issue doesn't exist"),
 			},
 			expectError:    true,
 			expectedErrMsg: "failed to update issue",
@@ -904,7 +874,7 @@ func TestUpdateIssue(t *testing.T) {
 				"owner":        "owner",
 				"repo":         "repo",
 				"issue_number": float64(123),
-				"state":        "invalid_state",
+				"state":        testutil.Ptr("invalid_state"),
 			},
 			expectError:    true,
 			expectedErrMsg: "failed to update issue",
@@ -913,22 +883,15 @@ func TestUpdateIssue(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			// Setup client with mock
 			client := githubMCP.NewClient(tc.mockedClient)
 			_, handler := UpdateIssue(testutil.StubGetClientFn(client), NullTranslationHelperFunc)
-
-			// Create call request
 			request := testutil.CreateMCPRequest(tc.requestArgs)
-
-			// Call handler
 			result, err := handler(context.Background(), request)
 
-			// Verify results
 			if tc.expectError {
 				if err != nil {
 					assert.Contains(t, err.Error(), tc.expectedErrMsg)
 				} else {
-					// For errors returned as part of the result, not as an error
 					require.NotNil(t, result)
 					textContent := getTextResult(t, result)
 					assert.Contains(t, textContent, tc.expectedErrMsg)
@@ -937,45 +900,11 @@ func TestUpdateIssue(t *testing.T) {
 			}
 
 			require.NoError(t, err)
-
-			// Parse the result and get the text content if no error
 			textContent := getTextResult(t, result)
-
-			// Unmarshal and verify the result
 			var returnedIssue github.Issue
 			err = json.Unmarshal([]byte(textContent), &returnedIssue)
 			require.NoError(t, err)
-
-			assert.Equal(t, *tc.expectedIssue.Number, *returnedIssue.Number)
-			assert.Equal(t, *tc.expectedIssue.Title, *returnedIssue.Title)
-			assert.Equal(t, *tc.expectedIssue.State, *returnedIssue.State)
-			assert.Equal(t, *tc.expectedIssue.HTMLURL, *returnedIssue.HTMLURL)
-
-			if tc.expectedIssue.Body != nil {
-				assert.Equal(t, *tc.expectedIssue.Body, *returnedIssue.Body)
-			}
-
-			// Check assignees if expected
-			if len(tc.expectedIssue.Assignees) > 0 {
-				assert.Len(t, returnedIssue.Assignees, len(tc.expectedIssue.Assignees))
-				for i, assignee := range returnedIssue.Assignees {
-					assert.Equal(t, *tc.expectedIssue.Assignees[i].Login, *assignee.Login)
-				}
-			}
-
-			// Check labels if expected
-			if len(tc.expectedIssue.Labels) > 0 {
-				assert.Len(t, returnedIssue.Labels, len(tc.expectedIssue.Labels))
-				for i, label := range returnedIssue.Labels {
-					assert.Equal(t, *tc.expectedIssue.Labels[i].Name, *label.Name)
-				}
-			}
-
-			// Check milestone if expected
-			if tc.expectedIssue.Milestone != nil {
-				assert.NotNil(t, returnedIssue.Milestone)
-				assert.Equal(t, *tc.expectedIssue.Milestone.Number, *returnedIssue.Milestone.Number)
-			}
+			assertIssueResult(t, tc.expectedIssue, &returnedIssue)
 		})
 	}
 }
@@ -1047,20 +976,20 @@ func TestGetIssueComments(t *testing.T) {
 	// Setup mock comments for success case
 	mockComments := []*github.IssueComment{
 		{
-			ID:   Ptr(int64(123)),
-			Body: Ptr("This is the first comment"),
+			ID:   testutil.Ptr(int64(123)),
+			Body: testutil.Ptr("This is the first comment"),
 			User: &github.User{
-				Login: Ptr("user1"),
+				Login: testutil.Ptr("user1"),
 			},
-			CreatedAt: Ptr(time.Now().Add(-time.Hour * 24)),
+			CreatedAt: testutil.Ptr(time.Now().Add(-time.Hour * 24)),
 		},
 		{
-			ID:   Ptr(int64(456)),
-			Body: Ptr("This is the second comment"),
+			ID:   testutil.Ptr(int64(456)),
+			Body: testutil.Ptr("This is the second comment"),
 			User: &github.User{
-				Login: Ptr("user2"),
+				Login: testutil.Ptr("user2"),
 			},
-			CreatedAt: Ptr(time.Now().Add(-time.Hour)),
+			CreatedAt: testutil.Ptr(time.Now().Add(-time.Hour)),
 		},
 	}
 
