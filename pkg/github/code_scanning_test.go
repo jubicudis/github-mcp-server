@@ -102,7 +102,7 @@ func Test_GetCodeScanningAlert(t *testing.T) {
 			request := testutil.CreateMCPRequest(tc.requestArgs)
 
 			// Call handler
-			result, err := handler(context.Background(), *request)
+			result, err := handler(context.Background(), request)
 
 			// Verify results
 			if tc.expectError {
@@ -219,7 +219,7 @@ func Test_ListCodeScanningAlerts(t *testing.T) {
 			request := testutil.CreateMCPRequest(tc.requestArgs)
 
 			// Call handler
-			result, err := handler(context.Background(), *request)
+			result, err := handler(context.Background(), request)
 
 			// Verify results
 			if tc.expectError {

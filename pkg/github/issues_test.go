@@ -117,7 +117,7 @@ func TestGetIssue(t *testing.T) {
 			_, handler := GetIssue(testutil.StubGetClientFn(client), translateFn)
 
 			// Create call request
-			request := *testutil.CreateMCPRequest(tc.requestArgs)
+			request := testutil.CreateMCPRequest(tc.requestArgs)
 
 			// Call handler
 			result, err := handler(context.Background(), request)
@@ -388,7 +388,7 @@ func TestSearchIssues(t *testing.T) {
 			_, handler := SearchIssues(testutil.StubGetClientFn(client), CreateTestTranslateFunc())
 
 			// Create call request
-			request := *testutil.CreateMCPRequest(tc.requestArgs)
+			request := testutil.CreateMCPRequest(tc.requestArgs)
 
 			// Call handler
 			result, err := handler(context.Background(), request)
@@ -542,7 +542,7 @@ func TestCreateIssue(t *testing.T) {
 			_, handler := CreateIssue(testutil.StubGetClientFn(client), NullTranslationHelperFunc)
 
 			// Create call request
-			request := *testutil.CreateMCPRequest(tc.requestArgs)
+			request := testutil.CreateMCPRequest(tc.requestArgs)
 
 			// Call handler
 			result, err := handler(context.Background(), request)
@@ -734,7 +734,7 @@ func TestListIssues(t *testing.T) {
 			_, handler := ListIssues(testutil.StubGetClientFn(client), NullTranslationHelperFunc)
 
 			// Create call request
-			request := *testutil.CreateMCPRequest(tc.requestArgs)
+			request := testutil.CreateMCPRequest(tc.requestArgs)
 
 			// Call handler
 			result, err := handler(context.Background(), request)
@@ -918,7 +918,7 @@ func TestUpdateIssue(t *testing.T) {
 			_, handler := UpdateIssue(testutil.StubGetClientFn(client), NullTranslationHelperFunc)
 
 			// Create call request
-			request := *testutil.CreateMCPRequest(tc.requestArgs)
+			request := testutil.CreateMCPRequest(tc.requestArgs)
 
 			// Call handler
 			result, err := handler(context.Background(), request)
@@ -1136,7 +1136,7 @@ func TestGetIssueComments(t *testing.T) {
 			_, handler := GetIssueComments(testutil.StubGetClientFn(client), NullTranslationHelperFunc)
 
 			// Create call request
-			request := *testutil.CreateMCPRequest(tc.requestArgs)
+			request := testutil.CreateMCPRequest(tc.requestArgs)
 
 			// Call handler
 			result, err := handler(context.Background(), request)

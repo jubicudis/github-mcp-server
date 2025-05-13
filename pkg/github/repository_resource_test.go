@@ -13,7 +13,6 @@ import (
 	"testing"
 
 	"tranquility-neuro-os/github-mcp-server/pkg/github/testutil"
-	"tranquility-neuro-os/github-mcp-server/pkg/log"
 
 	"github.com/google/go-github/v49/github"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -34,33 +33,29 @@ const (
 	testRepoContent = "# Test Repository\n\nThis is a test repository."
 )
 
-func Ptr[T any](v T) *T { return &v }
-
 var GetRawReposContentsByOwnerByRepoByPath mock.EndpointPattern = mock.EndpointPattern{
 	Pattern: "/{owner}/{repo}/main/{path:.+}",
 	Method:  "GET",
 }
 
 func TestRepositoryResourceContentsHandler(t *testing.T) {
-	logger := log.NewLogger().WithLevel(log.LevelDebug)
-
 	mockDirContent := []*github.RepositoryContent{
 		{
-			Type:        Ptr("file"),
-			Name:        Ptr(readmeFileName),
-			Path:        Ptr(readmeFileName),
-			SHA:         Ptr("abc123"),
-			Size:        Ptr(42),
-			HTMLURL:     Ptr(htmlUrlReadme),
-			DownloadURL: Ptr("https://raw.githubusercontent.com/owner/repo/main/README.md"),
+			Type:        testutil.Ptr("file"),
+			Name:        testutil.Ptr(readmeFileName),
+			Path:        testutil.Ptr(readmeFileName),
+			SHA:         testutil.Ptr("abc123"),
+			Size:        testutil.Ptr(42),
+			HTMLURL:     testutil.Ptr(htmlUrlReadme),
+			DownloadURL: testutil.Ptr("https://raw.githubusercontent.com/owner/repo/main/README.md"),
 		},
 		{
-			Type:        Ptr("dir"),
-			Name:        Ptr("src"),
-			Path:        Ptr("src"),
-			SHA:         Ptr("def456"),
-			HTMLURL:     Ptr(dirHtmlUrl),
-			DownloadURL: Ptr("https://raw.githubusercontent.com/owner/repo/main/src"),
+			Type:        testutil.Ptr("dir"),
+			Name:        testutil.Ptr("src"),
+			Path:        testutil.Ptr("src"),
+			SHA:         testutil.Ptr("def456"),
+			HTMLURL:     testutil.Ptr(dirHtmlUrl),
+			DownloadURL: testutil.Ptr("https://raw.githubusercontent.com/owner/repo/main/src"),
 		},
 	}
 	expectedDirContent := []mcp.TextResourceContents{
@@ -77,25 +72,25 @@ func TestRepositoryResourceContentsHandler(t *testing.T) {
 	}
 
 	mockTextContent := &github.RepositoryContent{
-		Type:        Ptr("file"),
-		Name:        Ptr(readmeFileName),
-		Path:        Ptr(readmeFileName),
-		Content:     Ptr(testRepoContent),
-		SHA:         Ptr("abc123"),
-		Size:        Ptr(42),
-		HTMLURL:     Ptr(htmlUrlReadme),
-		DownloadURL: Ptr("https://raw.githubusercontent.com/owner/repo/main/README.md"),
+		Type:        testutil.Ptr("file"),
+		Name:        testutil.Ptr(readmeFileName),
+		Path:        testutil.Ptr(readmeFileName),
+		Content:     testutil.Ptr(testRepoContent),
+		SHA:         testutil.Ptr("abc123"),
+		Size:        testutil.Ptr(42),
+		HTMLURL:     testutil.Ptr(htmlUrlReadme),
+		DownloadURL: testutil.Ptr("https://raw.githubusercontent.com/owner/repo/main/README.md"),
 	}
 
 	mockFileContent := &github.RepositoryContent{
-		Type:        Ptr("file"),
-		Name:        Ptr(dataPngFileName),
-		Path:        Ptr(dataPngFileName),
-		Content:     Ptr("IyBUZXN0IFJlcG9zaXRvcnkKClRoaXMgaXMgYSB0ZXN0IHJlcG9zaXRvcnku"), // Base64 encoded "# Test Repository\n\nThis is a test repository."
-		SHA:         Ptr("abc123"),
-		Size:        Ptr(42),
-		HTMLURL:     Ptr(htmlUrlDataPng),
-		DownloadURL: Ptr("https://raw.githubusercontent.com/owner/repo/main/data.png"),
+		Type:        testutil.Ptr("file"),
+		Name:        testutil.Ptr(dataPngFileName),
+		Path:        testutil.Ptr(dataPngFileName),
+		Content:     testutil.Ptr("IyBUZXN0IFJlcG9zaXRvcnkKClRoaXMgaXMgYSB0ZXN0IHJlcG9zaXRvcnku"), // Base64 encoded "# Test Repository\n\nThis is a test repository."
+		SHA:         testutil.Ptr("abc123"),
+		Size:        testutil.Ptr(42),
+		HTMLURL:     testutil.Ptr(htmlUrlDataPng),
+		DownloadURL: testutil.Ptr("https://raw.githubusercontent.com/owner/repo/main/data.png"),
 	}
 
 	expectedFileContent := []mcp.BlobResourceContents{

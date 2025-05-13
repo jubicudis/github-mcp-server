@@ -63,8 +63,8 @@ func CreateTestTranslateFunc() TranslateFunc {
 }
 
 // CreateMCPRequest creates an MCP request with the provided arguments
-func CreateMCPRequest(args map[string]interface{}) *mcp.CallToolRequest {
-	req := &mcp.CallToolRequest{}
+func CreateMCPRequest(args map[string]interface{}) mcp.CallToolRequest {
+	req := mcp.CallToolRequest{}
 	req.Params.Arguments = args
 	return req
 }

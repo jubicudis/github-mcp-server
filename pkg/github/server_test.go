@@ -23,26 +23,27 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Ptr[T any](v T) *T { return &v }
-
-var NullTranslationHelperFunc = func(key, defaultValue string) string { return defaultValue }
-
+// Test constants for repeated literals
 const (
 	testUserLogin    = "testuser"
 	testUserName     = "Test User"
-	testUserEmail    = "test@example.com"
 	testUserBio      = "GitHub user for testing"
 	testUserCompany  = "Test Company"
 	testUserLocation = "Test Location"
 	testUserHTMLURL  = "https://github.com/testuser"
 	testUserType     = "User"
 	testUserPlan     = "pro"
+	testValue        = "test-value"
+	missingParam     = "missing parameter"
+	wrongTypeParam   = "wrong type parameter"
+	validNumParam    = "valid number parameter"
+	notANumber       = "not-a-number"
 )
 
-func Test_GetMe(t *testing.T) {
+func TestGetMe(t *testing.T) {
 	// Verify tool definition
 	mockClient := github.NewClient(nil)
-	tool, _ := GetMe(testutil.StubGetClientFn(mockClient), NullTranslationHelperFunc)
+	tool, _ := GetMe(testutil.StubGetClientFn(mockClient), testutil.NullTranslationHelperFunc)
 
 	assert.Equal(t, "get_me", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -51,17 +52,17 @@ func Test_GetMe(t *testing.T) {
 
 	// Setup mock user response
 	mockUser := &github.User{
-		Login:     Ptr(testUserLogin),
-		Name:      Ptr(testUserName),
-		Email:     Ptr(testUserEmail),
-		Bio:       Ptr(testUserBio),
-		Company:   Ptr(testUserCompany),
-		Location:  Ptr(testUserLocation),
-		HTMLURL:   Ptr(testUserHTMLURL),
-		CreatedAt: Ptr(time.Now().Add(-365 * 24 * time.Hour)),
-		Type:      Ptr(testUserType),
+		Login:     testutil.Ptr(testUserLogin),
+		Name:      testutil.Ptr(testUserName),
+		Email:     testutil.Ptr(testUserEmail),
+		Bio:       testutil.Ptr(testUserBio),
+		Company:   testutil.Ptr(testUserCompany),
+		Location:  testutil.Ptr(testUserLocation),
+		HTMLURL:   testutil.Ptr(testUserHTMLURL),
+		CreatedAt: &github.Timestamp{Time: time.Now().Add(-365 * 24 * time.Hour)},
+		Type:      testutil.Ptr(testUserType),
 		Plan: &github.Plan{
-			Name: Ptr(testUserPlan),
+			Name: testutil.Ptr(testUserPlan),
 		},
 	}
 
@@ -120,10 +121,10 @@ func Test_GetMe(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
 			client := github.NewClient(tc.mockedClient)
-			_, handler := GetMe(testutil.StubGetClientFn(client), NullTranslationHelperFunc)
+			_, handler := GetMe(testutil.StubGetClientFn(client), testutil.NullTranslationHelperFunc)
 
 			// Create call request
-			request := *testutil.CreateMCPRequest(tc.requestArgs)
+			request := testutil.CreateMCPRequest(tc.requestArgs)
 
 			// Call handler
 			result, err := handler(context.Background(), request)
@@ -138,11 +139,11 @@ func Test_GetMe(t *testing.T) {
 			require.NoError(t, err)
 
 			// Parse result and get text content if no error
-			textContent := testutil.GetTextResult(t, result)
+			text := testutil.GetTextResult(t, result)
 
 			// Unmarshal and verify the result
 			var returnedUser github.User
-			err = json.Unmarshal([]byte(textContent.Text), &returnedUser)
+			err = json.Unmarshal([]byte(text), &returnedUser)
 			require.NoError(t, err)
 
 			// Verify user details
@@ -156,7 +157,7 @@ func Test_GetMe(t *testing.T) {
 	}
 }
 
-func Test_IsAcceptedError(t *testing.T) {
+func TestIsAcceptedError(t *testing.T) {
 	tests := []struct {
 		name           string
 		err            error
@@ -192,7 +193,7 @@ func Test_IsAcceptedError(t *testing.T) {
 	}
 }
 
-func Test_RequiredStringParam(t *testing.T) {
+func TestRequiredStringParam(t *testing.T) {
 	tests := []struct {
 		name        string
 		params      map[string]interface{}
@@ -202,13 +203,13 @@ func Test_RequiredStringParam(t *testing.T) {
 	}{
 		{
 			name:        "valid string parameter",
-			params:      map[string]interface{}{"name": "test-value"},
+			params:      map[string]interface{}{"name": testValue},
 			paramName:   "name",
-			expected:    "test-value",
+			expected:    testValue,
 			expectError: false,
 		},
 		{
-			name:        "missing parameter",
+			name:        missingParam,
 			params:      map[string]interface{}{},
 			paramName:   "name",
 			expected:    "",
@@ -222,7 +223,7 @@ func Test_RequiredStringParam(t *testing.T) {
 			expectError: true,
 		},
 		{
-			name:        "wrong type parameter",
+			name:        wrongTypeParam,
 			params:      map[string]interface{}{"name": 123},
 			paramName:   "name",
 			expected:    "",
@@ -232,7 +233,7 @@ func Test_RequiredStringParam(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			request := *testutil.CreateMCPRequest(tc.params)
+			request := testutil.CreateMCPRequest(tc.params)
 			result, err := RequiredParam[string](request, tc.paramName)
 
 			if tc.expectError {
@@ -245,7 +246,7 @@ func Test_RequiredStringParam(t *testing.T) {
 	}
 }
 
-func Test_OptionalStringParam(t *testing.T) {
+func TestOptionalStringParam(t *testing.T) {
 	tests := []struct {
 		name        string
 		params      map[string]interface{}
@@ -255,13 +256,13 @@ func Test_OptionalStringParam(t *testing.T) {
 	}{
 		{
 			name:        "valid string parameter",
-			params:      map[string]interface{}{"name": "test-value"},
+			params:      map[string]interface{}{"name": testValue},
 			paramName:   "name",
-			expected:    "test-value",
+			expected:    testValue,
 			expectError: false,
 		},
 		{
-			name:        "missing parameter",
+			name:        missingParam,
 			params:      map[string]interface{}{},
 			paramName:   "name",
 			expected:    "",
@@ -275,7 +276,7 @@ func Test_OptionalStringParam(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name:        "wrong type parameter",
+			name:        wrongTypeParam,
 			params:      map[string]interface{}{"name": 123},
 			paramName:   "name",
 			expected:    "",
@@ -285,7 +286,7 @@ func Test_OptionalStringParam(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			request := *testutil.CreateMCPRequest(tc.params)
+			request := testutil.CreateMCPRequest(tc.params)
 			result, err := OptionalParam[string](request, tc.paramName)
 
 			if tc.expectError {
@@ -298,7 +299,7 @@ func Test_OptionalStringParam(t *testing.T) {
 	}
 }
 
-func Test_RequiredNumberParam(t *testing.T) {
+func TestRequiredNumberParam(t *testing.T) {
 	tests := []struct {
 		name        string
 		params      map[string]interface{}
@@ -307,22 +308,22 @@ func Test_RequiredNumberParam(t *testing.T) {
 		expectError bool
 	}{
 		{
-			name:        "valid number parameter",
+			name:        validNumParam,
 			params:      map[string]interface{}{"count": float64(42)},
 			paramName:   "count",
 			expected:    42,
 			expectError: false,
 		},
 		{
-			name:        "missing parameter",
+			name:        missingParam,
 			params:      map[string]interface{}{},
 			paramName:   "count",
 			expected:    0,
 			expectError: true,
 		},
 		{
-			name:        "wrong type parameter",
-			params:      map[string]interface{}{"count": "not-a-number"},
+			name:        wrongTypeParam,
+			params:      map[string]interface{}{"count": notANumber},
 			paramName:   "count",
 			expected:    0,
 			expectError: true,
@@ -331,7 +332,7 @@ func Test_RequiredNumberParam(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			request := *testutil.CreateMCPRequest(tc.params)
+			request := testutil.CreateMCPRequest(tc.params)
 			result, err := RequiredInt(request, tc.paramName)
 
 			if tc.expectError {
@@ -344,7 +345,7 @@ func Test_RequiredNumberParam(t *testing.T) {
 	}
 }
 
-func Test_OptionalNumberParam(t *testing.T) {
+func TestOptionalNumberParam(t *testing.T) {
 	tests := []struct {
 		name        string
 		params      map[string]interface{}
@@ -353,14 +354,14 @@ func Test_OptionalNumberParam(t *testing.T) {
 		expectError bool
 	}{
 		{
-			name:        "valid number parameter",
+			name:        validNumParam,
 			params:      map[string]interface{}{"count": float64(42)},
 			paramName:   "count",
 			expected:    42,
 			expectError: false,
 		},
 		{
-			name:        "missing parameter",
+			name:        missingParam,
 			params:      map[string]interface{}{},
 			paramName:   "count",
 			expected:    0,
@@ -374,8 +375,8 @@ func Test_OptionalNumberParam(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name:        "wrong type parameter",
-			params:      map[string]interface{}{"count": "not-a-number"},
+			name:        wrongTypeParam,
+			params:      map[string]interface{}{"count": notANumber},
 			paramName:   "count",
 			expected:    0,
 			expectError: true,
@@ -384,7 +385,7 @@ func Test_OptionalNumberParam(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			request := *testutil.CreateMCPRequest(tc.params)
+			request := testutil.CreateMCPRequest(tc.params)
 			result, err := OptionalIntParam(request, tc.paramName)
 
 			if tc.expectError {
@@ -397,7 +398,7 @@ func Test_OptionalNumberParam(t *testing.T) {
 	}
 }
 
-func Test_OptionalNumberParamWithDefault(t *testing.T) {
+func TestOptionalNumberParamWithDefault(t *testing.T) {
 	tests := []struct {
 		name        string
 		params      map[string]interface{}
@@ -407,7 +408,7 @@ func Test_OptionalNumberParamWithDefault(t *testing.T) {
 		expectError bool
 	}{
 		{
-			name:        "valid number parameter",
+			name:        validNumParam,
 			params:      map[string]interface{}{"count": float64(42)},
 			paramName:   "count",
 			defaultVal:  10,
@@ -415,7 +416,7 @@ func Test_OptionalNumberParamWithDefault(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name:        "missing parameter",
+			name:        missingParam,
 			params:      map[string]interface{}{},
 			paramName:   "count",
 			defaultVal:  10,
@@ -431,8 +432,8 @@ func Test_OptionalNumberParamWithDefault(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name:        "wrong type parameter",
-			params:      map[string]interface{}{"count": "not-a-number"},
+			name:        wrongTypeParam,
+			params:      map[string]interface{}{"count": notANumber},
 			paramName:   "count",
 			defaultVal:  10,
 			expected:    0,
@@ -442,7 +443,7 @@ func Test_OptionalNumberParamWithDefault(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			request := *testutil.CreateMCPRequest(tc.params)
+			request := testutil.CreateMCPRequest(tc.params)
 			result, err := OptionalIntParamWithDefault(request, tc.paramName, tc.defaultVal)
 
 			if tc.expectError {
@@ -455,7 +456,7 @@ func Test_OptionalNumberParamWithDefault(t *testing.T) {
 	}
 }
 
-func Test_OptionalBooleanParam(t *testing.T) {
+func TestOptionalBooleanParam(t *testing.T) {
 	tests := []struct {
 		name        string
 		params      map[string]interface{}
@@ -478,15 +479,15 @@ func Test_OptionalBooleanParam(t *testing.T) {
 			expectError: false,
 		},
 		{
-			name:        "missing parameter",
+			name:        missingParam,
 			params:      map[string]interface{}{},
 			paramName:   "flag",
 			expected:    false,
 			expectError: false,
 		},
 		{
-			name:        "wrong type parameter",
-			params:      map[string]interface{}{"flag": "not-a-boolean"},
+			name:        wrongTypeParam,
+			params:      map[string]interface{}{"flag": notANumber},
 			paramName:   "flag",
 			expected:    false,
 			expectError: true,
@@ -495,7 +496,7 @@ func Test_OptionalBooleanParam(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			request := *testutil.CreateMCPRequest(tc.params)
+			request := testutil.CreateMCPRequest(tc.params)
 			result, err := OptionalParam[bool](request, tc.paramName)
 
 			if tc.expectError {
@@ -563,7 +564,7 @@ func TestOptionalStringArrayParam(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			request := *testutil.CreateMCPRequest(tc.params)
+			request := testutil.CreateMCPRequest(tc.params)
 			result, err := OptionalStringArrayParam(request, tc.paramName)
 
 			if tc.expectError {
@@ -629,7 +630,7 @@ func TestOptionalPaginationParams(t *testing.T) {
 		{
 			name: "invalid page parameter",
 			params: map[string]any{
-				"page": "not-a-number",
+				"page": notANumber,
 			},
 			expected:    PaginationParams{},
 			expectError: true,
@@ -637,7 +638,7 @@ func TestOptionalPaginationParams(t *testing.T) {
 		{
 			name: "invalid perPage parameter",
 			params: map[string]any{
-				"perPage": "not-a-number",
+				"perPage": notANumber,
 			},
 			expected:    PaginationParams{},
 			expectError: true,
@@ -646,7 +647,7 @@ func TestOptionalPaginationParams(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			request := *testutil.CreateMCPRequest(tc.params)
+			request := testutil.CreateMCPRequest(tc.params)
 			result, err := OptionalPaginationParams(request)
 
 			if tc.expectError {

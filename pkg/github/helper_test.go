@@ -195,7 +195,7 @@ func TestOptionalParamOK(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			request := *testutil.CreateMCPRequest(tc.args)
+			request := testutil.CreateMCPRequest(tc.args)
 
 			// Test with string type assertion
 			if _, isString := tc.expectedVal.(string); isString || tc.errorMsg == "parameter myParam is not of type string, is bool" {
@@ -215,7 +215,7 @@ func TestOptionalParamOK(t *testing.T) {
 			// Test with bool type assertion
 			if _, isBool := tc.expectedVal.(bool); isBool || tc.errorMsg == "parameter myParam is not of type bool, is string" {
 				// Convert to the format expected by the test
-				request := *testutil.CreateMCPRequest(tc.args)
+				request := testutil.CreateMCPRequest(tc.args)
 				val, ok, err := OptionalParamOK[bool](request, tc.paramName)
 				if tc.expectError {
 					require.Error(t, err)
