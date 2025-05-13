@@ -16,7 +16,6 @@ import (
 	"tranquility-neuro-os/github-mcp-server/pkg/github/testutil"
 
 	"github.com/google/go-github/v49/github"
-	githubMCP "github.com/google/go-github/v49/github"
 	"github.com/migueleliasweb/go-github-mock/src/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -64,8 +63,8 @@ const (
 
 func TestGetPullRequest(t *testing.T) {
 	// Verify tool definition once
-	mockClient := githubMCP.NewClient(nil)
-	tool, _ := GetPullRequest(testutil.StubGetClientFn(mockClient), testutil.NullTranslationHelperFunc)
+	mockClient := github.NewClient(nil)
+	tool, _ := GetPullRequest(testutil.StubGetClientFnWithClient(mockClient), testutil.NullTranslationHelperFunc)
 
 	assert.Equal(t, "get_pull_request", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -141,8 +140,8 @@ func TestGetPullRequest(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
-			client := githubMCP.NewClient(tc.mockedClient)
-			_, handler := GetPullRequest(testutil.StubGetClientFn(client), testutil.NullTranslationHelperFunc)
+			client := github.NewClient(tc.mockedClient)
+			_, handler := GetPullRequest(testutil.StubGetClientFnWithClient(client), testutil.NullTranslationHelperFunc)
 
 			// Create call request
 			request := testutil.CreateMCPRequest(tc.requestArgs)
@@ -199,8 +198,8 @@ func assertPullRequestResult(t *testing.T, expected, actual *github.PullRequest)
 
 func TestUpdatePullRequest(t *testing.T) {
 	// Verify tool definition once
-	mockClient := githubMCP.NewClient(nil)
-	tool, _ := UpdatePullRequest(testutil.StubGetClientFn(mockClient), testutil.NullTranslationHelperFunc)
+	mockClient := github.NewClient(nil)
+	tool, _ := UpdatePullRequest(testutil.StubGetClientFnWithClient(mockClient), testutil.NullTranslationHelperFunc)
 
 	assert.Equal(t, "update_pull_request", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -326,8 +325,8 @@ func TestUpdatePullRequest(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			client := githubMCP.NewClient(tc.mockedClient)
-			_, handler := UpdatePullRequest(testutil.StubGetClientFn(client), testutil.NullTranslationHelperFunc)
+			client := github.NewClient(tc.mockedClient)
+			_, handler := UpdatePullRequest(testutil.StubGetClientFnWithClient(client), testutil.NullTranslationHelperFunc)
 			request := testutil.CreateMCPRequest(tc.requestArgs)
 			result, err := handler(context.Background(), request)
 
@@ -355,8 +354,8 @@ func TestUpdatePullRequest(t *testing.T) {
 
 func TestListPullRequests(t *testing.T) {
 	// Verify tool definition once
-	mockClient := githubMCP.NewClient(nil)
-	tool, _ := ListPullRequests(testutil.StubGetClientFn(mockClient), testutil.NullTranslationHelperFunc)
+	mockClient := github.NewClient(nil)
+	tool, _ := ListPullRequests(testutil.StubGetClientFnWithClient(mockClient), testutil.NullTranslationHelperFunc)
 
 	assert.Equal(t, "list_pull_requests", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -447,8 +446,8 @@ func TestListPullRequests(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
-			client := githubMCP.NewClient(tc.mockedClient)
-			_, handler := ListPullRequests(testutil.StubGetClientFn(client), testutil.NullTranslationHelperFunc)
+			client := github.NewClient(tc.mockedClient)
+			_, handler := ListPullRequests(testutil.StubGetClientFnWithClient(client), testutil.NullTranslationHelperFunc)
 
 			// Create call request
 			request := testutil.CreateMCPRequest(tc.requestArgs)
@@ -485,8 +484,8 @@ func TestListPullRequests(t *testing.T) {
 
 func TestMergePullRequest(t *testing.T) {
 	// Verify tool definition once
-	mockClient := githubMCP.NewClient(nil)
-	tool, _ := MergePullRequest(testutil.StubGetClientFn(mockClient), testutil.NullTranslationHelperFunc)
+	mockClient := github.NewClient(nil)
+	tool, _ := MergePullRequest(testutil.StubGetClientFnWithClient(mockClient), testutil.NullTranslationHelperFunc)
 
 	assert.Equal(t, "merge_pull_request", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -562,8 +561,8 @@ func TestMergePullRequest(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
-			client := githubMCP.NewClient(tc.mockedClient)
-			_, handler := MergePullRequest(testutil.StubGetClientFn(client), testutil.NullTranslationHelperFunc)
+			client := github.NewClient(tc.mockedClient)
+			_, handler := MergePullRequest(testutil.StubGetClientFnWithClient(client), testutil.NullTranslationHelperFunc)
 
 			// Create call request
 			request := testutil.CreateMCPRequest(tc.requestArgs)
@@ -596,8 +595,8 @@ func TestMergePullRequest(t *testing.T) {
 
 func TestGetPullRequestFiles(t *testing.T) {
 	// Verify tool definition once
-	mockClient := githubMCP.NewClient(nil)
-	tool, _ := GetPullRequestFiles(testutil.StubGetClientFn(mockClient), testutil.NullTranslationHelperFunc)
+	mockClient := github.NewClient(nil)
+	tool, _ := GetPullRequestFiles(testutil.StubGetClientFnWithClient(mockClient), testutil.NullTranslationHelperFunc)
 
 	assert.Equal(t, "get_pull_request_files", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -674,8 +673,8 @@ func TestGetPullRequestFiles(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
-			client := githubMCP.NewClient(tc.mockedClient)
-			_, handler := GetPullRequestFiles(testutil.StubGetClientFn(client), testutil.NullTranslationHelperFunc)
+			client := github.NewClient(tc.mockedClient)
+			_, handler := GetPullRequestFiles(testutil.StubGetClientFnWithClient(client), testutil.NullTranslationHelperFunc)
 
 			// Create call request
 			request := testutil.CreateMCPRequest(tc.requestArgs)
@@ -712,8 +711,8 @@ func TestGetPullRequestFiles(t *testing.T) {
 
 func TestGetPullRequestStatus(t *testing.T) {
 	// Verify tool definition once
-	mockClient := githubMCP.NewClient(nil)
-	tool, _ := GetPullRequestStatus(testutil.StubGetClientFn(mockClient), testutil.NullTranslationHelperFunc)
+	mockClient := github.NewClient(nil)
+	tool, _ := GetPullRequestStatus(testutil.StubGetClientFnWithClient(mockClient), testutil.NullTranslationHelperFunc)
 
 	assert.Equal(t, "get_pull_request_status", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -834,8 +833,8 @@ func TestGetPullRequestStatus(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
-			client := githubMCP.NewClient(tc.mockedClient)
-			_, handler := GetPullRequestStatus(testutil.StubGetClientFn(client), testutil.NullTranslationHelperFunc)
+			client := github.NewClient(tc.mockedClient)
+			_, handler := GetPullRequestStatus(testutil.StubGetClientFnWithClient(client), testutil.NullTranslationHelperFunc)
 
 			// Create call request
 			request := testutil.CreateMCPRequest(tc.requestArgs)
@@ -873,8 +872,8 @@ func TestGetPullRequestStatus(t *testing.T) {
 
 func TestUpdatePullRequestBranch(t *testing.T) {
 	// Verify tool definition once
-	mockClient := githubMCP.NewClient(nil)
-	tool, _ := UpdatePullRequestBranch(testutil.StubGetClientFn(mockClient), testutil.NullTranslationHelperFunc)
+	mockClient := github.NewClient(nil)
+	tool, _ := UpdatePullRequestBranch(testutil.StubGetClientFnWithClient(mockClient), testutil.NullTranslationHelperFunc)
 
 	assert.Equal(t, "update_pull_request_branch", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -961,8 +960,8 @@ func TestUpdatePullRequestBranch(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
-			client := githubMCP.NewClient(tc.mockedClient)
-			_, handler := UpdatePullRequestBranch(testutil.StubGetClientFn(client), testutil.NullTranslationHelperFunc)
+			client := github.NewClient(tc.mockedClient)
+			_, handler := UpdatePullRequestBranch(testutil.StubGetClientFnWithClient(client), testutil.NullTranslationHelperFunc)
 
 			// Create call request
 			request := testutil.CreateMCPRequest(tc.requestArgs)
@@ -989,8 +988,8 @@ func TestUpdatePullRequestBranch(t *testing.T) {
 
 func TestGetPullRequestComments(t *testing.T) {
 	// Verify tool definition once
-	mockClient := githubMCP.NewClient(nil)
-	tool, _ := GetPullRequestComments(testutil.StubGetClientFn(mockClient), testutil.NullTranslationHelperFunc)
+	mockClient := github.NewClient(nil)
+	tool, _ := GetPullRequestComments(testutil.StubGetClientFnWithClient(mockClient), testutil.NullTranslationHelperFunc)
 
 	assert.Equal(t, "get_pull_request_comments", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -1077,8 +1076,8 @@ func TestGetPullRequestComments(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
-			client := githubMCP.NewClient(tc.mockedClient)
-			_, handler := GetPullRequestComments(testutil.StubGetClientFn(client), testutil.NullTranslationHelperFunc)
+			client := github.NewClient(tc.mockedClient)
+			_, handler := GetPullRequestComments(testutil.StubGetClientFnWithClient(client), testutil.NullTranslationHelperFunc)
 
 			// Create call request
 			request := testutil.CreateMCPRequest(tc.requestArgs)
@@ -1116,8 +1115,8 @@ func TestGetPullRequestComments(t *testing.T) {
 
 func TestGetPullRequestReviews(t *testing.T) {
 	// Verify tool definition once
-	mockClient := githubMCP.NewClient(nil)
-	tool, _ := GetPullRequestReviews(testutil.StubGetClientFn(mockClient), testutil.NullTranslationHelperFunc)
+	mockClient := github.NewClient(nil)
+	tool, _ := GetPullRequestReviews(testutil.StubGetClientFnWithClient(mockClient), testutil.NullTranslationHelperFunc)
 
 	assert.Equal(t, "get_pull_request_reviews", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -1200,8 +1199,8 @@ func TestGetPullRequestReviews(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
-			client := githubMCP.NewClient(tc.mockedClient)
-			_, handler := GetPullRequestReviews(testutil.StubGetClientFn(client), testutil.NullTranslationHelperFunc)
+			client := github.NewClient(tc.mockedClient)
+			_, handler := GetPullRequestReviews(testutil.StubGetClientFnWithClient(client), testutil.NullTranslationHelperFunc)
 
 			// Create call request
 			request := testutil.CreateMCPRequest(tc.requestArgs)
@@ -1239,8 +1238,8 @@ func TestGetPullRequestReviews(t *testing.T) {
 
 func TestCreatePullRequestReview(t *testing.T) {
 	// Verify tool definition once
-	mockClient := githubMCP.NewClient(nil)
-	tool, _ := CreatePullRequestReview(testutil.StubGetClientFn(mockClient), testutil.NullTranslationHelperFunc)
+	mockClient := github.NewClient(nil)
+	tool, _ := CreatePullRequestReview(testutil.StubGetClientFnWithClient(mockClient), testutil.NullTranslationHelperFunc)
 
 	assert.Equal(t, "create_pull_request_review", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -1567,8 +1566,8 @@ func TestCreatePullRequestReview(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
-			client := githubMCP.NewClient(tc.mockedClient)
-			_, handler := CreatePullRequestReview(testutil.StubGetClientFn(client), testutil.NullTranslationHelperFunc)
+			client := github.NewClient(tc.mockedClient)
+			_, handler := CreatePullRequestReview(testutil.StubGetClientFnWithClient(client), testutil.NullTranslationHelperFunc)
 
 			// Create call request
 			request := testutil.CreateMCPRequest(tc.requestArgs)
@@ -1616,8 +1615,8 @@ func TestCreatePullRequestReview(t *testing.T) {
 
 func TestCreatePullRequest(t *testing.T) {
 	// Verify tool definition once
-	mockClient := githubMCP.NewClient(nil)
-	tool, _ := CreatePullRequest(testutil.StubGetClientFn(mockClient), testutil.NullTranslationHelperFunc)
+	mockClient := github.NewClient(nil)
+	tool, _ := CreatePullRequest(testutil.StubGetClientFnWithClient(mockClient), testutil.NullTranslationHelperFunc)
 
 	assert.Equal(t, "create_pull_request", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -1728,8 +1727,8 @@ func TestCreatePullRequest(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
-			client := githubMCP.NewClient(tc.mockedClient)
-			_, handler := CreatePullRequest(testutil.StubGetClientFn(client), testutil.NullTranslationHelperFunc)
+			client := github.NewClient(tc.mockedClient)
+			_, handler := CreatePullRequest(testutil.StubGetClientFnWithClient(client), testutil.NullTranslationHelperFunc)
 
 			// Create call request
 			request := testutil.CreateMCPRequest(tc.requestArgs)
