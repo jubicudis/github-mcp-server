@@ -17,7 +17,6 @@ import (
 	"tranquility-neuro-os/github-mcp-server/pkg/github/testutil"
 
 	"github.com/google/go-github/v49/github"
-	githubMCP "github.com/google/go-github/v49/github"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/migueleliasweb/go-github-mock/src/mock"
 	"github.com/stretchr/testify/assert"
@@ -120,7 +119,7 @@ func TestGetIssue(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
-			client := githubMCP.NewClient(tc.mockedClient)
+			client := github.NewClient(tc.mockedClient)
 			translateFn := CreateTestTranslateFunc()
 			_, handler := GetIssue(testutil.StubGetClientFn(client), translateFn)
 
@@ -225,7 +224,7 @@ func TestAddIssueComment(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
-			client := githubMCP.NewClient(tc.mockedClient)
+			client := github.NewClient(tc.mockedClient)
 			_, handler := AddIssueComment(testutil.StubGetClientFn(client), CreateTestTranslateFunc())
 
 			// Create call request
@@ -277,7 +276,7 @@ func TestAddIssueComment(t *testing.T) {
 
 func TestSearchIssues(t *testing.T) {
 	// Verify tool definition once
-	mockClient := githubMCP.NewClient(nil)
+	mockClient := github.NewClient(nil)
 	tool, _ := SearchIssues(testutil.StubGetClientFn(mockClient), CreateTestTranslateFunc())
 
 	assert.Equal(t, "search_issues", tool.Name)
@@ -392,7 +391,7 @@ func TestSearchIssues(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
-			client := githubMCP.NewClient(tc.mockedClient)
+			client := github.NewClient(tc.mockedClient)
 			_, handler := SearchIssues(testutil.StubGetClientFn(client), CreateTestTranslateFunc())
 
 			// Create call request
@@ -460,7 +459,7 @@ func assertIssueResult(t *testing.T, expected, actual *github.Issue) {
 
 func TestCreateIssue(t *testing.T) {
 	// Verify tool definition once
-	mockClient := githubMCP.NewClient(nil)
+	mockClient := github.NewClient(nil)
 	tool, _ := CreateIssue(testutil.StubGetClientFn(mockClient), NullTranslationHelperFunc)
 
 	assert.Equal(t, "create_issue", tool.Name)
@@ -561,7 +560,7 @@ func TestCreateIssue(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
-			client := githubMCP.NewClient(tc.mockedClient)
+			client := github.NewClient(tc.mockedClient)
 			_, handler := CreateIssue(testutil.StubGetClientFn(client), NullTranslationHelperFunc)
 
 			// Create call request
@@ -598,7 +597,7 @@ func TestCreateIssue(t *testing.T) {
 
 func TestListIssues(t *testing.T) {
 	// Verify tool definition
-	mockClient := githubMCP.NewClient(nil)
+	mockClient := github.NewClient(nil)
 	tool, _ := ListIssues(testutil.StubGetClientFn(mockClient), NullTranslationHelperFunc)
 
 	assert.Equal(t, "list_issues", tool.Name)
@@ -729,7 +728,7 @@ func TestListIssues(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
-			client := githubMCP.NewClient(tc.mockedClient)
+			client := github.NewClient(tc.mockedClient)
 			_, handler := ListIssues(testutil.StubGetClientFn(client), NullTranslationHelperFunc)
 
 			// Create call request
@@ -883,7 +882,7 @@ func TestUpdateIssue(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			client := githubMCP.NewClient(tc.mockedClient)
+			client := github.NewClient(tc.mockedClient)
 			_, handler := UpdateIssue(testutil.StubGetClientFn(client), NullTranslationHelperFunc)
 			request := testutil.CreateMCPRequest(tc.requestArgs)
 			result, err := handler(context.Background(), request)
@@ -961,7 +960,7 @@ func TestParseISOTimestamp(t *testing.T) {
 
 func TestGetIssueComments(t *testing.T) {
 	// Verify tool definition once
-	mockClient := githubMCP.NewClient(nil)
+	mockClient := github.NewClient(nil)
 	tool, _ := GetIssueComments(testutil.StubGetClientFn(mockClient), NullTranslationHelperFunc)
 
 	assert.Equal(t, "get_issue_comments", tool.Name)
@@ -1061,7 +1060,7 @@ func TestGetIssueComments(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
-			client := githubMCP.NewClient(tc.mockedClient)
+			client := github.NewClient(tc.mockedClient)
 			_, handler := GetIssueComments(testutil.StubGetClientFn(client), NullTranslationHelperFunc)
 
 			// Create call request
