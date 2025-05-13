@@ -75,6 +75,10 @@ echo "Current module: $(go list -m)"
 echo "Go version: $(go version)"
 echo "Gopls version: $(gopls version 2>/dev/null || echo "gopls not installed")"
 
+# Set environment variables for the GitHub MCP Server
+export MCP_SERVER_PORT=8888
+export MCP_LOG_FILE="$WORKSPACE_ROOT/logs/github_mcp_server.log"
+
 echo
 echo "Development environment set up successfully!"
 echo
@@ -113,4 +117,48 @@ if [ "$1" = "run" ]; then
 elif [ "$1" = "test" ]; then
     echo "Running tests..."
     go test ./...
+# Ensure the script exits after starting all components
+elif [ "$1" = "start-all" ]; then
+    echo "Starting all MCP components..."
+
+    # Removed incorrect 'cd github-mcp-server' command
+    echo "Starting GitHub MCP Server..."
+    # Build the full Go implementation of the GitHub MCP Server
+    echo "Building GitHub MCP Server..."
+    go build -o ./bin/github-mcp-server ./cmd/server
+    if [ $? -eq 0 ]; then
+        echo "Build successful. Starting GitHub MCP Server..."
+        # Debug log to confirm the port being used
+        echo "Starting GitHub MCP Server on port: $MCP_SERVER_PORT"
+        ./bin/github-mcp-server > ./logs/github_mcp_server.log 2>&1 &
+        GITHUB_MCP_PID=$!
+        if ps -p $GITHUB_MCP_PID > /dev/null; then
+            echo "GitHub MCP Server started successfully with PID $GITHUB_MCP_PID."
+        else
+            echo "Failed to start GitHub MCP Server. Check logs/github_mcp_server.log for details."
+            exit 1
+        fi
+    else
+        echo "Build failed. Please check the Go source code for errors."
+        exit 1
+    fi
+
+    # Removed unused variables MCP_BRIDGE_PID and TNOS_MCP_PID
+    bash ../scripts/shell/start_mcp_bridge.sh &
+    bash ../scripts/shell/start_tnos_mcp_server.sh &
+
+    echo "All MCP components started successfully. Exiting script."
+    exit 0
 fi
+
+# Ensure the GitHub MCP Server binary is built
+echo "Building GitHub MCP Server binary..."
+go build -o "$WORKSPACE_ROOT/bin/github-mcp-server" "$WORKSPACE_ROOT/github-mcp-server/cmd/server"
+
+# Start the GitHub MCP Server and log output
+echo "Starting GitHub MCP Server..."
+# Debug log to confirm the port being used
+echo "Starting GitHub MCP Server on port: $MCP_SERVER_PORT"
+mkdir -p "$WORKSPACE_ROOT/logs"
+nohup "$WORKSPACE_ROOT/bin/github-mcp-server" > "$WORKSPACE_ROOT/logs/github_mcp_server.log" 2>&1 &
+echo "GitHub MCP Server started. Logs available at $WORKSPACE_ROOT/logs/github_mcp_server.log"
