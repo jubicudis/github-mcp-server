@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"testing"
 	"tranquility-neuro-os/github-mcp-server/pkg/github/testutil"
+	"tranquility-neuro-os/github-mcp-server/pkg/log"
 
 	"github.com/google/go-github/v49/github"
 	"github.com/migueleliasweb/go-github-mock/src/mock"
@@ -20,14 +21,27 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func Ptr[T any](v T) *T { return &v }
+// Test constants for repeated literals
+const (
+	repoSearchQuery = "golang test"
+	invalidQuery    = "invalid:query"
+	codeSearchQuery = "fmt.Println language:go"
+	userSearchQuery = "location:finland language:go"
+)
 
-var NullTranslationHelperFunc = func(key, defaultValue string) string { return defaultValue }
+type repoTestCase struct {
+	name           string
+	mockedClient   *http.Client
+	requestArgs    map[string]interface{}
+	expectError    bool
+	expectedResult *github.RepositoriesSearchResult
+	expectedErrMsg string
+}
 
-func Test_SearchRepositories(t *testing.T) {
-	// Verify tool definition once
-	mockClient := NewClient(nil)
-	tool, _ := SearchRepositories(testutil.StubGetClientFn(mockClient), NullTranslationHelperFunc)
+func TestSearchRepositories(t *testing.T) {
+	logger := log.NewLogger()
+	mockClient := NewClient("", logger)
+	tool, _ := SearchRepositories(testutil.StubGetClientFnForCustomClient(mockClient), testutil.NullTranslationHelperFunc)
 
 	assert.Equal(t, "search_repositories", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -60,21 +74,14 @@ func Test_SearchRepositories(t *testing.T) {
 		},
 	}
 
-	tests := []struct {
-		name           string
-		mockedClient   *http.Client
-		requestArgs    map[string]interface{}
-		expectError    bool
-		expectedResult *github.RepositoriesSearchResult
-		expectedErrMsg string
-	}{
+	tests := []repoTestCase{
 		{
 			name: "successful repository search",
 			mockedClient: mock.NewMockedHTTPClient(
 				mock.WithRequestMatchHandler(
 					mock.GetSearchRepositories,
 					expectQueryParams(t, map[string]string{
-						"q":        "golang test",
+						"q":        repoSearchQuery,
 						"page":     "2",
 						"per_page": "10",
 					}).andThen(
@@ -83,7 +90,7 @@ func Test_SearchRepositories(t *testing.T) {
 				),
 			),
 			requestArgs: map[string]interface{}{
-				"query":   "golang test",
+				"query":   repoSearchQuery,
 				"page":    float64(2),
 				"perPage": float64(10),
 			},
@@ -96,7 +103,7 @@ func Test_SearchRepositories(t *testing.T) {
 				mock.WithRequestMatchHandler(
 					mock.GetSearchRepositories,
 					expectQueryParams(t, map[string]string{
-						"q":        "golang test",
+						"q":        repoSearchQuery,
 						"page":     "1",
 						"per_page": "30",
 					}).andThen(
@@ -105,7 +112,7 @@ func Test_SearchRepositories(t *testing.T) {
 				),
 			),
 			requestArgs: map[string]interface{}{
-				"query": "golang test",
+				"query": repoSearchQuery,
 			},
 			expectError:    false,
 			expectedResult: mockSearchResult,
@@ -122,7 +129,7 @@ func Test_SearchRepositories(t *testing.T) {
 				),
 			),
 			requestArgs: map[string]interface{}{
-				"query": "invalid:query",
+				"query": invalidQuery,
 			},
 			expectError:    true,
 			expectedErrMsg: "failed to search repositories",
@@ -132,11 +139,11 @@ func Test_SearchRepositories(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
-			client := NewClient(tc.mockedClient)
-			_, handler := SearchRepositories(testutil.StubGetClientFn(client), NullTranslationHelperFunc)
+			client := NewClient("", logger)
+			_, handler := SearchRepositories(testutil.StubGetClientFnForCustomClient(client), testutil.NullTranslationHelperFunc)
 
 			// Create call request
-			request := *testutil.CreateMCPRequest(tc.requestArgs)
+			request := testutil.CreateMCPRequest(tc.requestArgs)
 
 			// Call handler
 			result, err := handler(context.Background(), request)
@@ -171,10 +178,19 @@ func Test_SearchRepositories(t *testing.T) {
 	}
 }
 
-func Test_SearchCode(t *testing.T) {
-	// Verify tool definition once
-	mockClient := NewClient(nil)
-	tool, _ := SearchCode(testutil.StubGetClientFn(mockClient), NullTranslationHelperFunc)
+type codeTestCase struct {
+	name           string
+	mockedClient   *http.Client
+	requestArgs    map[string]interface{}
+	expectError    bool
+	expectedResult *github.CodeSearchResult
+	expectedErrMsg string
+}
+
+func TestSearchCode(t *testing.T) {
+	logger := log.NewLogger()
+	mockClient := NewClient("", logger)
+	tool, _ := SearchCode(testutil.StubGetClientFnForCustomClient(mockClient), testutil.NullTranslationHelperFunc)
 
 	assert.Equal(t, "search_code", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -207,21 +223,14 @@ func Test_SearchCode(t *testing.T) {
 		},
 	}
 
-	tests := []struct {
-		name           string
-		mockedClient   *http.Client
-		requestArgs    map[string]interface{}
-		expectError    bool
-		expectedResult *github.CodeSearchResult
-		expectedErrMsg string
-	}{
+	tests := []codeTestCase{
 		{
 			name: "successful code search with all parameters",
 			mockedClient: mock.NewMockedHTTPClient(
 				mock.WithRequestMatchHandler(
 					mock.GetSearchCode,
 					expectQueryParams(t, map[string]string{
-						"q":        "fmt.Println language:go",
+						"q":        codeSearchQuery,
 						"sort":     "indexed",
 						"order":    "desc",
 						"page":     "1",
@@ -232,7 +241,7 @@ func Test_SearchCode(t *testing.T) {
 				),
 			),
 			requestArgs: map[string]interface{}{
-				"q":       "fmt.Println language:go",
+				"q":       codeSearchQuery,
 				"sort":    "indexed",
 				"order":   "desc",
 				"page":    float64(1),
@@ -247,7 +256,7 @@ func Test_SearchCode(t *testing.T) {
 				mock.WithRequestMatchHandler(
 					mock.GetSearchCode,
 					expectQueryParams(t, map[string]string{
-						"q":        "fmt.Println language:go",
+						"q":        codeSearchQuery,
 						"page":     "1",
 						"per_page": "30",
 					}).andThen(
@@ -256,7 +265,7 @@ func Test_SearchCode(t *testing.T) {
 				),
 			),
 			requestArgs: map[string]interface{}{
-				"q": "fmt.Println language:go",
+				"q": codeSearchQuery,
 			},
 			expectError:    false,
 			expectedResult: mockSearchResult,
@@ -273,7 +282,7 @@ func Test_SearchCode(t *testing.T) {
 				),
 			),
 			requestArgs: map[string]interface{}{
-				"q": "invalid:query",
+				"q": invalidQuery,
 			},
 			expectError:    true,
 			expectedErrMsg: "failed to search code",
@@ -283,8 +292,8 @@ func Test_SearchCode(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
-			client := NewClient(tc.mockedClient)
-			_, handler := SearchCode(testutil.StubGetClientFn(client), NullTranslationHelperFunc)
+			client := NewClient("", logger)
+			_, handler := SearchCode(testutil.StubGetClientFnForCustomClient(client), testutil.NullTranslationHelperFunc)
 
 			// Create call request
 			request := testutil.CreateMCPRequest(tc.requestArgs)
@@ -322,10 +331,19 @@ func Test_SearchCode(t *testing.T) {
 	}
 }
 
-func Test_SearchUsers(t *testing.T) {
-	// Verify tool definition once
-	mockClient := NewClient(nil)
-	tool, _ := SearchUsers(testutil.StubGetClientFn(mockClient), NullTranslationHelperFunc)
+type userTestCase struct {
+	name           string
+	mockedClient   *http.Client
+	requestArgs    map[string]interface{}
+	expectError    bool
+	expectedResult *github.UsersSearchResult
+	expectedErrMsg string
+}
+
+func TestSearchUsers(t *testing.T) {
+	logger := log.NewLogger()
+	mockClient := NewClient("", logger)
+	tool, _ := SearchUsers(testutil.StubGetClientFnForCustomClient(mockClient), testutil.NullTranslationHelperFunc)
 
 	assert.Equal(t, "search_users", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -362,21 +380,14 @@ func Test_SearchUsers(t *testing.T) {
 		},
 	}
 
-	tests := []struct {
-		name           string
-		mockedClient   *http.Client
-		requestArgs    map[string]interface{}
-		expectError    bool
-		expectedResult *github.UsersSearchResult
-		expectedErrMsg string
-	}{
+	tests := []userTestCase{
 		{
 			name: "successful users search with all parameters",
 			mockedClient: mock.NewMockedHTTPClient(
 				mock.WithRequestMatchHandler(
 					mock.GetSearchUsers,
 					expectQueryParams(t, map[string]string{
-						"q":        "location:finland language:go",
+						"q":        userSearchQuery,
 						"sort":     "followers",
 						"order":    "desc",
 						"page":     "1",
@@ -387,7 +398,7 @@ func Test_SearchUsers(t *testing.T) {
 				),
 			),
 			requestArgs: map[string]interface{}{
-				"q":       "location:finland language:go",
+				"q":       userSearchQuery,
 				"sort":    "followers",
 				"order":   "desc",
 				"page":    float64(1),
@@ -402,7 +413,7 @@ func Test_SearchUsers(t *testing.T) {
 				mock.WithRequestMatchHandler(
 					mock.GetSearchUsers,
 					expectQueryParams(t, map[string]string{
-						"q":        "location:finland language:go",
+						"q":        userSearchQuery,
 						"page":     "1",
 						"per_page": "30",
 					}).andThen(
@@ -411,7 +422,7 @@ func Test_SearchUsers(t *testing.T) {
 				),
 			),
 			requestArgs: map[string]interface{}{
-				"q": "location:finland language:go",
+				"q": userSearchQuery,
 			},
 			expectError:    false,
 			expectedResult: mockSearchResult,
@@ -428,7 +439,7 @@ func Test_SearchUsers(t *testing.T) {
 				),
 			),
 			requestArgs: map[string]interface{}{
-				"q": "invalid:query",
+				"q": invalidQuery,
 			},
 			expectError:    true,
 			expectedErrMsg: "failed to search users",
@@ -438,8 +449,8 @@ func Test_SearchUsers(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
-			client := NewClient(tc.mockedClient)
-			_, handler := SearchUsers(testutil.StubGetClientFnForCustomClient(client), NullTranslationHelperFunc)
+			client := NewClient("", logger)
+			_, handler := SearchUsers(testutil.StubGetClientFnForCustomClient(client), testutil.NullTranslationHelperFunc)
 
 			// Create call request
 			request := testutil.CreateMCPRequest(tc.requestArgs)

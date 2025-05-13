@@ -18,7 +18,6 @@ import (
 
 // Test constants for repeated string literals
 const (
-	readmeFileName      = "README.md"
 	branchMain          = "main"
 	branchNewFeature    = "new-feature"
 	testUser            = "Test User"
@@ -68,8 +67,8 @@ func TestGetFileContents(t *testing.T) {
 	// Setup mock file content for success case
 	mockFileContent := &github.RepositoryContent{
 		Type:        testutil.Ptr("file"),
-		Name:        testutil.Ptr(readmeFileName),
-		Path:        testutil.Ptr(readmeFileName),
+		Name:        testutil.Ptr("README.md"),
+		Path:        testutil.Ptr("README.md"),
 		Content:     testutil.Ptr("IyBUZXN0IFJlcG9zaXRvcnkKClRoaXMgaXMgYSB0ZXN0IHJlcG9zaXRvcnku"), // Base64 encoded "# Test Repository\n\nThis is a test repository."
 		SHA:         testutil.Ptr("abc123"),
 		Size:        testutil.Ptr(42),
@@ -81,8 +80,8 @@ func TestGetFileContents(t *testing.T) {
 	mockDirContent := []*github.RepositoryContent{
 		{
 			Type:    testutil.Ptr("file"),
-			Name:    testutil.Ptr(readmeFileName),
-			Path:    testutil.Ptr(readmeFileName),
+			Name:    testutil.Ptr("README.md"),
+			Path:    testutil.Ptr("README.md"),
 			SHA:     testutil.Ptr("abc123"),
 			Size:    testutil.Ptr(42),
 			HTMLURL: testutil.Ptr("https://github.com/owner/repo/blob/main/README.md"),
@@ -119,7 +118,7 @@ func TestGetFileContents(t *testing.T) {
 			requestArgs: map[string]interface{}{
 				ownerKey:  "owner",
 				repoKey:   "repo",
-				pathKey:   readmeFileName,
+				pathKey:   "README.md",
 				branchKey: branchMain,
 			},
 			expectError:    false,
@@ -1192,7 +1191,7 @@ func TestPushFiles(t *testing.T) {
 						"base_tree": "def456",
 						"tree": []interface{}{
 							map[string]interface{}{
-								"path":    readmeFileName,
+								"path":    "README.md",
 								"mode":    "100644",
 								"type":    "blob",
 								"content": "# Updated README\n\nThis is an updated README file.",
@@ -1236,7 +1235,7 @@ func TestPushFiles(t *testing.T) {
 				branchKey: branchMain,
 				filesKey: []interface{}{
 					map[string]interface{}{
-						"path":     readmeFileName,
+						"path":     "README.md",
 						contentKey: "# Updated README\n\nThis is an updated README file.",
 					},
 					map[string]interface{}{
@@ -1312,7 +1311,7 @@ func TestPushFiles(t *testing.T) {
 				branchKey: branchMain,
 				filesKey: []interface{}{
 					map[string]interface{}{
-						"path": readmeFileName,
+						"path": "README.md",
 						// Missing content
 					},
 				},
@@ -1335,7 +1334,7 @@ func TestPushFiles(t *testing.T) {
 				branchKey: "non-existent-branch",
 				filesKey: []interface{}{
 					map[string]interface{}{
-						"path":     readmeFileName,
+						"path":     "README.md",
 						contentKey: readmeContent,
 					},
 				},
@@ -1364,7 +1363,7 @@ func TestPushFiles(t *testing.T) {
 				branchKey: branchMain,
 				filesKey: []interface{}{
 					map[string]interface{}{
-						"path":     readmeFileName,
+						"path":     "README.md",
 						contentKey: readmeContent,
 					},
 				},
@@ -1398,7 +1397,7 @@ func TestPushFiles(t *testing.T) {
 				branchKey: branchMain,
 				filesKey: []interface{}{
 					map[string]interface{}{
-						"path":     readmeFileName,
+						"path":     "README.md",
 						contentKey: readmeContent,
 					},
 				},
