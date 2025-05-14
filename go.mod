@@ -25,9 +25,6 @@ require (
 	golang.org/x/oauth2 v0.30.0
 )
 
-// Replace the non-existent tnos-mcp-interface with local implementation
-replace github.com/jubicudis/tnos-mcp-interface => ../mcp/internal/tnos-mcp-interface
-
 require (
 	github.com/klauspost/reedsolomon v1.12.4
 	go.etcd.io/bbolt v1.4.0
@@ -91,4 +88,7 @@ require (
 // WHY: Resolve import path mismatch
 // HOW: Using Go module replace directive
 // EXTENT: All MCP functionality
-replace github.com/tranquility-dev/mcp-go => github.com/mark3labs/mcp-go v0.26.0
+replace (
+	github.com/jubicudis/tnos-mcp-interface => ../mcp/internal/tnos-mcp-interface
+	github.com/tranquility-dev/mcp-go => github.com/mark3labs/mcp-go v0.26.0
+)
