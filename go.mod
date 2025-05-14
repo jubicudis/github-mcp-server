@@ -7,9 +7,9 @@
 // EXTENT: All package imports in GitHub MCP server
 module tranquility-neuro-os/github-mcp-server
 
-go 1.24
+go 1.23.0
 
-toolchain go1.24.2
+toolchain go1.24.3
 
 require (
 	github.com/docker/docker v28.0.4+incompatible
