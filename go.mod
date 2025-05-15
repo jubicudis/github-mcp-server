@@ -5,11 +5,11 @@
 // WHY: Proper dependency resolution with compatible versions
 // HOW: Using Go module system
 // EXTENT: All package imports in GitHub MCP server
-module tranquility-neuro-os/github-mcp-server
+module github-mcp-server
 
-go 1.23.0
+go 1.22
 
-toolchain go1.24.3
+toolchain go1.22.2
 
 require (
 	github.com/docker/docker v28.0.4+incompatible
