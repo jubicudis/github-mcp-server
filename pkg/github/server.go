@@ -14,7 +14,7 @@ import (
 	"io"
 	"net/http"
 
-	"tranquility-neuro-os/github-mcp-server/pkg/translations"
+	"github.com/tranquility-neuro-os/github-mcp-server/pkg/translations"
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"

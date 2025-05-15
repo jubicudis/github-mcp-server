@@ -17,7 +17,7 @@ import (
 	"math"
 	"time"
 
-	"tranquility-neuro-os/github-mcp-server/pkg/log"
+	"github.com/tranquility-neuro-os/github-mcp-server/pkg/log"
 )
 
 // ContextVector7D represents a 7D context vector

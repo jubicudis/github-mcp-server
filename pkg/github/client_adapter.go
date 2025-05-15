@@ -18,7 +18,7 @@ import (
 	"strings"
 	"time"
 	
-	"tranquility-neuro-os/github-mcp-server/pkg/translations"
+	"github.com/tranquility-neuro-os/github-mcp-server/pkg/translations"
 )
 
 // Logger defines a custom logger interface that supports structured logging
