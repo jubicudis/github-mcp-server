@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"tranquility-neuro-os/github-mcp-server/utils"
+	"github.com/tranquility-neuro-os/github-mcp-server/utils"
 )
 
 // WHO: HelicalToolsHandler
@@ -176,7 +176,7 @@ func HelicalRetrieveHandler(w http.ResponseWriter, r *http.Request, ctx context.
 }
 
 // Example: Optionally sync context or use remote compression via TNOS MCP bridge
-// import "tranquility-neuro-os/github-mcp-server/utils/tnos_bridge_client"
+// import "github.com/tranquility-neuro-os/github-mcp-server/utils/tnos_bridge_client"
 //
 // In handler, e.g.:
 //   newContext, err := utils.Sync7DContext(params.Context)

@@ -14,8 +14,8 @@ package github
 
 import (
 	// Ensure all required test dependencies are referenced
-	_ "tranquility-neuro-os/github-mcp-server/pkg/github/testutil"
-	_ "tranquility-neuro-os/github-mcp-server/pkg/translations"
+	_ "github.com/tranquility-neuro-os/github-mcp-server/pkg/github/testutil"
+	_ "github.com/tranquility-neuro-os/github-mcp-server/pkg/translations"
 )
 
 // TestHelper provides a placeholder function to ensure the testing package is properly initialized
