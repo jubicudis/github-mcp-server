@@ -5,11 +5,9 @@
 // WHY: Proper dependency resolution with compatible versions
 // HOW: Using Go module system
 // EXTENT: All package imports in GitHub MCP server
-module github.com/tranquility-neuro-os/github-mcp-server
+module tranquility-neuro-os/github-mcp-server
 
-go 1.24.3
-
-toolchain go1.24.3
+go 1.22
 
 require (
 	github.com/docker/docker v28.0.4+incompatible
@@ -89,6 +87,6 @@ require (
 // HOW: Using Go module replace directive
 // EXTENT: All MCP functionality
 replace (
-	github.com/tranquility-neuro-os/mcp/internal/tnos-mcp-interface => ../mcp/internal/tnos-mcp-interface
+	tranquility-neuro-os/mcp/internal/tnos-mcp-interface => ../mcp/internal/tnos-mcp-interface
 	github.com/tranquility-dev/mcp-go => github.com/mark3labs/mcp-go v0.26.0
 )
