@@ -17,8 +17,8 @@ import (
 	"time"
 
 	// Import using the module name as defined in go.mod
-	"github.com/tranquility-neuro-os/github-mcp-server/pkg/log"
-	"github.com/tranquility-neuro-os/github-mcp-server/pkg/translations"
+	"tranquility-neuro-os/github-mcp-server/pkg/log"
+	"tranquility-neuro-os/github-mcp-server/pkg/translations"
 )
 
 // WHO: ExecutionEntrypoint

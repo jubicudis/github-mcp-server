@@ -18,7 +18,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/tranquility-neuro-os/github-mcp-server/pkg/github/testutil"
+	"tranquility-neuro-os/github-mcp-server/pkg/github/testutil"
 )
 
 // Test constants

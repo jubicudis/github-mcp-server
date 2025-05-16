@@ -12,8 +12,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"testing"
-	"github.com/tranquility-neuro-os/github-mcp-server/pkg/github/testutil"
-	"github.com/tranquility-neuro-os/github-mcp-server/pkg/log"
+	"tranquility-neuro-os/github-mcp-server/pkg/github/testutil"
+	"tranquility-neuro-os/github-mcp-server/pkg/log"
 
 	"github.com/google/go-github/v49/github"
 	"github.com/migueleliasweb/go-github-mock/src/mock"
