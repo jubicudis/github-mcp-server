@@ -11,8 +11,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"tranquility-neuro-os/github-mcp-server/pkg/translations"
+
 	"github.com/google/go-github/v49/github"
-	"github.com/tranquility-neuro-os/github-mcp-server/pkg/translations"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )

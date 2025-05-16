@@ -17,7 +17,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/tranquility-neuro-os/github-mcp-server/pkg/log"
+	"tranquility-neuro-os/github-mcp-server/pkg/log"
 
 	"github.com/gorilla/websocket"
 )

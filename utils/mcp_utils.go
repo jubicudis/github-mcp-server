@@ -33,8 +33,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/tranquility-neuro-os/github-mcp-server/internal/mcp"
-	"github.com/tranquility-neuro-os/github-mcp-server/models"
+	"tranquility-neuro-os/github-mcp-server/internal/mcp"
+	"tranquility-neuro-os/github-mcp-server/models"
 
 	mcpGo "github.com/mark3labs/mcp-go/mcp"
 )

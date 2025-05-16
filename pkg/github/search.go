@@ -13,7 +13,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/tranquility-neuro-os/github-mcp-server/pkg/translations"
+	"tranquility-neuro-os/github-mcp-server/pkg/translations"
 
 	"github.com/google/go-github/v49/github"
 	"github.com/mark3labs/mcp-go/mcp"
