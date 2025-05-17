@@ -26,9 +26,9 @@ import (
 
 	// Import internal packages with proper module paths
 
-	"github.com/tranquility-dev/github-mcp-server/pkg/bridge"
-	"github.com/tranquility-dev/github-mcp-server/pkg/log"
-	"github.com/tranquility-dev/github-mcp-server/pkg/translations"
+	"github.com/jubicudis/github-mcp-server/pkg/bridge"
+	"github.com/jubicudis/github-mcp-server/pkg/log"
+	"github.com/jubicudis/github-mcp-server/pkg/translations"
 
 	// Import external packages
 	"github.com/gorilla/websocket"
@@ -1229,7 +1229,7 @@ func connectToBridge() {
 		ServerPort: config.BridgePort,
 		Context:    bridgeContext,
 		Logger:     logger,
-		Timeout:    60 * time.Second, // Increased timeout from 25s to 60s to match handshake timeout
+		Timeout:    60 * time.Second, // Increased timeout to match handshake timeout
 		MaxRetries: 5,
 		RetryDelay: 2 * time.Second,
 	}
@@ -1278,15 +1278,15 @@ func connectToBridge() {
 
 			// Process bridge message
 			logger.Debug("Received bridge message", "type", message.Type)
-			processBridgeMessage(bridgeClient, message)
+			processTNOSBridgeMessage(bridgeClient, message)
 		}
 	}()
 }
 
-// processBridgeMessage handles messages received from the bridge
-func processBridgeMessage(client *bridge.Client, message bridge.Message) {
+// processMCPBridgeMessage handles messages received from the main MCP bridge
+func processMCPBridgeMessage(client *bridge.Client, message bridge.Message) {
 	// WHO: MessageProcessor
-	// WHAT: Process bridge messages
+	// WHAT: Process MCP bridge messages
 	// WHEN: When messages are received
 	// WHERE: System Layer 6 (Integration)
 	// WHY: To handle bridge communications
@@ -1363,8 +1363,8 @@ func handleFormulaExecution(message bridge.Message) {
 	logger.Info("Formula executed successfully")
 }
 
-// processBridgeMessage handles messages from the TNOS MCP bridge
-func processBridgeMessage(bridgeClient *bridge.Client, message bridge.Message) {
+// processTNOSBridgeMessage handles messages from the TNOS MCP bridge
+func processTNOSBridgeMessage(bridgeClient *bridge.Client, message bridge.Message) {
 	// WHO: BridgeMessageProcessor
 	// WHAT: Process incoming bridge messages
 	// WHEN: During bridge communication
@@ -1377,9 +1377,9 @@ func processBridgeMessage(bridgeClient *bridge.Client, message bridge.Message) {
 	switch message.Type {
 	case "context":
 		// Handle context update
-		var contextData map[string]interface{}
-		if err := json.Unmarshal(message.Payload, &contextData); err != nil {
-			logger.Error("Failed to parse context message", "error", err.Error())
+		contextData, ok := message.Payload.(map[string]interface{})
+		if !ok {
+			logger.Error("Failed to parse context message: payload is not a map")
 			return
 		}
 
@@ -1391,9 +1391,9 @@ func processBridgeMessage(bridgeClient *bridge.Client, message bridge.Message) {
 
 	case "event":
 		// Handle TNOS event
-		var eventData map[string]interface{}
-		if err := json.Unmarshal(message.Payload, &eventData); err != nil {
-			logger.Error("Failed to parse event message", "error", err.Error())
+		eventData, ok := message.Payload.(map[string]interface{})
+		if !ok {
+			logger.Error("Failed to parse event message: payload is not a map")
 			return
 		}
 
@@ -1406,9 +1406,9 @@ func processBridgeMessage(bridgeClient *bridge.Client, message bridge.Message) {
 
 	case "formula":
 		// Handle formula registration or update
-		var formulaData map[string]interface{}
-		if err := json.Unmarshal(message.Payload, &formulaData); err != nil {
-			logger.Error("Failed to parse formula message", "error", err.Error())
+		formulaData, ok := message.Payload.(map[string]interface{})
+		if !ok {
+			logger.Error("Failed to parse formula message: payload is not a map")
 			return
 		}
 
@@ -1419,7 +1419,10 @@ func processBridgeMessage(bridgeClient *bridge.Client, message bridge.Message) {
 		// Acknowledge formula update
 		ackMessage := bridge.Message{
 			Type:    "formula_ack",
-			Payload: []byte(`{"status":"received","name":"` + formulaName + `"}`),
+			Payload: map[string]interface{}{
+				"status": "received",
+				"name":   formulaName,
+			},
 		}
 
 		if err := bridgeClient.Send(ackMessage); err != nil {

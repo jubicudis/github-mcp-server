@@ -1,9 +1,11 @@
 # 7D Context Framework Implementation
 
 ## Overview
+
 This document describes the implementation of the 7D Context Framework in the Tranquility Neuro-OS (TNOS) project. The framework provides a standardized approach to contextual awareness across all system components.
 
 ## Core Components
+
 The 7D Context Framework consists of these dimensions:
 
 1. **WHO**: Actor & Identity Context
@@ -15,6 +17,7 @@ The 7D Context Framework consists of these dimensions:
 7. **TO WHAT EXTENT**: Scope & Impact Context
 
 ## File Structure
+
 The implementation is organized across the following files:
 
 - **`context.go`**: Main implementation of the 7D Context Framework
@@ -23,6 +26,7 @@ The implementation is organized across the following files:
 - **`common.go`**: Shared utilities for translations
 
 ## Main Implementation
+
 The primary implementation in `context.go` provides:
 
 - `ContextVector7D` structure with all 7 dimensions
@@ -31,6 +35,7 @@ The primary implementation in `context.go` provides:
 - Helper functions for parameter extraction, validation, etc.
 
 ## Context Bridge
+
 The `context_bridge.go` file provides compatibility between different context implementations:
 
 - Bidirectional synchronization between implementations
@@ -40,6 +45,7 @@ The `context_bridge.go` file provides compatibility between different context im
 ## Usage Guidelines
 
 ### New Code
+
 All new code should use the `context.go` implementation:
 
 ```go
@@ -54,6 +60,7 @@ cv, exists := translations.VectorFromContext(ctx)
 ```
 
 ### Legacy Support
+
 For code that might use the older implementation, use the bridge functions:
 
 ```go
@@ -65,6 +72,7 @@ ctx = translations.MigrateAllContextReferences(ctx, logger)
 ```
 
 ## Möbius Compression Formula
+
 The framework implements compression-first logic using the Möbius Compression Formula:
 
 ```math
@@ -75,6 +83,7 @@ alignment = (B + V * I) * exp(-t * E)
 ```
 
 Where:
+
 - B: Base factor (0.8)
 - V: Value factor (0.7)
 - I: Intent factor (0.9)

@@ -18,7 +18,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/tranquility-dev/github-mcp-server/pkg/github/testutil"
+	"github.com/jubicudis/github-mcp-server/pkg/github/testutil"
 )
 
 // Test constants

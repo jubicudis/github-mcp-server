@@ -12,7 +12,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 )
 
@@ -35,7 +35,7 @@ func Sync7DContext(context map[string]interface{}) (map[string]interface{}, erro
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("bridge returned status %d", resp.StatusCode)
 	}
-	respBody, _ := ioutil.ReadAll(resp.Body)
+	respBody, _ := io.ReadAll(resp.Body)
 	var result struct {
 		Context map[string]interface{} `json:"context"`
 	}
@@ -57,7 +57,7 @@ func MobiusCompressRemote(data []byte, context map[string]interface{}) ([]byte, 
 	if resp.StatusCode != 200 {
 		return nil, nil, fmt.Errorf("bridge returned status %d", resp.StatusCode)
 	}
-	respBody, _ := ioutil.ReadAll(resp.Body)
+	respBody, _ := io.ReadAll(resp.Body)
 	var result struct {
 		Compressed []byte                 `json:"compressed"`
 		Meta       map[string]interface{} `json:"meta"`
@@ -66,6 +66,39 @@ func MobiusCompressRemote(data []byte, context map[string]interface{}) ([]byte, 
 		return nil, nil, err
 	}
 	return result.Compressed, result.Meta, nil
+}
+
+// MobiusCompressWithPlanck calls MobiusCompressRemote with Planck dimensions from context
+func MobiusCompressWithPlanck(data []byte, context map[string]interface{}) ([]byte, map[string]interface{}, error) {
+	// WHO: CompressionIntegrator 
+	// WHAT: Integrate Planck dimensions into compression
+	// WHEN: During advanced compression operations
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To customize compression based on physical constants
+	// HOW: Using dimensional scaling
+	// EXTENT: Physics-aware compression
+
+	// Extract Planck dimensions from context
+	length, mass, timeP, charge, temp, amount, luminous := getPlanckDimensions(context)
+	
+	// Add dimensions to context for the remote call
+	enrichedContext := make(map[string]interface{})
+	if context != nil {
+		for k, v := range context {
+			enrichedContext[k] = v
+		}
+	}
+	
+	// Ensure dimensions are set in the enriched context
+	enrichedContext["planck_length"] = length
+	enrichedContext["planck_mass"] = mass
+	enrichedContext["planck_time"] = timeP
+	enrichedContext["planck_charge"] = charge
+	enrichedContext["planck_temperature"] = temp
+	enrichedContext["planck_amount"] = amount
+	enrichedContext["planck_luminous_intensity"] = luminous
+	
+	return MobiusCompressRemote(data, enrichedContext)
 }
 
 // --- Planck Dimension Integration ---

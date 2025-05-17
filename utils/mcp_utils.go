@@ -16,8 +16,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/tranquility-dev/github-mcp-server/internal/mcp"
-	"github.com/tranquility-dev/github-mcp-server/models"
+	"github.com/jubicudis/github-mcp-server/internal/mcp"
+	"github.com/jubicudis/github-mcp-server/models"
 
 	mcpGo "github.com/mark3labs/mcp-go/mcp"
 )
@@ -72,7 +72,7 @@ func SendToUtilsTNOSMCP(message models.MCPMessage) (*models.MCPMessage, error) {
 	// EXTENT: Complete request-response cycle
 
 	if utilsMcpBridge == nil {
-		return nil, fmt.Errorf("Utils MCP bridge not initialized")
+		return nil, fmt.Errorf("utils MCP bridge not initialized")
 	}
 
 	// Send the request via the bridge

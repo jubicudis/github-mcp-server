@@ -23,7 +23,7 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"github.com/tranquility-dev/github-mcp-server/pkg/translations"
+	"github.com/jubicudis/github-mcp-server/pkg/translations"
 
 	"encoding/base64"
 

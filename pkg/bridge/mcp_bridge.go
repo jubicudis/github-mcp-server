@@ -19,8 +19,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/tranquility-dev/github-mcp-server/pkg/log"
-	"github.com/tranquility-dev/github-mcp-server/pkg/translations"
+	"github.com/jubicudis/github-mcp-server/pkg/log"
+	"github.com/jubicudis/github-mcp-server/pkg/translations"
 
 	"github.com/gorilla/websocket"
 )
@@ -87,8 +87,8 @@ type Bridge struct {
 	reconnecting bool
 
 	// Message handling
-	handlers        map[string]MessageHandler
-	responseWaiters map[string]chan Message
+	handlers        map[string]MCPMessageHandler
+	responseWaiters map[string]chan MCPMessage
 
 	// Context
 	context *translations.ContextVector7D
@@ -107,8 +107,9 @@ type Bridge struct {
 	serverFeatures  map[string]interface{}
 }
 
-// Message represents an MCP message
-type Message struct {
+// MCPMessage represents an MCP-specific message format
+// Distinct from the common Message type in common.go
+type MCPMessage struct {
 	// WHO: MessageManager
 	// WHAT: Message structure
 	// WHEN: During message exchange
@@ -140,8 +141,9 @@ type ErrorInfo struct {
 	Details string `json:"details,omitempty"`
 }
 
-// MessageHandler is a function that handles incoming messages
-type MessageHandler func(message Message) error
+// MCPMessageHandler is a function that handles incoming MCP-specific messages
+// Distinct from the common MessageHandler in common.go
+type MCPMessageHandler func(message MCPMessage) error
 
 // NewBridge creates a new MCP bridge
 func NewBridge(options BridgeOptions) *Bridge {
