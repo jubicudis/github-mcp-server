@@ -11,8 +11,8 @@ package bridge
 import (
 	"time"
 
-	"tranquility-neuro-os/github-mcp-server/pkg/log"
-	"tranquility-neuro-os/github-mcp-server/pkg/translations"
+	"github.com/tranquility-dev/github-mcp-server/pkg/log"
+	"github.com/tranquility-dev/github-mcp-server/pkg/translations"
 )
 
 // DefaultProtocolVersion and other protocol constants are defined in common.go

@@ -14,8 +14,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	pkggithub "tranquility-neuro-os/github-mcp-server/pkg/github"
-	"tranquility-neuro-os/github-mcp-server/pkg/log"
+	pkggithub "github.com/tranquility-dev/github-mcp-server/pkg/github"
+	"github.com/tranquility-dev/github-mcp-server/pkg/log"
 
 	githubapi "github.com/google/go-github/v49/github" // Import the go-github client
 	"github.com/mark3labs/mcp-go/mcp"
