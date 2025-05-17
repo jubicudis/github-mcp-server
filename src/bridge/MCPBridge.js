@@ -116,6 +116,16 @@ const CONFIG = {
       ? path.join(process.env.TNOS_ROOT, "config/mcp/formulas.json")
       : "/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/config/mcp/formulas.json",
   },
+    
+  // Enhanced visualization server
+  visualization: {
+    enabled: true,
+    serverPath: process.env.TNOS_ROOT
+      ? path.join(process.env.TNOS_ROOT, "mcp/bridge/visualization/enhanced_mobius_visualization_server.py")
+      : "/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/mcp/bridge/visualization/enhanced_mobius_visualization_server.py",
+    port: 7779,
+    autoStart: true,
+  },
 
   // Compression settings
   compression: {
@@ -2141,11 +2151,65 @@ module.exports = {
   translateContext,
   bridgeMCPContext,
   calculateContextEntropy,
+  startVisualizationServer
 };
+
+/**
+ * WHO: VisualizationIntegrator
+ * WHAT: Integration with Enhanced Möbius Visualization Server
+ * WHEN: During bridge initialization and operation
+ * WHERE: System Layer 2 (Reactive)
+ * WHY: To provide visualization services for compression operations
+ * HOW: Using subprocess to launch the visualization server
+ * EXTENT: All visualization operations
+ */
+function startVisualizationServer() {
+  if (!CONFIG.visualization.enabled) {
+    log("info", "Enhanced Möbius Visualization Server is disabled");
+    return false;
+  }
+
+  try {
+    // Check if the server file exists
+    if (!fs.existsSync(CONFIG.visualization.serverPath)) {
+      log("error", `Visualization server not found at: ${CONFIG.visualization.serverPath}`);
+      return false;
+    }
+
+    log("info", "Starting Enhanced Möbius Visualization Server...");
+    
+    // Start the visualization server
+    const pythonPath = process.env.TNOS_PYTHON || "python3";
+    const serverProcess = spawn(pythonPath, [
+      CONFIG.visualization.serverPath,
+      "--port", CONFIG.visualization.port.toString()
+    ], {
+      detached: true,
+      stdio: 'ignore'
+    });
+    
+    // Unref the process to allow it to run independently
+    serverProcess.unref();
+    
+    log("info", `Enhanced Möbius Visualization Server started on port ${CONFIG.visualization.port}`);
+    log("info", `Dashboard available at: http://localhost:${CONFIG.visualization.port}/`);
+    
+    return true;
+  } catch (error) {
+    log("error", `Error starting visualization server: ${error.message}`);
+    return false;
+  }
+}
 
 // Start the bridge when executed directly
 if (require.main === module) {
   log("info", "Starting MCP Bridge...");
+  
+  // Start the visualization server if configured
+  if (CONFIG.visualization.autoStart) {
+    startVisualizationServer();
+  }
+  
   startBridge()
     .then((success) => {
       if (!success) {

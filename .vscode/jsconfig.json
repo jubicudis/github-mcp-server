@@ -1,0 +1,48 @@
+// WHO: GitHubMCPJSConfigManager
+// WHAT: JavaScript configuration for MCP server
+// WHEN: During MCP JavaScript development
+// WHERE: System Layer 6 (Integration)
+// WHY: To provide optimized JS/TS language support for MCP
+// HOW: Using jsconfig.json configuration
+// EXTENT: All GitHub MCP server JavaScript files
+
+{
+    "compilerOptions": {
+        "target": "ES2022",
+        "module": "NodeNext",
+        "moduleResolution": "NodeNext",
+        "baseUrl": "..",
+        "paths": {
+            "*": ["*", "node_modules/*"],
+            "bridge/*": ["src/bridge/*"],
+            "mcp/*": ["src/mcp/*", "../mcp/*"]
+        },
+        "resolveJsonModule": true,
+        "allowSyntheticDefaultImports": true,
+        "checkJs": true,
+        "jsx": "preserve",
+        "strict": false,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true,
+        "experimentalDecorators": true,
+        "lib": ["ES2022", "DOM"]
+    },
+    "exclude": [
+        "node_modules",
+        "build",
+        "bin",
+        "target",
+        "__pycache__",
+        ".git"
+    ],
+    "include": [
+        "src/**/*",
+        "pkg/**/*",
+        "cmd/**/*.js",
+        "test/**/*.js"
+    ],
+    "typeAcquisition": {
+        "include": ["node"]
+    }
+}

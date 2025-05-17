@@ -16,6 +16,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"net/http"
 	"sync"
 	"time"
 
@@ -38,6 +39,57 @@ const (
 	MCPVersion20 = "2.0"
 	MCPVersion30 = "3.0"
 )
+
+// ConnectionOptions defines options for creating a new bridge client connection
+type ConnectionOptions struct {
+	// WHO: ConnectionConfigurator
+	// WHAT: Bridge connection configuration
+	// WHEN: During client initialization
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To configure connection parameters
+	// HOW: Using structured options
+	// EXTENT: Single connection lifecycle
+
+	ServerURL  string                       // WebSocket URL for the bridge server
+	ServerPort int                          // Port number for the bridge server
+	Context    translations.ContextVector7D // Context for the connection
+	Logger     interface{}                  // Logger instance (can be *log.Logger or custom)
+	Timeout    time.Duration                // Connection timeout
+}
+
+// Client represents a connection to the MCP bridge
+type Client struct {
+	// WHO: BridgeClient
+	// WHAT: MCP bridge client implementation
+	// WHEN: During active connection
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To manage bridge communication
+	// HOW: Using WebSocket with reconnection
+	// EXTENT: Single client connection lifecycle
+
+	conn      *websocket.Conn
+	ctx       context.Context
+	cancel    context.CancelFunc
+	options   ConnectionOptions
+	state     ConnectionState
+	sendMutex sync.Mutex
+	recvMutex sync.Mutex
+}
+
+// Message represents a message sent over the bridge
+type Message struct {
+	// WHO: MessageCarrier
+	// WHAT: Bridge message structure
+	// WHEN: During message exchange
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To standardize message format
+	// HOW: Using structured format with context
+	// EXTENT: Single message lifecycle
+
+	Type      string      `json:"type"`
+	Timestamp int64       `json:"timestamp"`
+	Content   interface{} `json:"content,omitempty"`
+}
 
 // ConnectionState represents the current state of the bridge connection
 type ConnectionState string
@@ -727,5 +779,265 @@ func (b *MCPBridge) UpdateContextFromMessage(message map[string]interface{}) {
 
 		log.Printf("Updated persistent context from message: %+v",
 			b.persistentContext.ToMap())
+	}
+}
+
+// ConnectionOptions defines options for creating a bridge connection
+type ConnectionOptions struct {
+	// WHO: OptionsManager
+	// WHAT: Bridge connection options
+	// WHEN: During connection setup
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To configure connection
+	// HOW: Using options pattern
+	// EXTENT: Connection lifetime
+
+	ServerURL   string
+	ServerPort  int
+	Timeout     time.Duration
+	MaxRetries  int
+	RetryDelay  time.Duration
+	Context     translations.ContextVector7D
+	TLSEnabled  bool
+	Credentials map[string]string
+	Headers     map[string]string
+}
+
+// MessageHandler is a function that processes incoming bridge messages
+type MessageHandler func(message []byte)
+
+// DisconnectHandler is a function that handles disconnection events
+type DisconnectHandler func(reason string)
+
+// Client represents the bridge client used to communicate with the MCP bridge
+type Client struct {
+	// WHO: BridgeClient
+	// WHAT: Client for MCP bridge communication
+	// WHEN: During bridge operations
+	// WHERE: System Layer 6 (Integration)
+	// WHY: For communication with TNOS MCP
+	// HOW: Using WebSocket protocol
+	// EXTENT: All bridge operations
+
+	conn              *websocket.Conn
+	options           ConnectionOptions
+	state             ConnectionState
+	mutex             sync.RWMutex
+	messageHandler    MessageHandler
+	disconnectHandler DisconnectHandler
+	stats             BridgeStats
+	ctx               context.Context
+	cancelFunc        context.CancelFunc
+	isClosed          bool
+}
+
+// BridgeClient provides a compatibility wrapper for transitioning to the new client.go implementation
+// This will be removed in a future release
+type BridgeClient = Client
+
+// newClientImpl is the internal implementation of NewClient
+func newClientImpl(ctx context.Context, options ConnectionOptions) (*Client, error) {
+	if options.ServerURL == "" {
+		return nil, errors.New("server URL is required")
+	}
+
+	// Set default values if not provided
+	if options.Timeout == 0 {
+		options.Timeout = 60 * time.Second // Increased from 10s to 60s to avoid context deadline exceeded errors
+	}
+	if options.MaxRetries == 0 {
+		options.MaxRetries = 3
+	}
+	if options.RetryDelay == 0 {
+		options.RetryDelay = time.Second
+	}
+
+	// Create a new client instance
+	client := &Client{
+		options: options,
+		state:   StateDisconnected,
+		mutex:   sync.RWMutex{},
+		stats: BridgeStats{
+			StartTime: time.Now(),
+		},
+	}
+
+	return client, nil
+}
+
+// Connect establishes a connection to the MCP bridge
+func (c *Client) Connect(ctx context.Context) error {
+	// WHO: ConnectionManager
+	// WHAT: Connect to MCP bridge
+	// WHEN: During client initialization
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To establish communication
+	// HOW: Using WebSocket protocol
+	// EXTENT: Connection lifetime
+
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	if c.state == StateConnected {
+		return nil // Already connected
+	}
+
+	c.setState(StateConnecting)
+
+	// Store the context for later use
+	c.ctx, c.cancelFunc = context.WithCancel(ctx)
+
+	// Create headers with context information if available
+	headers := http.Header{}
+	if c.options.Headers != nil {
+		for k, v := range c.options.Headers {
+			headers.Set(k, v)
+		}
+	}
+
+	// Add context information if available
+	if c.options.Context.Who != "" {
+		contextJSON, err := json.Marshal(c.options.Context)
+		if err == nil {
+			headers.Set("X-TNOS-Context", string(contextJSON))
+		}
+	}
+
+	// Connect to the WebSocket server with timeout
+	dialer := websocket.Dialer{
+		HandshakeTimeout: c.options.Timeout,
+	}
+
+	conn, _, err := dialer.DialContext(ctx, c.options.ServerURL, headers)
+	if err != nil {
+		c.setState(StateError)
+		return fmt.Errorf("failed to connect to MCP bridge: %w", err)
+	}
+
+	c.conn = conn
+	c.setState(StateConnected)
+	c.stats.LastActive = time.Now()
+
+	// Start reading messages in a goroutine
+	go c.readMessages()
+
+	return nil
+}
+
+// OnMessage registers a handler for incoming messages
+func (c *Client) OnMessage(handler MessageHandler) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	c.messageHandler = handler
+}
+
+// OnDisconnect registers a handler for disconnection events
+func (c *Client) OnDisconnect(handler DisconnectHandler) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	c.disconnectHandler = handler
+}
+
+// readMessages reads messages from the WebSocket connection
+func (c *Client) readMessages() {
+	for {
+		if c.isClosed {
+			return
+		}
+
+		_, message, err := c.conn.ReadMessage()
+		if err != nil {
+			c.handleDisconnect(fmt.Sprintf("read error: %v", err))
+			return
+		}
+
+		c.stats.MessagesReceived++
+		c.stats.LastActive = time.Now()
+
+		// Call the message handler if registered
+		c.mutex.RLock()
+		handler := c.messageHandler
+		c.mutex.RUnlock()
+
+		if handler != nil {
+			go handler(message)
+		}
+	}
+}
+
+// SendMessage sends a message to the MCP bridge
+func (c *Client) SendMessage(message []byte) error {
+	c.mutex.RLock()
+	defer c.mutex.RUnlock()
+
+	if c.state != StateConnected || c.conn == nil {
+		return errors.New("not connected to MCP bridge")
+	}
+
+	err := c.conn.WriteMessage(websocket.TextMessage, message)
+	if err != nil {
+		return fmt.Errorf("failed to send message: %w", err)
+	}
+
+	c.stats.MessagesSent++
+	c.stats.LastActive = time.Now()
+
+	return nil
+}
+
+// Close closes the connection to the MCP bridge
+func (c *Client) Close() error {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+
+	if c.state == StateDisconnected || c.conn == nil {
+		return nil // Already disconnected
+	}
+
+	c.isClosed = true
+	if c.cancelFunc != nil {
+		c.cancelFunc()
+	}
+
+	err := c.conn.Close()
+	c.setState(StateDisconnected)
+
+	return err
+}
+
+// setState updates the connection state
+func (c *Client) setState(state ConnectionState) {
+	oldState := c.state
+	c.state = state
+
+	// Call the disconnect handler if transitioning to disconnected
+	if state == StateDisconnected && c.disconnectHandler != nil && oldState != StateDisconnected {
+		reason := "normal closure"
+		if c.conn != nil && c.conn.CloseMessage() != nil {
+			reason = "connection error"
+		}
+		go c.disconnectHandler(reason)
+	}
+}
+
+// handleDisconnect handles disconnection events
+func (c *Client) handleDisconnect(reason string) {
+	c.mutex.Lock()
+
+	// Check if already disconnected
+	if c.state == StateDisconnected || c.isClosed {
+		c.mutex.Unlock()
+		return
+	}
+
+	// Update state and notify handlers
+	c.setState(StateDisconnected)
+	c.conn = nil
+
+	handler := c.disconnectHandler
+	c.mutex.Unlock()
+
+	if handler != nil {
+		go handler(reason)
 	}
 }

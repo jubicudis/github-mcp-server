@@ -1,0 +1,35 @@
+// WHO: MCPServerConfigurator
+// WHAT: Configuration file for GitHub MCP server
+// WHEN: During server initialization
+// WHERE: System Layer 6 (Integration)
+// WHY: To provide centralized configuration
+// HOW: Using JSON configuration file
+// EXTENT: All server parameters
+
+{
+    "port": 10617,
+    "host": "localhost",
+    "logLevel": "debug",
+    "logFile": "github-mcp-server.log",
+    "bridgeEnabled": true,
+    "bridgePort": 10619,
+    "githubToken": "",
+    "visualization": {
+        "enabled": true,
+        "port": 7779,
+        "host": "localhost",
+        "path": "/mobius-visualization"
+    },
+    "tnos": {
+        "serverPort": 10618,
+        "serverHost": "localhost"
+    },
+    "retry": {
+        "maxAttempts": 5,
+        "delay": 2000
+    },
+    "timeout": {
+        "connection": 30000,
+        "request": 15000
+    }
+}
