@@ -15,8 +15,8 @@ import (
 	"testing"
 	"time"
 
-	"tranquility-neuro-os/github-mcp-server/pkg/log"
-	"tranquility-neuro-os/github-mcp-server/pkg/translations"
+	"github.com/tranquility-dev/github-mcp-server/pkg/log"
+	"github.com/tranquility-dev/github-mcp-server/pkg/translations"
 )
 
 // Test constants for error messages and repeated strings

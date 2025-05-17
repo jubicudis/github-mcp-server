@@ -11,7 +11,7 @@
 package github
 
 import (
-	"tranquility-neuro-os/github-mcp-server/pkg/log"
+	"github.com/tranquility-dev/github-mcp-server/pkg/log"
 )
 
 // loggerAdapter adapts a log.Logger to the Logger interface

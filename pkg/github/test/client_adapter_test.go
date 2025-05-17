@@ -13,7 +13,7 @@ package github_test
 import (
 	"testing"
 
-	githubpkg "tranquility-neuro-os/github-mcp-server/pkg/github"
+	githubpkg "github.com/tranquility-dev/github-mcp-server/pkg/github"
 )
 
 // TestClientAdapter verifies that the adapter pattern works correctly

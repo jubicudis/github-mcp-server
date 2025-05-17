@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"tranquility-neuro-os/github-mcp-server/pkg/github/testutil"
+	"github.com/tranquility-dev/github-mcp-server/pkg/github/testutil"
 
 	"github.com/google/go-github/v49/github"
 	"github.com/mark3labs/mcp-go/mcp"
