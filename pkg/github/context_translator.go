@@ -15,8 +15,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"tranquility-neuro-os/github-mcp-server/pkg/log"
-	"tranquility-neuro-os/github-mcp-server/pkg/translations"
+	"github.com/tranquility-dev/github-mcp-server/pkg/log"
+	"github.com/tranquility-dev/github-mcp-server/pkg/translations"
 )
 
 // ContextTranslator implements bidirectional context translation

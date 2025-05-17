@@ -15,7 +15,7 @@ import (
 	"net/http"
 	"testing"
 
-	"tranquility-neuro-os/github-mcp-server/pkg/github/testutil"
+	"github.com/tranquility-dev/github-mcp-server/pkg/github/testutil"
 
 	"github.com/google/go-github/v49/github"
 	"github.com/migueleliasweb/go-github-mock/src/mock"
