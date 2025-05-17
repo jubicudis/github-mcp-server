@@ -17,8 +17,8 @@ import (
 	"time"
 
 	// Import using the module name as defined in go.mod
-	"github.com/tranquility-dev/github-mcp-server/pkg/log"
-	"github.com/tranquility-dev/github-mcp-server/pkg/translations"
+	"github.com/jubicudis/github-mcp-server/pkg/log"
+	"github.com/jubicudis/github-mcp-server/pkg/translations"
 )
 
 // WHO: ExecutionEntrypoint

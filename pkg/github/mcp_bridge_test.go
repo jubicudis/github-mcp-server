@@ -15,8 +15,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tranquility-dev/github-mcp-server/pkg/log"
-	"github.com/tranquility-dev/github-mcp-server/pkg/translations"
+	"github.com/jubicudis/github-mcp-server/pkg/log"
+	"github.com/jubicudis/github-mcp-server/pkg/translations"
 )
 
 // Test constants for error messages and repeated strings

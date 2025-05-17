@@ -11,7 +11,7 @@
 package github
 
 import (
-	"github.com/tranquility-dev/github-mcp-server/pkg/log"
+	"github.com/jubicudis/github-mcp-server/pkg/log"
 )
 
 // loggerAdapter adapts a log.Logger to the Logger interface

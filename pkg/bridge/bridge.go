@@ -20,7 +20,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/tranquility-dev/github-mcp-server/pkg/translations"
+	"github.com/jubicudis/github-mcp-server/pkg/translations"
 
 	"github.com/gorilla/websocket"
 )
@@ -56,24 +56,8 @@ import (
 // StateReconnecting
 // StateError
 
-// BridgeStats tracks operational statistics
-type BridgeStats struct {
-	// WHO: StatsCollector
-	// WHAT: Bridge operational statistics
-	// WHEN: During bridge operations
-	// WHERE: System Layer 6 (Integration)
-	// WHY: For performance monitoring
-	// HOW: Using counters
-	// EXTENT: System health
-
-	MessagesSent     int64
-	MessagesReceived int64
-	ErrorCount       int64
-	ReconnectCount   int64
-	LastActive       time.Time
-	Uptime           time.Duration
-	StartTime        time.Time
-}
+// BridgeStats is imported from common.go
+// For tracking operational statistics
 
 // MCPBridge provides connection between GitHub MCP and TNOS MCP
 type MCPBridge struct {
@@ -728,55 +712,15 @@ func (b *MCPBridge) UpdateContextFromMessage(message map[string]interface{}) {
 	}
 }
 
-// ConnectionOptions defines options for creating a bridge connection
-type ConnectionOptions struct {
-	// WHO: OptionsManager
-	// WHAT: Bridge connection options
-	// WHEN: During connection setup
-	// WHERE: System Layer 6 (Integration)
-	// WHY: To configure connection
-	// HOW: Using options pattern
-	// EXTENT: Connection lifetime
+// ConnectionOptions is imported from common.go
+// Centralized reusable type for connection configuration
 
-	ServerURL   string
-	ServerPort  int
-	Timeout     time.Duration
-	MaxRetries  int
-	RetryDelay  time.Duration
-	Context     translations.ContextVector7D
-	TLSEnabled  bool
-	Credentials map[string]string
-	Headers     map[string]string
-}
+// MessageHandler is imported from common.go
+// DisconnectHandler is imported from common.go
 
-// MessageHandler is a function that processes incoming bridge messages
-// MessageHandler is a function that processes incoming bridge messages
-// MessageHandler is imported from common.go to avoid redeclaration
-
-// DisconnectHandler is a function that handles disconnection events
-type DisconnectHandler func(reason string)
-
-// Client represents the bridge client used to communicate with the MCP bridge
-type Client struct {
-	// WHO: BridgeClient
-	// WHAT: Client for MCP bridge communication
-	// WHEN: During bridge operations
-	// WHERE: System Layer 6 (Integration)
-	// WHY: For communication with TNOS MCP
-	// HOW: Using WebSocket protocol
-	// EXTENT: All bridge operations
-
-	conn              *websocket.Conn
-	options           ConnectionOptions
-	state             ConnectionState
-	mutex             sync.RWMutex
-	messageHandler    MessageHandler
-	disconnectHandler DisconnectHandler
-	stats             BridgeStats
-	ctx               context.Context
-	cancelFunc        context.CancelFunc
-	isClosed          bool
-}
+// BridgeClient provides a compatibility wrapper for transitioning to the new client.go implementation
+// This will be removed in a future release
+type BridgeClient = Client
 
 // BridgeClient provides a compatibility wrapper for transitioning to the new client.go implementation
 // This will be removed in a future release
