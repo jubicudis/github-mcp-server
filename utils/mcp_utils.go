@@ -16,8 +16,8 @@ import (
 	"log"
 	"time"
 
-	"tranquility-neuro-os/github-mcp-server/internal/mcp"
-	"tranquility-neuro-os/github-mcp-server/models"
+	"github.com/tranquility-dev/github-mcp-server/internal/mcp"
+	"github.com/tranquility-dev/github-mcp-server/models"
 
 	mcpGo "github.com/mark3labs/mcp-go/mcp"
 )

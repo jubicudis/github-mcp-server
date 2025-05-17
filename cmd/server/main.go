@@ -26,9 +26,9 @@ import (
 
 	// Import internal packages with proper module paths
 
-	"tranquility-neuro-os/github-mcp-server/pkg/bridge"
-	"tranquility-neuro-os/github-mcp-server/pkg/log"
-	"tranquility-neuro-os/github-mcp-server/pkg/translations"
+	"github.com/tranquility-dev/github-mcp-server/pkg/bridge"
+	"github.com/tranquility-dev/github-mcp-server/pkg/log"
+	"github.com/tranquility-dev/github-mcp-server/pkg/translations"
 
 	// Import external packages
 	"github.com/gorilla/websocket"
