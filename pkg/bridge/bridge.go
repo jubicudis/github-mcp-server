@@ -25,90 +25,36 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// Supported MCP protocol versions
-const (
-	// WHO: VersionManager
-	// WHAT: MCP protocol versions
-	// WHEN: During connection setup
-	// WHERE: System Layer 6 (Integration)
-	// WHY: For protocol compatibility
-	// HOW: Using version negotiation
-	// EXTENT: All MCP operations
-
-	MCPVersion10 = "1.0"
-	MCPVersion20 = "2.0"
-	MCPVersion30 = "3.0"
-)
-
 // ConnectionOptions defines options for creating a new bridge client connection
-type ConnectionOptions struct {
-	// WHO: ConnectionConfigurator
-	// WHAT: Bridge connection configuration
-	// WHEN: During client initialization
-	// WHERE: System Layer 6 (Integration)
-	// WHY: To configure connection parameters
-	// HOW: Using structured options
-	// EXTENT: Single connection lifecycle
-
-	ServerURL  string                       // WebSocket URL for the bridge server
-	ServerPort int                          // Port number for the bridge server
-	Context    translations.ContextVector7D // Context for the connection
-	Logger     interface{}                  // Logger instance (can be *log.Logger or custom)
-	Timeout    time.Duration                // Connection timeout
-}
+// ConnectionOptions defines options for creating a new bridge client connection
+// Import from common.go to avoid redeclaration
 
 // Client represents a connection to the MCP bridge
-type Client struct {
-	// WHO: BridgeClient
-	// WHAT: MCP bridge client implementation
-	// WHEN: During active connection
-	// WHERE: System Layer 6 (Integration)
-	// WHY: To manage bridge communication
-	// HOW: Using WebSocket with reconnection
-	// EXTENT: Single client connection lifecycle
-
-	conn      *websocket.Conn
-	ctx       context.Context
-	cancel    context.CancelFunc
-	options   ConnectionOptions
-	state     ConnectionState
-	sendMutex sync.Mutex
-	recvMutex sync.Mutex
-}
+// Client represents a connection to the MCP bridge
+// Imported from common.go to avoid redeclaration
 
 // Message represents a message sent over the bridge
-type Message struct {
-	// WHO: MessageCarrier
-	// WHAT: Bridge message structure
-	// WHEN: During message exchange
-	// WHERE: System Layer 6 (Integration)
-	// WHY: To standardize message format
-	// HOW: Using structured format with context
-	// EXTENT: Single message lifecycle
-
-	Type      string      `json:"type"`
-	Timestamp int64       `json:"timestamp"`
-	Content   interface{} `json:"content,omitempty"`
-}
+// Message is imported from mcp_bridge.go to avoid redeclaration
+// WHO: MessageCarrier
+// WHAT: Bridge message structure
+// WHEN: During message exchange
+// WHERE: System Layer 6 (Integration)
+// WHY: To standardize message format
+// HOW: Using structured format with context
+// EXTENT: Single message lifecycle
 
 // ConnectionState represents the current state of the bridge connection
-type ConnectionState string
+// ConnectionState is imported from common.go
+// to represent the current state of the bridge connection
 
-const (
-	// WHO: StateManager
-	// WHAT: Bridge connection states
-	// WHEN: During connection lifecycle
-	// WHERE: System Layer 6 (Integration)
-	// WHY: For connection monitoring
-	// HOW: Using state transitions
-	// EXTENT: Connection lifecycle
-
-	StateDisconnected ConnectionState = "DISCONNECTED"
-	StateConnecting   ConnectionState = "CONNECTING"
-	StateConnected    ConnectionState = "CONNECTED"
-	StateReconnecting ConnectionState = "RECONNECTING"
-	StateError        ConnectionState = "ERROR"
-)
+// Connection states are imported from common.go
+// Instead of redeclaring them here, we use them directly
+// See common.go for the following connection states:
+// StateDisconnected
+// StateConnecting
+// StateConnected
+// StateReconnecting
+// StateError
 
 // BridgeStats tracks operational statistics
 type BridgeStats struct {
@@ -804,7 +750,8 @@ type ConnectionOptions struct {
 }
 
 // MessageHandler is a function that processes incoming bridge messages
-type MessageHandler func(message []byte)
+// MessageHandler is a function that processes incoming bridge messages
+// MessageHandler is imported from common.go to avoid redeclaration
 
 // DisconnectHandler is a function that handles disconnection events
 type DisconnectHandler func(reason string)
@@ -960,7 +907,13 @@ func (c *Client) readMessages() {
 		c.mutex.RUnlock()
 
 		if handler != nil {
-			go handler(message)
+			// Unmarshal the bytes into a Message type before passing to handler
+			var parsedMessage Message
+			if err := json.Unmarshal(message, &parsedMessage); err != nil {
+				log.Printf("Failed to parse message: %v", err)
+				continue
+			}
+			go handler(parsedMessage)
 		}
 	}
 }
@@ -1013,7 +966,7 @@ func (c *Client) setState(state ConnectionState) {
 	// Call the disconnect handler if transitioning to disconnected
 	if state == StateDisconnected && c.disconnectHandler != nil && oldState != StateDisconnected {
 		reason := "normal closure"
-		if c.conn != nil && c.conn.CloseMessage() != nil {
+		if c.state == StateError {
 			reason = "connection error"
 		}
 		go c.disconnectHandler(reason)

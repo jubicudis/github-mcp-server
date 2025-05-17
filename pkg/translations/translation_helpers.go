@@ -10,45 +10,25 @@
 
 package translations
 
-import (
-	"context"
-)
+import "context"
 
-// MessageTranslationHelper provides methods to translate between different contexts
-// WHO: TranslationProvider
-// WHAT: Interface for translation operations
-// WHEN: During communication
+// MessageTranslationHelper defines methods for translating messages between TNOS and GitHub
+// WHO: InterfaceProvider
+// WHAT: Message translation interface
+// WHEN: During message processing
 // WHERE: System Layer 6 (Integration)
-// WHY: To standardize context translation
-// HOW: Using Go interface definition
-// EXTENT: All translation implementations
+// WHY: To define standard translation methods
+// HOW: Using Go interface
+// EXTENT: All translation needs for GitHub MCP
 type MessageTranslationHelper interface {
-	// TranslateMessageToTNOS converts GitHub messages to TNOS format
-	// WHO: MessageTranslator
-	// WHAT: Message conversion to TNOS
-	// WHEN: During inbound processing
-	// WHERE: MCP Bridge
-	// WHY: To ensure context compatibility
-	// HOW: Using 7D context framework
-	// EXTENT: All inbound GitHub messages
 	TranslateMessageToTNOS(ctx context.Context, message interface{}) (interface{}, error)
-
-	// TranslateMessageFromTNOS converts TNOS messages to GitHub format
-	// WHO: MessageTranslator
-	// WHAT: Message conversion from TNOS
-	// WHEN: During outbound processing
-	// WHERE: MCP Bridge
-	// WHY: To ensure GitHub API compatibility
-	// HOW: Using standard GitHub formats
-	// EXTENT: All outbound TNOS messages
 	TranslateMessageFromTNOS(ctx context.Context, message interface{}) (interface{}, error)
 }
 
-// nullMessageTranslationHelper provides a no-op implementation of MessageTranslationHelper
-// WHO: NullObjectProvider
-// WHAT: Empty translation implementation
-// WHEN: During testing or when translation is not needed
-// WHERE: System Layer 6 (Integration Tests)
+// This file is kept for backward compatibility.
+// New code should use the interfaces and functions from common.go directly.
+// The redundant MessageTranslationHelper interface has been consolidated into
+// the TranslationHelper interface in common.go.
 // WHY: To provide a default implementation
 // HOW: Using the Null Object pattern
 // EXTENT: All test scenarios

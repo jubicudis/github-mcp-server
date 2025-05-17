@@ -1,24 +1,7 @@
 /*
  * WHO: MCPUtilities
  * WHAT: MCP communication utilities
- * WHEN: During too	/	// Send the request via the bridge
-	startTime := time.Now()
-
-	// Create a CallToolRequest as required by the MCP bridge
-	toolRequest := &mcpGo.CallToolRequest{}
-	toolRequest.Params.Name = message.Tool
-	toolRequest.Params.Arguments = message.Parameters
-
-	result, err := mcpBridge.SendRequest(*toolRequest)
-	if err != nil {
-		log.Printf("Error sending request to MCP bridge: %v", err)
-		return nil, fmt.Errorf("bridge communication error: %w", err)
-	}llToolRequest as required by the MCP bridge
-	toolRequest := &mcpGo.CallToolRequest{}
-	toolRequest.Params.Name = message.Tool
-	toolRequest.Params.Arguments = message.Parameters
-
-	result, err := mcpBridge.SendRequest(*toolRequest)ution
+ * WHEN: During tool execution
  * WHERE: System Layer 6 (Integration)
  * WHY: To standardize MCP communication
  * HOW: Using structured messaging

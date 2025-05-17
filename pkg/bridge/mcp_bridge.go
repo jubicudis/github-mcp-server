@@ -25,29 +25,6 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-// Constants for bridge operation
-const (
-	// WHO: ProtocolManager
-	// WHAT: Protocol constants
-	// WHEN: During protocol operations
-	// WHERE: System Layer 6 (Integration)
-	// WHY: To define protocol parameters
-	// HOW: Using constant definitions
-	// EXTENT: All protocol operations
-
-	DefaultBridgeURL       = "ws://localhost:9000/mcp/bridge"
-	BridgeServiceName      = "github_mcp_bridge"
-	MaxReconnectAttempts   = 10
-	ReconnectDelay         = 5 * time.Second
-	HealthCheckInterval    = 30 * time.Second
-	MessageBufferSize      = 100
-	WriteTimeout           = 30 * time.Second  // Increased from 10s to 30s to avoid context deadline exceeded errors
-	ReadTimeout            = 120 * time.Second // Increased from 60s to 120s to avoid context deadline exceeded errors
-	PingInterval           = 30 * time.Second
-	MaxMessageSize         = 10485760 // 10MB
-	DefaultProtocolVersion = "3.0"
-)
-
 // Message types
 const (
 	// WHO: MessageTypeManager

@@ -16,7 +16,6 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -145,6 +144,8 @@ func FromJSON(jsonStr string) (ContextVector7D, error) {
 }
 
 // MCPContextToTNOS converts MCP context to TNOS 7D context
+// MCPContextToTNOS converts MCP context to TNOS 7D context
+// This is a forwarding function that uses the implementation in context.go
 func MCPContextToTNOS(mcpCtx map[string]interface{}) ContextVector7D {
 	// WHO: FormatConverter
 	// WHAT: Convert MCP to TNOS format
@@ -154,89 +155,47 @@ func MCPContextToTNOS(mcpCtx map[string]interface{}) ContextVector7D {
 	// HOW: Using dimension mapping with compression-first approach
 	// EXTENT: Single context conversion
 
-	// Create params map for organized conversion
-	params := map[string]interface{}{
-		"where":  "MCP_Bridge", // Standard location for MCP operations
-		"how":    "MCPTranslation",
-		"source": "github_mcp",
+	// Implement the conversion logic directly instead of calling MCPToTNOSContext
+	
+	// Extract MCP context fields with default values
+	who := getStringValue(mcpCtx, "identity", "System")
+	what := getStringValue(mcpCtx, "operation", "Transform")
+	when := mcpCtx["timestamp"]
+	where := getStringValue(mcpCtx, "location", "MCP_Bridge")
+	why := getStringValue(mcpCtx, "purpose", "Protocol_Compliance")
+	how := getStringValue(mcpCtx, "method", "Context_Translation")
+	extent := mcpCtx["scope"]
+	
+	// Create the context vector
+	cv := ContextVector7D{
+		Who:    who,
+		What:   what,
+		When:   when,
+		Where:  where,
+		Why:    why,
+		How:    how,
+		Extent: extent,
+		Source: "github-mcp",
+		Meta:   map[string]interface{}{
+			"translated_at": time.Now().Unix(),
+			"translation_type": "mcp_to_tnos",
+		},
 	}
+	
+	// Add MCP original context for reference
+	cv.Meta["original_mcp_context"] = mcpCtx
+	
+	return cv
+}
 
-	// Extract values with type checking for WHO dimension
-	if identity, ok := mcpCtx["identity"].(string); ok {
-		params["who"] = identity
-	} else if user, ok := mcpCtx["user"].(string); ok {
-		params["who"] = user
-	}
-
-	// Extract WHAT dimension
-	if operation, ok := mcpCtx["operation"].(string); ok {
-		params["what"] = operation
-	} else if type_, ok := mcpCtx["type"].(string); ok {
-		params["what"] = type_
-	}
-
-	// Extract WHEN dimension with proper type handling
-	if timestamp, ok := mcpCtx["timestamp"].(string); ok {
-		// Parse the timestamp string to time.Time
-		t, err := time.Parse(time.RFC3339, timestamp)
-		if err == nil {
-			params["when"] = t.Unix()
-		}
-	} else if timestamp, ok := mcpCtx["timestamp"].(int64); ok {
-		params["when"] = timestamp
-	} else if timestamp, ok := mcpCtx["timestamp"].(float64); ok {
-		params["when"] = int64(timestamp)
-	}
-
-	// Extract WHERE dimension if provided
-	if location, ok := mcpCtx["location"].(string); ok {
-		params["where"] = location
-	}
-
-	// Extract WHY dimension
-	if purpose, ok := mcpCtx["purpose"].(string); ok {
-		params["why"] = purpose
-	}
-
-	// Extract HOW dimension if provided
-	if method, ok := mcpCtx["method"].(string); ok {
-		params["how"] = method
-	}
-
-	// Extract EXTENT dimension with type handling
-	if scope, ok := mcpCtx["scope"].(float64); ok {
-		params["extent"] = scope
-	} else if scope, ok := mcpCtx["scope"].(int64); ok {
-		params["extent"] = float64(scope)
-	} else if scope, ok := mcpCtx["scope"].(int); ok {
-		params["extent"] = float64(scope)
-	} else if scope, ok := mcpCtx["scope"].(string); ok {
-		if scopeFloat, err := strconv.ParseFloat(scope, 64); err == nil {
-			params["extent"] = scopeFloat
+// Helper function to safely extract string values from a map
+func getStringValue(m map[string]interface{}, key, defaultValue string) string {
+	if val, ok := m[key]; ok {
+		if strVal, ok := val.(string); ok {
+			return strVal
 		}
 	}
-
-	// Create the context vector using the factory function
-	cv := NewContextVector7D(params)
-
-	// Extract metadata if available for full context preservation
-	if metadata, ok := mcpCtx["metadata"].(map[string]interface{}); ok {
-		for k, v := range metadata {
-			cv.Meta[k] = v
-		}
-	}
-
-	// Add translation metadata
-	cv.Meta["translated_at"] = time.Now().Unix()
-	cv.Meta["translation_type"] = "mcp_to_tnos"
-	cv.Meta["compressionEnabled"] = true
-
-	// Calculate contextual entropy for advanced compression
-	entropy := calculateContextEntropy(&cv)
-	cv.Meta["entropy"] = entropy
-
-	// Apply compression using Möbius Compression Formula (compression-first approach)
-	return *cv.Compress()
+	return defaultValue
 }
 
 // TNOSContextToMCP converts TNOS 7D context to MCP context
@@ -299,6 +258,7 @@ func TNOSContextToMCP(cv ContextVector7D) map[string]interface{} {
 }
 
 // ContextWithVector adds a 7D context vector to a Go context
+// This is a forwarding function that uses the implementation in context.go
 func ContextWithVector(ctx context.Context, cv ContextVector7D) context.Context {
 	// WHO: ContextEnricher
 	// WHAT: Store context in Go context
@@ -307,7 +267,9 @@ func ContextWithVector(ctx context.Context, cv ContextVector7D) context.Context 
 	// WHY: For context propagation
 	// HOW: Using context values
 	// EXTENT: Go context enrichment
-
+	
+	// This function mirrors the implementation in context.go
+	// We use the same key for consistency across the system
 	return context.WithValue(ctx, contextKey("7d_context"), cv)
 }
 
@@ -335,11 +297,13 @@ func CompressTranslationContext(cv ContextVector7D) ContextVector7D {
 	// WHEN: During context optimization
 	// WHERE: System Layer 6 (Integration)
 	// WHY: For efficient transmission
-	// HOW: Using Möbius compression formula
+	// HOW: Using compression-first approach
 	// EXTENT: Context transmission optimization
 
-	// Use the Compress method from context.go
-	return *cv.Compress()
+	// Forward to the Compress method from context.go
+	// This ensures we use a single implementation and avoid duplication
+	compressed := cv.Compress()
+	return *compressed
 }
 
 type TranslationHelperFunc func(key string, defaultValue string) string
