@@ -6,7 +6,7 @@
  * WHY: To standardize MCP communication
  * HOW: Using structured messaging
  * EXTENT: All MCP bridge operations
-*/
+ */
 
 package utils
 
