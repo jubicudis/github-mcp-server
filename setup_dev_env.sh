@@ -126,6 +126,7 @@ elif [ "$1" = "start-all" ]; then
     pkill -f "github-mcp-server"
     pkill -f "tnos_mcp_server.py"
     pkill -f "tnos_mcp_bridge.py"
+    pkill -f "enhanced_mobius_visualization_server.py"
     sleep 2
     
     # Build the GitHub MCP Server
@@ -152,6 +153,11 @@ elif [ "$1" = "start-all" ]; then
     bash "$WORKSPACE_ROOT/scripts/shell/start_tnos_mcp_server.sh"
     sleep 2
     
+    # Start Enhanced Visualization Server
+    echo "Starting Enhanced Möbius Visualization Server on port 7779..."
+    bash "$WORKSPACE_ROOT/scripts/shell/start_visualization_server.sh"
+    sleep 2
+    
     # Start MCP Bridge connecting GitHub and TNOS MCP servers
     echo "Starting MCP Bridge between GitHub port 8889 and TNOS port 8083..."
     # Set as environment variables instead of flags
@@ -160,6 +166,7 @@ elif [ "$1" = "start-all" ]; then
     bash "$WORKSPACE_ROOT/scripts/shell/start_mcp_bridge.sh"
     
     echo "All MCP components started successfully."
+    echo "Visualization server available at: http://localhost:7779/"
     exit 0
 fi
 

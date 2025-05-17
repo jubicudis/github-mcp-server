@@ -41,8 +41,8 @@ const (
 	ReconnectDelay         = 5 * time.Second
 	HealthCheckInterval    = 30 * time.Second
 	MessageBufferSize      = 100
-	WriteTimeout           = 10 * time.Second
-	ReadTimeout            = 60 * time.Second
+	WriteTimeout           = 30 * time.Second  // Increased from 10s to 30s to avoid context deadline exceeded errors
+	ReadTimeout            = 120 * time.Second // Increased from 60s to 120s to avoid context deadline exceeded errors
 	PingInterval           = 30 * time.Second
 	MaxMessageSize         = 10485760 // 10MB
 	DefaultProtocolVersion = "3.0"
@@ -276,7 +276,7 @@ func (b *Bridge) Connect() error {
 
 	// Establish connection
 	dialer := websocket.Dialer{
-		HandshakeTimeout: 10 * time.Second,
+		HandshakeTimeout: 60 * time.Second, // Increased from 10s to 60s to avoid context deadline exceeded errors
 	}
 
 	conn, resp, err := dialer.Dial(u.String(), headers)

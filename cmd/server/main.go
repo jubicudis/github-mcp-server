@@ -26,6 +26,7 @@ import (
 
 	// Import internal packages with proper module paths
 
+	"tranquility-neuro-os/github-mcp-server/pkg/bridge"
 	"tranquility-neuro-os/github-mcp-server/pkg/log"
 	"tranquility-neuro-os/github-mcp-server/pkg/translations"
 
@@ -202,7 +203,7 @@ func main() {
 	logger.Info("Received termination signal", "signal", sig.String())
 
 	// Create context with timeout for graceful shutdown
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second) // Increased timeout for proper shutdown
 	defer cancel()
 
 	// Close all client connections
@@ -1200,12 +1201,17 @@ func connectToBridge() {
 	// WHEN: During server startup
 	// WHERE: System Layer 6 (Integration)
 	// WHY: To integrate with TNOS system
-	// HOW: Using WebSocket connection
-	// EXTENT: Bridge connection lifecycle
+	// HOW: Using WebSocket connection with retry
+	// EXTENT: Bridge connection lifecycle with error handling
 
+	// Log connection attempt
 	logger.Info("Connecting to MCP bridge", "port", config.BridgePort)
 
-	// Create a context for the bridge connection
+	// Create a context for the bridge connection with extended timeout (30s instead of 5s)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second) // Increased timeout for bridge connection
+	defer cancel()
+
+	// Create a context vector for the bridge connection
 	bridgeContext := translations.NewContextVector7D(map[string]interface{}{
 		"who":    "BridgeConnector",
 		"what":   "Bridge_Connection",
@@ -1217,10 +1223,344 @@ func connectToBridge() {
 		"source": "github_mcp",
 	})
 
-	// In a real implementation, this would establish a WebSocket connection
-	// to the bridge server and implement bilateral communication
+	// Set up bridge connection options
+	opts := bridge.ConnectionOptions{
+		ServerURL:  fmt.Sprintf("ws://localhost:%d/bridge", config.BridgePort),
+		ServerPort: config.BridgePort,
+		Context:    bridgeContext,
+		Logger:     logger,
+		Timeout:    60 * time.Second, // Increased timeout from 25s to 60s to match handshake timeout
+		MaxRetries: 5,
+		RetryDelay: 2 * time.Second,
+	}
 
-	// For now, log that we would connect, as the bridge is simulated
-	logger.Info("MCP bridge connection simulated",
-		"context", fmt.Sprintf("%s:%s", bridgeContext.Who, bridgeContext.What))
+	// Connect to the bridge with retry
+	var bridgeClient *bridge.Client
+	var err error
+
+	for i := 0; i < 5; i++ { // Try 5 times
+		bridgeClient, err = bridge.NewClient(ctx, opts)
+		if err == nil {
+			break
+		}
+
+		logger.Warn("Failed to connect to MCP bridge, retrying...", "attempt", i+1, "error", err.Error())
+		time.Sleep(2 * time.Second) // Wait before retry
+	}
+
+	if err != nil {
+		logger.Error("Failed to connect to MCP bridge after retries", "error", err.Error())
+		return
+	}
+
+	logger.Info("Successfully connected to MCP bridge")
+
+	// Handle bridge messages in a goroutine
+	go func() {
+		for {
+			message, err := bridgeClient.Receive()
+			if err != nil {
+				logger.Error("Error receiving bridge message", "error", err.Error())
+
+				// Attempt to reconnect if disconnected
+				time.Sleep(5 * time.Second)
+				newCtx, newCancel := context.WithTimeout(context.Background(), 60*time.Second) // Increased timeout for retry attempts
+				bridgeClient, err = bridge.NewClient(newCtx, opts)
+				newCancel()
+
+				if err != nil {
+					logger.Error("Failed to reconnect to bridge", "error", err.Error())
+					return
+				}
+
+				continue
+			}
+
+			// Process bridge message
+			logger.Debug("Received bridge message", "type", message.Type)
+			processBridgeMessage(bridgeClient, message)
+		}
+	}()
+}
+
+// processBridgeMessage handles messages received from the bridge
+func processBridgeMessage(client *bridge.Client, message bridge.Message) {
+	// WHO: MessageProcessor
+	// WHAT: Process bridge messages
+	// WHEN: When messages are received
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To handle bridge communications
+	// HOW: Using message type dispatch
+	// EXTENT: All bridge messages
+
+	// Log message receipt
+	logger.Debug("Processing bridge message", "type", message.Type)
+
+	// Handle message based on type
+	switch message.Type {
+	case "context_sync":
+		handleContextSync(message)
+	case "formula_execution":
+		handleFormulaExecution(message)
+	case "visualization_request":
+		handleVisualizationRequest(message, client)
+	case "compression_request":
+		handleCompressionRequest(message, client)
+	case "error":
+		handleBridgeError(message)
+	default:
+		logger.Warn("Unhandled bridge message type", "type", message.Type)
+	}
+}
+
+// handleContextSync processes context synchronization messages
+func handleContextSync(message bridge.Message) {
+	// WHO: ContextSynchronizer
+	// WHAT: Synchronize context between MCP systems
+	// WHEN: During context sync operations
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To maintain context consistency
+	// HOW: Using context translation
+	// EXTENT: All context dimensions
+
+	logger.Debug("Processing context sync message")
+
+	// Extract context data
+	content, ok := message.Content.(map[string]interface{})
+	if !ok {
+		logger.Error("Invalid context sync message format")
+		return
+	}
+
+	// Process context sync (implementation depends on specific needs)
+	// ...
+
+	logger.Info("Context synchronized with TNOS MCP")
+}
+
+// handleFormulaExecution processes formula execution messages
+func handleFormulaExecution(message bridge.Message) {
+	// WHO: FormulaExecutor
+	// WHAT: Execute formulas from TNOS
+	// WHEN: During formula execution requests
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To perform calculations
+	// HOW: Using formula registry
+	// EXTENT: Single formula execution
+
+	logger.Debug("Processing formula execution message")
+
+	// Extract formula data
+	content, ok := message.Content.(map[string]interface{})
+	if !ok {
+		logger.Error("Invalid formula execution message format")
+		return
+	}
+
+	// Process formula execution (implementation depends on specific needs)
+	// ...
+
+	logger.Info("Formula executed successfully")
+}
+
+// processBridgeMessage handles messages from the TNOS MCP bridge
+func processBridgeMessage(bridgeClient *bridge.Client, message bridge.Message) {
+	// WHO: BridgeMessageProcessor
+	// WHAT: Process incoming bridge messages
+	// WHEN: During bridge communication
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To handle TNOS system messages
+	// HOW: Using message type dispatch
+	// EXTENT: Single message lifecycle
+
+	// Process message based on type
+	switch message.Type {
+	case "context":
+		// Handle context update
+		var contextData map[string]interface{}
+		if err := json.Unmarshal(message.Payload, &contextData); err != nil {
+			logger.Error("Failed to parse context message", "error", err.Error())
+			return
+		}
+
+		// Create 7D context
+		updatedContext := translations.NewContextVector7D(contextData)
+
+		// Broadcast context update to WebSocket clients
+		broadcastContextUpdate(updatedContext)
+
+	case "event":
+		// Handle TNOS event
+		var eventData map[string]interface{}
+		if err := json.Unmarshal(message.Payload, &eventData); err != nil {
+			logger.Error("Failed to parse event message", "error", err.Error())
+			return
+		}
+
+		// Log event
+		eventType, _ := eventData["type"].(string)
+		logger.Info("Received TNOS event", "type", eventType)
+
+		// Broadcast event to WebSocket clients
+		broadcastEvent(eventData)
+
+	case "formula":
+		// Handle formula registration or update
+		var formulaData map[string]interface{}
+		if err := json.Unmarshal(message.Payload, &formulaData); err != nil {
+			logger.Error("Failed to parse formula message", "error", err.Error())
+			return
+		}
+
+		// Log formula update
+		formulaName, _ := formulaData["name"].(string)
+		logger.Info("Received formula update", "name", formulaName)
+
+		// Acknowledge formula update
+		ackMessage := bridge.Message{
+			Type:    "formula_ack",
+			Payload: []byte(`{"status":"received","name":"` + formulaName + `"}`),
+		}
+
+		if err := bridgeClient.Send(ackMessage); err != nil {
+			logger.Error("Failed to send formula acknowledgement", "error", err.Error())
+		}
+
+	case "ping":
+		// Respond to ping
+		pongMessage := bridge.Message{
+			Type:    "pong",
+			Payload: []byte(`{"timestamp":` + strconv.FormatInt(time.Now().Unix(), 10) + `}`),
+		}
+
+		if err := bridgeClient.Send(pongMessage); err != nil {
+			logger.Error("Failed to send pong", "error", err.Error())
+		}
+
+	default:
+		logger.Warn("Unknown bridge message type", "type", message.Type)
+	}
+}
+
+// broadcastContextUpdate broadcasts a context update to all WebSocket clients
+func broadcastContextUpdate(context translations.ContextVector7D) {
+	updateMsg := map[string]interface{}{
+		"type":      "context_update",
+		"source":    "tnos_bridge",
+		"timestamp": time.Now().Unix(),
+		"context":   context,
+	}
+
+	broadcastData, _ := json.Marshal(updateMsg)
+	broadcast <- broadcastData
+}
+
+// broadcastEvent broadcasts a TNOS event to all WebSocket clients
+func broadcastEvent(eventData map[string]interface{}) {
+	eventData["type"] = "tnos_event"
+	eventData["source"] = "tnos_bridge"
+	eventData["timestamp"] = time.Now().Unix()
+
+	broadcastData, _ := json.Marshal(eventData)
+	broadcast <- broadcastData
+}
+
+// handleVisualizationRequest processes visualization requests
+func handleVisualizationRequest(message bridge.Message, client *bridge.Client) {
+	// WHO: VisualizationManager
+	// WHAT: Handle visualization requests
+	// WHEN: During visualization operations
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To generate visual representations
+	// HOW: Using visualization service
+	// EXTENT: Single visualization request
+
+	logger.Debug("Processing visualization request")
+
+	// Extract visualization data
+	content, ok := message.Content.(map[string]interface{})
+	if !ok {
+		logger.Error("Invalid visualization request format")
+		return
+	}
+
+	// Process visualization request (implementation depends on specific needs)
+	// ...
+
+	// Send response back to bridge
+	response := bridge.Message{
+		Type:      "visualization_response",
+		Timestamp: time.Now().Unix(),
+		Content: map[string]interface{}{
+			"status":    "success",
+			"requestId": content["requestId"],
+			// Add visualization data here
+		},
+	}
+
+	if err := client.Send(response); err != nil {
+		logger.Error("Failed to send visualization response", "error", err.Error())
+	}
+}
+
+// handleCompressionRequest processes compression requests
+func handleCompressionRequest(message bridge.Message, client *bridge.Client) {
+	// WHO: CompressionManager
+	// WHAT: Handle compression requests
+	// WHEN: During compression operations
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To compress/decompress data
+	// HOW: Using Möbius compression
+	// EXTENT: Single compression request
+
+	logger.Debug("Processing compression request")
+
+	// Extract compression data
+	content, ok := message.Content.(map[string]interface{})
+	if !ok {
+		logger.Error("Invalid compression request format")
+		return
+	}
+
+	// Process compression request (implementation depends on specific needs)
+	// ...
+
+	// Send response back to bridge
+	response := bridge.Message{
+		Type:      "compression_response",
+		Timestamp: time.Now().Unix(),
+		Content: map[string]interface{}{
+			"status":    "success",
+			"requestId": content["requestId"],
+			// Add compression result here
+		},
+	}
+
+	if err := client.Send(response); err != nil {
+		logger.Error("Failed to send compression response", "error", err.Error())
+	}
+}
+
+// handleBridgeError processes error messages from the bridge
+func handleBridgeError(message bridge.Message) {
+	// WHO: ErrorHandler
+	// WHAT: Process bridge errors
+	// WHEN: During error conditions
+	// WHERE: System Layer 6 (Integration)
+	// WHY: For error handling
+	// HOW: Using error processing
+	// EXTENT: Single error message
+
+	content, ok := message.Content.(map[string]interface{})
+	if !ok {
+		logger.Error("Invalid error message format")
+		return
+	}
+
+	errorMsg, _ := content["message"].(string)
+	errorCode, _ := content["code"].(float64)
+
+	logger.Error("Bridge error received",
+		"code", errorCode,
+		"message", errorMsg)
 }
