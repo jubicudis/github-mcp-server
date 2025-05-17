@@ -11,27 +11,7 @@ package translations
 
 import (
 	"context"
-	"encoding/json"
 )
-
-// TranslationHelper provides methods for transforming data between formats
-// WHO: TranslationHelper
-// WHAT: Interface for translation operations
-// WHEN: During data format conversion
-// WHERE: MCP Bridge / ATL Layer
-// WHY: To standardize translation operations
-// HOW: Through defined interfaces
-// EXTENT: All format conversions
-type TranslationHelper interface {
-	// ToJSON converts a value to its JSON representation
-	ToJSON(v interface{}) (string, error)
-
-	// FromJSON converts JSON to a value
-	FromJSON(data string, v interface{}) error
-
-	// ApplyContextVector applies 7D context to a value
-	ApplyContextVector(v interface{}, context map[string]string) (interface{}, error)
-}
 
 // NullTranslationHelper is a no-op implementation for testing
 // WHO: TranslationProvider
@@ -48,19 +28,30 @@ type nullTranslationHelper struct{}
 
 // ToJSON implements the TranslationHelper interface
 func (n *nullTranslationHelper) ToJSON(v interface{}) (string, error) {
-	data, err := json.Marshal(v)
-	return string(data), err
+	return ToJSON(v)
 }
 
 // FromJSON implements the TranslationHelper interface
 func (n *nullTranslationHelper) FromJSON(data string, v interface{}) error {
-	return json.Unmarshal([]byte(data), v)
+	// Use helper function that handles the unmarshaling correctly
+	_, err := FromJSON(data)
+	return err
 }
 
 // ApplyContextVector implements the TranslationHelper interface
 func (n *nullTranslationHelper) ApplyContextVector(v interface{}, context map[string]string) (interface{}, error) {
 	// No-op implementation for testing
 	return v, nil
+}
+
+// TranslateMessageToTNOS implements MessageTranslationHelper interface
+func (n *nullTranslationHelper) TranslateMessageToTNOS(ctx context.Context, message interface{}) (interface{}, error) {
+	return message, nil
+}
+
+// TranslateMessageFromTNOS implements MessageTranslationHelper interface
+func (n *nullTranslationHelper) TranslateMessageFromTNOS(ctx context.Context, message interface{}) (interface{}, error) {
+	return message, nil
 }
 
 // Translate implements a helper method for translation functions
