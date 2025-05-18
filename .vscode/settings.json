@@ -1,3 +1,82 @@
 {
-	"go.buildFlags": ["-tags=mcp,tnos"]
+	// WHO: ConfigurationManager
+	// WHAT: GitHub MCP Server settings
+	// WHEN: During IDE initialization and development
+	// WHERE: System Layer 6 (Integration) / MCP Server
+	// WHY: To provide consistent development environment for MCP
+	// HOW: Using VS Code settings JSON with quantum symmetry
+	// EXTENT: All GitHub MCP server operations
+	
+	"go.buildFlags": ["-tags=mcp,tnos"],
+	"go.testFlags": ["-tags=mcp,tnos,test,symmetry"],
+	
+	// Enhanced GitHub MCP specific settings
+	"go.lintFlags": ["--enable=gosec,govet"],
+	"go.coverOnSave": false,
+	"go.useLanguageServer": true,
+	"go.toolsEnvVars": {
+		"GO111MODULE": "on",
+		"TNOS_CONTEXT_MODE": "debug",
+		"MCP_DEVELOPMENT": "true",
+		"MOBIUS_SYMMETRY_ENABLED": "true"
+	},
+	
+	// Enhanced AI settings for GitHub MCP
+	"github.copilot": {
+		"enable": {
+			"*": true,
+			"go": true,
+			"python": true,
+			"javascript": true,
+			"cpp": true
+		},
+		"editor": {
+			"enableAutoCompletions": true
+		},
+		"inlineSuggest": {
+			"enable": true
+		}
+	},
+	"ai.editor.features.completions.promptContribution": true,
+	"ai.experimental.chat.api.dynamicContextExtraction": true,
+	"ai.editor.features.inlineChat": "enabled",
+	"ai.experimental.chat.api.chat7DFormatting": true,
+	
+	// Enhanced IntelliSense for MCP
+	"editor.suggest.preview": true,
+	"editor.suggestSelection": "first",
+	"editor.parameterHints.enabled": true,
+	"editor.inlayHints.enabled": "on",
+	
+	// C++ support for GitHub MCP bridge components
+	"C_Cpp.intelliSenseEngine": "default",
+	"C_Cpp.default.cppStandard": "c++20",
+	"C_Cpp.enhancedColorization": "enabled",
+	"C_Cpp.default.includePath": [
+		"${workspaceFolder}/internal/bridge/cpp",
+		"${workspaceFolder}/../include",
+		"${workspaceFolder}/../core/compression/cpp"
+	],
+	"C_Cpp.default.defines": [
+		"MCP_SERVER",
+		"QUANTUM_SYMMETRY_ENABLED",
+		"ENABLE_BIDIRECTIONAL_OPERATIONS"
+	],
+	
+	// Ensure symmetry between MCP components
+	"files.associations": {
+		"*.go.tmpl": "go",
+		"*.mcpdef": "json",
+		"*.h": "cpp",
+		"*.hpp": "cpp",
+		"*.c": "c",
+		"*.cpp": "cpp"
+	},
+	
+	// MCP-specific search settings
+	"search.exclude": {
+		"**/node_modules": true,
+		"**/logs": true,
+		"**/build": true
+	}
 }

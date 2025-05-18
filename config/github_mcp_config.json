@@ -133,12 +133,19 @@
       "serverPath": "/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/mcp/server/mcp_server.py",
       "protocolVersion": "1.0",
       "bridgeScript": "/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/config/mcp/bridge.js",
-      "contextSync": true
+      "contextSync": true,
+      "symmetryEnabled": true,
+      "bidirectionalMapping": true,
+      "contextPreservation": "full7d",
+      "compressionEnabled": true
     },
     "formulaRegistry": {
       "enabled": true,
       "path": "/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/config/formulas.json",
-      "bridgeScript": "/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/core/reactive/FormulaRegistry_layer2.js"
+      "bridgeScript": "/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/core/reactive/FormulaRegistry_layer2.js",
+      "validateSymmetry": true,
+      "enforceTransformationSymmetry": true,
+      "verifyBidirectionalOperations": true
     },
     "dimensionalContext": {
       "enabled": true,
@@ -151,7 +158,10 @@
         "WHY": "rationale",
         "HOW": "method",
         "TO_WHAT_EXTENT": "scope"
-      }
+      },
+      "enforceSymmetricMapping": true,
+      "preserveContextualEntanglement": true,
+      "bidirectionalTranslation": true
     }
   },
   "logging": {
