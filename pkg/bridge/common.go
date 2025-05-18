@@ -195,7 +195,6 @@ type Client struct {
 	// Context management
 	ctx       context.Context
 	cancelFunc context.CancelFunc
-	cancel    context.CancelFunc // Alternative cancel for client.go implementation
 	
 	// State flags
 	isClosed  bool

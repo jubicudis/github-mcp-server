@@ -9,12 +9,41 @@
 # EXTENT: GitHub MCP server development operations
 
 echo "Setting up Go development environment for GitHub MCP Server..."
+# HOW: Using shell environment variables and workspace paths
+# EXTENT: GitHub MCP server development operations
 
-# Set Go environment variables
-GOROOT=$(go env GOROOT)
-export GOROOT
-export PATH="$GOROOT/bin:$PATH"
-export GO111MODULE=on
+echo "Setting up Go development environment for GitHub MCP Server..."
+
+# Check if Go is installed and in the PATH
+if ! command -v go &> /dev/null; then
+    echo "Go is not found in your PATH. Looking for alternative locations..."
+    
+    # Check common Go installation locations
+    if [ -d "/usr/local/go/bin" ]; then
+        export PATH="/usr/local/go/bin:$PATH"
+        echo "Found Go in /usr/local/go/bin - added to PATH"
+    elif [ -d "$HOME/go/bin" ]; then
+        export PATH="$HOME/go/bin:$PATH"
+        echo "Found Go tools in $HOME/go/bin - added to PATH"
+    elif [ -d "/opt/homebrew/bin" ] && [ -f "/opt/homebrew/bin/go" ]; then
+        export PATH="/opt/homebrew/bin:$PATH"
+        echo "Found Go in Homebrew - added to PATH"
+    else
+        echo "WARNING: Go was not found. Some features may not work properly."
+        # Continue anyway, as we'll use what tools we can find
+    fi
+fi
+
+# Set Go environment variables if Go is now available
+if command -v go &> /dev/null; then
+    GOROOT=$(go env GOROOT)
+    export GOROOT
+    export PATH="$GOROOT/bin:$PATH"
+    export GO111MODULE=on
+    echo "Go version: $(go version)"
+else
+    echo "Go version: Not available"
+fi
 
 # Robustly detect the workspace root (directory containing this script's parent)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -36,14 +65,19 @@ fi
 # Skip Gradle daemon initialization to avoid terminal pollution
 
 # Detect Go bin directory
-GOBIN=$(go env GOBIN)
-if [ -z "$GOBIN" ]; then
+if command -v go &> /dev/null; then
+    GOBIN=$(go env GOBIN)
+    if [ -z "$GOBIN" ]; then
+        GOBIN="$HOME/go/bin"
+    fi
+else
+    # If go command is not available, use standard location
     GOBIN="$HOME/go/bin"
 fi
 export PATH="$GOBIN:$PATH"
 
 # Create go/bin directory if it doesn't exist
-mkdir -p "$GOPATH/bin"
+mkdir -p "$GOBIN"
 
 # Install Go tools if needed
 echo "Ensuring necessary Go tools are installed..."
@@ -131,6 +165,15 @@ elif [ "$1" = "start-all" ]; then
     
     # Build the GitHub MCP Server
     echo "Building GitHub MCP Server..."
+    
+    # Check if Go is available
+    if ! command -v go &> /dev/null; then
+        echo "ERROR: Go compiler is not available in your PATH."
+        echo "Please install Go from https://golang.org/dl/"
+        echo "For macOS users, you can install Go using Homebrew: brew install go"
+        exit 1
+    fi
+    
     go build -o ./bin/github-mcp-server ./cmd/server
     if [ $? -ne 0 ]; then
         echo "Build failed. Please check the Go source code for errors."
