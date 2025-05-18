@@ -16,9 +16,11 @@ import (
 	"log"
 	"math"
 	"reflect"
+	"strconv"
 	"sync"
 	"time"
 
+	"github.com/jubicudis/github-mcp-server/pkg/translations"
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
@@ -33,168 +35,30 @@ type BridgeConfig struct {
 	DebugMode         bool          // HOW: Enable detailed logging
 }
 
-// ContextVector7D represents the 7D context framework used in TNOS
-type ContextVector7D struct {
-	// WHO: Context vector component
-	// WHAT: 7D context representation
-	Who    string                 `json:"who"`              // WHO: Actor & Identity Context
-	What   string                 `json:"what"`             // WHAT: Function & Content Context
-	When   string                 `json:"when"`             // WHEN: Temporal Context
-	Where  string                 `json:"where"`            // WHERE: Location Context
-	Why    string                 `json:"why"`              // WHY: Intent & Purpose Context
-	How    string                 `json:"how"`              // HOW: Method & Process Context
-	Extent float64                `json:"extent"`           // EXTENT: Scope & Impact Context
-	Meta   map[string]interface{} `json:"meta,omitempty"`   // Additional context metadata for compression
-	Source string                 `json:"source,omitempty"` // Source system identifier
-}
+// Use ContextVector7D from the translations package
+// Aliasing the imported type to maintain backward compatibility
+type ContextVector7D = translations.ContextVector7D
+
+// Instead of adding methods directly to the aliased type, we'll use our helper functions
 
 // Compress applies the Möbius Compression Formula to this context vector
-func (cv *ContextVector7D) Compress() *ContextVector7D {
-	// WHO: ContextCompressor
-	// WHAT: Context compression
-	// WHEN: During context transmission
-	// WHERE: Between systems
-	// WHY: To optimize context storage and transmission
-	// HOW: Using Möbius compression formula
-	// EXTENT: Full context representation
-
-	if cv.Meta == nil {
-		cv.Meta = make(map[string]interface{})
-	}
-
-	// Extract or set default contextual factors
-	B := getMetaFloat(cv.Meta, "B", 0.8) // Base factor
-	V := getMetaFloat(cv.Meta, "V", 0.7) // Value factor
-	I := getMetaFloat(cv.Meta, "I", 0.9) // Intent factor
-	G := getMetaFloat(cv.Meta, "G", 1.2) // Growth factor
-	F := getMetaFloat(cv.Meta, "F", 0.6) // Flexibility factor
-
-	// Calculate time factor (how "fresh" the context is)
-	now := time.Now().Format(time.RFC3339)
-	t := calculateTimeDelta(cv.When, now)
-
-	// Calculate energy factor (computational cost)
-	E := 0.5
-
-	// Calculate context entropy (simplified)
-	contextBytes, _ := json.Marshal(cv)
-	entropy := float64(len(contextBytes)) / 100.0
-
-	// Apply Möbius compression formula
-	alignment := (B + V*I) * math.Exp(-t*E)
-	compressionFactor := (B * I * (1.0 - (entropy / math.Log2(1.0+V))) * (G + F)) /
-		(E*t + entropy + alignment)
-
-	// Store compression metadata
-	cv.Meta["compressedAt"] = now
-	cv.Meta["compressionFactor"] = compressionFactor
-	cv.Meta["entropy"] = entropy
-	cv.Meta["B"] = B
-	cv.Meta["V"] = V
-	cv.Meta["I"] = I
-	cv.Meta["G"] = G
-	cv.Meta["F"] = F
-	cv.Meta["E"] = E
-	cv.Meta["t"] = t
-	cv.Meta["alignment"] = alignment
-
-	return cv
+func CompressContext(cv *ContextVector7D) *ContextVector7D {
+	return ContextCompressor(cv)
 }
 
 // Merge combines this context vector with another, preserving important information
-func (cv ContextVector7D) Merge(other ContextVector7D) ContextVector7D {
-	// WHO: ContextMerger
-	// WHAT: Context combination
-	// WHEN: During multi-source operations
-	// WHERE: Context integration points
-	// WHY: To combine information from multiple contexts
-	// HOW: Using weighted merging strategy
-	// EXTENT: Comprehensive context integration
-
-	result := cv
-
-	// Use the more recent When value
-	t1 := calculateTimeDelta("", cv.When)
-	t2 := calculateTimeDelta("", other.When)
-	if t2 < t1 {
-		result.When = other.When
-	}
-
-	// Merge metadata
-	if result.Meta == nil {
-		result.Meta = make(map[string]interface{})
-	}
-
-	if other.Meta != nil {
-		for k, v := range other.Meta {
-			if _, exists := result.Meta[k]; !exists {
-				result.Meta[k] = v
-			}
-		}
-	}
-
-	// Keep track of sources
-	if result.Source == "" {
-		result.Source = "merged"
-	} else if other.Source != "" && result.Source != other.Source {
-		result.Source = result.Source + "+" + other.Source
-	}
-
-	return result
+func MergeContexts(cv ContextVector7D, other ContextVector7D) ContextVector7D {
+	return ContextMerger(cv, other)
 }
 
 // ToMap converts the context vector to a map representation
-func (cv *ContextVector7D) ToMap() map[string]interface{} {
-	// WHO: DataTransformer
-	// WHAT: Format conversion
-	// WHEN: During serialization
-	// WHERE: Data exchange boundaries
-	// WHY: To enable interoperability
-	// HOW: Using standardized mapping
-	// EXTENT: Complete context representation
-
-	return map[string]interface{}{
-		"who":    cv.Who,
-		"what":   cv.What,
-		"when":   cv.When,
-		"where":  cv.Where,
-		"why":    cv.Why,
-		"how":    cv.How,
-		"extent": cv.Extent,
-		"meta":   cv.Meta,
-		"source": cv.Source,
-	}
+func ContextToMapConverter(cv *ContextVector7D) map[string]interface{} {
+	return ContextToMap(cv)
 }
 
 // TranslateToMCP converts the context vector to MCP format
-func (cv *ContextVector7D) TranslateToMCP() map[string]interface{} {
-	// WHO: FormatTranslator
-	// WHAT: Protocol format translation
-	// WHEN: During protocol interchange
-	// WHERE: Bridge communication
-	// WHY: For protocol compatibility
-	// HOW: Using format mapping
-	// EXTENT: All required MCP fields
-
-	result := map[string]interface{}{
-		"identity":  cv.Who,
-		"operation": cv.What,
-		"timestamp": cv.When,
-		"location":  cv.Where,
-		"purpose":   cv.Why,
-		"method":    cv.How,
-		"scope":     cv.Extent,
-	}
-
-	if cv.Meta != nil {
-		result["metadata"] = cv.Meta
-	}
-
-	if cv.Source != "" {
-		result["source"] = cv.Source
-	}
-
-	return result
+func TranslateContextToMCP(cv *ContextVector7D) map[string]interface{} {
+	return ContextTranslateToMCP(cv)
 }
 
 // TNOSMCPBridge provides bidirectional communication between GitHub MCP and TNOS MCP
@@ -259,7 +123,7 @@ func NewTNOSMCPBridge(config BridgeConfig) *TNOSMCPBridge {
 				return &ContextVector7D{
 					Who:    "System",
 					What:   "Operation",
-					When:   time.Now().Format(time.RFC3339),
+					When:   time.Now().Unix(),
 					Where:  "MCP_Bridge",
 					Why:    "Protocol_Communication",
 					How:    "Bridge_Connection",
@@ -682,8 +546,7 @@ func (b *TNOSMCPBridge) TranslateContext(githubContext map[string]interface{}) (
 	// Extract values from GitHub context with defaults
 	tnos7D.Who = extractStringWithDefault(githubContext, "identity", "System")
 	tnos7D.What = extractStringWithDefault(githubContext, "operation", "Process")
-	tnos7D.When = extractStringWithDefault(githubContext, "timestamp",
-		time.Now().Format(time.RFC3339))
+	tnos7D.When = extractTimeWithDefault(githubContext, "timestamp", time.Now().Unix())
 	tnos7D.Where = "GitHub_MCP_Bridge"
 	tnos7D.Why = extractStringWithDefault(githubContext, "purpose", "Protocol_Compliance")
 	tnos7D.How = "Bridge_Translation"
@@ -776,7 +639,7 @@ func (b *TNOSMCPBridge) createTNOSRequest(
 		return map[string]interface{}{
 			"tool":    req.Params.Name,
 			"params":  req.Params.Arguments,
-			"context": tnos7D.ToMap(),
+			"context": ContextToMapConverter(tnos7D),
 			"meta": map[string]interface{}{
 				"version":   protocolVersion.String(),
 				"requestId": generateRequestID(),
@@ -789,7 +652,7 @@ func (b *TNOSMCPBridge) createTNOSRequest(
 		return map[string]interface{}{
 			"tool":       req.Params.Name,
 			"parameters": req.Params.Arguments,
-			"context":    tnos7D.TranslateToMCP(),
+			"context":    ContextTranslateToMCP(tnos7D),
 			"requestId":  generateRequestID(),
 		}
 	default:
@@ -797,7 +660,7 @@ func (b *TNOSMCPBridge) createTNOSRequest(
 		return map[string]interface{}{
 			"tool":    req.Params.Name,
 			"params":  req.Params.Arguments,
-			"context": tnos7D.TranslateToMCP(),
+			"context": ContextTranslateToMCP(tnos7D),
 		}
 	}
 }
@@ -819,7 +682,7 @@ func (b *TNOSMCPBridge) processResponse(
 	// Add context information to the response based on protocol version
 	if protocolVersion.Major >= 2 {
 		// For MCP 2.0+, include context in the response
-		contextJSON, _ := json.Marshal(tnos7D.ToMap())
+		contextJSON, _ := json.Marshal(ContextToMapConverter(tnos7D))
 
 		// The actual MCP library might store context in a different way
 		// Here we're assuming it might use a Metadata field
@@ -1073,7 +936,7 @@ func TranslateFromMCP(mcpContext map[string]interface{}) ContextVector7D {
 	cv := ContextVector7D{
 		Who:    extractStringWithDefault(mcpContext, "identity", "External"),
 		What:   extractStringWithDefault(mcpContext, "operation", "Unknown"),
-		When:   extractStringWithDefault(mcpContext, "timestamp", time.Now().Format(time.RFC3339)),
+		When:   extractTimeWithDefault(mcpContext, "timestamp", time.Now().Unix()),
 		Where:  extractStringWithDefault(mcpContext, "location", "MCP_Interface"),
 		Why:    extractStringWithDefault(mcpContext, "purpose", "External_Request"),
 		How:    extractStringWithDefault(mcpContext, "method", "MCP_Protocol"),
@@ -1158,4 +1021,243 @@ func (pv ProtocolVersion) IsCompatibleWith(other ProtocolVersion) bool {
 
 	// Major version must match for compatibility
 	return pv.Major == other.Major
+}
+
+// convertToContextImpl implements all context methods that used to be on ContextVector7D
+// WHO: ContextImplementor
+// WHAT: Implementation of context methods for ContextVector7D
+// WHEN: During context operations
+// WHERE: MCP Bridge
+// WHY: To maintain compatibility after type aliasing
+// HOW: Using wrapper functions
+// EXTENT: All context operations
+
+// ContextCompressor wraps the Compress functionality for ContextVector7D
+func ContextCompressor(cv *translations.ContextVector7D) *translations.ContextVector7D {
+	// WHO: ContextCompressor
+	// WHAT: Context compression
+	// WHEN: During context transmission
+	// WHERE: Between systems
+	// WHY: To optimize context storage and transmission
+	// HOW: Using Möbius compression formula
+	// EXTENT: Full context representation
+
+	if cv.Meta == nil {
+		cv.Meta = make(map[string]interface{})
+	}
+
+	// Extract or set default contextual factors
+	B := getMetaFloat(cv.Meta, "B", 0.8) // Base factor
+	V := getMetaFloat(cv.Meta, "V", 0.7) // Value factor
+	I := getMetaFloat(cv.Meta, "I", 0.9) // Intent factor
+	G := getMetaFloat(cv.Meta, "G", 1.2) // Growth factor
+	F := getMetaFloat(cv.Meta, "F", 0.6) // Flexibility factor
+
+	// Calculate time factor (how "fresh" the context is)
+	now := time.Now().Unix()
+	t := calculateTimeDeltaInt64(cv.When, now)
+
+	// Calculate energy factor (computational cost)
+	E := 0.5
+
+	// Calculate context entropy (simplified)
+	contextBytes, _ := json.Marshal(cv)
+	entropy := float64(len(contextBytes)) / 100.0
+
+	// Apply Möbius compression formula
+	alignment := (B + V*I) * math.Exp(-t*E)
+	compressionFactor := (B * I * (1.0 - (entropy / math.Log2(1.0+V))) * (G + F)) /
+		(E*t + entropy + alignment)
+
+	// Store compression metadata
+	cv.Meta["compressedAt"] = now
+	cv.Meta["compressionFactor"] = compressionFactor
+	cv.Meta["entropy"] = entropy
+	cv.Meta["B"] = B
+	cv.Meta["V"] = V
+	cv.Meta["I"] = I
+	cv.Meta["G"] = G
+	cv.Meta["F"] = F
+	cv.Meta["E"] = E
+	cv.Meta["t"] = t
+	cv.Meta["alignment"] = alignment
+
+	return cv
+}
+
+// ContextMerger wraps the Merge functionality for ContextVector7D
+func ContextMerger(cv translations.ContextVector7D, other translations.ContextVector7D) translations.ContextVector7D {
+	// WHO: ContextMerger
+	// WHAT: Context combination
+	// WHEN: During multi-source operations
+	// WHERE: Context integration points
+	// WHY: To combine information from multiple contexts
+	// HOW: Using weighted merging strategy
+
+	// Determine weights based on time factors (more recent contexts have higher weight)
+	t1 := calculateTimeDeltaInt64(0, cv.When)
+	t2 := calculateTimeDeltaInt64(0, other.When)
+	
+	total := t1 + t2
+	if total == 0 {
+		total = 1 // Avoid division by zero
+	}
+	
+	w1 := t2 / total // Weight inversely proportional to age
+	w2 := t1 / total
+	
+	// Create a new merged context
+	merged := translations.ContextVector7D{
+		Who:    selectNonEmpty(cv.Who, other.Who),
+		What:   selectNonEmpty(cv.What, other.What),
+		When:   time.Now().Unix(), // Use current time for the merged context
+		Where:  selectNonEmpty(cv.Where, other.Where),
+		Why:    selectNonEmpty(cv.Why, other.Why),
+		How:    selectNonEmpty(cv.How, other.How),
+		Extent: w1*cv.Extent + w2*other.Extent,
+		Source: "merged",
+	}
+	
+	// Merge metadata
+	if cv.Meta != nil || other.Meta != nil {
+		merged.Meta = make(map[string]interface{})
+		
+		// Copy all metadata from first context
+		if cv.Meta != nil {
+			for k, v := range cv.Meta {
+				merged.Meta[k] = v
+			}
+		}
+		
+		// Add or merge metadata from second context
+		if other.Meta != nil {
+			for k, v := range other.Meta {
+				if existing, ok := merged.Meta[k]; ok {
+					// If both have the same key, store as an array
+					if existingArr, ok := existing.([]interface{}); ok {
+						merged.Meta[k] = append(existingArr, v)
+					} else {
+						merged.Meta[k] = []interface{}{existing, v}
+					}
+				} else {
+					merged.Meta[k] = v
+				}
+			}
+		}
+		
+		// Add merge metadata
+		merged.Meta["mergedAt"] = time.Now().Unix()
+		merged.Meta["mergeWeights"] = []float64{w1, w2}
+	}
+	
+	return merged
+}
+
+// ContextToMap wraps the ToMap functionality for ContextVector7D
+func ContextToMap(cv *translations.ContextVector7D) map[string]interface{} {
+	// WHO: ContextMapper
+	// WHAT: Context serialization
+	// WHEN: During context transmission
+	// WHERE: Between systems
+	// WHY: For JSON compatibility
+	// HOW: Using type conversion
+	// EXTENT: Serialization operations
+	
+	result := map[string]interface{}{
+		"who":    cv.Who,
+		"what":   cv.What,
+		"when":   cv.When,
+		"where":  cv.Where,
+		"why":    cv.Why,
+		"how":    cv.How,
+		"extent": cv.Extent,
+		"source": cv.Source,
+	}
+	
+	if cv.Meta != nil && len(cv.Meta) > 0 {
+		result["meta"] = cv.Meta
+	}
+	
+	return result
+}
+
+// ContextTranslateToMCP wraps the TranslateToMCP functionality for ContextVector7D
+func ContextTranslateToMCP(cv *translations.ContextVector7D) map[string]interface{} {
+	// WHO: ContextTranslator
+	// WHAT: Context translation to MCP format
+	// WHEN: During context exchange with MCP
+	// WHERE: MCP interface
+	// WHY: For MCP compatibility
+	// HOW: Using format conversion
+	// EXTENT: MCP-specific operations
+	
+	// Convert to standard map format
+	result := ContextToMap(cv)
+	
+	// Add MCP-specific fields
+	whenStr := ""
+	if cv.When > 0 {
+		whenStr = time.Unix(cv.When, 0).Format(time.RFC3339)
+	} else {
+		whenStr = time.Now().Format(time.RFC3339)
+	}
+	
+	result["timestamp"] = whenStr
+	result["protocol"] = "TNOS-MCP"
+	result["version"] = "1.0"
+	
+	return result
+}
+
+// Helper functions for compatibility with changed types
+
+// calculateTimeDeltaInt64 calculates time difference between two int64 timestamps
+func calculateTimeDeltaInt64(t1 int64, t2 int64) float64 {
+	// Ensure we have valid timestamps
+	if t1 <= 0 {
+		t1 = time.Now().Add(-24 * time.Hour).Unix() // Default to 24 hours ago
+	}
+	if t2 <= 0 {
+		t2 = time.Now().Unix() // Default to now
+	}
+	
+	// Calculate difference in seconds and normalize
+	diffSeconds := math.Abs(float64(t2 - t1))
+	
+	// Normalize to a 0.0-1.0 scale with a half-life of 1 hour
+	// Values closer to 0 are "fresher"
+	halfLifeSeconds := 3600.0
+	normalized := 1.0 - math.Exp(-diffSeconds/halfLifeSeconds)
+	
+	return normalized
+}
+
+// Helper for selecting non-empty string
+func selectNonEmpty(s1, s2 string) string {
+	if s1 != "" {
+		return s1
+	}
+	return s2
+}
+
+// extractTimeWithDefault extracts a timestamp from a string or falls back to default
+func extractTimeWithDefault(data map[string]interface{}, key string, defaultValue int64) int64 {
+	if v, ok := data[key]; ok {
+		switch t := v.(type) {
+		case int64:
+			return t
+		case float64:
+			return int64(t)
+		case string:
+			// Try to parse as timestamp string
+			if parsed, err := time.Parse(time.RFC3339, t); err == nil {
+				return parsed.Unix()
+			}
+			// Try to parse as number
+			if i, err := strconv.ParseInt(t, 10, 64); err == nil {
+				return i
+			}
+		}
+	}
+	return defaultValue
 }

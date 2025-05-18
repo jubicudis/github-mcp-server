@@ -144,7 +144,17 @@ func (b *MCPBridge) Connect() error {
 
 	// Attempt connection
 	log.Printf("Connecting to TNOS MCP at %s", b.url)
-	conn, _, err := websocket.DefaultDialer.Dial(b.url, nil)
+	
+	// Create a dialer with the timeout settings from common.go
+	dialer := websocket.Dialer{
+		HandshakeTimeout: WriteTimeout,
+	}
+	
+	// Create a context with timeout for the connection
+	connectCtx, cancel := context.WithTimeout(b.ctx, WriteTimeout)
+	defer cancel()
+	
+	conn, _, err := dialer.DialContext(connectCtx, b.url, nil)
 
 	if err != nil {
 		b.lastError = fmt.Errorf("failed to connect: %w", err)
@@ -243,6 +253,14 @@ func (b *MCPBridge) SendMessage(messageType string, payload map[string]interface
 	// Add context information
 	contextMap := b.persistentContext.ToMap()
 	message["context"] = contextMap
+
+	// Set write deadline using timeout from common.go
+	if WriteTimeout > 0 {
+		err := b.conn.SetWriteDeadline(time.Now().Add(WriteTimeout))
+		if err != nil {
+			log.Printf("Failed to set write deadline: %v", err)
+		}
+	}
 
 	// Serialize and send
 	err := b.conn.WriteJSON(message)
@@ -426,6 +444,14 @@ func (b *MCPBridge) handleMessages() {
 		if b.conn == nil {
 			// Connection closed, exit loop
 			return
+		}
+		
+		// Set read deadline using timeout from common.go
+		if ReadTimeout > 0 {
+			err := b.conn.SetReadDeadline(time.Now().Add(ReadTimeout))
+			if err != nil {
+				log.Printf("Failed to set read deadline: %v", err)
+			}
 		}
 
 		// Read next message

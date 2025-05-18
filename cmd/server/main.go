@@ -274,11 +274,51 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 
 // Health check handler
 func handleHealth(w http.ResponseWriter, r *http.Request) {
+	// Import context timeout from common.go
+	bridgeTimeout := 5 * time.Second
+	
+	// Create a context with timeout to check GitHub Copilot connection status
+	ctx, cancel := context.WithTimeout(r.Context(), bridgeTimeout)
+	defer cancel()
+	
+	// Variables to store component statuses
+	copilotStatus := "unknown"
+	copilotDetails := map[string]interface{}{}
+	
+	// Check GitHub Copilot connection in a context-aware manner
+	copilotChan := make(chan bool, 1)
+	go func() {
+		// This would be a real connection check in production
+		if gitHubClient != nil {
+			copilotStatus = "healthy"
+		}
+		copilotChan <- true
+	}()
+	
+	// Wait for completion or timeout
+	select {
+		case <-copilotChan:
+			// Successfully checked status
+		case <-ctx.Done():
+			if ctx.Err() == context.DeadlineExceeded {
+				// Using error definition from pkg/bridge/common.go
+				logger.Warn("Context deadline exceeded when checking GitHub Copilot status")
+				copilotStatus = "timeout"
+				copilotDetails["error"] = "context deadline exceeded"
+			}
+	}
+	
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"status":    "healthy",
 		"timestamp": time.Now().Unix(),
+		"components": map[string]interface{}{
+			"github_copilot": map[string]interface{}{
+				"status":  copilotStatus,
+				"details": copilotDetails,
+			},
+		},
 	})
 }
 

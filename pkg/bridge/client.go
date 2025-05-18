@@ -18,6 +18,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/jubicudis/github-mcp-server/pkg/log"
+	"github.com/jubicudis/github-mcp-server/pkg/translations"
 )
 
 // DefaultProtocolVersion and other protocol constants are defined in common.go
@@ -25,21 +26,7 @@ import (
 // Message is imported from common.go
 // Representing a message sent over the bridge
 
-// ClientMessage represents a bridge message for client operations
-type ClientMessage struct {
-	// WHO: MessageFormat
-	// WHAT: Message structure definition
-	// WHEN: During message exchange
-	// WHERE: System Layer 6 (Integration)
-	// WHY: To structure bridge communications
-	// HOW: Using standardized message format
-	// EXTENT: All bridge messages
-
-	Type      string      `json:"type"`
-	Timestamp int64       `json:"timestamp"`
-	Content   interface{} `json:"content,omitempty"`
-	Context   interface{} `json:"context,omitempty"`
-}
+// Use Message type from common.go instead of defining a separate ClientMessage type
 
 // BridgeStats is imported from common.go
 // WHO: StatsCollector
@@ -66,6 +53,20 @@ func NewClient(ctx context.Context, options ConnectionOptions) (*Client, error) 
 	logger := options.Logger
 	if logger == nil {
 		logger = log.NewLogger()
+	}
+	
+	// Ensure context is initialized
+	if options.Context.Who == "" {
+		options.Context = translations.ContextVector7D{
+			Who:    "BridgeClient",
+			What:   "Connection",
+			When:   time.Now().Unix(),
+			Where:  "SystemLayer6",
+			Why:    "Communication",
+			How:    "WebSocket",
+			Extent: 1.0,
+			Source: "GitHubMCPServer",
+		}
 	}
 	
 	client := &Client{
@@ -111,10 +112,18 @@ func (c *Client) connect() error {
 	}
 	
 	dialer := websocket.Dialer{
-		HandshakeTimeout: 10 * time.Second,
+		HandshakeTimeout: WriteTimeout, // Use the timeout constant from common.go
 	}
 	
-	conn, resp, err := dialer.Dial(u.String(), headers)
+	// Use a context with timeout for the dial operation
+	dialCtx := c.ctx
+	if c.options.Timeout > 0 {
+		var cancel context.CancelFunc
+		dialCtx, cancel = context.WithTimeout(c.ctx, c.options.Timeout)
+		defer cancel()
+	}
+	
+	conn, resp, err := dialer.DialContext(dialCtx, u.String(), headers)
 	if err != nil {
 		statusCode := 0
 		if resp != nil {
@@ -168,9 +177,22 @@ func (c *Client) Send(msg Message) error {
 		return ErrBridgeNotConnected
 	}
 	
+	// Ensure context is properly set
+	if msg.Context == nil && c.options.Context.Who != "" {
+		msg.Context = c.options.Context
+	}
+	
 	data, err := json.Marshal(msg)
 	if err != nil {
 		return fmt.Errorf("failed to marshal message: %w", err)
+	}
+	
+	// Set write deadline using WriteTimeout from common.go
+	if WriteTimeout > 0 {
+		err = c.conn.SetWriteDeadline(time.Now().Add(WriteTimeout))
+		if err != nil {
+			c.logger.Error("Failed to set write deadline", "error", err.Error())
+		}
 	}
 	
 	err = c.conn.WriteMessage(websocket.TextMessage, data)
@@ -199,7 +221,26 @@ func (c *Client) readPump() {
 		c.close()
 	}()
 	
+	// Configure read deadline from common.go
+	if ReadTimeout > 0 {
+		err := c.conn.SetReadDeadline(time.Now().Add(ReadTimeout))
+		if err != nil {
+			c.logger.Error("Failed to set read deadline", "error", err.Error())
+		}
+	}
+	
+	// Configure maximum message size from common.go
+	c.conn.SetReadLimit(MaxMessageSize)
+	
 	for {
+		// Reset the read deadline for each message
+		if ReadTimeout > 0 {
+			err := c.conn.SetReadDeadline(time.Now().Add(ReadTimeout))
+			if err != nil {
+				c.logger.Error("Failed to reset read deadline", "error", err.Error())
+			}
+		}
+		
 		_, data, err := c.conn.ReadMessage()
 		if err != nil {
 			c.logger.Error("Failed to read message", "error", err.Error())
@@ -218,6 +259,22 @@ func (c *Client) readPump() {
 			c.logger.Error("Failed to unmarshal message", "error", err.Error())
 			c.stats.ErrorCount++
 			continue
+		}
+		
+		// Process context if needed
+		if ctxMap, ok := msg.Context.(map[string]interface{}); ok {
+			// Convert context map to ContextVector7D
+			contextVector := translations.ContextVector7D{
+				Who:    getString(ctxMap, "who", "RemoteSystem"),
+				What:   getString(ctxMap, "what", "Communication"),
+				When:   getInt64(ctxMap, "when", time.Now().Unix()),
+				Where:  getString(ctxMap, "where", "RemoteLayer"),
+				Why:    getString(ctxMap, "why", "Response"),
+				How:    getString(ctxMap, "how", "WebSocket"),
+				Extent: getFloat64(ctxMap, "extent", 1.0),
+				Source: getString(ctxMap, "source", "External"),
+			}
+			msg.Context = contextVector
 		}
 		
 		c.stats.MessagesReceived++
@@ -287,4 +344,60 @@ func (c *Client) close() {
 	if c.ctx.Err() != nil {
 		close(c.messages)
 	}
+}
+
+// Context extraction helpers
+// WHO: ContextHelper
+// WHAT: Helper functions for context extraction
+// WHEN: During message processing
+// WHERE: System Layer 6 (Integration)
+// WHY: To standardize context extraction
+// HOW: Using type assertions
+// EXTENT: All context extraction operations
+
+func getString(m map[string]interface{}, key, defaultValue string) string {
+	if v, ok := m[key]; ok {
+		if s, ok := v.(string); ok {
+			return s
+		}
+	}
+	return defaultValue
+}
+
+func getInt64(m map[string]interface{}, key string, defaultValue int64) int64 {
+	if v, ok := m[key]; ok {
+		switch t := v.(type) {
+		case int64:
+			return t
+		case float64:
+			return int64(t)
+		case string:
+			var parsedInt int64
+			if _, err := fmt.Sscanf(t, "%d", &parsedInt); err == nil {
+				return parsedInt
+			}
+		case int:
+			return int64(t)
+		}
+	}
+	return defaultValue
+}
+
+func getFloat64(m map[string]interface{}, key string, defaultValue float64) float64 {
+	if v, ok := m[key]; ok {
+		switch t := v.(type) {
+		case float64:
+			return t
+		case int64:
+			return float64(t)
+		case string:
+			var parsedFloat float64
+			if _, err := fmt.Sscanf(t, "%f", &parsedFloat); err == nil {
+				return parsedFloat
+			}
+		case int:
+			return float64(t)
+		}
+	}
+	return defaultValue
 }
