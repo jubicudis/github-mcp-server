@@ -12,10 +12,9 @@ EXTENT: All Python-managed compression operations
 """
 
 import json
-import time
 import math
-import base64
-from typing import Dict, Any, Optional, Tuple
+import time
+from typing import Any, Dict
 
 
 class MobiusCompression:
@@ -110,9 +109,9 @@ class MobiusCompression:
                 "data": data_str  # Still include original data for this implementation
             }
 
-            # Serialize to string and apply base encoding for transmission
+            # Serialize to string for transmission
             compressed_json = json.dumps(compressed_package)
-            compressed_data = base64.b64encode(compressed_json.encode("utf-8")).decode("utf-8")
+            compressed_data = compressed_json
             compressed_size = len(compressed_data)
 
             # Calculate compression ratio
@@ -159,7 +158,7 @@ class MobiusCompression:
             return {
                 "success": False,
                 "error": f"Möbius compression failed: {str(e)}",
-                "data": base64.b64encode(json.dumps(data).encode("utf-8")).decode("utf-8"),
+                "data": json.dumps(data),
                 "timestamp": int(time.time() * 1000),
             }
         finally:
@@ -176,9 +175,8 @@ class MobiusCompression:
             data = compressed_data.get("data", "")
             metadata = compressed_data.get("metadata", {})
 
-            # Decode base64 and parse JSON
-            decoded_bytes = base64.b64decode(data)
-            decoded_json = json.loads(decoded_bytes.decode("utf-8"))
+            # Parse JSON
+            decoded_json = json.loads(data)
             
             # If not using proper Möbius format, fall back to old method
             if "algorithm" not in decoded_json or decoded_json["algorithm"] != "mobius7d":
