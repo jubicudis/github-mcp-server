@@ -14,9 +14,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
-	
+
 	"github.com/gorilla/websocket"
 	"github.com/jubicudis/github-mcp-server/pkg/log"
 	"github.com/jubicudis/github-mcp-server/pkg/translations"
@@ -49,6 +50,26 @@ const (
 	PingInterval           = 30 * time.Second
 	MaxMessageSize         = 10485760 // 10MB
 	DefaultProtocolVersion = "3.0"
+)
+
+// Message types - centralized from mcp_bridge.go
+const (
+	// WHO: MessageTypeManager
+	// WHAT: Message type constants
+	// WHEN: During message handling
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To categorize messages
+	// HOW: Using type codes
+	// EXTENT: All message types
+
+	TypeHandshake    = "handshake"
+	TypeCommand      = "command"
+	TypeQuery        = "query"
+	TypeResponse     = "response"
+	TypeNotification = "notification"
+	TypeError        = "error"
+	TypeHealthCheck  = "health_check"
+	TypeContext      = "context"
 )
 
 // Common error definitions
@@ -222,5 +243,56 @@ func IsSupportedVersion(version string) bool {
 		return true
 	default:
 		return false
+	}
+}
+
+// WHO: MessageHelper
+// WHAT: Create a standard message
+// WHEN: During message preparation
+// WHERE: System Layer 6 (Integration)
+// WHY: To standardize message creation
+// HOW: Using common format
+// EXTENT: All message operations
+func CreateMessage(messageType string, payload map[string]interface{}, context interface{}) Message {
+	return Message{
+		Type:      messageType,
+		Timestamp: time.Now().UnixNano() / int64(time.Millisecond),
+		Payload:   payload,
+		Context:   context,
+		ID:        GenerateMessageID(),
+	}
+}
+
+// WHO: IDGenerator
+// WHAT: Generate unique message ID
+// WHEN: During message creation
+// WHERE: System Layer 6 (Integration)
+// WHY: For message tracking
+// HOW: Using timestamp and random component
+// EXTENT: Message lifecycle
+func GenerateMessageID() string {
+	timestamp := time.Now().UnixNano()
+	randomPart := timestamp % 10000
+	return fmt.Sprintf("msg-%d-%d", timestamp, randomPart)
+}
+
+// WHO: ErrorHandler 
+// WHAT: Create standard error response
+// WHEN: During error handling
+// WHERE: System Layer 6 (Integration)
+// WHY: For standardized error reporting
+// HOW: Using error message template
+// EXTENT: Error handling
+func CreateErrorResponse(originalMessage Message, errMsg string, errCode string) Message {
+	return Message{
+		Type:      TypeError,
+		Timestamp: time.Now().UnixNano() / int64(time.Millisecond),
+		Context:   originalMessage.Context,
+		ID:        GenerateMessageID(),
+		Payload: map[string]interface{}{
+			"originalMessage": originalMessage.ID,
+			"error":           errMsg,
+			"code":            errCode,
+		},
 	}
 }

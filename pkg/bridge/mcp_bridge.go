@@ -26,24 +26,7 @@ import (
 )
 
 // Message types
-const (
-	// WHO: MessageTypeManager
-	// WHAT: Message type constants
-	// WHEN: During message handling
-	// WHERE: System Layer 6 (Integration)
-	// WHY: To categorize messages
-	// HOW: Using type codes
-	// EXTENT: All message types
-
-	TypeHandshake    = "handshake"
-	TypeCommand      = "command"
-	TypeQuery        = "query"
-	TypeResponse     = "response"
-	TypeNotification = "notification"
-	TypeError        = "error"
-	TypeHealthCheck  = "health_check"
-	TypeContext      = "context"
-)
+// Message types are imported from common.go
 
 // BridgeOptions configures the MCP bridge
 type BridgeOptions struct {
@@ -87,8 +70,8 @@ type Bridge struct {
 	reconnecting bool
 
 	// Message handling
-	handlers        map[string]MCPMessageHandler
-	responseWaiters map[string]chan MCPMessage
+	handlers        map[string]MessageHandler
+	responseWaiters map[string]chan Message
 
 	// Context
 	context *translations.ContextVector7D
@@ -143,7 +126,9 @@ type ErrorInfo struct {
 
 // MCPMessageHandler is a function that handles incoming MCP-specific messages
 // Distinct from the common MessageHandler in common.go
-type MCPMessageHandler func(message MCPMessage) error
+// MCPMessageHandler is a function type for handling MCP messages
+// Keeping for backward compatibility
+type MCPMessageHandler = MessageHandler
 
 // NewBridge creates a new MCP bridge
 func NewBridge(options BridgeOptions) *Bridge {
@@ -419,7 +404,7 @@ func (b *Bridge) performHandshake() error {
 	// EXTENT: Protocol negotiation
 
 	handshake := Message{
-		ID:   generateMessageID(),
+		ID:   GenerateMessageID(),
 		Type: TypeHandshake,
 		Payload: map[string]interface{}{
 			"protocol":          "mcp",
@@ -442,8 +427,13 @@ func (b *Bridge) performHandshake() error {
 	}
 
 	// Check for errors
-	if response.Error != nil {
-		return fmt.Errorf("handshake rejected: %s", response.Error.Message)
+	errorMessage, hasError := response.Payload["error"].(map[string]interface{})
+	if hasError {
+		errorText := "unknown error"
+		if msg, ok := errorMessage["message"].(string); ok {
+			errorText = msg
+		}
+		return fmt.Errorf("handshake rejected: %s", errorText)
 	}
 
 	// Extract protocol version and features
@@ -500,7 +490,7 @@ func (b *Bridge) Send(message Message) error {
 
 	// Generate ID if not provided
 	if message.ID == "" {
-		message.ID = generateMessageID()
+		message.ID = GenerateMessageID()
 	}
 
 	// Add context if not provided
@@ -538,7 +528,7 @@ func (b *Bridge) SendAndWait(message Message, timeout time.Duration) (Message, e
 
 	// Generate ID if not provided
 	if message.ID == "" {
-		message.ID = generateMessageID()
+		message.ID = GenerateMessageID()
 	}
 
 	// Create response channel
@@ -711,7 +701,12 @@ func (b *Bridge) processIncomingContext(message Message) {
 
 	if message.Context != nil {
 		// Translate MCP context to 7D context
-		incomingContext := translations.TranslateFromMCP(message.Context)
+		contextMap, ok := message.Context.(map[string]interface{})
+		if !ok {
+			b.options.Logger.Error("Failed to convert context to map", "type", fmt.Sprintf("%T", message.Context))
+			return
+		}
+		incomingContext := translations.TranslateFromMCP(contextMap)
 
 		// Merge with existing context
 		if b.context != nil {
@@ -895,7 +890,7 @@ func (b *Bridge) healthCheckPump() {
 
 		// Send health check
 		healthCheck := Message{
-			ID:   generateMessageID(),
+			ID:   GenerateMessageID(),
 			Type: TypeHealthCheck,
 			Payload: map[string]interface{}{
 				"timestamp": time.Now().Unix(),
@@ -949,10 +944,16 @@ func (b *Bridge) SendCommand(command string, payload map[string]interface{}) (Me
 	// EXTENT: Single command
 
 	message := Message{
-		ID:      generateMessageID(),
-		Type:    TypeCommand,
-		Command: command,
-		Payload: payload,
+		ID:   GenerateMessageID(),
+		Type: TypeCommand,
+		Payload: map[string]interface{}{
+			"command": command,
+		},
+	}
+	
+	// Add the payload items
+	for k, v := range payload {
+		message.Payload[k] = v
 	}
 
 	return b.SendAndWait(message, 30*time.Second)
@@ -969,10 +970,16 @@ func (b *Bridge) SendQuery(command string, payload map[string]interface{}) (Mess
 	// EXTENT: Single query
 
 	message := Message{
-		ID:      generateMessageID(),
-		Type:    TypeQuery,
-		Command: command,
-		Payload: payload,
+		ID:   GenerateMessageID(),
+		Type: TypeQuery,
+		Payload: map[string]interface{}{
+			"command": command,
+		},
+	}
+	
+	// Add the payload items
+	for k, v := range payload {
+		message.Payload[k] = v
 	}
 
 	return b.SendAndWait(message, 30*time.Second)
@@ -992,10 +999,10 @@ func (b *Bridge) SendContextSync() error {
 	compressedContext := b.context.Compress()
 
 	message := Message{
-		ID:      generateMessageID(),
-		Type:    TypeContext,
-		Command: "sync",
+		ID:   GenerateMessageID(),
+		Type: TypeContext,
 		Payload: map[string]interface{}{
+			"command": "sync",
 			"context": compressedContext.ToMap(),
 			"source":  "github_mcp",
 		},
@@ -1008,15 +1015,4 @@ func (b *Bridge) SendContextSync() error {
 
 // Helper functions
 
-// generateMessageID generates a unique message ID
-func generateMessageID() string {
-	// WHO: IDGenerator
-	// WHAT: Generate message ID
-	// WHEN: During message creation
-	// WHERE: System Layer 6 (Integration)
-	// WHY: For message identification
-	// HOW: Using timestamp and random
-	// EXTENT: Single message ID
-
-	return fmt.Sprintf("msg-%d-%d", time.Now().UnixNano(), time.Now().Unix()%1000)
-}
+// Note: generateMessageID is replaced by GenerateMessageID in common.go

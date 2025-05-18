@@ -14,12 +14,10 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/jubicudis/github-mcp-server/pkg/log"
-	"github.com/jubicudis/github-mcp-server/pkg/translations"
 )
 
 // DefaultProtocolVersion and other protocol constants are defined in common.go
@@ -67,7 +65,7 @@ func NewClient(ctx context.Context, options ConnectionOptions) (*Client, error) 
 	
 	logger := options.Logger
 	if logger == nil {
-		logger = log.Default()
+		logger = log.NewLogger()
 	}
 	
 	client := &Client{

@@ -722,12 +722,28 @@ func (b *MCPBridge) UpdateContextFromMessage(message map[string]interface{}) {
 // This will be removed in a future release
 type BridgeClient = Client
 
-// BridgeClient provides a compatibility wrapper for transitioning to the new client.go implementation
-// This will be removed in a future release
-type BridgeClient = Client
+// NewClient creates a new MCP bridge client
+// WHO: ClientCreator
+// WHAT: Create bridge client instance
+// WHEN: During client initialization
+// WHERE: System Layer 6 (Integration)
+// WHY: For system integration
+// HOW: Using configuration options
+// EXTENT: Client lifecycle
+func NewBridgeMCPClient(ctx context.Context, options ConnectionOptions) (*Client, error) {
+	// WHO: BridgeClientCreator
+	// WHAT: Create MCP bridge client instance
+	// WHEN: During client initialization
+	// WHERE: System Layer 6 (Integration)
+	// WHY: For system integration with unique naming
+	// HOW: Using configuration options
+	// EXTENT: Client lifecycle
+	return newClientImpl(ctx, options)
+}
 
 // newClientImpl is the internal implementation of NewClient
 func newClientImpl(ctx context.Context, options ConnectionOptions) (*Client, error) {
+	// Validation and error checking is handled by the calling function
 	if options.ServerURL == "" {
 		return nil, errors.New("server URL is required")
 	}
