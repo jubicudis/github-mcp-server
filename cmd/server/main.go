@@ -1325,10 +1325,9 @@ func handleContextSync(message bridge.Message) {
 
 	logger.Debug("Processing context sync message")
 
-	// Extract context data
-	content, ok := message.Content.(map[string]interface{})
-	if !ok {
-		logger.Error("Invalid context sync message format")
+	// Check if we have payload data
+	if message.Payload == nil {
+		logger.Error("Invalid context sync message format: missing payload")
 		return
 	}
 
@@ -1350,10 +1349,9 @@ func handleFormulaExecution(message bridge.Message) {
 
 	logger.Debug("Processing formula execution message")
 
-	// Extract formula data
-	content, ok := message.Content.(map[string]interface{})
-	if !ok {
-		logger.Error("Invalid formula execution message format")
+	// Check if we have payload data
+	if message.Payload == nil {
+		logger.Error("Invalid formula execution message format: missing payload")
 		return
 	}
 
@@ -1377,43 +1375,43 @@ func processTNOSBridgeMessage(bridgeClient *bridge.Client, message bridge.Messag
 	switch message.Type {
 	case "context":
 		// Handle context update
-		contextData, ok := message.Payload.(map[string]interface{})
-		if !ok {
-			logger.Error("Failed to parse context message: payload is not a map")
+		// Make sure Payload exists
+		if message.Payload == nil {
+			logger.Error("Failed to parse context message: payload is missing")
 			return
 		}
 
-		// Create 7D context
-		updatedContext := translations.NewContextVector7D(contextData)
+		// Create 7D context from payload map
+		updatedContext := translations.NewContextVector7D(message.Payload)
 
 		// Broadcast context update to WebSocket clients
 		broadcastContextUpdate(updatedContext)
 
 	case "event":
 		// Handle TNOS event
-		eventData, ok := message.Payload.(map[string]interface{})
-		if !ok {
-			logger.Error("Failed to parse event message: payload is not a map")
+		// Make sure Payload exists
+		if message.Payload == nil {
+			logger.Error("Failed to parse event message: payload is missing")
 			return
 		}
 
 		// Log event
-		eventType, _ := eventData["type"].(string)
+		eventType, _ := message.Payload["type"].(string)
 		logger.Info("Received TNOS event", "type", eventType)
 
 		// Broadcast event to WebSocket clients
-		broadcastEvent(eventData)
+		broadcastEvent(message.Payload)
 
 	case "formula":
 		// Handle formula registration or update
-		formulaData, ok := message.Payload.(map[string]interface{})
-		if !ok {
-			logger.Error("Failed to parse formula message: payload is not a map")
+		// Make sure Payload exists
+		if message.Payload == nil {
+			logger.Error("Failed to parse formula message: payload is missing")
 			return
 		}
 
 		// Log formula update
-		formulaName, _ := formulaData["name"].(string)
+		formulaName, _ := message.Payload["name"].(string)
 		logger.Info("Received formula update", "name", formulaName)
 
 		// Acknowledge formula update
@@ -1432,8 +1430,10 @@ func processTNOSBridgeMessage(bridgeClient *bridge.Client, message bridge.Messag
 	case "ping":
 		// Respond to ping
 		pongMessage := bridge.Message{
-			Type:    "pong",
-			Payload: []byte(`{"timestamp":` + strconv.FormatInt(time.Now().Unix(), 10) + `}`),
+			Type: "pong",
+			Payload: map[string]interface{}{
+				"timestamp": time.Now().Unix(),
+			},
 		}
 
 		if err := bridgeClient.Send(pongMessage); err != nil {
@@ -1480,23 +1480,25 @@ func handleVisualizationRequest(message bridge.Message, client *bridge.Client) {
 
 	logger.Debug("Processing visualization request")
 
-	// Extract visualization data
-	content, ok := message.Content.(map[string]interface{})
-	if !ok {
-		logger.Error("Invalid visualization request format")
+	// Check if we have payload data
+	if message.Payload == nil {
+		logger.Error("Invalid visualization request format: missing payload")
 		return
 	}
 
 	// Process visualization request (implementation depends on specific needs)
 	// ...
 
+	// Extract request ID if available
+	requestID, _ := message.Payload["requestId"].(string)
+
 	// Send response back to bridge
 	response := bridge.Message{
 		Type:      "visualization_response",
 		Timestamp: time.Now().Unix(),
-		Content: map[string]interface{}{
+		Payload: map[string]interface{}{
 			"status":    "success",
-			"requestId": content["requestId"],
+			"requestId": requestID,
 			// Add visualization data here
 		},
 	}
@@ -1518,23 +1520,25 @@ func handleCompressionRequest(message bridge.Message, client *bridge.Client) {
 
 	logger.Debug("Processing compression request")
 
-	// Extract compression data
-	content, ok := message.Content.(map[string]interface{})
-	if !ok {
-		logger.Error("Invalid compression request format")
+	// Check if we have payload data
+	if message.Payload == nil {
+		logger.Error("Invalid compression request format: missing payload")
 		return
 	}
 
 	// Process compression request (implementation depends on specific needs)
 	// ...
 
+	// Extract request ID if available
+	requestID, _ := message.Payload["requestId"].(string)
+
 	// Send response back to bridge
 	response := bridge.Message{
 		Type:      "compression_response",
 		Timestamp: time.Now().Unix(),
-		Content: map[string]interface{}{
+		Payload: map[string]interface{}{
 			"status":    "success",
-			"requestId": content["requestId"],
+			"requestId": requestID,
 			// Add compression result here
 		},
 	}
@@ -1554,14 +1558,14 @@ func handleBridgeError(message bridge.Message) {
 	// HOW: Using error processing
 	// EXTENT: Single error message
 
-	content, ok := message.Content.(map[string]interface{})
-	if !ok {
-		logger.Error("Invalid error message format")
+	// Check if we have payload data
+	if message.Payload == nil {
+		logger.Error("Invalid error message format: missing payload")
 		return
 	}
 
-	errorMsg, _ := content["message"].(string)
-	errorCode, _ := content["code"].(float64)
+	errorMsg, _ := message.Payload["message"].(string)
+	errorCode, _ := message.Payload["code"].(float64)
 
 	logger.Error("Bridge error received",
 		"code", errorCode,
