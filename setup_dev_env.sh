@@ -221,3 +221,189 @@ cp "$WORKSPACE_ROOT/github-mcp-server/bin/github-mcp-server" "$WORKSPACE_ROOT/bi
 
 # If not using start-all, use the dedicated script
 echo "To start the GitHub MCP Server, run: bash $WORKSPACE_ROOT/scripts/shell/start_github_mcp_server.sh"
+
+# === MCP Integration Management (Quantum Symmetry Aligned) ===
+# WHO: DevEnvSetup
+# WHAT: Start/stop/status for all MCP integration components, enforcing quantum symmetry
+# WHEN: During dev setup, run, or stop
+# WHERE: System Layer 6 (Integration)
+# WHY: To ensure all MCP components are managed from a single canonical script, with mirrored and entangled logic
+# HOW: In-place shell logic, symmetric PID/port checks, no new files
+# EXTENT: All MCP integration processes, with explicit symmetry and entanglement
+
+# Quantum Symmetry Principle: The following functions are mirrored (start/stop/status) and operate on all MCP components in a symmetric, entangled fashion. Each component's state is checked and managed using both PID and port (input/output) to ensure reversible, loss-aware operations. Any change in one module (start/stop) is reflected in its paired status logic.
+
+start_all_mcp() {
+    echo "[MCP] Stopping any existing MCP processes..."
+    pkill -f "github-mcp-server"
+    pkill -f "tnos_mcp_server.py"
+    pkill -f "tnos_mcp_bridge.py"
+    pkill -f "enhanced_mobius_visualization_server.py"
+    sleep 2
+
+    echo "[MCP] Building GitHub MCP Server..."
+    go build -o ./bin/github-mcp-server ./cmd/server || { echo "[MCP] Build failed."; exit 1; }
+    cp -f ./bin/github-mcp-server "$WORKSPACE_ROOT/bin/github-mcp-server" 2>/dev/null
+
+    # Start GitHub MCP Server (mirrored logic)
+    echo "[MCP] Starting GitHub MCP Server on port 8889..."
+    PROJECT_ROOT="$WORKSPACE_ROOT"
+    LOGS_DIR="$PROJECT_ROOT/logs"
+    SERVER_LOG="$LOGS_DIR/github_mcp_server.log"
+    SERVER_BIN="$PROJECT_ROOT/github-mcp-server/bin/github-mcp-server"
+    SERVER_BIN_ALT="$PROJECT_ROOT/bin/github-mcp-server"
+    if [[ -f "$SERVER_BIN" ]]; then
+      GITHUB_MCP_SERVER="$SERVER_BIN"
+    elif [[ -f "$SERVER_BIN_ALT" ]]; then
+      GITHUB_MCP_SERVER="$SERVER_BIN_ALT"
+    else
+      echo "ERROR: GitHub MCP server binary not found."
+      exit 1
+    fi
+    mkdir -p "$LOGS_DIR"
+    if lsof -i :8889 | grep LISTEN; then
+      echo "ERROR: Port 8889 is already in use. GitHub MCP server will not be started."
+    else
+      nohup "$GITHUB_MCP_SERVER" --port=8889 > "$SERVER_LOG" 2>&1 &
+      echo $! > "$LOGS_DIR/github_mcp_server.pid"
+      echo "GitHub MCP server started with PID $(cat "$LOGS_DIR/github_mcp_server.pid") on port 8889 (log: $SERVER_LOG)"
+    fi
+    sleep 2
+
+    # Start TNOS MCP Server (mirrored logic)
+    echo "[MCP] Starting TNOS MCP Server on port 8083..."
+    MCP_SERVER_SCRIPT="$PROJECT_ROOT/mcp/bridge/tnos_mcp_server.py"
+    VENV_DIR="$PROJECT_ROOT/python/tnos_venv"
+    if [[ ! -f "$MCP_SERVER_SCRIPT" ]]; then
+      echo "ERROR: TNOS MCP server script not found!"
+    else
+      if lsof -i :8083 | grep LISTEN; then
+        echo "ERROR: Port 8083 (TCP) is already in use. TNOS MCP server will not be started."
+      else
+        if [[ -f "$VENV_DIR/bin/activate" ]]; then
+          source "$VENV_DIR/bin/activate"
+        fi
+        export PYTHONPATH="$PROJECT_ROOT:$PROJECT_ROOT/core:$PROJECT_ROOT/github-mcp-server:$PYTHONPATH"
+        nohup python "$MCP_SERVER_SCRIPT" --port 8083 --http-port 8084 > "$LOGS_DIR/tnos_mcp_server.log" 2>&1 &
+        echo $! > "$LOGS_DIR/tnos_mcp_server.pid"
+        echo "TNOS MCP server started with PID $(cat "$LOGS_DIR/tnos_mcp_server.pid") on port 8083 (TCP) and 8084 (HTTP) (log: $LOGS_DIR/tnos_mcp_server.log)"
+      fi
+    fi
+    sleep 2
+
+    # Start Enhanced Möbius Visualization Server (mirrored logic)
+    echo "[MCP] Starting Enhanced Möbius Visualization Server on port 7779..."
+    VISUALIZATION_SERVER_SCRIPT="$PROJECT_ROOT/mcp/bridge/visualization/enhanced_mobius_visualization_server.py"
+    if [[ ! -f "$VISUALIZATION_SERVER_SCRIPT" ]]; then
+      echo "ERROR: Enhanced Visualization server script not found!"
+    else
+      if lsof -i :7779 | grep LISTEN; then
+        echo "ERROR: Port 7779 is already in use. Enhanced Visualization server will not be started."
+      else
+        if [[ -f "$VENV_DIR/bin/python" ]]; then
+          PYTHON_EXEC="$VENV_DIR/bin/python"
+        else
+          PYTHON_EXEC=$(which python3)
+        fi
+        nohup $PYTHON_EXEC "$VISUALIZATION_SERVER_SCRIPT" > "$LOGS_DIR/enhanced_visualization_server.log" 2>&1 &
+        echo $! > "$LOGS_DIR/enhanced_visualization_server.pid"
+        echo "Enhanced Möbius Visualization Server started on port 7779 (log: $LOGS_DIR/enhanced_visualization_server.log)"
+      fi
+    fi
+    sleep 2
+
+    # Start MCP Bridge (mirrored logic)
+    echo "[MCP] Starting MCP Bridge between GitHub port 8889 and TNOS port 8083..."
+    PYTHON_BRIDGE="$PROJECT_ROOT/mcp/bridge/tnos_mcp_bridge.py"
+    if [[ ! -f "$PYTHON_BRIDGE" ]]; then
+      echo "ERROR: MCP Bridge script not found!"
+    else
+      nohup python "$PYTHON_BRIDGE" --port=8082 --github-port=8889 --tnos-port=8084 > "$LOGS_DIR/mcp_bridge.log" 2>&1 &
+      echo $! > "$LOGS_DIR/mcp_bridge.pid"
+      echo "MCP Bridge started with PID $(cat "$LOGS_DIR/mcp_bridge.pid") (log: $LOGS_DIR/mcp_bridge.log)"
+    fi
+    sleep 2
+
+    echo "[MCP] All MCP components started."
+    echo "[MCP] Visualization server: http://localhost:7779/"
+}
+
+stop_all_mcp() {
+    echo "[MCP] Stopping all MCP components..."
+    pkill -f "github-mcp-server"
+    pkill -f "tnos_mcp_server.py"
+    pkill -f "tnos_mcp_bridge.py"
+    pkill -f "enhanced_mobius_visualization_server.py"
+    echo "[MCP] All MCP components stopped."
+}
+
+status_all_mcp() {
+    echo "[MCP] MCP Component Status (Quantum Symmetry):"
+    LOGS_DIR="$WORKSPACE_ROOT/logs"
+    # Mirrored status checks: PID and port for each component
+    # GitHub MCP Server
+    if [[ -f "$LOGS_DIR/github_mcp_server.pid" ]]; then
+      G_PID=$(cat "$LOGS_DIR/github_mcp_server.pid")
+      if kill -0 $G_PID 2>/dev/null && lsof -i :8889 | grep LISTEN >/dev/null; then
+        echo "  [RUNNING] GitHub MCP Server (PID $G_PID, port 8889)"
+      else
+        echo "  [STOPPED] GitHub MCP Server"
+      fi
+    else
+      echo "  [STOPPED] GitHub MCP Server"
+    fi
+    # TNOS MCP Server
+    if [[ -f "$LOGS_DIR/tnos_mcp_server.pid" ]]; then
+      T_PID=$(cat "$LOGS_DIR/tnos_mcp_server.pid")
+      if kill -0 $T_PID 2>/dev/null && lsof -i :8083 | grep LISTEN >/dev/null; then
+        echo "  [RUNNING] TNOS MCP Server (PID $T_PID, port 8083)"
+      else
+        echo "  [STOPPED] TNOS MCP Server"
+      fi
+    else
+      echo "  [STOPPED] TNOS MCP Server"
+    fi
+    # MCP Bridge
+    if [[ -f "$LOGS_DIR/mcp_bridge.pid" ]]; then
+      B_PID=$(cat "$LOGS_DIR/mcp_bridge.pid")
+      if kill -0 $B_PID 2>/dev/null; then
+        echo "  [RUNNING] MCP Bridge (PID $B_PID)"
+      else
+        echo "  [STOPPED] MCP Bridge"
+      fi
+    else
+      echo "  [STOPPED] MCP Bridge"
+    fi
+    # Möbius Visualization Server
+    if [[ -f "$LOGS_DIR/enhanced_visualization_server.pid" ]]; then
+      V_PID=$(cat "$LOGS_DIR/enhanced_visualization_server.pid")
+      if kill -0 $V_PID 2>/dev/null && lsof -i :7779 | grep LISTEN >/dev/null; then
+        echo "  [RUNNING] Möbius Visualization Server (PID $V_PID, port 7779)"
+      else
+        echo "  [STOPPED] Möbius Visualization Server"
+      fi
+    else
+      echo "  [STOPPED] Möbius Visualization Server"
+    fi
+}
+
+# Add CLI argument handling for MCP integration (mirrored logic)
+if [ "$1" = "start-all" ]; then
+    start_all_mcp
+    status_all_mcp
+    exit 0
+elif [ "$1" = "stop-all" ]; then
+    stop_all_mcp
+    status_all_mcp
+    exit 0
+elif [ "$1" = "status-all" ]; then
+    status_all_mcp
+    exit 0
+fi
+
+# If no arguments are provided, start all MCP components by default (symmetric default)
+if [ $# -eq 0 ]; then
+    start_all_mcp
+    status_all_mcp
+    exit 0
+fi
