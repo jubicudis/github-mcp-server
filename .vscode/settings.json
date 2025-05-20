@@ -45,8 +45,6 @@
 	// Enhanced IntelliSense for MCP
 	"editor.suggest.preview": true,
 	"editor.suggestSelection": "first",
-	"editor.parameterHints.enabled": true,
-	"editor.inlayHints.enabled": "on",
 	
 	// C++ support for GitHub MCP bridge components
 	"C_Cpp.intelliSenseEngine": "default",
