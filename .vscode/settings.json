@@ -76,5 +76,19 @@
 		"**/node_modules": true,
 		"**/logs": true,
 		"**/build": true
-	}
+	},
+	
+	// WHO: ConfigurationManager
+	// WHAT: Python test framework configuration
+	// WHEN: During Python test discovery and execution
+	// WHERE: System Layer 6 (Integration) / MCP Server
+	// WHY: To ensure pytest is used and VS Code notifications are cleared
+	// HOW: By setting python.testing.pytestEnabled and related keys
+	// EXTENT: All Python test operations
+	"python.testing.pytestEnabled": true,
+	"python.testing.unittestEnabled": false,
+	"python.testing.nosetestsEnabled": false,
+	"python.testing.pytestArgs": [
+		"."
+	]
 }

@@ -15,11 +15,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 	"sync"
 	"time"
 
+	"github.com/jubicudis/github-mcp-server/pkg/log"
 	"github.com/jubicudis/github-mcp-server/pkg/translations"
 
 	"github.com/gorilla/websocket"
@@ -85,6 +85,7 @@ type MCPBridge struct {
 	cancel               context.CancelFunc
 	healthCheckInterval  time.Duration
 	persistentContext    translations.ContextVector7D
+	logger               *log.Logger // Add logger field
 }
 
 // NewMCPBridge creates a new bridge instance
@@ -123,6 +124,7 @@ func NewMCPBridge(url string) *MCPBridge {
 			"Protocol_Translation",
 			1.0,
 		),
+		logger: log.NewLogger(), // Initialize logger
 	}
 }
 
@@ -133,7 +135,7 @@ func (b *MCPBridge) Connect() error {
 	// WHEN: During bridge initialization
 	// WHERE: System Layer 6 (Integration)
 	// WHY: For communication setup
-	// HOW: Using WebSocket protocol
+	// HOW: Using WebSocket protocol with fallback and 7D context
 	// EXTENT: Connection establishment
 
 	if b.state == StateConnected {
@@ -142,46 +144,92 @@ func (b *MCPBridge) Connect() error {
 
 	b.changeState(StateConnecting)
 
-	// Attempt connection
-	log.Printf("Connecting to TNOS MCP at %s", b.url)
-	
-	// Create a dialer with the timeout settings from common.go
-	dialer := websocket.Dialer{
-		HandshakeTimeout: WriteTimeout,
-	}
-	
-	// Create a context with timeout for the connection
-	connectCtx, cancel := context.WithTimeout(b.ctx, WriteTimeout)
-	defer cancel()
-	
-	conn, _, err := dialer.DialContext(connectCtx, b.url, nil)
+	b.logger.Info("Connecting to TNOS MCP at %s", b.url)
 
-	if err != nil {
-		b.lastError = fmt.Errorf("failed to connect: %w", err)
-		b.changeState(StateError)
-		return b.lastError
-	}
+	context7D := b.persistentContext
 
-	b.conn = conn
-	b.changeState(StateConnected)
-
-	// Reset reconnect attempts on successful connection
-	b.reconnectAttempts = 0
-
-	// Start message handler
-	go b.handleMessages()
-
-	// Start health checker
-	go b.runHealthChecker()
-
-	// Perform version negotiation
-	err = b.negotiateVersion()
-	if err != nil {
-		return err
-	}
-
-	log.Printf("Connected to TNOS MCP with protocol version %s", b.negotiatedVersion)
-	return nil
+	// Use FallbackRoute for robust connection attempts
+	_, err := FallbackRoute(
+		b.ctx,
+		"Connect",
+		context7D,
+		func() (interface{}, error) {
+			// Primary connection attempt
+			dialer := websocket.Dialer{
+				HandshakeTimeout: 60 * time.Second,
+			}
+			connectCtx, cancel := context.WithTimeout(b.ctx, 60*time.Second)
+			defer cancel()
+			conn, _, err := dialer.DialContext(connectCtx, b.url, nil)
+			if err != nil {
+				b.lastError = fmt.Errorf("failed to connect: %w", err)
+				b.changeState(StateError)
+				b.logger.Error("[7DContext] WHO:MCPBridge WHAT:Connect WHEN:%d WHERE:Layer6 WHY:ConnectionFailure HOW:WebSocket EXTENT:1.0 ERROR:%v", time.Now().Unix(), err)
+				if errors.Is(err, context.DeadlineExceeded) {
+					b.logger.Warn("[7DContext] Context deadline exceeded during MCPBridge.Connect (timeout=60s)")
+				}
+				return nil, b.lastError
+			}
+			b.conn = conn
+			b.changeState(StateConnected)
+			b.reconnectAttempts = 0
+			go b.handleMessages()
+			go b.runHealthChecker()
+			negErr := b.negotiateVersion()
+			if negErr != nil {
+				b.logger.Error("[7DContext] Version negotiation failed: %v", negErr)
+				return nil, negErr
+			}
+			b.logger.Info("Connected to TNOS MCP with protocol version %s", b.negotiatedVersion)
+			return nil, nil
+		},
+		func() (interface{}, error) {
+			// Fallback: retry with exponential backoff
+			for attempt := 1; attempt <= b.maxReconnectAttempts; attempt++ {
+				delay := b.reconnectInterval * time.Duration(1<<uint(attempt-1))
+				if delay > 60*time.Second {
+					delay = 60 * time.Second
+				}
+				b.logger.Warn("[7DContext] FallbackRoute: waiting %v before reconnect attempt %d", delay, attempt)
+				select {
+				case <-b.ctx.Done():
+					return nil, context.Canceled
+				case <-time.After(delay):
+				}
+				dialer := websocket.Dialer{
+					HandshakeTimeout: 60 * time.Second,
+				}
+				connectCtx, cancel := context.WithTimeout(b.ctx, 60*time.Second)
+				defer cancel()
+				conn, _, err := dialer.DialContext(connectCtx, b.url, nil)
+				if err == nil {
+					b.conn = conn
+					b.changeState(StateConnected)
+					b.reconnectAttempts = 0
+					go b.handleMessages()
+					go b.runHealthChecker()
+					negErr := b.negotiateVersion()
+					if negErr != nil {
+						b.logger.Error("[7DContext] Version negotiation failed: %v", negErr)
+						return nil, negErr
+					}
+					b.logger.Info("[7DContext] FallbackRoute: reconnected on attempt %d", attempt)
+					return nil, nil
+				}
+				b.logger.Warn("[7DContext] FallbackRoute: reconnect attempt %d failed: %v", attempt, err)
+			}
+			b.changeState(StateError)
+			return nil, errors.New("all fallback connection attempts failed")
+		},
+		func() (interface{}, error) {
+			return nil, errors.New("GitHub MCP connection not implemented in bridge.go")
+		},
+		func() (interface{}, error) {
+			return nil, errors.New("Copilot LLM connection not implemented in bridge.go")
+		},
+		b.logger,
+	)
+	return err
 }
 
 // Disconnect closes the connection
@@ -205,13 +253,13 @@ func (b *MCPBridge) Disconnect() error {
 			websocket.FormatCloseMessage(websocket.CloseNormalClosure, "Disconnecting"),
 		)
 		if err != nil {
-			log.Printf("Error sending close message: %v", err)
+			b.logger.Error("Error sending close message: %v", err)
 		}
 
 		// Close connection
 		err = b.conn.Close()
 		if err != nil {
-			log.Printf("Error closing connection: %v", err)
+			b.logger.Error("Error closing connection: %v", err)
 		}
 
 		b.conn = nil
@@ -224,73 +272,95 @@ func (b *MCPBridge) Disconnect() error {
 	b.ctx, b.cancel = context.WithCancel(context.Background())
 
 	b.changeState(StateDisconnected)
-	log.Println("Disconnected from TNOS MCP")
+	b.logger.Info("Disconnected from TNOS MCP")
 	return nil
 }
 
-// SendMessage sends a message to TNOS MCP
+// SendMessage sends a message to TNOS MCP using FallbackRoute
 func (b *MCPBridge) SendMessage(messageType string, payload map[string]interface{}) error {
 	// WHO: MessageSender
 	// WHAT: Send MCP message
 	// WHEN: During communication
 	// WHERE: System Layer 6 (Integration)
 	// WHY: For data exchange
-	// HOW: Using message protocol
+	// HOW: Using message protocol with fallback and 7D context
 	// EXTENT: Single message
 
 	if b.state != StateConnected {
 		return errors.New("bridge not connected")
 	}
 
-	// Add message type and timestamp
 	message := map[string]interface{}{
 		"type":      messageType,
 		"timestamp": time.Now().UnixMilli(),
 		"payload":   payload,
 		"version":   b.negotiatedVersion,
 	}
-
-	// Add context information
 	contextMap := b.persistentContext.ToMap()
 	message["context"] = contextMap
 
-	// Set write deadline using timeout from common.go
 	if WriteTimeout > 0 {
 		err := b.conn.SetWriteDeadline(time.Now().Add(WriteTimeout))
 		if err != nil {
-			log.Printf("Failed to set write deadline: %v", err)
+			b.logger.Warn("Failed to set write deadline: %v", err)
 		}
 	}
 
-	// Serialize and send
-	err := b.conn.WriteJSON(message)
-	if err != nil {
-		b.recordError(fmt.Errorf("failed to send message: %w", err))
-		go b.handleConnectionFailure()
-		return err
-	}
+	context7D := b.persistentContext
 
-	// Update stats
-	b.stats.MessagesSent++
-	b.stats.LastActive = time.Now()
-	b.stats.Uptime = time.Since(b.stats.StartTime)
-
-	// Log message
-	logContext := translations.ContextVector7D{
-		Who:    "MCPBridge",
-		What:   "MessageSent",
-		When:   time.Now().Unix(),
-		Where:  "Layer6_Integration",
-		Why:    messageType,
-		How:    "WebSocket",
-		Extent: float64(len(fmt.Sprintf("%v", message))),
-	}
-
-	// Compress context for logging
-	compressedContext := logContext.Compress()
-	log.Printf("Message sent: %s (context: %+v)", messageType, compressedContext.ToMap())
-
-	return nil
+	_, err := FallbackRoute(
+		b.ctx,
+		"SendMessage",
+		context7D,
+		func() (interface{}, error) {
+			// Primary send
+			err := b.conn.WriteJSON(message)
+			if err != nil {
+				b.recordError(fmt.Errorf("failed to send message: %w", err))
+				go b.handleConnectionFailure()
+				return nil, err
+			}
+			b.stats.MessagesSent++
+			b.stats.LastActive = time.Now()
+			b.stats.Uptime = time.Since(b.stats.StartTime)
+			logContext := translations.ContextVector7D{
+				Who:    "MCPBridge",
+				What:   "MessageSent",
+				When:   time.Now().Unix(),
+				Where:  "Layer6_Integration",
+				Why:    messageType,
+				How:    "WebSocket",
+				Extent: float64(len(fmt.Sprintf("%v", message))),
+			}
+			compressedContext := logContext.Compress()
+			b.logger.Info("Message sent: %s (context: %+v)", messageType, compressedContext.ToMap())
+			return nil, nil
+		},
+		func() (interface{}, error) {
+			// Fallback: try to resend after short delay
+			b.logger.Warn("[7DContext] FallbackRoute: retrying message send after 2s")
+			time.Sleep(2 * time.Second)
+			err := b.conn.WriteJSON(message)
+			if err != nil {
+				b.recordError(fmt.Errorf("fallback send failed: %w", err))
+				go b.handleConnectionFailure()
+				return nil, err
+			}
+			b.stats.MessagesSent++
+			b.stats.LastActive = time.Now()
+			b.stats.Uptime = time.Since(b.stats.StartTime)
+			b.logger.Info("[7DContext] FallbackRoute: message sent after retry")
+			return nil, nil
+		},
+		func() (interface{}, error) {
+			return nil, errors.New("GitHub MCP message send not implemented in bridge.go")
+		},
+		func() (interface{}, error) {
+			return nil, errors.New("Copilot LLM message send not implemented in bridge.go")
+		},
+		b.logger,
+	)
+	return err
 }
 
 // RegisterMessageHandler registers a handler for a specific message type
@@ -450,7 +520,7 @@ func (b *MCPBridge) handleMessages() {
 		if ReadTimeout > 0 {
 			err := b.conn.SetReadDeadline(time.Now().Add(ReadTimeout))
 			if err != nil {
-				log.Printf("Failed to set read deadline: %v", err)
+				b.logger.Warn("Failed to set read deadline: %v", err)
 			}
 		}
 
@@ -469,14 +539,14 @@ func (b *MCPBridge) handleMessages() {
 		// Parse message
 		var message map[string]interface{}
 		if err := json.Unmarshal(rawMessage, &message); err != nil {
-			log.Printf("Error parsing message: %v", err)
+			b.logger.Error("Error parsing message: %v", err)
 			continue
 		}
 
 		// Extract message type
 		messageType, ok := message["type"].(string)
 		if !ok {
-			log.Printf("Received message without type: %v", message)
+			b.logger.Warn("Received message without type: %v", message)
 			continue
 		}
 
@@ -489,9 +559,9 @@ func (b *MCPBridge) handleMessages() {
 		// Log message receipt with context
 		if contextData, ok := message["context"].(map[string]interface{}); ok {
 			context := translations.FromMap(contextData)
-			log.Printf("Message received: %s (context: %+v)", messageType, context.ToMap())
+			b.logger.Info("Message received: %s (context: %+v)", messageType, context.ToMap())
 		} else {
-			log.Printf("Message received: %s (no context)", messageType)
+			b.logger.Info("Message received: %s (no context)", messageType)
 		}
 
 		// Process message with appropriate handler
@@ -502,11 +572,11 @@ func (b *MCPBridge) handleMessages() {
 		if exists {
 			go func() {
 				if err := handler(message); err != nil {
-					log.Printf("Error handling message type %s: %v", messageType, err)
+					b.logger.Error("Error handling message type %s: %v", messageType, err)
 				}
 			}()
 		} else {
-			log.Printf("No handler for message type: %s", messageType)
+			b.logger.Warn("No handler for message type: %s", messageType)
 		}
 	}
 }
@@ -527,7 +597,7 @@ func (b *MCPBridge) changeState(newState ConnectionState) {
 	}
 
 	b.state = newState
-	log.Printf("Bridge state changed: %s -> %s", oldState, newState)
+	b.logger.Info("Bridge state changed: %s -> %s", oldState, newState)
 
 	// Notify state handlers
 	b.callbacksMutex.RLock()
@@ -562,7 +632,7 @@ func (b *MCPBridge) handleConnectionFailure() {
 	b.reconnectAttempts++
 	b.stats.ReconnectCount++
 
-	log.Printf("Connection failure detected. Reconnect attempt %d of %d",
+	b.logger.Warn("Connection failure detected. Reconnect attempt %d of %d",
 		b.reconnectAttempts, b.maxReconnectAttempts)
 
 	// Clean up old connection
@@ -573,7 +643,7 @@ func (b *MCPBridge) handleConnectionFailure() {
 
 	// Check if we should keep trying
 	if b.reconnectAttempts > b.maxReconnectAttempts {
-		log.Printf("Maximum reconnect attempts reached (%d). Giving up.",
+		b.logger.Error("Maximum reconnect attempts reached (%d). Giving up.",
 			b.maxReconnectAttempts)
 		b.changeState(StateError)
 		return
@@ -585,7 +655,7 @@ func (b *MCPBridge) handleConnectionFailure() {
 		delay = 60 * time.Second
 	}
 
-	log.Printf("Waiting %v before reconnect attempt", delay)
+	b.logger.Warn("Waiting %v before reconnect attempt", delay)
 
 	// Wait before reconnecting
 	select {
@@ -598,10 +668,10 @@ func (b *MCPBridge) handleConnectionFailure() {
 	// Attempt reconnection
 	err := b.Connect()
 	if err != nil {
-		log.Printf("Reconnect failed: %v", err)
+		b.logger.Error("Reconnect failed: %v", err)
 		go b.handleConnectionFailure() // Schedule another attempt
 	} else {
-		log.Printf("Reconnected successfully")
+		b.logger.Info("Reconnected successfully")
 	}
 }
 
@@ -642,7 +712,7 @@ func (b *MCPBridge) recordError(err error) {
 
 	b.lastError = err
 	b.stats.ErrorCount++
-	log.Printf("Bridge error: %v", err)
+	b.logger.Error("Bridge error: %v", err)
 }
 
 // runHealthChecker performs periodic health checks
@@ -666,7 +736,7 @@ func (b *MCPBridge) runHealthChecker() {
 			if b.state == StateConnected {
 				// Only run health checks when connected
 				if err := b.sendHealthCheckPing(); err != nil {
-					log.Printf("Health check failed: %v", err)
+					b.logger.Error("Health check failed: %v", err)
 				}
 			}
 		}
@@ -700,20 +770,20 @@ func (b *MCPBridge) handleHealthCheckResponse(message map[string]interface{}) {
 
 	payload, ok := message["payload"].(map[string]interface{})
 	if !ok {
-		log.Printf("Invalid health check response format")
+		b.logger.Warn("Invalid health check response format")
 		return
 	}
 
 	// Extract timestamps to calculate latency
 	pingTime, ok := payload["request_timestamp"].(float64)
 	if !ok {
-		log.Printf("Health check response missing request timestamp")
+		b.logger.Warn("Health check response missing request timestamp")
 		return
 	}
 
 	// Calculate round-trip time
 	rtt := time.Since(time.UnixMilli(int64(pingTime)))
-	log.Printf("Health check RTT: %v", rtt)
+	b.logger.Info("Health check RTT: %v", rtt)
 }
 
 // UpdateContextFromMessage updates the persistent context from a message
@@ -733,7 +803,7 @@ func (b *MCPBridge) UpdateContextFromMessage(message map[string]interface{}) {
 		mergedContext := b.persistentContext.Merge(newContext)
 		b.persistentContext = mergedContext
 
-		log.Printf("Updated persistent context from message: %+v",
+		b.logger.Info("Updated persistent context from message: %+v",
 			b.persistentContext.ToMap())
 	}
 }
@@ -873,6 +943,7 @@ func (c *Client) OnDisconnect(handler DisconnectHandler) {
 
 // readMessages reads messages from the WebSocket connection
 func (c *Client) readMessages() {
+	logger := log.NewLogger()
 	for {
 		if c.isClosed {
 			return
@@ -896,7 +967,7 @@ func (c *Client) readMessages() {
 			// Unmarshal the bytes into a Message type before passing to handler
 			var parsedMessage Message
 			if err := json.Unmarshal(message, &parsedMessage); err != nil {
-				log.Printf("Failed to parse message: %v", err)
+				logger.Error("Failed to parse message: %v", err)
 				continue
 			}
 			go handler(parsedMessage)
@@ -979,4 +1050,30 @@ func (c *Client) handleDisconnect(reason string) {
 	if handler != nil {
 		go handler(reason)
 	}
+}
+
+// Example: Use FallbackRoute for connection establishment
+func (b *MCPBridge) RobustConnect() error {
+	context7D := b.persistentContext
+
+	result, err := FallbackRoute(
+		b.ctx,
+		"Connect",
+		context7D,
+		func() (interface{}, error) { return nil, b.Connect() },
+		func() (interface{}, error) { return nil, b.Connect() },
+		func() (interface{}, error) { return nil, errors.New("GitHub MCP connection not implemented in bridge.go") },
+		func() (interface{}, error) { return nil, errors.New("Copilot LLM connection not implemented in bridge.go") },
+		b.logger,
+	)
+	if err != nil {
+		return err
+	}
+	_ = result
+	return nil
+}
+
+func (b *MCPBridge) CompressWithRegistry(value, entropy, B, V, I, G, F, purpose, t, C_sum float64) (float64, float64, error) {
+	registry := GetFormulaRegistry()
+	return registry.CompressValue(value, entropy, B, V, I, G, F, purpose, t, C_sum)
 }

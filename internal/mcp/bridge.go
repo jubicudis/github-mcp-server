@@ -374,7 +374,12 @@ func (b *TNOSMCPBridge) initConnection() {
 	b.mutex.Lock()
 	defer b.mutex.Unlock()
 
-	ctx, cancelFunc := context.WithCancel(context.Background())
+	// Use context.WithTimeout for connection context (standardized to 60s if not set)
+	timeout := b.config.Timeout
+	if timeout == 0 {
+		timeout = 60 * time.Second
+	}
+	ctx, cancelFunc := context.WithTimeout(context.Background(), timeout)
 	b.connection = &BridgeConnection{
 		ctx:        ctx,
 		cancelFunc: cancelFunc,
@@ -384,7 +389,9 @@ func (b *TNOSMCPBridge) initConnection() {
 	b.startHealthCheck()
 
 	// Attempt initial connection
-	go b.connectWithRetry()
+	go func() {
+		b.connectWithRetry()
+	}()
 }
 
 // startHealthCheck initiates periodic health checks for the bridge connection

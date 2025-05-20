@@ -15,6 +15,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
+	"os/exec"
 	"sync"
 	"time"
 
@@ -342,4 +344,202 @@ func getFloat64(m map[string]interface{}, key string, defaultValue float64) floa
 		}
 	}
 	return defaultValue
+}
+
+// WHO: FallbackRouter
+// WHAT: Shared fallback routing for MCP operations
+// WHEN: On MCP operation failure or unreachability
+// WHERE: System Layer 6 (Integration)
+// WHY: To ensure robust multi-path routing between TNOS MCP, Bridge, GitHub MCP, and Copilot LLM
+// HOW: Tries each route in order, logging 7D context at each step
+// EXTENT: All MCP operations requiring fallback
+func FallbackRoute(
+    ctx context.Context,
+    operationName string,
+    context7D translations.ContextVector7D,
+    tnosMCPFunc func() (interface{}, error),
+    bridgeFunc func() (interface{}, error),
+    githubMCPFunc func() (interface{}, error),
+    copilotFunc func() (interface{}, error),
+    logger *log.Logger,
+) (interface{}, error) {
+    // Try TNOS MCP first
+    result, err := tnosMCPFunc()
+    if err == nil {
+        if logger != nil {
+            logger.Info("FallbackRoute: TNOS MCP succeeded", "who", context7D.Who, "what", operationName)
+        }
+        return result, nil
+    }
+    if logger != nil {
+        logger.Warn("FallbackRoute: TNOS MCP failed, trying Bridge", "error", err.Error(), "who", context7D.Who, "what", operationName)
+    }
+    // Try Bridge
+    result, err = bridgeFunc()
+    if err == nil {
+        if logger != nil {
+            logger.Info("FallbackRoute: Bridge succeeded", "who", context7D.Who, "what", operationName)
+        }
+        return result, nil
+    }
+    if logger != nil {
+        logger.Warn("FallbackRoute: Bridge failed, trying GitHub MCP", "error", err.Error(), "who", context7D.Who, "what", operationName)
+    }
+    // Try GitHub MCP
+    result, err = githubMCPFunc()
+    if err == nil {
+        if logger != nil {
+            logger.Info("FallbackRoute: GitHub MCP succeeded", "who", context7D.Who, "what", operationName)
+        }
+        return result, nil
+    }
+    if logger != nil {
+        logger.Warn("FallbackRoute: GitHub MCP failed, trying Copilot LLM", "error", err.Error(), "who", context7D.Who, "what", operationName)
+    }
+    // Try Copilot LLM
+    result, err = copilotFunc()
+    if err == nil {
+        if logger != nil {
+            logger.Info("FallbackRoute: Copilot LLM succeeded", "who", context7D.Who, "what", operationName)
+        }
+        return result, nil
+    }
+    if logger != nil {
+        logger.Error("FallbackRoute: All routes failed", "error", err.Error(), "who", context7D.Who, "what", operationName)
+    }
+    return nil, errors.New("All fallback routes failed: " + err.Error())
+}
+
+// WHO: FormulaRegistryInterface
+// WHAT: Interface for formula registry compression/decompression
+// WHEN: During compression/decompression operations
+// WHERE: System Layer 6 (Integration)
+// WHY: To provide Möbius compression via formula registry
+// HOW: Calls out to Python helper via subprocess
+// EXTENT: All bridge compression/decompression
+
+type FormulaRegistry interface {
+    CompressValue(value, entropy, B, V, I, G, F, purpose, t, C_sum float64) (compressed, E float64, err error)
+    DecompressValue(compressed, entropy, B, V, I, G, F, purpose, t, E, C_sum float64) (original float64, err error)
+}
+
+// formulaRegistryPython implements FormulaRegistry using the Python helper
+// (Assumes formula_registry_helper.py is available in scripts/shell/helpers)
+type formulaRegistryPython struct{}
+
+func (f *formulaRegistryPython) CompressValue(value, entropy, B, V, I, G, F, purpose, t, C_sum float64) (float64, float64, error) {
+    // Call the Python helper script
+    args := []string{"scripts/shell/helpers/formula_registry_helper.py", "compress", fmt.Sprintf(`{"value":%f,"entropy":%f,"B":%f,"V":%f,"I":%f,"G":%f,"F":%f,"purpose":%f,"t":%f,"C_sum":%f}`,
+        value, entropy, B, V, I, G, F, purpose, t, C_sum)}
+    out, err := runPythonHelper(args)
+    if err != nil {
+        return 0, 0, err
+    }
+    var compressed, E float64
+    n, _ := fmt.Sscanf(string(out), "%f %f", &compressed, &E)
+    if n != 2 {
+        return 0, 0, fmt.Errorf("unexpected output from formula_registry_helper.py: %s", out)
+    }
+    return compressed, E, nil
+}
+
+func (f *formulaRegistryPython) DecompressValue(compressed, entropy, B, V, I, G, F, purpose, t, E, C_sum float64) (float64, error) {
+    args := []string{"scripts/shell/helpers/formula_registry_helper.py", "decompress", fmt.Sprintf(`{"compressed":%f,"entropy":%f,"B":%f,"V":%f,"I":%f,"G":%f,"F":%f,"purpose":%f,"t":%f,"E":%f,"C_sum":%f}`,
+        compressed, entropy, B, V, I, G, F, purpose, t, E, C_sum)}
+    out, err := runPythonHelper(args)
+    if err != nil {
+        return 0, err
+    }
+    var original float64
+    n, _ := fmt.Sscanf(string(out), "%f", &original)
+    if n != 1 {
+        return 0, fmt.Errorf("unexpected output from formula_registry_helper.py: %s", out)
+    }
+    return original, nil
+}
+
+// runPythonHelper runs the Python helper script and returns output
+func runPythonHelper(args []string) ([]byte, error) {
+    // Use exec.Command to call python3
+    // NOTE: This assumes python3 is in PATH and scripts are present
+    cmd := exec.Command("python3", args...)
+    out, err := cmd.CombinedOutput()
+    if err != nil {
+        return nil, fmt.Errorf("python3 %v failed: %v\nOutput: %s", args, err, out)
+    }
+    return out, nil
+}
+
+// GetFormulaRegistry returns a FormulaRegistry implementation
+func GetFormulaRegistry() FormulaRegistry {
+    return &formulaRegistryPython{}
+}
+
+// WHO: MobiusCompressor
+// WHAT: Native Go implementation of Möbius compression formula (7D-aware)
+// WHEN: During compression/collapse operations
+// WHERE: System Layer 6 (Integration)
+// WHY: To provide direct, context-aware compression for MCP
+// HOW: Implements Möbius formula and helpers
+// EXTENT: All bridge/client/server compression/collapse
+
+// MobiusCompressionParams holds all 7D context variables for compression
+// WHO: MobiusCompressionParams
+// WHAT: 7D context for Möbius compression
+// WHEN: On compression/collapse
+// WHERE: System Layer 6 (Integration)
+// WHY: To pass all context to compression logic
+// HOW: Struct with all formula variables
+// EXTENT: All compression/collapse ops
+
+type MobiusCompressionParams struct {
+	Value   float64 // Input value
+	B       float64 // Biological/priority factor
+	I       float64 // Identity/context factor
+	V       float64 // Validity/trust factor
+	G       float64 // Global context weight
+	F       float64 // Feedback/context weight
+	Entropy float64 // Symbolic entropy
+	E       float64 // Energy/time factor
+	T       float64 // Time since activation
+	Csum    float64 // Context sum/overlap
+	Alignment float64 // Alignment factor
+}
+
+// MobiusCompress applies the Möbius compression formula
+func MobiusCompress(params MobiusCompressionParams) (compressed float64, alignment float64) {
+	// Calculate alignment
+	alignment = (params.B + params.V*params.I) * expNeg(params.T*params.E)
+	// Möbius compression formula
+	compressed = (params.Value * params.B * params.I * (1 - (params.Entropy / log2(1+params.V))) * (params.G + params.F)) /
+		(params.E*params.T + params.Csum*params.Entropy + alignment)
+	return
+}
+
+// expNeg returns exp(-x)
+func expNeg(x float64) float64 {
+	return math.Exp(-x)
+}
+
+// log2 returns log base 2
+func log2(x float64) float64 {
+	return math.Log2(x)
+}
+
+// CollapseCondition checks if collapse should occur based on sum and entropy
+func CollapseCondition(RICSum, thetaCollapse, H_eff, thetaClarity float64) bool {
+	return RICSum >= thetaCollapse && H_eff <= thetaClarity
+}
+
+// WeightedEntropy computes effective entropy (H_eff)
+func WeightedEntropy(RIC, H []float64) float64 {
+	var sumRIC, sumWeighted float64
+	for i := range RIC {
+		sumRIC += RIC[i]
+		sumWeighted += RIC[i] * H[i]
+	}
+	if sumRIC == 0 {
+		return 0
+	}
+	return sumWeighted / sumRIC
 }
