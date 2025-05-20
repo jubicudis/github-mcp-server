@@ -11,6 +11,7 @@
 package github
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 )
@@ -43,7 +44,6 @@ func NewUserService(client *Client) *UserService {
 	}
 }
 
-// GetAuthenticated retrieves the authenticated user
 func (s *UserService) GetAuthenticated() (*User, error) {
 	// WHO: AuthenticatedUserGetter
 	// WHAT: Get authenticated user details
@@ -54,11 +54,11 @@ func (s *UserService) GetAuthenticated() (*User, error) {
 	// EXTENT: Current user data
 
 	user := new(User)
-	err := s.client.Request(http.MethodGet, UserEndpoint, nil, user)
+	err := s.client.Request(context.Background(), http.MethodGet, UserEndpoint, nil, user)
 	return user, err
 }
+}
 
-// Get retrieves a user by username
 func (s *UserService) Get(username string) (*User, error) {
 	// WHO: UserGetter
 	// WHAT: Get user details
@@ -70,11 +70,11 @@ func (s *UserService) Get(username string) (*User, error) {
 
 	path := fmt.Sprintf("%s/%s", UserEndpoint, username)
 	user := new(User)
-	err := s.client.Request(http.MethodGet, path, nil, user)
+	err := s.client.Request(context.Background(), http.MethodGet, path, nil, user)
 	return user, err
 }
+}
 
-// ListFollowers retrieves followers for a user
 func (s *UserService) ListFollowers(username string) ([]User, error) {
 	// WHO: FollowerLister
 	// WHAT: List user followers
@@ -86,11 +86,11 @@ func (s *UserService) ListFollowers(username string) ([]User, error) {
 
 	path := fmt.Sprintf("%s/%s/followers", UserEndpoint, username)
 	var followers []User
-	err := s.client.Request(http.MethodGet, path, nil, &followers)
+	err := s.client.Request(context.Background(), http.MethodGet, path, nil, &followers)
 	return followers, err
 }
+}
 
-// ListFollowing retrieves users that a user is following
 func (s *UserService) ListFollowing(username string) ([]User, error) {
 	// WHO: FollowingLister
 	// WHAT: List users being followed
@@ -102,8 +102,9 @@ func (s *UserService) ListFollowing(username string) ([]User, error) {
 
 	path := fmt.Sprintf("%s/%s/following", UserEndpoint, username)
 	var following []User
-	err := s.client.Request(http.MethodGet, path, nil, &following)
+	err := s.client.Request(context.Background(), http.MethodGet, path, nil, &following)
 	return following, err
+}
 }
 
 // GetContext retrieves the 7D context for user operations
