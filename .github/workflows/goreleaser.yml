@@ -1,17 +1,26 @@
+# WHO: GoReleaser Workflow (GitHub MCP Server)
+# WHAT: GitHub Actions workflow for GoReleaser
+# WHEN: On tag push (v*)
+# WHERE: .github/workflows/goreleaser.yml (GitHub MCP Server)
+# WHY: To automate GoReleaser builds and provenance
+# HOW: Standard GitHub Actions YAML structure
+# EXTENT: Full release pipeline
+
 name: GoReleaser Release
+
 on:
   push:
     tags:
       - "v*"
+
 permissions:
   contents: write
   id-token: write
-  attestations: write
+  packages: read
 
 jobs:
   release:
     runs-on: ubuntu-latest
-
     steps:
       - name: Check out code
         uses: actions/checkout@v4
@@ -28,9 +37,7 @@ jobs:
         uses: goreleaser/goreleaser-action@9c156ee8a17a598857849441385a2041ef570552
         with:
           distribution: goreleaser
-          # GoReleaser version
           version: "~> v2"
-          # Arguments to pass to GoReleaser
           args: release --clean
           workdir: .
         env:
@@ -38,8 +45,3 @@ jobs:
 
       - name: Generate signed build provenance attestations for workflow artifacts
         uses: actions/attest-build-provenance@v2
-        with:
-          subject-path: |
-            dist/*.tar.gz
-            dist/*.zip
-            dist/*.txt
