@@ -295,3 +295,51 @@ func CreateErrorResponse(originalMessage Message, errMsg string, errCode string)
 		},
 	}
 }
+
+// [2025-05-20] Moved from client.go: context extraction helpers for shared use across bridge components.
+func getString(m map[string]interface{}, key, defaultValue string) string {
+	if v, ok := m[key]; ok {
+		if s, ok := v.(string); ok {
+			return s
+		}
+	}
+	return defaultValue
+}
+
+func getInt64(m map[string]interface{}, key string, defaultValue int64) int64 {
+	if v, ok := m[key]; ok {
+		switch t := v.(type) {
+		case int64:
+			return t
+		case float64:
+			return int64(t)
+		case string:
+			var parsedInt int64
+			if _, err := fmt.Sscanf(t, "%d", &parsedInt); err == nil {
+				return parsedInt
+			}
+		case int:
+			return int64(t)
+		}
+	}
+	return defaultValue
+}
+
+func getFloat64(m map[string]interface{}, key string, defaultValue float64) float64 {
+	if v, ok := m[key]; ok {
+		switch t := v.(type) {
+		case float64:
+			return t
+		case int64:
+			return float64(t)
+		case string:
+			var parsedFloat float64
+			if _, err := fmt.Sscanf(t, "%f", &parsedFloat); err == nil {
+				return parsedFloat
+			}
+		case int:
+			return float64(t)
+		}
+	}
+	return defaultValue
+}
