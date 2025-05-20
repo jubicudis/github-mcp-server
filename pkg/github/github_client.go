@@ -23,6 +23,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+
 	"github.com/jubicudis/github-mcp-server/pkg/translations"
 
 	"encoding/base64"
@@ -857,9 +858,14 @@ func (c *Client) createErrorFromResponse(statusCode int, respBody []byte) error 
 // WHY: To maintain compatibility
 // HOW: Using existing doRequest method
 // EXTENT: All legacy request operations
-func (c *Client) Request(method string, path string, body interface{}, target interface{}) error {
-	// Create context for the request
-	ctx := context.Background()
+func (c *Client) Request(ctx context.Context, method string, path string, body interface{}, target interface{}) error {
+	// WHO: CompatibilityAdapter
+	// WHAT: Use provided context for request
+	// WHEN: During API operations
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To propagate deadlines/cancellations
+	// HOW: Pass context to doRequest
+	// EXTENT: All legacy request operations
 
 	// Perform the actual request using the underlying implementation
 	respBody, err := c.doRequest(ctx, method, path, body)
@@ -873,7 +879,6 @@ func (c *Client) Request(method string, path string, body interface{}, target in
 			return fmt.Errorf("failed to parse response: %w", err)
 		}
 	}
-
 	return nil
 }
 

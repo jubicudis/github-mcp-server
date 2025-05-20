@@ -13,10 +13,10 @@ package github
 import (
 	"encoding/json"
 	"fmt"
-	"math"
 	"sync"
 	"time"
 
+	"github.com/jubicudis/github-mcp-server/pkg/bridge"
 	"github.com/jubicudis/github-mcp-server/pkg/log"
 
 	"github.com/gorilla/websocket"
@@ -1067,11 +1067,11 @@ func (b *MCPBridge) applyMobiusCompression(
 	}
 
 	// Extract Möbius factors or use defaults
-	B := getMetaFloat(meta, "B", 0.8) // Base factor
-	V := getMetaFloat(meta, "V", 0.7) // Value factor
-	I := getMetaFloat(meta, "I", 0.9) // Intent factor
-	G := getMetaFloat(meta, "G", 1.2) // Growth factor
-	F := getMetaFloat(meta, "F", 0.6) // Flexibility factor
+	B := getMetaFloat(meta, "B", 0.8)
+	V := getMetaFloat(meta, "V", 0.7)
+	I := getMetaFloat(meta, "I", 0.9)
+	G := getMetaFloat(meta, "G", 1.2)
+	F := getMetaFloat(meta, "F", 0.6)
 
 	// Calculate entropy
 	entropy := float64(len(messageJSON)) / 1024.0 // Simple approximation
@@ -1086,7 +1086,6 @@ func (b *MCPBridge) applyMobiusCompression(
 	} else {
 		when = now
 	}
-
 	t := float64(now-when) / 86400.0 // Days
 	if t < 0 {
 		t = 0
@@ -1095,38 +1094,45 @@ func (b *MCPBridge) applyMobiusCompression(
 	// Energy factor (computational cost)
 	E := 0.5
 
-	// Apply Möbius compression formula
-	alignment := (B + V*I) * math.Exp(-t*E)
-	compressionFactor := (B * I * (1.0 - (entropy / math.Log2(1.0+V))) * (G + F)) /
-		(E*t + entropy + alignment)
+	// Context sum (Csum) and alignment
+	Csum := 0.3 // Placeholder; in production, compute from context
+	params := bridge.MobiusCompressionParams{
+		Value:    float64(len(messageJSON)),
+		B:        B,
+		V:        V,
+		I:        I,
+		G:        G,
+		F:        F,
+		Entropy:  entropy,
+		E:        E,
+		T:        t,
+		Csum:     Csum,
+	}
+	compressedValue, alignment := bridge.MobiusCompress(params)
 
-	// Guard against extreme values
-	if compressionFactor < 0.1 {
-		compressionFactor = 0.1
-	} else if compressionFactor > 10.0 {
-		compressionFactor = 10.0
+	// Store all compression variables for lossless decompression
+	meta["algorithm"] = "mobius"
+	meta["version"] = "1.0"
+	meta["originalSize"] = len(messageJSON)
+	meta["compressionFactor"] = compressedValue
+	meta["timestamp"] = now
+	meta["factors"] = map[string]interface{}{
+		"B": B,
+		"V": V,
+		"I": I,
+		"G": G,
+		"F": F,
+		"E": E,
+		"t": t,
+		"Csum": Csum,
+		"alignment": alignment,
+		"entropy": entropy,
 	}
 
-	// Create compressed message
 	compressed := map[string]interface{}{
 		"compressed": true,
 		"context":    message,
-		"meta": map[string]interface{}{
-			"algorithm":         "mobius",
-			"version":           "1.0",
-			"originalSize":      len(messageJSON),
-			"compressionFactor": compressionFactor,
-			"timestamp":         now,
-			"factors": map[string]interface{}{
-				"B": B,
-				"V": V,
-				"I": I,
-				"G": G,
-				"F": F,
-				"E": E,
-				"t": t,
-			},
-		},
+		"meta":       meta,
 	}
 
 	return compressed, nil

@@ -94,48 +94,67 @@ func NewClient(ctx context.Context, options ConnectionOptions) (*Client, error) 
 
 // connect establishes a WebSocket connection to the bridge
 func (c *Client) connect() error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	
-	if c.connected && c.conn != nil {
-		return nil
-	}
-	
-	u, err := url.Parse(c.options.ServerURL)
-	if err != nil {
-		return fmt.Errorf("invalid bridge URL: %w", err)
-	}
-	
-	headers := http.Header{}
-	for k, v := range c.options.Headers {
-		headers.Add(k, v)
-	}
-	
-	dialer := websocket.Dialer{
-		HandshakeTimeout: WriteTimeout, // Use the timeout constant from common.go
-	}
-	
-	// Use a context with timeout for the dial operation
-	dialCtx := c.ctx
-	if c.options.Timeout > 0 {
-		var cancel context.CancelFunc
-		dialCtx, cancel = context.WithTimeout(c.ctx, c.options.Timeout)
-		defer cancel()
-	}
-	
-	conn, resp, err := dialer.DialContext(dialCtx, u.String(), headers)
-	if err != nil {
-		statusCode := 0
-		if resp != nil {
-			statusCode = resp.StatusCode
+	// WHO: ConnectionManager
+	// WHAT: Establish WebSocket connection with fallback
+	// WHEN: During client (re)connection
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To ensure robust connection
+	// HOW: Using FallbackRoute utility
+	// EXTENT: All connection attempts
+
+	fallbackFn := func() (interface{}, error) {
+		c.mu.Lock()
+		defer c.mu.Unlock()
+		if c.connected && c.conn != nil {
+			return nil, nil
 		}
-		return fmt.Errorf("failed to dial WebSocket: %w (status: %d)", err, statusCode)
+		u, err := url.Parse(c.options.ServerURL)
+		if err != nil {
+			return nil, fmt.Errorf("invalid bridge URL: %w", err)
+		}
+		headers := http.Header{}
+		for k, v := range c.options.Headers {
+			headers.Add(k, v)
+		}
+		dialer := websocket.Dialer{
+			HandshakeTimeout: WriteTimeout,
+		}
+		dialCtx := c.ctx
+		if c.options.Timeout > 0 {
+			var cancel context.CancelFunc
+			dialCtx, cancel = context.WithTimeout(c.ctx, c.options.Timeout)
+			defer cancel()
+		}
+		conn, resp, err := dialer.DialContext(dialCtx, u.String(), headers)
+		if err != nil {
+			statusCode := 0
+			if resp != nil {
+				statusCode = resp.StatusCode
+			}
+			return nil, fmt.Errorf("failed to dial WebSocket: %w (status: %d)", err, statusCode)
+		}
+		c.conn = conn
+		c.connected = true
+		c.stats.LastActive = time.Now()
+		return nil, nil
 	}
-	
-	c.conn = conn
-	c.connected = true
-	c.stats.LastActive = time.Now()
-	
+	context7d := c.options.Context
+	operationName := "Connect"
+	ctx := c.ctx
+	// Provide four fallback functions for FallbackRoute
+	_, err := FallbackRoute(
+		ctx,
+		operationName,
+		context7d,
+		fallbackFn, // TNOS MCP (primary)
+		func() (interface{}, error) { return nil, fmt.Errorf("Bridge fallback not implemented") },
+		func() (interface{}, error) { return nil, fmt.Errorf("GitHub MCP fallback not implemented") },
+		func() (interface{}, error) { return nil, fmt.Errorf("Copilot fallback not implemented") },
+		c.logger,
+	)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -163,48 +182,56 @@ func (c *Client) Receive() (Message, error) {
 // Send sends a message to the bridge
 func (c *Client) Send(msg Message) error {
 	// WHO: MessageSender
-	// WHAT: Send bridge messages
+	// WHAT: Send bridge messages with fallback and compression
 	// WHEN: During message transmission
 	// WHERE: System Layer 6 (Integration)
-	// WHY: To send messages to bridge
-	// HOW: Using WebSocket
-	// EXTENT: Message transmission
+	// WHY: To ensure robust message delivery
+	// HOW: Using FallbackRoute and FormulaRegistry
+	// EXTENT: All message sends
 
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	
-	if !c.connected || c.conn == nil {
-		return ErrBridgeNotConnected
-	}
-	
-	// Ensure context is properly set
-	if msg.Context == nil && c.options.Context.Who != "" {
-		msg.Context = c.options.Context
-	}
-	
-	data, err := json.Marshal(msg)
-	if err != nil {
-		return fmt.Errorf("failed to marshal message: %w", err)
-	}
-	
-	// Set write deadline using WriteTimeout from common.go
-	if WriteTimeout > 0 {
-		err = c.conn.SetWriteDeadline(time.Now().Add(WriteTimeout))
-		if err != nil {
-			c.logger.Error("Failed to set write deadline", "error", err.Error())
+	context7d := c.options.Context
+	operationName := "SendMessage"
+	ctx := c.ctx
+	fallbackSend := func() (interface{}, error) {
+		c.mu.Lock()
+		defer c.mu.Unlock()
+		if !c.connected || c.conn == nil {
+			return nil, ErrBridgeNotConnected
 		}
+		if msg.Context == nil && c.options.Context.Who != "" {
+			msg.Context = c.options.Context
+		}
+		// Compression logic can be added here if needed, using shared utilities
+		data, err := json.Marshal(msg)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal message: %w", err)
+		}
+		if WriteTimeout > 0 {
+			err = c.conn.SetWriteDeadline(time.Now().Add(WriteTimeout))
+			if err != nil {
+				c.logger.Error("Failed to set write deadline", "error", err.Error())
+			}
+		}
+		err = c.conn.WriteMessage(websocket.TextMessage, data)
+		if err != nil {
+			c.connected = false
+			return nil, fmt.Errorf("failed to write message: %w", err)
+		}
+		c.stats.MessagesSent++
+		c.stats.LastActive = time.Now()
+		return nil, nil
 	}
-	
-	err = c.conn.WriteMessage(websocket.TextMessage, data)
-	if err != nil {
-		c.connected = false
-		return fmt.Errorf("failed to write message: %w", err)
-	}
-	
-	c.stats.MessagesSent++
-	c.stats.LastActive = time.Now()
-	
-	return nil
+	_, err := FallbackRoute(
+		ctx,
+		operationName,
+		context7d,
+		fallbackSend,
+		func() (interface{}, error) { return nil, fmt.Errorf("Bridge fallback not implemented") },
+		func() (interface{}, error) { return nil, fmt.Errorf("GitHub MCP fallback not implemented") },
+		func() (interface{}, error) { return nil, fmt.Errorf("Copilot fallback not implemented") },
+		c.logger,
+	)
+	return err
 }
 
 // readPump continuously reads messages from the WebSocket
@@ -291,40 +318,51 @@ func (c *Client) readPump() {
 // reconnect attempts to reestablish the WebSocket connection
 func (c *Client) reconnect() {
 	// WHO: ReconnectionManager
-	// WHAT: Reconnect to bridge
+	// WHAT: Reconnect to bridge with fallback
 	// WHEN: During connection loss
 	// WHERE: System Layer 6 (Integration)
-	// WHY: To restore connectivity
-	// HOW: Using retry logic
+	// WHY: To restore connectivity robustly
+	// HOW: Using FallbackRoute and retry logic
 	// EXTENT: Reconnection process
 
 	maxRetries := c.options.MaxRetries
 	if maxRetries <= 0 {
 		maxRetries = 5
 	}
-	
 	retryDelay := c.options.RetryDelay
 	if retryDelay <= 0 {
 		retryDelay = 2 * time.Second
 	}
-	
+	context7d := c.options.Context
+	operationName := "Reconnect"
+	ctx := c.ctx
 	for i := 0; i < maxRetries; i++ {
-		c.logger.Info("Attempting to reconnect to bridge", "attempt", i+1)
-		
-		err := c.connect()
+		_, err := FallbackRoute(
+			ctx,
+			operationName,
+			context7d,
+			func() (interface{}, error) {
+				c.logger.Info("Attempting to reconnect to bridge", "attempt", i+1)
+				err := c.connect()
+				if err == nil {
+					c.logger.Info("Successfully reconnected to bridge")
+					c.stats.ReconnectCount++
+					go c.readPump()
+					return nil, nil
+				}
+				c.logger.Error("Failed to reconnect", "attempt", i+1, "error", err.Error())
+				return nil, err
+			},
+			func() (interface{}, error) { return nil, fmt.Errorf("Bridge fallback not implemented") },
+			func() (interface{}, error) { return nil, fmt.Errorf("GitHub MCP fallback not implemented") },
+			func() (interface{}, error) { return nil, fmt.Errorf("Copilot fallback not implemented") },
+			c.logger,
+		)
 		if err == nil {
-			c.logger.Info("Successfully reconnected to bridge")
-			c.stats.ReconnectCount++
-			
-			// Restart the read pump
-			go c.readPump()
 			return
 		}
-		
-		c.logger.Error("Failed to reconnect", "attempt", i+1, "error", err.Error())
 		time.Sleep(retryDelay)
 	}
-	
 	c.logger.Error("Failed to reconnect after maximum attempts", "maxRetries", maxRetries)
 }
 

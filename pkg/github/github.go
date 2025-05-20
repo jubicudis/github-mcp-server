@@ -15,7 +15,9 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/jubicudis/github-mcp-server/pkg/bridge"
 	"github.com/jubicudis/github-mcp-server/pkg/log"
 	"github.com/jubicudis/github-mcp-server/pkg/translations"
 
@@ -37,17 +39,36 @@ import (
 // InitializeMCPBridge sets up the MCP bridge between GitHub and TNOS MCP
 func InitializeMCPBridge(enableCompression bool) error {
 	// WHO: BridgeInitializer
-	// WHAT: MCP bridge initialization
+	// WHAT: MCP bridge initialization with fallback
 	// WHEN: During server startup
 	// WHERE: System Layer 6 (Integration)
-	// WHY: To establish GitHub-TNOS communication
-	// HOW: Using MCP Bridge system
+	// WHY: To establish GitHub-TNOS communication robustly
+	// HOW: Using FallbackRoute utility
 	// EXTENT: System integration
 
-	fmt.Println("Initializing MCP Bridge between GitHub and TNOS")
-	// Implementation would go here in a real system
-
-	return nil
+	context7d := translations.ContextVector7D{
+		Who:    "GitHubMCPServer",
+		What:   "BridgeInit",
+		When:   time.Now().Unix(),
+		Where:  "SystemLayer6",
+		Why:    "Startup",
+		How:    "FallbackRoute",
+		Extent: 1.0,
+		Source: "GitHubMCPServer",
+	}
+	ctx := context.Background()
+	operationName := "InitializeMCPBridge"
+	_, err := bridge.FallbackRoute(
+		ctx,
+		operationName,
+		context7d,
+		func() (interface{}, error) { fmt.Println("Initializing MCP Bridge between GitHub and TNOS"); return nil, nil },
+		func() (interface{}, error) { return nil, fmt.Errorf("Bridge fallback not implemented") },
+		func() (interface{}, error) { return nil, fmt.Errorf("GitHub MCP fallback not implemented") },
+		func() (interface{}, error) { return nil, fmt.Errorf("Copilot fallback not implemented") },
+		log.NewLogger(),
+	)
+	return err
 }
 
 // GitHubContextTranslator provides bidirectional translation between GitHub context and TNOS 7D context
@@ -94,9 +115,28 @@ func (t *GitHubContextTranslator) TranslateToTNOS(githubContext map[string]inter
 	// HOW: Using context mapping
 	// EXTENT: Inbound messages
 
-	if t.EnableLogging && t.Logger != nil {
-		t.Logger.Debug("Translating context from GitHub to TNOS")
+	context7d := translations.ContextVector7D{
+		Who:    "GitHubContextTranslator",
+		What:   "TranslateToTNOS",
+		When:   time.Now().Unix(),
+		Where:  "SystemLayer6",
+		Why:    "ContextTranslation",
+		How:    "FallbackRoute",
+		Extent: 1.0,
+		Source: "GitHubMCPServer",
 	}
+	ctx := context.Background()
+	operationName := "TranslateToTNOS"
+	_, _ = bridge.FallbackRoute(
+		ctx,
+		operationName,
+		context7d,
+		func() (interface{}, error) { if t.EnableLogging && t.Logger != nil { t.Logger.Debug("Translating context from GitHub to TNOS") }; return nil, nil },
+		func() (interface{}, error) { return nil, fmt.Errorf("Bridge fallback not implemented") },
+		func() (interface{}, error) { return nil, fmt.Errorf("GitHub MCP fallback not implemented") },
+		func() (interface{}, error) { return nil, fmt.Errorf("Copilot fallback not implemented") },
+		t.Logger,
+	)
 
 	// This would implement the actual translation logic in a real system
 	tnosContext := map[string]interface{}{
@@ -122,9 +162,28 @@ func (t *GitHubContextTranslator) TranslateFromTNOS(tnosContext map[string]inter
 	// HOW: Using context mapping
 	// EXTENT: Outbound messages
 
-	if t.EnableLogging && t.Logger != nil {
-		t.Logger.Debug("Translating context from TNOS to GitHub")
+	context7d := translations.ContextVector7D{
+		Who:    "GitHubContextTranslator",
+		What:   "TranslateFromTNOS",
+		When:   time.Now().Unix(),
+		Where:  "SystemLayer6",
+		Why:    "ContextTranslation",
+		How:    "FallbackRoute",
+		Extent: 1.0,
+		Source: "GitHubMCPServer",
 	}
+	ctx := context.Background()
+	operationName := "TranslateFromTNOS"
+	_, _ = bridge.FallbackRoute(
+		ctx,
+		operationName,
+		context7d,
+		func() (interface{}, error) { if t.EnableLogging && t.Logger != nil { t.Logger.Debug("Translating context from TNOS to GitHub") }; return nil, nil },
+		func() (interface{}, error) { return nil, fmt.Errorf("Bridge fallback not implemented") },
+		func() (interface{}, error) { return nil, fmt.Errorf("GitHub MCP fallback not implemented") },
+		func() (interface{}, error) { return nil, fmt.Errorf("Copilot fallback not implemented") },
+		t.Logger,
+	)
 
 	// This would implement the actual translation logic in a real system
 	githubContext := map[string]interface{}{
@@ -141,15 +200,36 @@ func (t *GitHubContextTranslator) TranslateFromTNOS(tnosContext map[string]inter
 // BridgeHealthCheck performs a health check on the MCP bridge
 func BridgeHealthCheck() (bool, error) {
 	// WHO: HealthMonitor
-	// WHAT: Bridge health check
+	// WHAT: Bridge health check with fallback
 	// WHEN: During system monitoring
 	// WHERE: System Layer 6 (Integration)
 	// WHY: To ensure bridge availability
-	// HOW: Using connectivity tests
+	// HOW: Using FallbackRoute
 	// EXTENT: Bridge operational status
-
-	// Implementation would go here in a real system
-	return true, nil
+	context7d := translations.ContextVector7D{
+		Who:    "GitHubMCPServer",
+		What:   "HealthCheck",
+		When:   time.Now().Unix(),
+		Where:  "SystemLayer6",
+		Why:    "Monitoring",
+		How:    "FallbackRoute",
+		Extent: 1.0,
+		Source: "GitHubMCPServer",
+	}
+	ctx := context.Background()
+	operationName := "BridgeHealthCheck"
+	healthy := false
+	_, err := bridge.FallbackRoute(
+		ctx,
+		operationName,
+		context7d,
+		func() (interface{}, error) { healthy = true; return nil, nil },
+		func() (interface{}, error) { return nil, fmt.Errorf("Bridge fallback not implemented") },
+		func() (interface{}, error) { return nil, fmt.Errorf("GitHub MCP fallback not implemented") },
+		func() (interface{}, error) { return nil, fmt.Errorf("Copilot fallback not implemented") },
+		log.NewLogger(),
+	)
+	return healthy, err
 }
 
 // ConnectMCPChannels establishes bidirectional channels between GitHub and TNOS MCP

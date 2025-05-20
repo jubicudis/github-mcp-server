@@ -11,6 +11,7 @@
 package bridge
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -238,15 +239,19 @@ func (b *Bridge) Connect() error {
 		"url", b.url,
 		"protocol", b.protocolVersion)
 
-	// Establish connection
+	// Standardize handshake timeout to 60s
 	dialer := websocket.Dialer{
-		HandshakeTimeout: 60 * time.Second, // Increased from 10s to 60s to avoid context deadline exceeded errors
+		HandshakeTimeout: 60 * time.Second,
 	}
 
 	conn, resp, err := dialer.Dial(u.String(), headers)
 	if err != nil {
 		if resp != nil {
-			return fmt.Errorf("connection failed with status %d: %w", resp.StatusCode, err)
+			b.options.Logger.Error("Connection failed with status", "status", resp.StatusCode, "error", err.Error())
+		}
+		b.options.Logger.Error("Connection failed", "error", err.Error())
+		if errors.Is(err, context.DeadlineExceeded) {
+			b.options.Logger.Error("[7DContext] Context deadline exceeded during Bridge.Connect (timeout=60s)")
 		}
 		return fmt.Errorf("connection failed: %w", err)
 	}
@@ -266,6 +271,9 @@ func (b *Bridge) Connect() error {
 	err = b.performHandshake()
 	if err != nil {
 		b.options.Logger.Error("Handshake failed", "error", err.Error())
+		if errors.Is(err, context.DeadlineExceeded) {
+			b.options.Logger.Error("[7DContext] Context deadline exceeded during Bridge.performHandshake (timeout=60s)")
+		}
 		b.disconnect()
 		return fmt.Errorf("handshake failed: %w", err)
 	}
