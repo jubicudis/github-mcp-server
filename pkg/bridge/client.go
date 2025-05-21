@@ -117,12 +117,12 @@ func (c *Client) connect() error {
 			headers.Add(k, v)
 		}
 		dialer := websocket.Dialer{
-			HandshakeTimeout: WriteTimeout,
+			HandshakeTimeout: 5 * time.Second,
 		}
 		dialCtx := c.ctx
 		if c.options.Timeout > 0 {
 			var cancel context.CancelFunc
-			dialCtx, cancel = context.WithTimeout(c.ctx, c.options.Timeout)
+			dialCtx, cancel = context.WithTimeout(c.ctx, 5*time.Second)
 			defer cancel()
 		}
 		conn, resp, err := dialer.DialContext(dialCtx, u.String(), headers)
@@ -147,7 +147,31 @@ func (c *Client) connect() error {
 		operationName,
 		context7d,
 		fallbackFn, // TNOS MCP (primary)
-		func() (interface{}, error) { return nil, fmt.Errorf("Bridge fallback not implemented") },
+		func() (interface{}, error) {
+			// Fallback: retry with short delay, max 1 retry
+			for attempt := 1; attempt <= 1; attempt++ {
+				time.Sleep(1 * time.Second)
+				c.logger.Warn("FallbackRoute: retrying connect attempt %d", attempt)
+				c.mu.Lock()
+				dialer := websocket.Dialer{
+					HandshakeTimeout: 5 * time.Second,
+				}
+				dialCtx, cancel := context.WithTimeout(c.ctx, 5*time.Second)
+				defer cancel()
+				u, _ := url.Parse(c.options.ServerURL)
+				conn, _, err := dialer.DialContext(dialCtx, u.String(), http.Header{})
+				if err == nil {
+					c.conn = conn
+					c.connected = true
+					c.stats.LastActive = time.Now()
+					c.mu.Unlock()
+					return nil, nil
+				}
+				c.mu.Unlock()
+				c.logger.Warn("FallbackRoute: connect attempt %d failed: %v", attempt, err)
+			}
+			return nil, fmt.Errorf("all fallback connection attempts failed")
+		},
 		func() (interface{}, error) { return nil, fmt.Errorf("GitHub MCP fallback not implemented") },
 		func() (interface{}, error) { return nil, fmt.Errorf("Copilot fallback not implemented") },
 		c.logger,
@@ -201,32 +225,47 @@ func (c *Client) Send(msg Message) error {
 		if msg.Context == nil && c.options.Context.Who != "" {
 			msg.Context = c.options.Context
 		}
-		// Compression logic can be added here if needed, using shared utilities
 		data, err := json.Marshal(msg)
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal message: %w", err)
 		}
 		if WriteTimeout > 0 {
-			err = c.conn.SetWriteDeadline(time.Now().Add(WriteTimeout))
+			err = c.conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
 			if err != nil {
 				c.logger.Error("Failed to set write deadline", "error", err.Error())
 			}
 		}
-		err = c.conn.WriteMessage(websocket.TextMessage, data)
-		if err != nil {
-			c.connected = false
-			return nil, fmt.Errorf("failed to write message: %w", err)
+		writeCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+		ch := make(chan error, 1)
+		go func() {
+			ch <- c.conn.WriteMessage(websocket.TextMessage, data)
+		}()
+		select {
+		case err := <-ch:
+			if err != nil {
+				c.connected = false
+				return nil, fmt.Errorf("failed to write message: %w", err)
+			}
+			c.stats.MessagesSent++
+			c.stats.LastActive = time.Now()
+			return nil, nil
+		case <-writeCtx.Done():
+			c.logger.Warn("Send context deadline exceeded (timeout=5s)")
+			return nil, context.DeadlineExceeded
 		}
-		c.stats.MessagesSent++
-		c.stats.LastActive = time.Now()
-		return nil, nil
 	}
 	_, err := FallbackRoute(
 		ctx,
 		operationName,
 		context7d,
 		fallbackSend,
-		func() (interface{}, error) { return nil, fmt.Errorf("Bridge fallback not implemented") },
+		func() (interface{}, error) {
+			// Fallback: try to resend after short delay, only 1 retry
+			time.Sleep(1 * time.Second)
+			c.logger.Warn("FallbackRoute: retrying message send after 1s")
+			return fallbackSend()
+		},
 		func() (interface{}, error) { return nil, fmt.Errorf("GitHub MCP fallback not implemented") },
 		func() (interface{}, error) { return nil, fmt.Errorf("Copilot fallback not implemented") },
 		c.logger,
