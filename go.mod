@@ -25,6 +25,7 @@ require (
 
 require (
 	github.com/klauspost/reedsolomon v1.12.4
+	github.com/mattn/go-sqlite3 v1.14.28
 	go.etcd.io/bbolt v1.4.0
 )
 
