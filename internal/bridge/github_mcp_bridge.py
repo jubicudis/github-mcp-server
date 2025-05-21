@@ -13,18 +13,18 @@ enhancements
 EXTENT: All Python-based MCP communications
 """
 
-import os
-import sys
-import json
-import time
-import logging
-import asyncio
 import argparse
-import traceback
-import threading
-import websockets
+import asyncio
+import json
+import logging
+import os
 import subprocess
-from typing import Dict, Any, Optional, Tuple, Union
+import threading
+import time
+import traceback
+from typing import Any, Dict, Optional, Union
+
+import websockets
 
 # Import the dedicated Möbius compression module
 from .mobius_compression import MobiusCompression
@@ -258,7 +258,7 @@ class MessageQueue:
             ]
 
             # Process remaining messages
-            if websocket and not websocket.closed:
+            if websocket and not getattr(websocket, "closed", False):
                 # Take a copy of the queue and clear it before processing
                 messages_to_process = self.github_queue.copy()
                 self.github_queue = []
@@ -301,7 +301,7 @@ class MessageQueue:
             ]
 
             # Process remaining messages
-            if websocket and not websocket.closed:
+            if websocket and not getattr(websocket, "closed", False):
                 # Take a copy of the queue and clear it before processing
                 messages_to_process = self.tnos_queue.copy()
                 self.tnos_queue = []
@@ -338,12 +338,12 @@ class ContextVector7D:
     def __init__(self, 
                 who: str = "System", 
                 what: str = "Operation", 
-                when: float = None, 
+                when: Optional[float] = None, 
                 where: str = "MCP_Bridge", 
                 why: str = "SystemOperation", 
                 how: str = "Default", 
                 extent: Union[float, str] = 1.0,
-                metadata: Dict[str, Any] = None):
+                metadata: Optional[Dict[str, Any]] = None):
         """
         Initialize a new 7D context vector.
         
@@ -458,7 +458,7 @@ class ContextBridge:
         return github_message
 
 
-def bridgeMCPContext(githubContext: Dict[str, Any], tnosContext: Dict[str, Any] = None) -> Dict[str, Any]:
+def bridgeMCPContext(githubContext: Dict[str, Any], tnosContext: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """
     WHO: ContextBridge
     WHAT: Bridge between GitHub MCP and TNOS MCP contexts
@@ -565,7 +565,7 @@ class MCPBridgeServer:
     EXTENT: All bridge server operations
     """
 
-    def __init__(self, logger: logging.Logger, port: int = None):
+    def __init__(self, logger: logging.Logger, port: Optional[int] = None):
         self.logger = logger
         self.port = port or CONFIG["bridge"]["port"]
         self.github_mcp_socket = None
@@ -632,41 +632,43 @@ class MCPBridgeServer:
 
             # Try to start servers
             try:
-                # Get TNOS root directory
                 tnos_root = os.environ.get(
                     "TNOS_ROOT", "/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS"
                 )
-
-                # Updated path to the correct script location
                 start_script = os.path.join(
                     tnos_root, "scripts/shell/start_tnos_github_integration.sh"
                 )
-
                 if os.path.exists(start_script):
-                    process = await asyncio.create_subprocess_exec(
-                        "bash",
-                        start_script,
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE,
-                    )
-                    stdout, stderr = await process.communicate()
-
-                    if process.returncode != 0:
-                        self.logger.error(
-                            f"Failed to start MCP servers: {stderr.decode()}"
+                    try:
+                        process = await asyncio.create_subprocess_exec(
+                            "bash",
+                            start_script,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE,
                         )
+                        try:
+                            stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=15)
+                        except asyncio.TimeoutError:
+                            self.logger.error("Timeout waiting for MCP server start script. Continuing.")
+                            process.kill()
+                            await process.wait()
+                            return False
+                        if process.returncode != 0:
+                            self.logger.error(
+                                f"Failed to start MCP servers: {stderr.decode()}"
+                            )
+                            return False
+                        self.logger.info("MCP servers started successfully")
+                        return True
+                    except Exception as sub_exc:
+                        self.logger.error(f"Error running start script: {sub_exc}")
                         return False
-
-                    self.logger.info("MCP servers started successfully")
-                    return True
                 else:
-                    self.logger.error(f"Start script not found at {start_script}")
-                    return False
-
+                    self.logger.warning(f"Start script not found at {start_script}. Continuing without auto-start. Please start MCP servers manually if needed.")
+                    return True
             except Exception as e:
                 self.logger.error(f"Error starting MCP servers: {str(e)}")
                 return False
-
         self.logger.info("MCP servers are running")
         return True
 
@@ -906,7 +908,7 @@ class MCPBridgeServer:
         github_message = self.context_bridge.tnos7d_to_github(message)
 
         # Forward to GitHub MCP
-        if self.github_mcp_socket and not self.github_mcp_socket.closed:
+        if self.github_mcp_socket and not getattr(self.github_mcp_socket, "closed", False):
             try:
                 await self.github_mcp_socket.send(json.dumps(github_message))
                 self.logger.debug(
@@ -941,7 +943,7 @@ class MCPBridgeServer:
         }
 
         # Send response back to GitHub MCP
-        if self.github_mcp_socket and not self.github_mcp_socket.closed:
+        if self.github_mcp_socket and not getattr(self.github_mcp_socket, "closed", False):
             await self.github_mcp_socket.send(
                 json.dumps(
                     {
@@ -967,7 +969,7 @@ class MCPBridgeServer:
         )
 
         # Send response back to GitHub MCP
-        if self.github_mcp_socket and not self.github_mcp_socket.closed:
+        if self.github_mcp_socket and not getattr(self.github_mcp_socket, "closed", False):
             await self.github_mcp_socket.send(
                 json.dumps(
                     {
@@ -996,7 +998,7 @@ class MCPBridgeServer:
         }
 
         # Send response back to GitHub MCP
-        if self.github_mcp_socket and not self.github_mcp_socket.closed:
+        if self.github_mcp_socket and not getattr(self.github_mcp_socket, "closed", False):
             await self.github_mcp_socket.send(
                 json.dumps(
                     {
@@ -1013,7 +1015,7 @@ class MCPBridgeServer:
         tnos7d_message = self.context_bridge.github_to_tnos7d(message)
 
         # Forward to TNOS MCP
-        if self.tnos_mcp_socket and not self.tnos_mcp_socket.closed:
+        if self.tnos_mcp_socket and not getattr(self.tnos_mcp_socket, "closed", False):
             try:
                 await self.tnos_mcp_socket.send(json.dumps(tnos7d_message))
                 self.logger.debug(
@@ -1037,7 +1039,7 @@ class MCPBridgeServer:
             *[
                 client.send(message_json)
                 for client in list(self.client_sockets)
-                if not client.closed
+                if not getattr(client, "closed", False)
             ],
             return_exceptions=True,
         )
@@ -1049,7 +1051,7 @@ class MCPBridgeServer:
         # In a real implementation, this would load and sync actual contexts
         # For now, we'll just log the synchronization
 
-        if self.tnos_mcp_socket and not self.tnos_mcp_socket.closed:
+        if self.tnos_mcp_socket and not getattr(self.tnos_mcp_socket, "closed", False):
             await self.tnos_mcp_socket.send(
                 json.dumps(
                     {
@@ -1063,7 +1065,7 @@ class MCPBridgeServer:
             )
             self.logger.debug("Sent GitHub context to TNOS MCP")
 
-        if self.github_mcp_socket and not self.github_mcp_socket.closed:
+        if self.github_mcp_socket and not getattr(self.github_mcp_socket, "closed", False):
             await self.github_mcp_socket.send(
                 json.dumps(
                     {
@@ -1117,10 +1119,10 @@ class MCPBridgeServer:
                         "type": "status",
                         "status": "connected",
                         "githubConnection": (
-                            self.github_mcp_socket and not self.github_mcp_socket.closed
+                            self.github_mcp_socket and not getattr(self.github_mcp_socket, "closed", False)
                         ),
                         "tnosConnection": (
-                            self.tnos_mcp_socket and not self.tnos_mcp_socket.closed
+                            self.tnos_mcp_socket and not getattr(self.tnos_mcp_socket, "closed", False)
                         ),
                         "timestamp": int(time.time() * 1000),
                     }
@@ -1135,7 +1137,7 @@ class MCPBridgeServer:
                     if message.get("type") == "command":
                         await self.process_client_command(message, websocket)
                     elif message.get("target") == "github":
-                        if self.github_mcp_socket and not self.github_mcp_socket.closed:
+                        if self.github_mcp_socket and not getattr(self.github_mcp_socket, "closed", False):
                             await self.github_mcp_socket.send(
                                 json.dumps(message.get("data", {}))
                             )
@@ -1151,7 +1153,7 @@ class MCPBridgeServer:
                                 )
                             )
                     elif message.get("target") == "tnos":
-                        if self.tnos_mcp_socket and not self.tnos_mcp_socket.closed:
+                        if self.tnos_mcp_socket and not getattr(self.tnos_mcp_socket, "closed", False):
                             await self.tnos_mcp_socket.send(
                                 json.dumps(message.get("data", {}))
                             )
@@ -1211,10 +1213,10 @@ class MCPBridgeServer:
             "command": "status",
             "status": {
                 "githubConnection": (
-                    self.github_mcp_socket and not self.github_mcp_socket.closed
+                    self.github_mcp_socket and not getattr(self.github_mcp_socket, "closed", False)
                 ),
                 "tnosConnection": (
-                    self.tnos_mcp_socket and not self.tnos_mcp_socket.closed
+                    self.tnos_mcp_socket and not getattr(self.tnos_mcp_socket, "closed", False)
                 ),
                 "queuedMessages": {
                     "github": len(self.message_queue.github_queue),
@@ -1274,108 +1276,73 @@ class MCPBridgeServer:
             )
 
     async def ensure_bridge_files(self) -> bool:
-        """Validate that bridge files exist and create them if needed"""
         self.logger.info("Validating bridge file paths...")
-
         try:
-            # Ensure directories exist
-            python_bridge_dir = os.path.dirname(CONFIG["paths"]["javascript_bridge"])
-            js_bridge_dir = os.path.dirname(CONFIG["paths"]["diagnostic_bridge"])
-
-            # Create directories if they don't exist
-            os.makedirs(python_bridge_dir, exist_ok=True)
-            os.makedirs(js_bridge_dir, exist_ok=True)
-
-            # Create the diagnostics-expected file path
-            diagnostic_dir = os.path.dirname(CONFIG["paths"]["diagnostic_bridge"])
-            os.makedirs(diagnostic_dir, exist_ok=True)
-
-            # Instead of creating a symlink, create a file that imports the real one
             diagnostic_path = CONFIG["paths"]["diagnostic_bridge"]
+            diagnostic_dir = os.path.dirname(diagnostic_path)
+            # Only create the diagnostic file if it does not exist
             if not os.path.exists(diagnostic_path):
-                self.logger.info(
-                    f"Creating bridge file for diagnostics at: {diagnostic_path}"
-                )
-                bridge_reference = (
-                    "// Reference to actual bridge implementation\n"
-                    f"const actualBridgePath = '{CONFIG['paths']['javascript_bridge']}';\n"
-                    "try {\n"
-                    "  const actualBridge = require(actualBridgePath);\n"
-                    "  module.exports = actualBridge;\n"
-                    "} catch (error) {\n"
-                    "  console.error(`Error importing actual bridge: ${error.message}`);\n"
-                    "  module.exports = { status: 'error' };\n"
-                    "}\n"
-                )
-
-                with open(diagnostic_path, "w") as f:
-                    f.write(bridge_reference)
-
+                try:
+                    os.makedirs(diagnostic_dir, exist_ok=True)
+                    with open(diagnostic_path, "w") as f:
+                        f.write("// Diagnostic bridge placeholder for MCP integration.\n")
+                    self.logger.info(f"Created diagnostic bridge file at {diagnostic_path}")
+                except Exception as file_exc:
+                    self.logger.warning(f"Could not create diagnostic bridge file: {file_exc}")
+            else:
+                self.logger.debug(f"Diagnostic bridge file already exists at {diagnostic_path}")
+            self.logger.info("Bridge file paths validated.")
             return True
-        except Exception as e:
-            self.logger.error(f"Error ensuring bridge files: {str(e)}")
+        except Exception as exc:
+            self.logger.error(f"Error ensuring bridge files: {str(exc)}")
             return False
 
     async def start(self) -> None:
         """Start the MCP bridge server"""
         self.start_time = time.time()
-
-        try:
-            # Load message queues
-            self.message_queue.load_queues()
-
-            # Ensure bridge files exist
-            await self.ensure_bridge_files()
-
-            # Ensure MCP servers are running
-            servers_running = await self.ensure_servers_running()
-            if not servers_running:
-                self.logger.error("Failed to start MCP servers, bridge cannot start")
-                return False
-
-            # Connect to MCP servers
-            await self.connect_to_github_mcp()
-            await self.connect_to_tnos_mcp()
-
-            # Start the WebSocket server
-            self.logger.info(f"Starting MCP Bridge server on port {self.port}")
-            async with websockets.serve(self.handle_client, "0.0.0.0", self.port):
-                # Set up periodic tasks
-                self.context_sync_task = asyncio.create_task(self.context_sync_loop())
-                self.health_check_task = asyncio.create_task(self.health_check_loop())
-
-                # Wait forever (or until interrupted)
-                await asyncio.Future()  # Run forever
-
-        except Exception as e:
-            self.logger.error(f"Error starting MCP Bridge: {str(e)}")
-            self.logger.debug(traceback.format_exc())
-            return False
+        self.logger.info(f"Starting MCP Bridge Server on port {self.port}...")
+        await self.ensure_bridge_files()
+        await self.ensure_servers_running()
+        await asyncio.gather(
+            self.connect_to_github_mcp(),
+            self.connect_to_tnos_mcp(),
+            self.context_sync_loop(),
+            self.health_check_loop(),
+            self.start_websocket_server(),
+        )
 
     async def context_sync_loop(self) -> None:
         """Run context sync at regular intervals"""
-        while True:
+        interval = CONFIG["bridge"].get("context_sync_interval", 60)
+        while not self.shutting_down:
             try:
                 await self.sync_context()
             except Exception as e:
-                self.logger.error(f"Error in context sync: {str(e)}")
-
-            await asyncio.sleep(CONFIG["bridge"]["context_sync_interval"])
+                self.logger.error(f"Context sync error: {str(e)}")
+            await asyncio.sleep(interval)
 
     async def health_check_loop(self) -> None:
         """Run health checks at regular intervals"""
-        while True:
+        interval = CONFIG["bridge"].get("health_check_interval", 30)
+        while not self.shutting_down:
             try:
                 await self.health_check()
             except Exception as e:
-                self.logger.error(f"Error in health check: {str(e)}")
+                self.logger.error(f"Health check error: {str(e)}")
+            await asyncio.sleep(interval)
 
-            await asyncio.sleep(CONFIG["bridge"]["health_check_interval"])
+    async def start_websocket_server(self) -> None:
+        self.logger.info(f"Starting WebSocket server for monitoring clients on port {self.port}...")
+        async def handler(websocket):
+            await self.handle_client(websocket, None)
+        async with websockets.serve(handler, "0.0.0.0", self.port):
+            await asyncio.Future()  # Run forever
 
     def shutdown(self) -> None:
-        """Shutdown the bridge server gracefully"""
-        self.logger.info("Shutting down MCP Bridge...")
+        """Shutdown the bridge server"""
+        self.logger.info("Shutting down MCP Bridge Server...")
         self.shutting_down = True
+        # Additional cleanup logic can be added here
 
 
 def main() -> None:
@@ -1388,7 +1355,6 @@ def main() -> None:
     HOW: Using asyncio for concurrent operations
     EXTENT: Bridge server lifecycle
     """
-    # Parse command line arguments
     parser = argparse.ArgumentParser(description="GitHub MCP Bridge for TNOS")
     parser.add_argument(
         "--port",
@@ -1403,37 +1369,17 @@ def main() -> None:
         help=f'Log level (default: {CONFIG["logging"]["log_level"]})',
     )
     args = parser.parse_args()
-
-    # Setup logging
     logger = setup_logging(args.log_level)
     logger.info("Starting GitHub MCP Bridge...")
-
-    # Create and start the bridge server
     bridge_server = MCPBridgeServer(logger, args.port)
-
-    # Handle Ctrl+C gracefully
-    def signal_handler():
-        logger.info("Received shutdown signal, terminating...")
+    try:
+        asyncio.run(bridge_server.start())
+    except KeyboardInterrupt:
+        logger.info("Received KeyboardInterrupt, shutting down bridge server...")
         bridge_server.shutdown()
-        sys.exit(0)
-
-    # Register signal handlers for graceful shutdown
-    for sig in ("SIGINT", "SIGTERM"):
-        try:
-            loop = asyncio.get_event_loop()
-            loop.add_signal_handler(
-                getattr(signal, sig),
-                lambda: asyncio.create_task(loop.run_in_executor(None, signal_handler)),
-            )
-        except (NotImplementedError, RuntimeError, AttributeError):
-            pass  # Signal handling not available on this platform
-
-    # Run the server
-    asyncio.run(bridge_server.start())
-
+    except Exception as exc:
+        logger.error(f"Fatal error in bridge server: {str(exc)}")
+        logger.debug(f"Stack trace: {traceback.format_exc()}")
 
 if __name__ == "__main__":
-    # For testing the script can be run directly
-    import signal
-
     main()
