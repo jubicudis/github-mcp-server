@@ -24,7 +24,15 @@ import time
 import traceback
 from typing import Any, Dict, Optional, Union
 
-import websockets
+try:
+    import websockets
+except ImportError as e:
+    print("[ERROR] websockets module not found in venv. Check that /venv is active and installed.")
+    print(e)
+    import sys
+    print(f"[DIAG] Python executable: {sys.executable}")
+    print(f"[DIAG] sys.path: {sys.path}")
+    raise
 
 # Import the dedicated Möbius compression module
 from .mobius_compression import MobiusCompression
