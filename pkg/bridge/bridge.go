@@ -154,11 +154,11 @@ func (b *MCPBridge) Connect() error {
 		"Connect",
 		context7D,
 		func() (interface{}, error) {
-			// Primary connection attempt (reduced timeout)
+			// Primary connection attempt
 			dialer := websocket.Dialer{
-				HandshakeTimeout: 5 * time.Second,
+				HandshakeTimeout: 60 * time.Second,
 			}
-			connectCtx, cancel := context.WithTimeout(b.ctx, 5*time.Second)
+			connectCtx, cancel := context.WithTimeout(b.ctx, 60*time.Second)
 			defer cancel()
 			conn, _, err := dialer.DialContext(connectCtx, b.url, nil)
 			if err != nil {
@@ -166,7 +166,7 @@ func (b *MCPBridge) Connect() error {
 				b.changeState(StateError)
 				b.logger.Error("[7DContext] WHO:MCPBridge WHAT:Connect WHEN:%d WHERE:Layer6 WHY:ConnectionFailure HOW:WebSocket EXTENT:1.0 ERROR:%v", time.Now().Unix(), err)
 				if errors.Is(err, context.DeadlineExceeded) {
-					b.logger.Warn("[7DContext] Context deadline exceeded during MCPBridge.Connect (timeout=5s)")
+					b.logger.Warn("[7DContext] Context deadline exceeded during MCPBridge.Connect (timeout=60s)")
 				}
 				return nil, b.lastError
 			}
@@ -184,9 +184,12 @@ func (b *MCPBridge) Connect() error {
 			return nil, nil
 		},
 		func() (interface{}, error) {
-			// Fallback: retry with short delay, max 2 attempts
-			for attempt := 1; attempt <= 2; attempt++ {
-				delay := 2 * time.Second
+			// Fallback: retry with exponential backoff
+			for attempt := 1; attempt <= b.maxReconnectAttempts; attempt++ {
+				delay := b.reconnectInterval * time.Duration(1<<uint(attempt-1))
+				if delay > 60*time.Second {
+					delay = 60 * time.Second
+				}
 				b.logger.Warn("[7DContext] FallbackRoute: waiting %v before reconnect attempt %d", delay, attempt)
 				select {
 				case <-b.ctx.Done():
@@ -194,9 +197,9 @@ func (b *MCPBridge) Connect() error {
 				case <-time.After(delay):
 				}
 				dialer := websocket.Dialer{
-					HandshakeTimeout: 5 * time.Second,
+					HandshakeTimeout: 60 * time.Second,
 				}
-				connectCtx, cancel := context.WithTimeout(b.ctx, 5*time.Second)
+				connectCtx, cancel := context.WithTimeout(b.ctx, 60*time.Second)
 				defer cancel()
 				conn, _, err := dialer.DialContext(connectCtx, b.url, nil)
 				if err == nil {
@@ -310,66 +313,44 @@ func (b *MCPBridge) SendMessage(messageType string, payload map[string]interface
 		"SendMessage",
 		context7D,
 		func() (interface{}, error) {
-			// Primary send (reduced timeout)
-			writeCtx, cancel := context.WithTimeout(b.ctx, 5*time.Second)
-			defer cancel()
-			ch := make(chan error, 1)
-			go func() {
-				ch <- b.conn.WriteJSON(message)
-			}()
-			select {
-			case err := <-ch:
-				if err != nil {
-					b.recordError(fmt.Errorf("failed to send message: %w", err))
-					go b.handleConnectionFailure()
-					return nil, err
-				}
-				b.stats.MessagesSent++
-				b.stats.LastActive = time.Now()
-				b.stats.Uptime = time.Since(b.stats.StartTime)
-				logContext := translations.ContextVector7D{
-					Who:    "MCPBridge",
-					What:   "MessageSent",
-					When:   time.Now().Unix(),
-					Where:  "Layer6_Integration",
-					Why:    messageType,
-					How:    "WebSocket",
-					Extent: float64(len(fmt.Sprintf("%v", message))),
-				}
-				compressedContext := logContext.Compress()
-				b.logger.Info("Message sent: %s (context: %+v)", messageType, compressedContext.ToMap())
-				return nil, nil
-			case <-writeCtx.Done():
-				b.logger.Warn("SendMessage context deadline exceeded (timeout=5s)")
-				return nil, context.DeadlineExceeded
+			// Primary send
+			err := b.conn.WriteJSON(message)
+			if err != nil {
+				b.recordError(fmt.Errorf("failed to send message: %w", err))
+				go b.handleConnectionFailure()
+				return nil, err
 			}
+			b.stats.MessagesSent++
+			b.stats.LastActive = time.Now()
+			b.stats.Uptime = time.Since(b.stats.StartTime)
+			logContext := translations.ContextVector7D{
+				Who:    "MCPBridge",
+				What:   "MessageSent",
+				When:   time.Now().Unix(),
+				Where:  "Layer6_Integration",
+				Why:    messageType,
+				How:    "WebSocket",
+				Extent: float64(len(fmt.Sprintf("%v", message))),
+			}
+			compressedContext := logContext.Compress()
+			b.logger.Info("Message sent: %s (context: %+v)", messageType, compressedContext.ToMap())
+			return nil, nil
 		},
 		func() (interface{}, error) {
-			// Fallback: try to resend after short delay, only 1 retry
-			b.logger.Warn("[7DContext] FallbackRoute: retrying message send after 1s")
-			time.Sleep(1 * time.Second)
-			writeCtx, cancel := context.WithTimeout(b.ctx, 5*time.Second)
-			defer cancel()
-			ch := make(chan error, 1)
-			go func() {
-				ch <- b.conn.WriteJSON(message)
-			}()
-			select {
-			case err := <-ch:
-				if err != nil {
-					b.recordError(fmt.Errorf("fallback send failed: %w", err))
-					go b.handleConnectionFailure()
-					return nil, err
-				}
-				b.stats.MessagesSent++
-				b.stats.LastActive = time.Now()
-				b.stats.Uptime = time.Since(b.stats.StartTime)
-				b.logger.Info("[7DContext] FallbackRoute: message sent after retry")
-				return nil, nil
-			case <-writeCtx.Done():
-				b.logger.Warn("SendMessage fallback context deadline exceeded (timeout=5s)")
-				return nil, context.DeadlineExceeded
+			// Fallback: try to resend after short delay
+			b.logger.Warn("[7DContext] FallbackRoute: retrying message send after 2s")
+			time.Sleep(2 * time.Second)
+			err := b.conn.WriteJSON(message)
+			if err != nil {
+				b.recordError(fmt.Errorf("fallback send failed: %w", err))
+				go b.handleConnectionFailure()
+				return nil, err
 			}
+			b.stats.MessagesSent++
+			b.stats.LastActive = time.Now()
+			b.stats.Uptime = time.Since(b.stats.StartTime)
+			b.logger.Info("[7DContext] FallbackRoute: message sent after retry")
+			return nil, nil
 		},
 		func() (interface{}, error) {
 			return nil, errors.New("GitHub MCP message send not implemented in bridge.go")

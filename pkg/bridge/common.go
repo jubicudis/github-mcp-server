@@ -1,12 +1,13 @@
 /*
  * WHO: BridgeCommon
- * WHAT: Shared utilities for bridge operations
+ * WHAT: Shared utilitiesWriteTimeout           = 10 * time.Second
+ReadTimeout            = 15 * time.Secondor bridge operations
  * WHEN: Throughout all bridge operations
  * WHERE: System Layer 6 (Integration)
  * WHY: To centralize shared functionality
  * HOW: By defining common constants, types, and functions
  * EXTENT: All bridge components
- */
+*/
 
 package bridge
 
@@ -47,8 +48,8 @@ const (
 	ReconnectDelay         = 5 * time.Second
 	HealthCheckInterval    = 30 * time.Second
 	MessageBufferSize      = 100
-	WriteTimeout           = 30 * time.Second
-	ReadTimeout            = 120 * time.Second
+	WriteTimeout           = 10 * time.Second
+	ReadTimeout            = 15 * time.Second
 	PingInterval           = 30 * time.Second
 	MaxMessageSize         = 10485760 // 10MB
 	DefaultProtocolVersion = "3.0"
