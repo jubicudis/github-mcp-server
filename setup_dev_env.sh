@@ -14,6 +14,12 @@ echo "Setting up Go development environment for GitHub MCP Server..."
 
 echo "Setting up Go development environment for GitHub MCP Server..."
 
+# Remove any legacy tnos_venv if it exists (safety, idempotent)
+if [ -d "$WORKSPACE_ROOT/tnos_venv" ]; then
+    echo "Removing legacy tnos_venv virtual environment..."
+    rm -rf "$WORKSPACE_ROOT/tnos_venv"
+fi
+
 # Check if Go is installed and in the PATH
 if ! command -v go &> /dev/null; then
     echo "Go is not found in your PATH. Looking for alternative locations..."
@@ -153,89 +159,51 @@ elif [ "$1" = "test" ]; then
     go test ./...
 # Ensure the script exits after starting all components
 elif [ "$1" = "start-all" ]; then
-    echo "Starting all MCP components..."
-
-    # First kill any existing instances
-    echo "Stopping any existing MCP processes..."
+    echo "Starting all MCP components via canonical shell scripts..."
+    # Stop any existing processes
     pkill -f "github-mcp-server"
     pkill -f "tnos_mcp_server.py"
     pkill -f "tnos_mcp_bridge.py"
     pkill -f "enhanced_mobius_visualization_server.py"
     sleep 2
-    
-    # Build the GitHub MCP Server
-    echo "Building GitHub MCP Server..."
-    
-    # Check if Go is available
-    if ! command -v go &> /dev/null; then
-        echo "ERROR: Go compiler is not available in your PATH."
-        echo "Please install Go from https://golang.org/dl/"
-        echo "For macOS users, you can install Go using Homebrew: brew install go"
+
+    # Start GitHub MCP Server
+    if [ -f "$WORKSPACE_ROOT/scripts/shell/start_github_mcp_server.sh" ]; then
+        bash "$WORKSPACE_ROOT/scripts/shell/start_github_mcp_server.sh"
+    else
+        echo "ERROR: start_github_mcp_server.sh not found!"
         exit 1
     fi
-    
-    go build -o ./bin/github-mcp-server ./cmd/server
-    if [ $? -ne 0 ]; then
-        echo "Build failed. Please check the Go source code for errors."
-        exit 1
-    fi
-    
-    # Copy binary to workspace bin directory
-    cp -f ./bin/github-mcp-server "$WORKSPACE_ROOT/bin/github-mcp-server" 2>/dev/null
-    
-    # Start all MCP components in sequence using the shell scripts
-    echo "Starting all MCP components using shell scripts..."
-    
-    # Start GitHub MCP Server on custom port 8889
-    echo "Starting GitHub MCP Server on port 8889..."
-    "$WORKSPACE_ROOT/bin/github-mcp-server" -config "$WORKSPACE_ROOT/github-mcp-server/config/tools.json" &
     sleep 2
-    
-    # Start TNOS MCP Server on port 8083
-    echo "Starting TNOS MCP Server on port 8083..."
+
+    # Start TNOS MCP Server
     if [ -f "$WORKSPACE_ROOT/scripts/shell/start_tnos_mcp_server.sh" ]; then
         bash "$WORKSPACE_ROOT/scripts/shell/start_tnos_mcp_server.sh"
     else
-        # Fallback: launch directly using venv
-        MCP_SERVER_SCRIPT="$WORKSPACE_ROOT/mcp/bridge/tnos_mcp_server.py"
-        VENV_DIR="$WORKSPACE_ROOT/venv"
-        if [ -f "$MCP_SERVER_SCRIPT" ]; then
-            echo "[FALLBACK] Launching TNOS MCP Server directly with venv..."
-            (cd "$WORKSPACE_ROOT" && nohup "$VENV_DIR/bin/python3.12" -u "$MCP_SERVER_SCRIPT" > "$WORKSPACE_ROOT/logs/tnos_mcp_server.log" 2>&1 &)
-            echo $! > "$WORKSPACE_ROOT/logs/tnos_mcp_server.pid"
-        else
-            echo "ERROR: TNOS MCP server script not found!"
-        fi
+        echo "ERROR: start_tnos_mcp_server.sh not found!"
+        exit 1
     fi
     sleep 2
-    
-    # Start Enhanced Visualization Server
-    echo "Starting Enhanced Möbius Visualization Server on port 7779..."
+
+    # Start Visualization Server
     if [ -f "$WORKSPACE_ROOT/scripts/shell/start_visualization_server.sh" ]; then
         bash "$WORKSPACE_ROOT/scripts/shell/start_visualization_server.sh"
     else
-        # Fallback: launch directly using venv
-        VISUALIZATION_SERVER_SCRIPT="$WORKSPACE_ROOT/mcp/bridge/visualization/enhanced_mobius_visualization_server.py"
-        VENV_DIR="$WORKSPACE_ROOT/venv"
-        if [ -f "$VISUALIZATION_SERVER_SCRIPT" ]; then
-            echo "[FALLBACK] Launching Visualization Server directly with venv..."
-            (cd "$WORKSPACE_ROOT" && nohup "$VENV_DIR/bin/python3.12" "$VISUALIZATION_SERVER_SCRIPT" > "$WORKSPACE_ROOT/logs/enhanced_visualization_server.log" 2>&1 &)
-            echo $! > "$WORKSPACE_ROOT/logs/enhanced_visualization_server.pid"
-        else
-            echo "ERROR: Enhanced Visualization server script not found!"
-        fi
+        echo "ERROR: start_visualization_server.sh not found!"
+        exit 1
     fi
     sleep 2
-    
-    # Start MCP Bridge connecting GitHub and TNOS MCP servers
-    echo "Starting MCP Bridge between GitHub port 8889 and TNOS port 8083..."
-    # Set as environment variables instead of flags
-    export GITHUB_PORT=8889
-    export TNOS_PORT=8083
-    bash "$WORKSPACE_ROOT/scripts/shell/start_mcp_bridge.sh"
-    
-    echo "All MCP components started successfully."
-    echo "Visualization server available at: http://localhost:7779/"
+
+    # Start MCP Bridge
+    if [ -f "$WORKSPACE_ROOT/scripts/shell/start_mcp_bridge.sh" ]; then
+        bash "$WORKSPACE_ROOT/scripts/shell/start_mcp_bridge.sh"
+    else
+        echo "ERROR: start_mcp_bridge.sh not found!"
+        exit 1
+    fi
+    sleep 2
+
+    echo "All MCP components started via canonical shell scripts."
     exit 0
 fi
 
