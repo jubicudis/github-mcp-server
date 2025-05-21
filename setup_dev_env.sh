@@ -188,7 +188,7 @@ elif [ "$1" = "start-all" ]; then
     
     # Start GitHub MCP Server on custom port 8889
     echo "Starting GitHub MCP Server on port 8889..."
-    bash "$WORKSPACE_ROOT/scripts/shell/start_github_mcp_server.sh" --port=8889
+    "$WORKSPACE_ROOT/bin/github-mcp-server" -config "$WORKSPACE_ROOT/github-mcp-server/config/tools.json" &
     sleep 2
     
     # Start TNOS MCP Server on port 8083
@@ -264,7 +264,7 @@ start_all_mcp() {
     if lsof -i :8889 | grep LISTEN; then
       echo "ERROR: Port 8889 is already in use. GitHub MCP server will not be started."
     else
-      nohup "$GITHUB_MCP_SERVER" --port=8889 > "$SERVER_LOG" 2>&1 &
+      nohup "$GITHUB_MCP_SERVER" > "$SERVER_LOG" 2>&1 &
       echo $! > "$LOGS_DIR/github_mcp_server.pid"
       echo "GitHub MCP server started with PID $(cat "$LOGS_DIR/github_mcp_server.pid") on port 8889 (log: $SERVER_LOG)"
     fi
@@ -282,11 +282,12 @@ start_all_mcp() {
       else
         if [[ -f "$VENV_DIR/bin/activate" ]]; then
           source "$VENV_DIR/bin/activate"
+          pip install flask --quiet
         fi
-        export PYTHONPATH="$PROJECT_ROOT:$PROJECT_ROOT/core:$PROJECT_ROOT/github-mcp-server:$PYTHONPATH"
-        nohup python "$MCP_SERVER_SCRIPT" --port 8083 --http-port 8084 > "$LOGS_DIR/tnos_mcp_server.log" 2>&1 &
+        export PYTHONPATH="$PROJECT_ROOT/python:$PROJECT_ROOT:$PROJECT_ROOT/core:$PROJECT_ROOT/github-mcp-server:$PYTHONPATH"
+        (cd "$PROJECT_ROOT" && nohup python -u "$MCP_SERVER_SCRIPT" > "$LOGS_DIR/tnos_mcp_server.log" 2>&1 &)
         echo $! > "$LOGS_DIR/tnos_mcp_server.pid"
-        echo "TNOS MCP server started with PID $(cat "$LOGS_DIR/tnos_mcp_server.pid") on port 8083 (TCP) and 8084 (HTTP) (log: $LOGS_DIR/tnos_mcp_server.log)"
+        echo "TNOS MCP server started with PID $(cat "$LOGS_DIR/tnos_mcp_server.pid") (log: $LOGS_DIR/tnos_mcp_server.log)"
       fi
     fi
     sleep 2
@@ -302,8 +303,10 @@ start_all_mcp() {
       else
         if [[ -f "$VENV_DIR/bin/python" ]]; then
           PYTHON_EXEC="$VENV_DIR/bin/python"
+          "$VENV_DIR/bin/pip" install flask --quiet
         else
           PYTHON_EXEC=$(which python3)
+          pip3 install flask --quiet
         fi
         nohup $PYTHON_EXEC "$VISUALIZATION_SERVER_SCRIPT" > "$LOGS_DIR/enhanced_visualization_server.log" 2>&1 &
         echo $! > "$LOGS_DIR/enhanced_visualization_server.pid"
@@ -318,7 +321,7 @@ start_all_mcp() {
     if [[ ! -f "$PYTHON_BRIDGE" ]]; then
       echo "ERROR: MCP Bridge script not found!"
     else
-      nohup python "$PYTHON_BRIDGE" --port=8082 --github-port=8889 --tnos-port=8084 > "$LOGS_DIR/mcp_bridge.log" 2>&1 &
+      nohup python "$PYTHON_BRIDGE" > "$LOGS_DIR/mcp_bridge.log" 2>&1 &
       echo $! > "$LOGS_DIR/mcp_bridge.pid"
       echo "MCP Bridge started with PID $(cat "$LOGS_DIR/mcp_bridge.pid") (log: $LOGS_DIR/mcp_bridge.log)"
     fi
