@@ -8,7 +8,10 @@ import (
 	"sync"
 	"time"
 
+	"database/sql"
+
 	"github.com/klauspost/reedsolomon"
+	_ "github.com/mattn/go-sqlite3"
 	"go.etcd.io/bbolt"
 )
 
@@ -232,6 +235,44 @@ func initHelicalDB() error {
 	return helicalDBErr
 }
 
+// Persistent SQLite instance and mutex for thread safety
+var (
+	helicalSQLiteDB     *sql.DB
+	helicalSQLiteOnce   sync.Once
+	helicalSQLiteErr    error
+)
+
+const helicalSQLiteDBPath = "helical_store.sqlite3"
+const helicalSQLiteTable = "helical_store"
+
+// initHelicalSQLiteDB initializes SQLite for persistent helical storage
+func initHelicalSQLiteDB() error {
+	helicalSQLiteOnce.Do(func() {
+		path := os.Getenv("HELICAL_SQLITE_PATH")
+		if path == "" {
+			path = helicalSQLiteDBPath
+		}
+		db, err := sql.Open("sqlite3", path)
+		if err != nil {
+			helicalSQLiteErr = err
+			return
+		}
+		// Create table if not exists
+		_, err = db.Exec(`CREATE TABLE IF NOT EXISTS ` + helicalSQLiteTable + ` (
+			key TEXT PRIMARY KEY,
+			encoded BLOB,
+			meta TEXT,
+			context TEXT
+		)`)
+		if err != nil {
+			helicalSQLiteErr = err
+			return
+		}
+		helicalSQLiteDB = db
+	})
+	return helicalSQLiteErr
+}
+
 // HelicalEncode encodes compressed data into a dual-helix structure with Reed-Solomon error correction
 func HelicalEncode(compressed []byte, strandCount int, meta *MobiusCompressionMeta) ([]byte, error) {
 	// WHO: HelicalEncoder
@@ -316,15 +357,19 @@ func HelicalDecode(encoded []byte, meta *MobiusCompressionMeta) ([]byte, error) 
 	return compressed, nil
 }
 
-// HelicalStore stores encoded data with redundancy and context (persistent BoltDB)
+// HelicalStore stores encoded data with redundancy and context (persistent SQLite primary, BoltDB fallback)
 func HelicalStore(key string, encoded []byte, meta *MobiusCompressionMeta, context map[string]interface{}) error {
 	// WHO: HelicalStorageEngine
 	// WHAT: Store dual-helix encoded data
 	// WHEN: On store
-	// WHERE: github-mcp-server/utils (persistent BoltDB)
-	// WHY: To persist self-healing, compressed data
-	// HOW: Write to BoltDB with 7D context
+	// WHERE: github-mcp-server/utils (persistent SQLite primary, BoltDB fallback)
+	// WHY: To persist self-healing, compressed data with 7D context
+	// HOW: Write to SQLite with fallback to BoltDB
 	// EXTENT: Single data block
+	if err := HelicalStoreSQLite(key, encoded, meta, context); err == nil {
+		return nil
+	}
+	// Fallback to BoltDB if SQLite fails
 	if err := initHelicalDB(); err != nil {
 		return err
 	}
@@ -343,15 +388,19 @@ func HelicalStore(key string, encoded []byte, meta *MobiusCompressionMeta, conte
 	})
 }
 
-// HelicalRetrieve retrieves encoded data and metadata by key (persistent BoltDB)
+// HelicalRetrieve retrieves encoded data and metadata by key (persistent SQLite primary, BoltDB fallback)
 func HelicalRetrieve(key string, context map[string]interface{}) ([]byte, *MobiusCompressionMeta, error) {
 	// WHO: HelicalStorageEngine
 	// WHAT: Retrieve dual-helix encoded data
 	// WHEN: On retrieve
-	// WHERE: github-mcp-server/utils (persistent BoltDB)
-	// WHY: To access self-healing, compressed data
-	// HOW: Read from BoltDB with 7D context
+	// WHERE: github-mcp-server/utils (persistent SQLite primary, BoltDB fallback)
+	// WHY: To access self-healing, compressed data with 7D context
+	// HOW: Read from SQLite with fallback to BoltDB
 	// EXTENT: Single data block
+	if encoded, meta, err := HelicalRetrieveSQLite(key, context); err == nil {
+		return encoded, meta, nil
+	}
+	// Fallback to BoltDB if SQLite fails or not found
 	if err := initHelicalDB(); err != nil {
 		return nil, nil, err
 	}
@@ -377,4 +426,56 @@ func HelicalRetrieve(key string, context map[string]interface{}) ([]byte, *Mobiu
 		return nil, nil, err
 	}
 	return storeObj.Encoded, storeObj.Meta, nil
+}
+
+// HelicalStoreSQLite stores encoded data with redundancy and context (persistent SQLite)
+func HelicalStoreSQLite(key string, encoded []byte, meta *MobiusCompressionMeta, context map[string]interface{}) error {
+	// WHO: HelicalStorageEngine (SQLite)
+	// WHAT: Store dual-helix encoded data in SQLite
+	// WHEN: On store
+	// WHERE: github-mcp-server/utils (persistent SQLite)
+	// WHY: To persist self-healing, compressed data with 7D context
+	// HOW: Write to SQLite with 7D context
+	// EXTENT: Single data block
+	if err := initHelicalSQLiteDB(); err != nil {
+		return err
+	}
+	metaJSON, err := json.Marshal(meta)
+	if err != nil {
+		return err
+	}
+	contextJSON, err := json.Marshal(context)
+	if err != nil {
+		return err
+	}
+	_, err = helicalSQLiteDB.Exec(`INSERT OR REPLACE INTO `+helicalSQLiteTable+` (key, encoded, meta, context) VALUES (?, ?, ?, ?)`, key, encoded, metaJSON, contextJSON)
+	return err
+}
+
+// HelicalRetrieveSQLite retrieves encoded data and metadata by key (persistent SQLite)
+func HelicalRetrieveSQLite(key string, context map[string]interface{}) ([]byte, *MobiusCompressionMeta, error) {
+	// WHO: HelicalStorageEngine (SQLite)
+	// WHAT: Retrieve dual-helix encoded data from SQLite
+	// WHEN: On retrieve
+	// WHERE: github-mcp-server/utils (persistent SQLite)
+	// WHY: To access self-healing, compressed data with 7D context
+	// HOW: Read from SQLite with 7D context
+	// EXTENT: Single data block
+	if err := initHelicalSQLiteDB(); err != nil {
+		return nil, nil, err
+	}
+	row := helicalSQLiteDB.QueryRow(`SELECT encoded, meta FROM `+helicalSQLiteTable+` WHERE key = ?`, key)
+	var encoded []byte
+	var metaJSON []byte
+	if err := row.Scan(&encoded, &metaJSON); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil, errors.New("not found")
+		}
+		return nil, nil, err
+	}
+	var meta MobiusCompressionMeta
+	if err := json.Unmarshal(metaJSON, &meta); err != nil {
+		return nil, nil, err
+	}
+	return encoded, &meta, nil
 }

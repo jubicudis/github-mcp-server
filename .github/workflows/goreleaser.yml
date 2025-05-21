@@ -8,15 +8,10 @@
 
 name: GoReleaser Release
 
-on:
-  push:
-    tags:
-      - "v*"
+on: [push, pull_request]
 
 permissions:
-  contents: write
-  id-token: write
-  packages: read
+  contents: read
 
 jobs:
   release:
