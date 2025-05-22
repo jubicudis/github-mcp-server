@@ -12,7 +12,7 @@ go 1.24.3
 require (
 	github.com/docker/docker v28.0.4+incompatible
 	github.com/google/go-cmp v0.7.0
-	github.com/google/go-github/v49 v49.1.0 // Use v49 instead of v69 which has compatibility issues
+	github.com/google/go-github/v71 v71.0.0 // indirect; Use v71 only for MCP integration; v49 removed to resolve version conflict
 	github.com/gorilla/websocket v1.5.3
 	github.com/mark3labs/mcp-go v0.26.0
 	github.com/migueleliasweb/go-github-mock v1.3.0
@@ -24,6 +24,7 @@ require (
 )
 
 require (
+	github.com/google/go-github/v49 v49.1.0
 	github.com/klauspost/reedsolomon v1.12.4
 	github.com/mattn/go-sqlite3 v1.14.28
 	go.etcd.io/bbolt v1.4.0
