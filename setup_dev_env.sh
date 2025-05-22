@@ -310,7 +310,7 @@ start_all_mcp() {
           "$VENV_DIR/bin/pip" install flask --quiet
         fi
         export PYTHONPATH="$PROJECT_ROOT/python:$PROJECT_ROOT:$PROJECT_ROOT/core:$PROJECT_ROOT/github-mcp-server:$PYTHONPATH"
-        (cd "$PROJECT_ROOT" && nohup "$VENV_DIR/bin/python3.12" -u "$MCP_SERVER_SCRIPT" > "$LOGS_DIR/tnos_mcp_server.log" 2>&1 & echo $! > "$LOGS_DIR/tnos_mcp_server.pid")
+        (cd "$PROJECT_ROOT" && nohup "$VENV_DIR/bin/python3.11" -u "$MCP_SERVER_SCRIPT" > "$LOGS_DIR/tnos_mcp_server.log" 2>&1 & echo $! > "$LOGS_DIR/tnos_mcp_server.pid")
         sleep 2
         TNOS_PID=$(cat "$LOGS_DIR/tnos_mcp_server.pid")
         if ! kill -0 $TNOS_PID 2>/dev/null; then
@@ -350,7 +350,7 @@ start_all_mcp() {
         echo "ERROR: Port 7779 is already in use. Enhanced Visualization server will not be started."
       else
         # Remove fallback to system python3, always use venv
-        PYTHON_EXEC="$VENV_DIR/bin/python3.12"
+        PYTHON_EXEC="$VENV_DIR/bin/python3.11"
         "$VENV_DIR/bin/pip" install flask --quiet
         nohup $PYTHON_EXEC "$VISUALIZATION_SERVER_SCRIPT" > "$LOGS_DIR/enhanced_visualization_server.log" 2>&1 &
         echo $! > "$LOGS_DIR/enhanced_visualization_server.pid"
@@ -367,7 +367,7 @@ start_all_mcp() {
       echo "ERROR: MCP Bridge script not found!"
     else
       echo "[MCP][Bridge] Attempting to connect MCP Bridge to GitHub MCP (127.0.0.1:8889) and TNOS MCP (127.0.0.1:8083)..."
-      nohup "$VENV_DIR/bin/python3.12" "$PYTHON_BRIDGE" > "$LOGS_DIR/mcp_bridge.log" 2>&1 &
+      nohup "$VENV_DIR/bin/python3.11" "$PYTHON_BRIDGE" > "$LOGS_DIR/mcp_bridge.log" 2>&1 &
       echo $! > "$LOGS_DIR/mcp_bridge.pid"
       echo "MCP Bridge started with PID $(cat "$LOGS_DIR/mcp_bridge.pid") (log: $LOGS_DIR/mcp_bridge.log)"
       # No port to wait for, but log connection attempt
