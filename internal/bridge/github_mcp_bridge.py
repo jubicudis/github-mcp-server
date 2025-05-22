@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env -S /Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/venv/bin/python3.12
 # -*- coding: utf-8 -*-
 
 """
