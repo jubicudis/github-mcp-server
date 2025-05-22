@@ -56,6 +56,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 export WORKSPACE_ROOT
 
+# Ensure all root path references use the canonical workspace root
 # Set go.work file location (absolute path)
 export GOWORK="$WORKSPACE_ROOT/go.work"
 
@@ -101,8 +102,11 @@ fi
 which golint > /dev/null 2>&1 || { echo "Installing golint..."; go install golang.org/x/lint/golint@latest; }
 which errcheck > /dev/null 2>&1 || { echo "Installing errcheck..."; go install github.com/kisielk/errcheck@latest; }
 
+# Always move to the workspace root before any build or script command
+cd "$WORKSPACE_ROOT" || exit 1
+
 # Move to the github-mcp-server directory
-cd "/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/github-mcp-server" || exit 1
+cd "$WORKSPACE_ROOT/github-mcp-server" || exit 1
 
 # Verify module setup
 echo "Verifying Go module setup..."
@@ -149,7 +153,7 @@ if [ "$1" = "run" ]; then
     else
         echo "Build failed. Trying alternative approach..."
         # Try building without workspace mode, using direct module
-        SERVER_DIR="/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/github-mcp-server"
+        SERVER_DIR="$WORKSPACE_ROOT/github-mcp-server"
         cd "$SERVER_DIR" && \
         GO111MODULE=on go build -o bin/github-mcp-server ./cmd/server && \
         ./bin/github-mcp-server
@@ -238,7 +242,7 @@ wait_for_port() {
     # EXTENT: Used for all MCP component port dependencies
     local host="$1"
     local port="$2"
-    local timeout="${3:-20}"
+    local timeout="${3:-60}"
     local waited=0
     echo "[MCP][PortWaiter] Waiting for $host:$port to be open (timeout ${timeout}s)..."
     while ! nc -z "$host" "$port" 2>/dev/null; do
@@ -248,8 +252,11 @@ wait_for_port() {
             echo "[MCP][PortWaiter][ERROR] Timeout waiting for $host:$port to be open after $timeout seconds."
             return 1
         fi
+        if (( $waited % 10 == 0 )); then
+            echo "[MCP][PortWaiter] Still waiting for $host:$port... ($waited seconds elapsed)"
+        fi
     done
-    echo "[MCP][PortWaiter] $host:$port is now open."
+    echo "[MCP][PortWaiter] $host:$port is now open after $waited seconds."
     return 0
 }
 
@@ -323,13 +330,9 @@ start_all_mcp() {
       if lsof -i :7779 | grep LISTEN; then
         echo "ERROR: Port 7779 is already in use. Enhanced Visualization server will not be started."
       else
-        if [[ -f "$VENV_DIR/bin/python" ]]; then
-          PYTHON_EXEC="$VENV_DIR/bin/python"
-          "$VENV_DIR/bin/pip" install flask --quiet
-        else
-          PYTHON_EXEC=$(which python3)
-          pip3 install flask --quiet
-        fi
+        # Remove fallback to system python3, always use venv
+        PYTHON_EXEC="$VENV_DIR/bin/python3.12"
+        "$VENV_DIR/bin/pip" install flask --quiet
         nohup $PYTHON_EXEC "$VISUALIZATION_SERVER_SCRIPT" > "$LOGS_DIR/enhanced_visualization_server.log" 2>&1 &
         echo $! > "$LOGS_DIR/enhanced_visualization_server.pid"
         echo "Enhanced Möbius Visualization Server started on port 7779 (log: $LOGS_DIR/enhanced_visualization_server.log)"
@@ -434,4 +437,11 @@ if [ $# -eq 0 ]; then
     start_all_mcp
     status_all_mcp
     exit 0
+fi
+
+# Ensure PYTHONPATH is set for this shell session
+if [ "$0" = "$BASH_SOURCE" ]; then
+    echo "[WARNING] setup_dev_env.sh was executed, not sourced. PYTHONPATH and other environment variables will NOT persist in your current shell."
+    echo "To ensure TNOS Python modules are always available, run:"
+    echo "    source $0"
 fi

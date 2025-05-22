@@ -414,6 +414,14 @@ class MobiusCompression {
     const compressedSize = String(compressed).length;
     const compressionRatio = originalSize / compressedSize;
 
+    // Location-aware metadata (stubbed for now, can be extended with real geo/runtime/file info)
+    const locationMetadata = {
+      geo: process.env.GEO_LOCATION || 'unknown',
+      file_path: (typeof originalData === 'object' && originalData._filePath) ? originalData._filePath : null,
+      runtime_path: (typeof process !== 'undefined' && process.cwd) ? process.cwd() : null,
+      transfer_distance: (typeof originalData === 'object' && originalData._transferDistance) ? originalData._transferDistance : null
+    };
+
     return {
       success: true,
       data: compressed,
@@ -435,39 +443,10 @@ class MobiusCompression {
           how: context.how,
           extent: context.extent
         },
+        ...locationMetadata,
         original: MobiusCompression.config.preserveOriginal ? originalData : undefined
       }
     };
-  }
-
-  /**
-   * Get the size of data in bytes (approximate)
-   * @param {*} data - Data to measure
-   * @returns {number} Size in bytes
-   * @private
-   */
-  static _getDataSize(data) {
-    if (typeof data === 'string') {
-      return data.length;
-    }
-
-    if (typeof data === 'number') {
-      return String(data).length;
-    }
-
-    if (typeof data === 'boolean') {
-      return 1;
-    }
-
-    if (data === null || data === undefined) {
-      return 0;
-    }
-
-    if (Array.isArray(data) || typeof data === 'object') {
-      return JSON.stringify(data).length;
-    }
-
-    return String(data).length;
   }
 
   /**
