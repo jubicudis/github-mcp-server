@@ -34,7 +34,7 @@ class ContextVector7D {
     this.who = who;
     this.what = what;
     this.when = when;
-    this.where = where;
+    this.where = this.where;
     this.why = why;
     this.how = how;
     this.extent = extent;
@@ -117,6 +117,50 @@ class MobiusCompression {
     return MobiusCompression.config;
   }
 
+  // Static property for formula registry
+  static formulaRegistry = null;
+
+  /**
+   * Load the formula registry from the canonical JSON file
+   * @param {string} registryPath - Path to the formula registry JSON
+   */
+  static loadFormulaRegistry(registryPath) {
+    const fs = isNode ? require('fs') : null;
+    if (isNode && fs && fs.existsSync(registryPath)) {
+      try {
+        const data = fs.readFileSync(registryPath, 'utf8');
+        MobiusCompression.formulaRegistry = JSON.parse(data);
+        if (MobiusCompression.formulaRegistry && MobiusCompression.formulaRegistry.formulas) {
+          // Index formulas by id for fast lookup
+          MobiusCompression.formulaIndex = {};
+          for (const f of MobiusCompression.formulaRegistry.formulas) {
+            MobiusCompression.formulaIndex[f.id] = f;
+          }
+        }
+      } catch (e) {
+        if (isNode) console.error('[MobiusCompression] Failed to load formula registry:', e.message);
+      }
+    }
+  }
+
+  /**
+   * Get the Möbius compression formula from the registry
+   */
+  static getMobiusFormula() {
+    if (MobiusCompression.formulaIndex && MobiusCompression.formulaIndex['mobius_compression']) {
+      return MobiusCompression.formulaIndex['mobius_compression'];
+    }
+    return null;
+  }
+
+  /**
+   * Set TranquilSpeak and ATM integration hooks
+   */
+  static setIntegrationHooks({ tranquilSpeak, advancedTriggerMatrix } = {}) {
+    MobiusCompression.tranquilSpeak = tranquilSpeak;
+    MobiusCompression.advancedTriggerMatrix = advancedTriggerMatrix;
+  }
+
   /**
    * Compress data using the Möbius Compression algorithm
    * 
@@ -137,6 +181,15 @@ class MobiusCompression {
       // Ensure initialization
       if (!MobiusCompression.config) {
         MobiusCompression.initialize();
+      }
+
+      // Load formula registry if not loaded
+      if (!MobiusCompression.formulaRegistry) {
+        // Use canonical path if available
+        const registryPath = process && process.env && process.env.TNOS_FORMULA_REGISTRY_PATH
+          ? process.env.TNOS_FORMULA_REGISTRY_PATH
+          : '/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/config/formulas.json';
+        MobiusCompression.loadFormulaRegistry(registryPath);
       }
 
       // Track statistics
@@ -184,6 +237,24 @@ class MobiusCompression {
       // Package with metadata
       const compressionVars = { value, entropy, ...factors, alignment };
       const result = MobiusCompression._packageWithMetadata(compressed, compressionVars, ctx, data);
+
+      // Attach formula registry info and location-aware metadata
+      const mobiusFormula = MobiusCompression.getMobiusFormula();
+      let formulaUsed = mobiusFormula ? mobiusFormula.formula : 'builtin';
+      result.metadata.formula = formulaUsed;
+      if (mobiusFormula) {
+        result.metadata.formula_id = mobiusFormula.id;
+        result.metadata.formula_description = mobiusFormula.description;
+        result.metadata.formula_registry_version = MobiusCompression.formulaRegistry.metadata?.version;
+      }
+
+      // ATM/TranquilSpeak integration stub: route symbolic tokens if present
+      if (MobiusCompression.tranquilSpeak && typeof MobiusCompression.tranquilSpeak.routeSymbol === 'function') {
+        result.metadata.tranquilSpeakRoute = MobiusCompression.tranquilSpeak.routeSymbol(ctx, data);
+      }
+      if (MobiusCompression.advancedTriggerMatrix && typeof MobiusCompression.advancedTriggerMatrix.notifyCompression === 'function') {
+        MobiusCompression.advancedTriggerMatrix.notifyCompression(ctx, result);
+      }
 
       // Update statistics
       MobiusCompression._updateCompressionStats(data, result);
