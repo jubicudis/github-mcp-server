@@ -77,7 +77,7 @@ try {
     connection: {
       type: 'direct',
       tnos_mcp_host: 'localhost',
-      tnos_mcp_port: 9001,
+      tnos_mcp_port: 8888, // Standardized to 8888 for canonical MCP bridge integration
       use_compression: true
     },
     logging: {
