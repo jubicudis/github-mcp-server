@@ -102,9 +102,6 @@ fi
 which golint > /dev/null 2>&1 || { echo "Installing golint..."; go install golang.org/x/lint/golint@latest; }
 which errcheck > /dev/null 2>&1 || { echo "Installing errcheck..."; go install github.com/kisielk/errcheck@latest; }
 
-# Always move to the workspace root before any build or script command
-cd "$WORKSPACE_ROOT" || exit 1
-
 # Move to the github-mcp-server directory
 cd "$WORKSPACE_ROOT/github-mcp-server" || exit 1
 
