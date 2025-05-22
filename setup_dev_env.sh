@@ -257,6 +257,58 @@ wait_for_port() {
     return 0
 }
 
+# === SOLO DEVELOPER MCP STARTUP LOGIC ===
+# Only start the TNOS MCP server (Python) directly, no other shell scripts or Go servers
+start_tnos_mcp_server_only() {
+    echo "[SOLO] Stopping any existing TNOS MCP server processes..."
+    pkill -f "tnos_mcp_server.py"
+    sleep 1
+    PROJECT_ROOT="$WORKSPACE_ROOT"
+    LOGS_DIR="$PROJECT_ROOT/logs"
+    MCP_SERVER_SCRIPT="$PROJECT_ROOT/mcp/bridge/tnos_mcp_server.py"
+    VENV_DIR="$PROJECT_ROOT/.venv"
+    mkdir -p "$LOGS_DIR"
+    if [[ ! -f "$MCP_SERVER_SCRIPT" ]]; then
+      echo "[SOLO][ERROR] TNOS MCP server script not found!"
+      exit 1
+    fi
+    if lsof -i :8083 | grep LISTEN; then
+      echo "[SOLO][ERROR] Port 8083 (TCP) is already in use. TNOS MCP server will not be started."
+      exit 1
+    fi
+    if [[ -f "$VENV_DIR/bin/activate" ]]; then
+      source "$VENV_DIR/bin/activate"
+      "$VENV_DIR/bin/pip" install flask --quiet
+    fi
+    export PYTHONPATH="$PROJECT_ROOT/python:$PROJECT_ROOT:$PROJECT_ROOT/core:$PROJECT_ROOT/github-mcp-server:$PYTHONPATH"
+    (cd "$PROJECT_ROOT" && nohup "$VENV_DIR/bin/python3.11" -u "$MCP_SERVER_SCRIPT" > "$LOGS_DIR/tnos_mcp_server.log" 2>&1 & echo $! > "$LOGS_DIR/tnos_mcp_server.pid")
+    sleep 2
+    TNOS_PID=$(cat "$LOGS_DIR/tnos_mcp_server.pid")
+    if ! kill -0 $TNOS_PID 2>/dev/null; then
+      echo "[SOLO][ERROR] TNOS MCP server process failed to start (PID $TNOS_PID not running). Check $LOGS_DIR/tnos_mcp_server.log for details."
+      exit 1
+    fi
+    if ! wait_for_port_and_health "127.0.0.1" 8083 60; then
+      echo "[SOLO][ERROR] TNOS MCP Server did not open port 8083 or /health endpoint in time. Checking process..."
+      if ! kill -0 $TNOS_PID 2>/dev/null; then
+        echo "[SOLO][ERROR] TNOS MCP server process died before port 8083 opened. Check $LOGS_DIR/tnos_mcp_server.log for errors."
+      else
+        echo "[SOLO][ERROR] TNOS MCP server process is running but port 8083 is not open or /health is not ready. Possible binding or Flask startup issue."
+      fi
+      exit 1
+    fi
+    if ! wait_for_port "127.0.0.1" 8888 20; then
+      echo "[SOLO][ERROR] TNOS MCP Server did not open port 8888 (WebSocket) in time. Checking process..."
+      if ! kill -0 $TNOS_PID 2>/dev/null; then
+        echo "[SOLO][ERROR] TNOS MCP server process died before port 8888 opened. Check $LOGS_DIR/tnos_mcp_server.log for errors."
+      else
+        echo "[SOLO][ERROR] TNOS MCP server process is running but port 8888 is not open. Possible binding issue."
+      fi
+      exit 1
+    fi
+    echo "[SOLO] TNOS MCP server started with PID $TNOS_PID (log: $LOGS_DIR/tnos_mcp_server.log)"
+}
+
 start_all_mcp() {
     echo "[MCP] Stopping any existing MCP processes..."
     pkill -f "github-mcp-server"
@@ -298,7 +350,7 @@ start_all_mcp() {
     # Start TNOS MCP Server (mirrored logic)
     echo "[MCP] Starting TNOS MCP Server on port 8083..."
     MCP_SERVER_SCRIPT="$PROJECT_ROOT/mcp/bridge/tnos_mcp_server.py"
-    VENV_DIR="$PROJECT_ROOT/venv"
+    VENV_DIR="$PROJECT_ROOT/.venv"
     if [[ ! -f "$MCP_SERVER_SCRIPT" ]]; then
       echo "ERROR: TNOS MCP server script not found!"
     else
@@ -317,12 +369,13 @@ start_all_mcp() {
           echo "[MCP][ERROR] TNOS MCP server process failed to start (PID $TNOS_PID not running). Check $LOGS_DIR/tnos_mcp_server.log for details."
           exit 1
         fi
-        if ! wait_for_port "127.0.0.1" 8083 20; then
-          echo "[MCP][ERROR] TNOS MCP Server did not open port 8083 in time. Checking process..."
+        # Use robust port and /health check (mirrored from solo mode)
+        if ! wait_for_port_and_health "127.0.0.1" 8083 60; then
+          echo "[MCP][ERROR] TNOS MCP Server did not open port 8083 or /health endpoint in time. Checking process..."
           if ! kill -0 $TNOS_PID 2>/dev/null; then
             echo "[MCP][ERROR] TNOS MCP server process died before port 8083 opened. Check $LOGS_DIR/tnos_mcp_server.log for errors."
           else
-            echo "[MCP][ERROR] TNOS MCP server process is running but port 8083 is not open. Possible binding issue."
+            echo "[MCP][ERROR] TNOS MCP server process is running but port 8083 is not open or /health is not ready. Possible binding or Flask startup issue."
           fi
           exit 1
         fi
@@ -437,6 +490,48 @@ status_all_mcp() {
     fi
 }
 
+# Enhanced solo developer port/health check for TNOS MCP server
+wait_for_port_and_health() {
+    local host="$1"
+    local port="$2"
+    local timeout="${3:-60}"
+    local waited=0
+    local health_url="http://$host:$port/health"
+    echo "[SOLO][PortWaiter] Waiting for $host:$port to be open (timeout ${timeout}s)..."
+    while ! nc -z "$host" "$port" 2>/dev/null; do
+        sleep 1
+        waited=$((waited+1))
+        if [ "$waited" -ge "$timeout" ]; then
+            echo "[SOLO][PortWaiter][ERROR] Timeout waiting for $host:$port to be open after $timeout seconds."
+            return 1
+        fi
+        if (( $waited % 10 == 0 )); then
+            echo "[SOLO][PortWaiter] Still waiting for $host:$port... ($waited seconds elapsed)"
+        fi
+    done
+    echo "[SOLO][PortWaiter] $host:$port is now open after $waited seconds. Checking /health endpoint..."
+    # Now check /health endpoint for Flask readiness
+    local health_waited=0
+    while true; do
+        if command -v curl >/dev/null 2>&1; then
+            local status=$(curl -s -o /dev/null -w "%{http_code}" "$health_url")
+            if [ "$status" = "200" ]; then
+                echo "[SOLO][PortWaiter] /health endpoint is ready."
+                return 0
+            fi
+        fi
+        sleep 1
+        health_waited=$((health_waited+1))
+        if [ "$health_waited" -ge "$timeout" ]; then
+            echo "[SOLO][PortWaiter][ERROR] Timeout waiting for $health_url to return 200 after $timeout seconds."
+            return 1
+        fi
+        if (( $health_waited % 10 == 0 )); then
+            echo "[SOLO][PortWaiter] Still waiting for $health_url... ($health_waited seconds elapsed)"
+        fi
+    done
+}
+
 # Add CLI argument handling for MCP integration (mirrored logic)
 if [ "$1" = "start-all" ]; then
     start_all_mcp
@@ -448,6 +543,12 @@ elif [ "$1" = "stop-all" ]; then
     exit 0
 elif [ "$1" = "status-all" ]; then
     status_all_mcp
+    exit 0
+fi
+
+# CLI argument for solo developer mode
+if [ "$1" = "solo" ]; then
+    start_tnos_mcp_server_only
     exit 0
 fi
 
