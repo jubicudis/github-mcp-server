@@ -90,5 +90,7 @@
 	"python.testing.nosetestsEnabled": false,
 	"python.testing.pytestArgs": [
 		"."
-	]
+	],
+	"python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python3.11",
+	"python.pythonPath": "${workspaceFolder}/.venv/bin/python3.11"
 }
