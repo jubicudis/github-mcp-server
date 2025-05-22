@@ -310,10 +310,32 @@ start_all_mcp() {
           "$VENV_DIR/bin/pip" install flask --quiet
         fi
         export PYTHONPATH="$PROJECT_ROOT/python:$PROJECT_ROOT:$PROJECT_ROOT/core:$PROJECT_ROOT/github-mcp-server:$PYTHONPATH"
-        (cd "$PROJECT_ROOT" && nohup "$VENV_DIR/bin/python3.12" -u "$MCP_SERVER_SCRIPT" > "$LOGS_DIR/tnos_mcp_server.log" 2>&1 &)
-        echo $! > "$LOGS_DIR/tnos_mcp_server.pid"
-        echo "TNOS MCP server started with PID $(cat "$LOGS_DIR/tnos_mcp_server.pid") (log: $LOGS_DIR/tnos_mcp_server.log)"
-        wait_for_port "127.0.0.1" 8083 20 || { echo "[MCP][ERROR] TNOS MCP Server did not open port 8083 in time."; exit 1; }
+        (cd "$PROJECT_ROOT" && nohup "$VENV_DIR/bin/python3.12" -u "$MCP_SERVER_SCRIPT" > "$LOGS_DIR/tnos_mcp_server.log" 2>&1 & echo $! > "$LOGS_DIR/tnos_mcp_server.pid")
+        sleep 2
+        TNOS_PID=$(cat "$LOGS_DIR/tnos_mcp_server.pid")
+        if ! kill -0 $TNOS_PID 2>/dev/null; then
+          echo "[MCP][ERROR] TNOS MCP server process failed to start (PID $TNOS_PID not running). Check $LOGS_DIR/tnos_mcp_server.log for details."
+          exit 1
+        fi
+        if ! wait_for_port "127.0.0.1" 8083 20; then
+          echo "[MCP][ERROR] TNOS MCP Server did not open port 8083 in time. Checking process..."
+          if ! kill -0 $TNOS_PID 2>/dev/null; then
+            echo "[MCP][ERROR] TNOS MCP server process died before port 8083 opened. Check $LOGS_DIR/tnos_mcp_server.log for errors."
+          else
+            echo "[MCP][ERROR] TNOS MCP server process is running but port 8083 is not open. Possible binding issue."
+          fi
+          exit 1
+        fi
+        if ! wait_for_port "127.0.0.1" 8888 20; then
+          echo "[MCP][ERROR] TNOS MCP Server did not open port 8888 (WebSocket) in time. Checking process..."
+          if ! kill -0 $TNOS_PID 2>/dev/null; then
+            echo "[MCP][ERROR] TNOS MCP server process died before port 8888 opened. Check $LOGS_DIR/tnos_mcp_server.log for errors."
+          else
+            echo "[MCP][ERROR] TNOS MCP server process is running but port 8888 is not open. Possible binding issue."
+          fi
+          exit 1
+        fi
+        echo "TNOS MCP server started with PID $TNOS_PID (log: $LOGS_DIR/tnos_mcp_server.log)"
       fi
     fi
     sleep 2
