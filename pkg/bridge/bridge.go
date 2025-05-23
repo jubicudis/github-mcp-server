@@ -222,10 +222,22 @@ func (b *MCPBridge) Connect() error {
 			return nil, errors.New("all fallback connection attempts failed")
 		},
 		func() (interface{}, error) {
-			return nil, errors.New("GitHub MCP connection not implemented in bridge.go")
+			// GitHub MCP fallback connection logic
+			b.logger.Warn("[7DContext] FallbackRoute: attempting GitHub MCP fallback connection")
+			// Example: try to connect to GitHub MCP via HTTP or WebSocket (pseudo-code, replace with actual logic)
+			// err := githubmcp.Connect()
+			// if err != nil { return nil, err }
+			// return nil, nil
+			return nil, errors.New("GitHub MCP fallback connection not implemented yet")
 		},
 		func() (interface{}, error) {
-			return nil, errors.New("Copilot LLM connection not implemented in bridge.go")
+			// Copilot LLM fallback connection logic
+			b.logger.Warn("[7DContext] FallbackRoute: attempting Copilot LLM fallback connection")
+			// Example: try to connect to Copilot LLM (pseudo-code, replace with actual logic)
+			// err := copilotllm.Connect()
+			// if err != nil { return nil, err }
+			// return nil, nil
+			return nil, errors.New("Copilot LLM fallback connection not implemented yet")
 		},
 		b.logger,
 	)
@@ -353,10 +365,22 @@ func (b *MCPBridge) SendMessage(messageType string, payload map[string]interface
 			return nil, nil
 		},
 		func() (interface{}, error) {
-			return nil, errors.New("GitHub MCP message send not implemented in bridge.go")
+			// GitHub MCP fallback send logic
+			b.logger.Warn("[7DContext] FallbackRoute: attempting GitHub MCP fallback send")
+			// Example: send message to GitHub MCP (pseudo-code, replace with actual logic)
+			// err := githubmcp.SendMessage(messageType, payload)
+			// if err != nil { return nil, err }
+			// return nil, nil
+			return nil, errors.New("GitHub MCP fallback send not implemented yet")
 		},
 		func() (interface{}, error) {
-			return nil, errors.New("Copilot LLM message send not implemented in bridge.go")
+			// Copilot LLM fallback send logic
+			b.logger.Warn("[7DContext] FallbackRoute: attempting Copilot LLM fallback send")
+			// Example: send message to Copilot LLM (pseudo-code, replace with actual logic)
+			// err := copilotllm.SendMessage(messageType, payload)
+			// if err != nil { return nil, err }
+			// return nil, nil
+			return nil, errors.New("Copilot LLM fallback send not implemented yet")
 		},
 		b.logger,
 	)
@@ -1062,8 +1086,24 @@ func (b *MCPBridge) RobustConnect() error {
 		context7D,
 		func() (interface{}, error) { return nil, b.Connect() },
 		func() (interface{}, error) { return nil, b.Connect() },
-		func() (interface{}, error) { return nil, errors.New("GitHub MCP connection not implemented in bridge.go") },
-		func() (interface{}, error) { return nil, errors.New("Copilot LLM connection not implemented in bridge.go") },
+		func() (interface{}, error) {
+			// GitHub MCP fallback connection logic
+			b.logger.Warn("[7DContext] FallbackRoute: attempting GitHub MCP fallback connection")
+			// Example: try to connect to GitHub MCP via HTTP or WebSocket (pseudo-code, replace with actual logic)
+			// err := githubmcp.Connect()
+			// if err != nil { return nil, err }
+			// return nil, nil
+			return nil, errors.New("GitHub MCP fallback connection not implemented yet")
+		},
+		func() (interface{}, error) {
+			// Copilot LLM fallback connection logic
+			b.logger.Warn("[7DContext] FallbackRoute: attempting Copilot LLM fallback connection")
+			// Example: try to connect to Copilot LLM (pseudo-code, replace with actual logic)
+			// err := copilotllm.Connect()
+			// if err != nil { return nil, err }
+			// return nil, nil
+			return nil, errors.New("Copilot LLM fallback connection not implemented yet")
+		},
 		b.logger,
 	)
 	if err != nil {

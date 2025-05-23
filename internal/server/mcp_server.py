@@ -30,21 +30,31 @@ Options:
 import argparse
 import asyncio
 import datetime
-import importlib.util
 import json
 import logging
 import os
 import signal
-import socket
 import sys
 import time
 import uuid
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Dict
 
 # Setup argument parsing
+try:
+    from mcp.config import MCP_PORT_MAP
+    GITHUB_MCP_SERVER_PORT = MCP_PORT_MAP["GITHUB_MCP_SERVER"]
+except ImportError:
+    GITHUB_MCP_SERVER_PORT = 9000  # Fallback if config not available
+# WHO: MCPServer
+# WHAT: Use canonical port assignment from MCP_PORT_MAP
+# WHEN: During server startup
+# WHERE: /github-mcp-server/internal/server/mcp_server.py
+# WHY: To prevent port conflicts and centralize port management
+# HOW: Import and use MCP_PORT_MAP for port assignment
+# EXTENT: All MCP server startup logic
+
 parser = argparse.ArgumentParser(description="Start the TNOS MCP Server")
-parser.add_argument("--port", type=int, default=9000, help="TCP port to listen on")
+parser.add_argument("--port", type=int, default=GITHUB_MCP_SERVER_PORT, help="TCP port to listen on")
 parser.add_argument("--host", type=str, default="localhost", help="Host to bind to")
 parser.add_argument("--debug", action="store_true", help="Enable debug mode")
 parser.add_argument("--config", type=str, help="Path to custom configuration file")
