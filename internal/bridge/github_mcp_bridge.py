@@ -25,12 +25,16 @@ import time
 import traceback
 from typing import Any, Dict, Optional, Union
 
-# MobiusCompression import (robust for both script and module usage)
+# --- Ensure canonical TNOS MCP modules are importable ---
+CANONICAL_MCP_PATH = "/Users/Jubicudis/Tranquility-Neuro-OS/mcp/bridge/python"
+if CANONICAL_MCP_PATH not in sys.path:
+    sys.path.insert(0, CANONICAL_MCP_PATH)
+
 try:
-    from .mobius_compression import MobiusCompression
-except (ImportError, SystemError, ValueError):
-    # Fallback for direct script execution
-    from mobius_compression import MobiusCompression
+    from tnos.mcp.context_translator import ContextTranslator
+    from tnos.mcp.mobius_compression import MobiusCompression
+except ImportError as e:
+    raise ImportError(f"Failed to import canonical TNOS MCP modules: {e}\nCheck that /Users/Jubicudis/Tranquility-Neuro-OS/mcp/bridge/python is a valid package root and contains tnos/mcp.")
 
 # --- venv311 Customization for TNOS MCP Server ---
 # Ensure all subprocesses and imports use the canonical venv311
@@ -59,7 +63,6 @@ except ImportError as e:
     if sys.executable.startswith(VENV311_PYTHON):
         try:
             subprocess.check_call([VENV311_PYTHON, "-m", "pip", "install", "websockets"])
-            import websockets
         except Exception as install_exc:
             print(f"[FATAL] Could not auto-install websockets: {install_exc}")
             raise
