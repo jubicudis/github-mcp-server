@@ -392,24 +392,27 @@ start_all_mcp() {
     sleep 2
 
     # Start Enhanced Möbius Visualization Server (mirrored logic)
-    echo "[MCP] Starting Enhanced Möbius Visualization Server on port 7779..."
-    VISUALIZATION_SERVER_SCRIPT="$PROJECT_ROOT/mcp/bridge/visualization/enhanced_mobius_visualization_server.py"
-    if [[ ! -f "$VISUALIZATION_SERVER_SCRIPT" ]]; then
-      echo "ERROR: Enhanced Visualization server script not found!"
-    else
-      if lsof -i :7779 | grep LISTEN; then
-        echo "ERROR: Port 7779 is already in use. Enhanced Visualization server will not be started."
-      else
-        # Remove fallback to system python3, always use venv
-        PYTHON_EXEC="$VENV_DIR/bin/python3.11"
-        "$VENV_DIR/bin/pip" install flask --quiet
-        nohup $PYTHON_EXEC "$VISUALIZATION_SERVER_SCRIPT" > "$LOGS_DIR/enhanced_visualization_server.log" 2>&1 &
-        echo $! > "$LOGS_DIR/enhanced_visualization_server.pid"
-        echo "Enhanced Möbius Visualization Server started on port 7779 (log: $LOGS_DIR/enhanced_visualization_server.log)"
-        wait_for_port "127.0.0.1" 7779 20 || { echo "[MCP][ERROR] Visualization Server did not open port 7779 in time."; exit 1; }
-      fi
-    fi
-    sleep 2
+    # [REMOVED] Visualization server is now an internal component of the TNOS MCP server.
+    # TODO: Ensure TNOS MCP server provides visualization features on port 7779 or as configured.
+    # If you need to test visualization, start the TNOS MCP server and access its visualization endpoint.
+    #
+    # VISUALIZATION_SERVER_SCRIPT="$PROJECT_ROOT/mcp/bridge/visualization/enhanced_mobius_visualization_server.py"
+    # if [[ ! -f "$VISUALIZATION_SERVER_SCRIPT" ]]; then
+    #   echo "ERROR: Enhanced Visualization server script not found!"
+    # else
+    #   if lsof -i :7779 | grep LISTEN; then
+    #     echo "ERROR: Port 7779 is already in use. Enhanced Visualization server will not be started."
+    #   else
+    #     # Remove fallback to system python3, always use venv
+    #     PYTHON_EXEC="$VENV_DIR/bin/python3.11"
+    #     "$VENV_DIR/bin/pip" install flask --quiet
+    #     nohup $PYTHON_EXEC "$VISUALIZATION_SERVER_SCRIPT" > "$LOGS_DIR/enhanced_visualization_server.log" 2>&1 &
+    #     echo $! > "$LOGS_DIR/enhanced_visualization_server.pid"
+    #     echo "Enhanced Möbius Visualization Server started on port 7779 (log: $LOGS_DIR/enhanced_visualization_server.log)"
+    #     wait_for_port "127.0.0.1" 7779 20 || { echo "[MCP][ERROR] Visualization Server did not open port 7779 in time."; exit 1; }
+    #   fi
+    # fi
+    # sleep 2
 
     # Start MCP Bridge (mirrored logic)
     echo "[MCP] Starting MCP Bridge between GitHub port 8889 and TNOS port 8083..."
@@ -424,7 +427,7 @@ start_all_mcp() {
     # No port to wait for, but log connection attempt
 
     echo "[MCP] All MCP components started."
-    echo "[MCP] Visualization server: http://localhost:7779/"
+    echo "[MCP] Visualization is now provided by the TNOS MCP server as an internal component."
 }
 
 stop_all_mcp() {
@@ -474,16 +477,18 @@ status_all_mcp() {
       echo "  [STOPPED] MCP Bridge"
     fi
     # Möbius Visualization Server
-    if [[ -f "$LOGS_DIR/enhanced_visualization_server.pid" ]]; then
-      V_PID=$(cat "$LOGS_DIR/enhanced_visualization_server.pid")
-      if kill -0 $V_PID 2>/dev/null && lsof -i :7779 | grep LISTEN >/dev/null; then
-        echo "  [RUNNING] Möbius Visualization Server (PID $V_PID, port 7779)"
-      else
-        echo "  [STOPPED] Möbius Visualization Server"
-      fi
-    else
-      echo "  [STOPPED] Möbius Visualization Server"
-    fi
+    # [REMOVED] Visualization server is now an internal component of the TNOS MCP server.
+    # if [[ -f "$LOGS_DIR/enhanced_visualization_server.pid" ]]; then
+    #   V_PID=$(cat "$LOGS_DIR/enhanced_visualization_server.pid")
+    #   if kill -0 $V_PID 2>/dev/null && lsof -i :7779 | grep LISTEN >/dev/null; then
+    #     echo "  [RUNNING] Möbius Visualization Server (PID $V_PID, port 7779)"
+    #   else
+    #     echo "  [STOPPED] Möbius Visualization Server"
+    #   fi
+    # else
+    #   echo "  [STOPPED] Möbius Visualization Server"
+    # fi
+    echo "  [INFO] Visualization is now provided by the TNOS MCP server as an internal component."
 }
 
 # Enhanced solo developer port/health check for TNOS MCP server
