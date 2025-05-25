@@ -266,7 +266,7 @@ start_tnos_mcp_server_only() {
     PROJECT_ROOT="$WORKSPACE_ROOT"
     LOGS_DIR="$PROJECT_ROOT/logs"
     MCP_SERVER_SCRIPT="$PROJECT_ROOT/mcp/bridge/tnos_mcp_server.py"
-    VENV_DIR="$PROJECT_ROOT/.venv"
+    VENV_DIR="/Users/Jubicudis/Tranquility-Neuro-OS/systems/python/venv311"
     mkdir -p "$LOGS_DIR"
     if [[ ! -f "$MCP_SERVER_SCRIPT" ]]; then
       echo "[SOLO][ERROR] TNOS MCP server script not found!"
@@ -280,7 +280,6 @@ start_tnos_mcp_server_only() {
       source "$VENV_DIR/bin/activate"
       "$VENV_DIR/bin/pip" install flask --quiet
     fi
-    export PYTHONPATH="$PROJECT_ROOT/python:$PROJECT_ROOT:$PROJECT_ROOT/core:$PROJECT_ROOT/github-mcp-server:$PYTHONPATH"
     (cd "$PROJECT_ROOT" && nohup "$VENV_DIR/bin/python3.11" -u "$MCP_SERVER_SCRIPT" > "$LOGS_DIR/tnos_mcp_server.log" 2>&1 & echo $! > "$LOGS_DIR/tnos_mcp_server.pid")
     sleep 2
     TNOS_PID=$(cat "$LOGS_DIR/tnos_mcp_server.pid")
@@ -350,7 +349,7 @@ start_all_mcp() {
     # Start TNOS MCP Server (mirrored logic)
     echo "[MCP] Starting TNOS MCP Server on port 8083..."
     MCP_SERVER_SCRIPT="$PROJECT_ROOT/mcp/bridge/tnos_mcp_server.py"
-    VENV_DIR="$PROJECT_ROOT/.venv"
+    VENV_DIR="/Users/Jubicudis/Tranquility-Neuro-OS/systems/python/venv311"
     if [[ ! -f "$MCP_SERVER_SCRIPT" ]]; then
       echo "ERROR: TNOS MCP server script not found!"
     else
@@ -361,7 +360,6 @@ start_all_mcp() {
           source "$VENV_DIR/bin/activate"
           "$VENV_DIR/bin/pip" install flask --quiet
         fi
-        export PYTHONPATH="$PROJECT_ROOT/python:$PROJECT_ROOT:$PROJECT_ROOT/core:$PROJECT_ROOT/github-mcp-server:$PYTHONPATH"
         (cd "$PROJECT_ROOT" && nohup "$VENV_DIR/bin/python3.11" -u "$MCP_SERVER_SCRIPT" > "$LOGS_DIR/tnos_mcp_server.log" 2>&1 & echo $! > "$LOGS_DIR/tnos_mcp_server.pid")
         sleep 2
         TNOS_PID=$(cat "$LOGS_DIR/tnos_mcp_server.pid")
@@ -417,15 +415,13 @@ start_all_mcp() {
     echo "[MCP] Starting MCP Bridge between GitHub port 8889 and TNOS port 8083..."
     PYTHON_BRIDGE="$PROJECT_ROOT/mcp/bridge/tnos_mcp_bridge.py"
     if [[ ! -f "$PYTHON_BRIDGE" ]]; then
-      echo "ERROR: MCP Bridge script not found!"
-    else
-      echo "[MCP][Bridge] Attempting to connect MCP Bridge to GitHub MCP (127.0.0.1:8889) and TNOS MCP (127.0.0.1:8083)..."
-      nohup "$VENV_DIR/bin/python3.11" "$PYTHON_BRIDGE" > "$LOGS_DIR/mcp_bridge.log" 2>&1 &
-      echo $! > "$LOGS_DIR/mcp_bridge.pid"
-      echo "MCP Bridge started with PID $(cat "$LOGS_DIR/mcp_bridge.pid") (log: $LOGS_DIR/mcp_bridge.log)"
-      # No port to wait for, but log connection attempt
+      echo "[ERROR] Python bridge script not found: $PYTHON_BRIDGE"
+      exit 1
     fi
-    sleep 2
+    nohup "$VENV_DIR/bin/python3.11" "$PYTHON_BRIDGE" > "$LOGS_DIR/mcp_bridge.log" 2>&1 &
+    echo $! > "$LOGS_DIR/mcp_bridge.pid"
+    echo "MCP Bridge started with PID $(cat "$LOGS_DIR/mcp_bridge.pid") (log: $LOGS_DIR/mcp_bridge.log)"
+    # No port to wait for, but log connection attempt
 
     echo "[MCP] All MCP components started."
     echo "[MCP] Visualization server: http://localhost:7779/"
