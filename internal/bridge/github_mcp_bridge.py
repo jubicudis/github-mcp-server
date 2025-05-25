@@ -1,3 +1,4 @@
+# pyright: reportMissingImports=false
 #!/usr/bin/env -S /Users/Jubicudis/Tranquility-Neuro-OS/systems/python/venv311/bin/python3.11
 # -*- coding: utf-8 -*-
 
@@ -25,41 +26,17 @@ import time
 import traceback
 from typing import Any, Dict, Optional, Union
 
-# --- Ensure canonical TNOS MCP modules are importable ---
+# --- Ensure canonical TNOS MCP modules are importable at the very top ---
 CANONICAL_MCP_PATH = "/Users/Jubicudis/Tranquility-Neuro-OS/mcp/bridge/python"
 if CANONICAL_MCP_PATH not in sys.path:
     sys.path.insert(0, CANONICAL_MCP_PATH)
+print(f"[DIAG][early] sys.path: {sys.path}")
+print(f"[DIAG][early] os.listdir(CANONICAL_MCP_PATH): {os.listdir(CANONICAL_MCP_PATH)}")
+print(f"[DIAG][early] sys.executable: {sys.executable}")
+print(f"[DIAG][early] sys.path: {sys.path}")
+print(f"[DIAG][early] PYTHONPATH: {os.environ.get('PYTHONPATH', None)}")
 
-# Import canonical TNOS MCP modules with robust error handling
-try:
-    from tnos.mcp.context_translator import ContextTranslator
-    from tnos.mcp.mobius_compression import MobiusCompression
-except ImportError:
-    try:
-        import sys
-        if '/Users/Jubicudis/Tranquility-Neuro-OS/mcp/bridge/python' not in sys.path:
-            sys.path.insert(0, '/Users/Jubicudis/Tranquility-Neuro-OS/mcp/bridge/python')
-        from tnos.mcp.context_translator import ContextTranslator
-        from tnos.mcp.mobius_compression import MobiusCompression
-    except ImportError:
-        ContextTranslator = None
-        MobiusCompression = None
-
-# --- venv311 Customization for TNOS MCP Server ---
-VENV311_PATH = "/Users/Jubicudis/Tranquility-Neuro-OS/systems/python/venv311"
-VENV311_BIN = os.path.join(VENV311_PATH, "bin")
-VENV311_PYTHON = os.path.join(VENV311_BIN, "python3.11")
-
-# Prepend venv311/bin to PATH if not already present
-if VENV311_BIN not in os.environ.get("PATH", ""):
-    os.environ["PATH"] = VENV311_BIN + os.pathsep + os.environ.get("PATH", "")
-
-# Ensure sys.executable points to venv311 python
-if not sys.executable.startswith(VENV311_PYTHON):
-    print(f"[WARN] Not running under canonical venv311: {sys.executable}")
-    print(f"[INFO] Recommended: {VENV311_PYTHON}")
-
-# --- Robust import for websockets (required for async bridge) ---
+# --- Import websockets (required for async bridge) ---
 try:
     import websockets
 except ImportError as e:
@@ -67,18 +44,24 @@ except ImportError as e:
     print(e)
     print(f"[DIAG] Python executable: {sys.executable}")
     print(f"[DIAG] sys.path: {sys.path}")
-    # Optionally, try to auto-install if running in venv311
-    if sys.executable.startswith(VENV311_PYTHON):
-        try:
-            subprocess.check_call([VENV311_PYTHON, "-m", "pip", "install", "websockets"])
-            import websockets  # Try again
-        except Exception as install_exc:
-            print(f"[FATAL] Could not auto-install websockets: {install_exc}")
-            raise
-    else:
-        raise
+    raise
+
+# --- Canonical TNOS MCP module imports (must be after sys.path logic) ---
+try:
+    from tnos.mcp.context_translator import ContextTranslator
+    from tnos.mcp.mobius_compression import MobiusCompression
+except ImportError as e:
+    print(f"[FATAL] Could not import TNOS MCP modules: {e}")
+    print(f"[DIAG] sys.path: {sys.path}")
+    print(f"[DIAG] os.listdir(CANONICAL_MCP_PATH): {os.listdir(CANONICAL_MCP_PATH)}")
+    print(f"[DIAG] os.listdir(CANONICAL_MCP_PATH + '/tnos'): {os.listdir(os.path.join(CANONICAL_MCP_PATH, 'tnos'))}")
+    exit(1)
 
 # Helper: Always use venv311 python for subprocesses
+VENV311_PATH = "/Users/Jubicudis/Tranquility-Neuro-OS/systems/python/venv311"
+VENV311_BIN = os.path.join(VENV311_PATH, "bin")
+VENV311_PYTHON = os.path.join(VENV311_BIN, "python3.11")
+
 def run_in_venv311(args, **kwargs):
     if args[0] == sys.executable:
         args = [VENV311_PYTHON] + args[1:]
@@ -146,8 +129,6 @@ def setup_logging(level_name: str) -> logging.Logger:
     level = log_levels.get(level_name.lower(), logging.INFO)
 
     logger = logging.getLogger("github_mcp_bridge")
-    logger.setLevel(level)
-
     # Create formatter
     formatter = logging.Formatter(
         "[%(asctime)s] [%(levelname)s] [MCP-Python] %(message)s",
@@ -619,32 +600,6 @@ def get_compression_stats():
 #
 # TODO: Future upgrades (CrewAI, ATL, ATM, formula registry, etc.) should be added as internal
 #       components of the TNOS MCP server or bridge, not as separate servers or scripts.
-
-# Fallback for MobiusCompression.compress if MobiusCompression is None
-# (No new files or folders will be created. All fallback logic is in-place.)
-def mobius_compress_fallback(*args, **kwargs):
-    return {"error": "MobiusCompression unavailable"}
-if MobiusCompression is None:
-    class MobiusCompressionStub:
-        @staticmethod
-        def compress(*args, **kwargs):
-            return mobius_compress_fallback(*args, **kwargs)
-        @staticmethod
-        def get_statistics():
-            return {"error": "MobiusCompression unavailable"}
-    MobiusCompression = MobiusCompressionStub
-
-# Fallback for ContextTranslator if not available
-# (No new files or folders will be created. All fallback logic is in-place.)
-def context_translate_fallback(*args, **kwargs):
-    return {"error": "ContextTranslator unavailable"}
-if ContextTranslator is None:
-    class ContextTranslatorStub:
-        def github_to_tnos7d(self, *args, **kwargs):
-            return context_translate_fallback(*args, **kwargs)
-        def tnos7d_to_github(self, *args, **kwargs):
-            return context_translate_fallback(*args, **kwargs)
-    ContextTranslator = ContextTranslatorStub
 
 # MCP Bridge Server class
 class MCPBridgeServer:
@@ -1248,7 +1203,7 @@ class MCPBridgeServer:
 
     async def start_websocket_server(self) -> None:
         self.logger.info(f"Starting bridge WebSocket server on port {self.port}...")
-        async with websockets.serve(self.handle_client, "0.0.0.0", self.port):
+        async with websockets.serve(self.handle_client, "0.0.0.0", self.port):  # type: ignore[arg-type]
             self.logger.info(f"Bridge WebSocket server running on port {self.port}")
             while not self.shutting_down:
                 await asyncio.sleep(1)
@@ -1277,12 +1232,22 @@ class MCPBridgeServer:
         # Close sockets if open
         try:
             if self.github_mcp_socket and not getattr(self.github_mcp_socket, "closed", False):
-                asyncio.create_task(self.github_mcp_socket.close())
+                coro = self.github_mcp_socket.close()
+                if asyncio.iscoroutine(coro):
+                    try:
+                        asyncio.get_event_loop().run_until_complete(coro)
+                    except Exception as e:
+                        self.logger.error(f"Error closing github_mcp_socket: {e}")
         except Exception:
             pass
         try:
             if self.tnos_mcp_socket and not getattr(self.tnos_mcp_socket, "closed", False):
-                asyncio.create_task(self.tnos_mcp_socket.close())
+                coro = self.tnos_mcp_socket.close()
+                if asyncio.iscoroutine(coro):
+                    try:
+                        asyncio.get_event_loop().run_until_complete(coro)
+                    except Exception as e:
+                        self.logger.error(f"Error closing tnos_mcp_socket: {e}")
         except Exception:
             pass
         self.logger.info("Shutdown complete.")
@@ -1290,16 +1255,20 @@ class MCPBridgeServer:
     async def handle_client(self, websocket, path):
         """Handle incoming client WebSocket connections."""
         self.client_sockets.add(websocket)
-        self.logger.info(f"Client connected: {websocket.remote_address}")
+        self.logger.info(f"Client connected: {getattr(websocket, 'remote_address', None)}")
         try:
             async for message in websocket:
-                # Optionally process or log client messages
-                pass
+                try:
+                    # Echo to all clients (monitoring), or extend to forward to MCPs as needed
+                    await self.broadcast_to_clients(json.loads(message))
+                except Exception as e:
+                    self.logger.error(f"Error handling client message: {e}")
+                    self.logger.debug(f"Stack trace: {traceback.format_exc()}")
         except Exception as e:
             self.logger.error(f"Client connection error: {e}")
+            self.logger.debug(f"Stack trace: {traceback.format_exc()}")
         finally:
             self.client_sockets.discard(websocket)
-            self.logger.info(f"Client disconnected: {websocket.remote_address}")
 
 
 def main() -> None:
