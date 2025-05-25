@@ -1,4 +1,3 @@
-
 /**
  * WHO: DiagnosticsBridgeReference
  * WHAT: Reference to the actual MCP bridge implementation
@@ -10,8 +9,8 @@
  */
 
 // Define the actual bridge implementation path
-const actualBridgePath =
-  "/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/github-mcp-server/src/bridge/MCPBridge.js";
+const path = require("path");
+const actualBridgePath = path.resolve(__dirname, "../src/bridge/MCPBridge.js");
 
 /**
  * WHO: ContextBridge

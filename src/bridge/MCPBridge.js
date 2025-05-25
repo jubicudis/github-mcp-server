@@ -23,7 +23,7 @@ const fs = require("fs");
 const path = require("path");
 const http = require("http");
 const { promisify } = require("util");
-const { execSync, spawn } = require("child_process");
+const { execSync, spawn } = require("child_process);
 
 // Import the context modules
 const contextBridge = require("../utils/7DContextBridge");
@@ -82,9 +82,9 @@ const CONFIG = {
   // TNOS MCP server configuration
   tnosMcp: {
     host: "localhost",
-    port: process.env.TNOS_MCP_PORT || 8888,
-    wsEndpoint: `ws://localhost:${process.env.TNOS_MCP_PORT || 8888}/ws`,
-    apiEndpoint: `http://localhost:${process.env.TNOS_MCP_PORT || 8888}/api`,
+    port: process.env.TNOS_MCP_PORT || 9001,
+    wsEndpoint: `ws://localhost:${process.env.TNOS_MCP_PORT || 9001}/ws`,
+    apiEndpoint: `http://localhost:${process.env.TNOS_MCP_PORT || 9001}/api`,
     altPort: 10618,
     altWsEndpoint: "ws://localhost:10618/ws",
     altApiEndpoint: "http://localhost:10618/api",
