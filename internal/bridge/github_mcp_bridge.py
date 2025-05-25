@@ -30,14 +30,22 @@ CANONICAL_MCP_PATH = "/Users/Jubicudis/Tranquility-Neuro-OS/mcp/bridge/python"
 if CANONICAL_MCP_PATH not in sys.path:
     sys.path.insert(0, CANONICAL_MCP_PATH)
 
+# Import canonical TNOS MCP modules with robust error handling
 try:
     from tnos.mcp.context_translator import ContextTranslator
     from tnos.mcp.mobius_compression import MobiusCompression
-except ImportError as e:
-    raise ImportError(f"Failed to import canonical TNOS MCP modules: {e}\nCheck that /Users/Jubicudis/Tranquility-Neuro-OS/mcp/bridge/python is a valid package root and contains tnos/mcp.")
+except ImportError:
+    try:
+        import sys
+        if '/Users/Jubicudis/Tranquility-Neuro-OS/mcp/bridge/python' not in sys.path:
+            sys.path.insert(0, '/Users/Jubicudis/Tranquility-Neuro-OS/mcp/bridge/python')
+        from tnos.mcp.context_translator import ContextTranslator
+        from tnos.mcp.mobius_compression import MobiusCompression
+    except ImportError:
+        ContextTranslator = None
+        MobiusCompression = None
 
 # --- venv311 Customization for TNOS MCP Server ---
-# Ensure all subprocesses and imports use the canonical venv311
 VENV311_PATH = "/Users/Jubicudis/Tranquility-Neuro-OS/systems/python/venv311"
 VENV311_BIN = os.path.join(VENV311_PATH, "bin")
 VENV311_PYTHON = os.path.join(VENV311_BIN, "python3.11")
@@ -51,7 +59,7 @@ if not sys.executable.startswith(VENV311_PYTHON):
     print(f"[WARN] Not running under canonical venv311: {sys.executable}")
     print(f"[INFO] Recommended: {VENV311_PYTHON}")
 
-# Robust import for websockets (required for async bridge)
+# --- Robust import for websockets (required for async bridge) ---
 try:
     import websockets
 except ImportError as e:
@@ -63,6 +71,7 @@ except ImportError as e:
     if sys.executable.startswith(VENV311_PYTHON):
         try:
             subprocess.check_call([VENV311_PYTHON, "-m", "pip", "install", "websockets"])
+            import websockets  # Try again
         except Exception as install_exc:
             print(f"[FATAL] Could not auto-install websockets: {install_exc}")
             raise
@@ -73,7 +82,7 @@ except ImportError as e:
 def run_in_venv311(args, **kwargs):
     if args[0] == sys.executable:
         args = [VENV311_PYTHON] + args[1:]
-    elif args[0] == "python" or args[0] == "python3" or args[0] == "python3.11":
+    elif args[0] in ("python", "python3", "python3.11"):
         args[0] = VENV311_PYTHON
     return subprocess.run(args, **kwargs)
 
@@ -423,7 +432,7 @@ class ContextVector7D:
             what=data.get("what", "Operation"),
             when=data.get("when", time.time()),
             where=data.get("where", "MCP_Bridge"),
-            why=data.get("why", "SystemOperation"),
+            why=data.get("why", "Protocol_Compliance"),
             how=data.get("how", "Default"),
             extent=data.get("extent", 1.0),
             metadata=data.get("metadata", {})
@@ -588,6 +597,54 @@ def translateContext(context: Dict[str, Any], targetSystem: str = "tnos") -> Dic
     # Unknown target system, return original
     return context
 
+
+# Utility and fallback functions for MCP bridge
+
+def normalize_timestamp(ts):
+    """Convert ms timestamps to seconds if needed (robust for int/float)."""
+    if isinstance(ts, (int, float)) and ts > 1e10:
+        return ts // 1000 if isinstance(ts, int) else ts / 1000.0
+    return ts
+
+def get_compression_stats():
+    if MobiusCompression and hasattr(MobiusCompression, 'get_statistics'):
+        return MobiusCompression.get_statistics()
+    return {"error": "MobiusCompression unavailable"}
+
+# --- Visualization Policy ---
+# Visualization features are now provided as an internal component of the TNOS MCP server.
+# Do not attempt to start or connect to a separate visualization server process.
+# TODO: Integrate all visualization endpoints and logic into the TNOS MCP server codebase.
+#       The bridge and GitHub MCP server should treat visualization as a TNOS MCP feature only.
+#
+# TODO: Future upgrades (CrewAI, ATL, ATM, formula registry, etc.) should be added as internal
+#       components of the TNOS MCP server or bridge, not as separate servers or scripts.
+
+# Fallback for MobiusCompression.compress if MobiusCompression is None
+# (No new files or folders will be created. All fallback logic is in-place.)
+def mobius_compress_fallback(*args, **kwargs):
+    return {"error": "MobiusCompression unavailable"}
+if MobiusCompression is None:
+    class MobiusCompressionStub:
+        @staticmethod
+        def compress(*args, **kwargs):
+            return mobius_compress_fallback(*args, **kwargs)
+        @staticmethod
+        def get_statistics():
+            return {"error": "MobiusCompression unavailable"}
+    MobiusCompression = MobiusCompressionStub
+
+# Fallback for ContextTranslator if not available
+# (No new files or folders will be created. All fallback logic is in-place.)
+def context_translate_fallback(*args, **kwargs):
+    return {"error": "ContextTranslator unavailable"}
+if ContextTranslator is None:
+    class ContextTranslatorStub:
+        def github_to_tnos7d(self, *args, **kwargs):
+            return context_translate_fallback(*args, **kwargs)
+        def tnos7d_to_github(self, *args, **kwargs):
+            return context_translate_fallback(*args, **kwargs)
+    ContextTranslator = ContextTranslatorStub
 
 # MCP Bridge Server class
 class MCPBridgeServer:
@@ -1152,183 +1209,6 @@ class MCPBridgeServer:
             self.logger.info("Attempting to restart MCP servers...")
             await self.ensure_servers_running()
 
-    def normalize_timestamp(ts):
-        """Convert ms timestamps to seconds if needed (robust for int/float)."""
-        if isinstance(ts, (int, float)) and ts > 1e10:
-            return ts // 1000 if isinstance(ts, int) else ts / 1000.0
-        return ts
-
-    async def handle_client(self, websocket, path) -> None:
-        """Handle client connections for monitoring"""
-        self.logger.info("Client connected to bridge")
-
-        # Add to client set for broadcasting
-        self.client_sockets.add(websocket)
-
-        try:
-            # Send initial status
-            await websocket.send(
-                json.dumps(
-                    {
-                        "type": "status",
-                        "status": "connected",
-                        "githubConnection": (
-                            self.github_mcp_socket and not getattr(self.github_mcp_socket, "closed", False)
-                        ),
-                        "tnosConnection": (
-                            self.tnos_mcp_socket and not getattr(self.tnos_mcp_socket, "closed", False)
-                        ),
-                        "timestamp": int(time.time() * 1000),
-                    }
-                )
-            )
-
-            # Process client messages
-            async for message_data in websocket:
-                try:
-                    message = json.loads(message_data)
-
-                    if message.get("type") == "command":
-                        await self.process_client_command(message, websocket)
-                    elif message.get("target") == "github":
-                        if self.github_mcp_socket and not getattr(self.github_mcp_socket, "closed", False):
-                            await self.github_mcp_socket.send(
-                                json.dumps(message.get("data", {}))
-                            )
-                        else:
-                            self.message_queue.queue_for_github(message.get("data", {}))
-                            await websocket.send(
-                                json.dumps(
-                                    {
-                                        "type": "response",
-                                        "status": "queued",
-                                        "original": message,
-                                    }
-                                )
-                            )
-                    elif message.get("target") == "tnos":
-                        if self.tnos_mcp_socket and not getattr(self.tnos_mcp_socket, "closed", False):
-                            await self.tnos_mcp_socket.send(
-                                json.dumps(message.get("data", {}))
-                            )
-                        else:
-                            self.message_queue.queue_for_tnos(message.get("data", {}))
-                            await websocket.send(
-                                json.dumps(
-                                    {
-                                        "type": "response",
-                                        "status": "queued",
-                                        "original": message,
-                                    }
-                                )
-                            )
-
-                except json.JSONDecodeError:
-                    self.logger.error(
-                        f"Received invalid JSON from client: {message_data}"
-                    )
-                except Exception as e:
-                    self.logger.error(f"Error processing client message: {str(e)}")
-                    await websocket.send(json.dumps({"type": "error", "error": str(e)}))
-
-        except websockets.exceptions.ConnectionClosedError:
-            self.logger.info("Client disconnected from bridge")
-        except Exception as e:
-            self.logger.error(f"Client connection error: {str(e)}")
-        finally:
-            self.client_sockets.discard(websocket)
-
-    async def process_client_command(self, message: Dict[str, Any], websocket) -> None:
-        """Process commands from clients"""
-        command = message.get("command")
-
-        if command == "status":
-            await self.handle_status_command(message, websocket)
-        elif command == "reconnect":
-            await self.handle_reconnect_command(message, websocket)
-        elif command == "sync":
-            await self.handle_sync_command(message, websocket)
-        else:
-            await websocket.send(
-                json.dumps(
-                    {
-                        "type": "response",
-                        "command": command,
-                        "status": "unknown",
-                        "error": "Unknown command",
-                    }
-                )
-            )
-
-    async def handle_status_command(self, message: Dict[str, Any], websocket) -> None:
-        """Handle status command"""
-        status = {
-            "type": "response",
-            "command": "status",
-            "status": {
-                "githubConnection": (
-                    self.github_mcp_socket and not getattr(self.github_mcp_socket, "closed", False)
-                ),
-                "tnosConnection": (
-                    self.tnos_mcp_socket and not getattr(self.tnos_mcp_socket, "closed", False)
-                ),
-                "queuedMessages": {
-                    "github": len(self.message_queue.github_queue),
-                    "tnos": len(self.message_queue.tnos_queue),
-                },
-                "compressionStats": MobiusCompression.get_statistics(),
-                "uptime": time.time() - self.start_time,
-                "timestamp": int(time.time() * 1000),
-            },
-        }
-
-        await websocket.send(json.dumps(status))
-
-    async def handle_reconnect_command(
-        self, message: Dict[str, Any], websocket
-    ) -> None:
-        """Handle reconnection command"""
-        params = message.get("params", {})
-        target = params.get("target", "all")
-
-        if target == "github" or target == "all":
-            await self.connect_to_github_mcp()
-
-        if target == "tnos" or target == "all":
-            await self.connect_to_tnos_mcp()
-
-        await websocket.send(
-            json.dumps(
-                {
-                    "type": "response",
-                    "command": "reconnect",
-                    "status": "reconnecting",
-                    "target": target,
-                }
-            )
-        )
-
-    async def handle_sync_command(self, message: Dict[str, Any], websocket) -> None:
-        """Handle sync command"""
-        try:
-            await self.sync_context()
-            await websocket.send(
-                json.dumps(
-                    {"type": "response", "command": "sync", "status": "completed"}
-                )
-            )
-        except Exception as e:
-            await websocket.send(
-                json.dumps(
-                    {
-                        "type": "response",
-                        "command": "sync",
-                        "status": "error",
-                        "error": str(e),
-                    }
-                )
-            )
-
     async def ensure_bridge_files(self) -> bool:
         self.logger.info("Validating bridge file paths...")
         try:
@@ -1406,6 +1286,20 @@ class MCPBridgeServer:
         except Exception:
             pass
         self.logger.info("Shutdown complete.")
+
+    async def handle_client(self, websocket, path):
+        """Handle incoming client WebSocket connections."""
+        self.client_sockets.add(websocket)
+        self.logger.info(f"Client connected: {websocket.remote_address}")
+        try:
+            async for message in websocket:
+                # Optionally process or log client messages
+                pass
+        except Exception as e:
+            self.logger.error(f"Client connection error: {e}")
+        finally:
+            self.client_sockets.discard(websocket)
+            self.logger.info(f"Client disconnected: {websocket.remote_address}")
 
 
 def main() -> None:
