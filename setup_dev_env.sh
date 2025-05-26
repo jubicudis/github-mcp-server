@@ -202,9 +202,6 @@ go build -o "$WORKSPACE_ROOT/bin/github-mcp-server" "$WORKSPACE_ROOT/github-mcp-
 # Also copy to the main bin directory for the task to find it
 cp "$WORKSPACE_ROOT/github-mcp-server/bin/github-mcp-server" "$WORKSPACE_ROOT/bin/github-mcp-server" 2>/dev/null || true
 
-# If not using start-all, use the dedicated script
-echo "To start the GitHub MCP Server, run: bash $WORKSPACE_ROOT/scripts/shell/start_github_mcp_server.sh"
-
 # === MCP Integration Management (Quantum Symmetry Aligned) ===
 # WHO: DevEnvSetup
 # WHAT: Start/stop/status for all MCP integration components, enforcing quantum symmetry
