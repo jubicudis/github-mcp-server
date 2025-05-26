@@ -625,8 +625,7 @@ try:
     from tnos.mcp.mobius_compression import MobiusCompression
 except ImportError:
     try:
-        from mcp.bridge.python.tnos.mcp.mobius_compression import \
-            MobiusCompression
+        from mcp.bridge.python.tnos.mcp.mobius_compression import MobiusCompression
     except ImportError:
         class MobiusCompression:
             @staticmethod
@@ -639,8 +638,7 @@ try:
     from tnos.mcp.context_translator import ContextTranslator
 except ImportError:
     try:
-        from mcp.bridge.python.tnos.mcp.context_translator import \
-            ContextTranslator
+        from mcp.bridge.python.tnos.mcp.context_translator import ContextTranslator
     except ImportError:
         class ContextTranslator:
             @staticmethod
@@ -784,10 +782,13 @@ class MCPBridgeServer:
                     peer_challenge = secrets.token_hex(16)
                     my_response = hashlib.sha256((peer_challenge + my_fp).encode("utf-8")).hexdigest()
                     peer_response = hashlib.sha256((my_challenge + peer_fp).encode("utf-8")).hexdigest()
+                    # --- Session key generation (ephemeral, per handshake) ---
+                    session_key = secrets.token_hex(32)
                     self.trust_table[peer_name] = {
                         "peer_fingerprint": peer_fp,
                         "challenge": my_challenge,
                         "challenge_response": peer_response,
+                        "session_key": session_key,
                         "timestamp": time.time(),
                     }
                     event = {
@@ -799,11 +800,12 @@ class MCPBridgeServer:
                         "peer_challenge": peer_challenge,
                         "my_response": my_response,
                         "peer_response": peer_response,
+                        "session_key": session_key,
                         "ts": time.time(),
                     }
                     self.memory.store(event)
                     self.logger.info(f"[QHP][CrewAI][TS] {QHPCrewAgent.tranquilspeak_compress(event)}")
-                    self.logger.info(f"[QHP][CrewAI] Handshake with {peer_name} complete. Trust table updated.")
+                    self.logger.info(f"[QHP][CrewAI] Handshake with {peer_name} complete. Session key: {session_key}. Trust table updated.")
                     return True
                 def decay_trust(self, timeout=600):
                     now = time.time()
@@ -1600,10 +1602,13 @@ class QHPCrewAgent:
         peer_challenge = secrets.token_hex(16)
         my_response = hashlib.sha256((peer_challenge + my_fp).encode("utf-8")).hexdigest()
         peer_response = hashlib.sha256((my_challenge + peer_fp).encode("utf-8")).hexdigest()
+        # --- Session key generation (ephemeral, per handshake) ---
+        session_key = secrets.token_hex(32)
         self.trust_table[peer_name] = {
             "peer_fingerprint": peer_fp,
             "challenge": my_challenge,
             "challenge_response": peer_response,
+            "session_key": session_key,
             "timestamp": time.time(),
         }
         event = {
@@ -1615,11 +1620,12 @@ class QHPCrewAgent:
             "peer_challenge": peer_challenge,
             "my_response": my_response,
             "peer_response": peer_response,
+            "session_key": session_key,
             "ts": time.time(),
         }
         self.memory.store(event)
         self.logger.info(f"[QHP][CrewAI][TS] {QHPCrewAgent.tranquilspeak_compress(event)}")
-        self.logger.info(f"[QHP][CrewAI] Handshake with {peer_name} complete. Trust table updated.")
+        self.logger.info(f"[QHP][CrewAI] Handshake with {peer_name} complete. Session key: {session_key}. Trust table updated.")
         return True
     def decay_trust(self, timeout=600):
         now = time.time()

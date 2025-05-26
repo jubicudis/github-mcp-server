@@ -518,9 +518,8 @@ func (b *Bridge) Send(message Message) error {
 	// Convert to JSON
 	data, err := json.Marshal(message)
 	if err != nil {
-		return fmt.Errorf("failed to marshal message: %w", err)
+		return err
 	}
-
 	// Send to channel
 	select {
 	case b.sendCh <- data:
@@ -1066,12 +1065,21 @@ func (b *Bridge) QHPHandshake(conn *websocket.Conn, nodeName string) error {
 	}
 	myChallengeHex := hex.EncodeToString(myChallenge)
 
+	// --- Session key generation (ephemeral, per handshake) ---
+	sessionKeyBytes := make([]byte, 32)
+	_, err = rand.Read(sessionKeyBytes)
+	if err != nil {
+		return err
+	}
+	sessionKey := hex.EncodeToString(sessionKeyBytes)
+
 	// Send handshake initiation
 	handshakeMsg := map[string]interface{}{
 		"type":               "qhp_handshake",
 		"fingerprint":        myFingerprint,
 		"challenge":          myChallengeHex,
 		"supported_versions": []string{"3.0"},
+		"session_key":        sessionKey,
 	}
 	if err := conn.WriteJSON(handshakeMsg); err != nil {
 		return err
@@ -1102,25 +1110,21 @@ func (b *Bridge) QHPHandshake(conn *websocket.Conn, nodeName string) error {
 	ackMsg := map[string]interface{}{
 		"type":               "qhp_handshake_ack",
 		"challenge_response": myChallengeResponseHex,
+		"session_key":        sessionKey,
 	}
 	if err := conn.WriteJSON(ackMsg); err != nil {
 		return err
 	}
 
-	// Optionally: wait for peer's ack (not strictly required)
-
-	// Update trust table
+	// Update trust table with session key
 	qhpTrustTable[peerFingerprint] = QHPTrustEntry{
 		PeerFingerprint: peerFingerprint,
 		Timestamp:       time.Now().Unix(),
-		SessionKey:      "TODO: session key exchange",
-		DecayTimeout:    time.Now().Add(10 * time.Minute).Unix(), // Example decay
-		OverrideUsed:    false,                                   // Set true if developer override is used
+		SessionKey:      sessionKey,
+		DecayTimeout:    time.Now().Add(10 * time.Minute).Unix(),
+		OverrideUsed:    false,
 	}
-
-	// TODO: Integrate with C++ formula registry for advanced trust/context scoring
-	// (e.g., call out to C++ via cgo or RPC, or use formula registry for trust weighting)
-
+	b.options.Logger.Info("QHP handshake complete. Session key exchanged.", "peer", peerFingerprint, "session_key", sessionKey)
 	return nil
 }
 
