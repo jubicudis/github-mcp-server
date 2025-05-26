@@ -92,5 +92,25 @@
 		"."
 	],
 	"python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python3.11",
-	"python.pythonPath": "${workspaceFolder}/.venv/bin/python3.11"
+	"python.pythonPath": "${workspaceFolder}/.venv/bin/python3.11",
+	
+	// MCP canonical port and endpoint settings for QHP
+	"mcp.tnos.port": 9001,
+	"mcp.bridge.port": 10619,
+	"mcp.github.port": 10617,
+	"mcp.copilot.port": 8083,
+	"mcp.tnos.wsEndpoint": "ws://localhost:9001/ws",
+	"mcp.bridge.wsEndpoint": "ws://localhost:10619/ws",
+	"mcp.github.wsEndpoint": "ws://localhost:10617/ws",
+	"mcp.copilot.wsEndpoint": "ws://localhost:8083/ws",
+	"mcp.tnos.apiEndpoint": "http://localhost:9001/api",
+	"mcp.bridge.apiEndpoint": "http://localhost:10619/api",
+	"mcp.github.apiEndpoint": "http://localhost:10617/api",
+	"mcp.copilot.apiEndpoint": "http://localhost:8083/api",
+	// QHP handshake and diagnostics
+	"qhp.enabled": true,
+	"qhp.handshake.required": true,
+	"qhp.ports": [9001, 10619, 10617, 8083],
+	"qhp.protocol": "QHPv1.0",
+	"qhp.contextPropagation": "7D"
 }

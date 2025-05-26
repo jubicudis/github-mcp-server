@@ -117,7 +117,7 @@ echo "Go version: $(go version)"
 echo "Gopls version: $(gopls version 2>/dev/null || echo "gopls not installed")"
 
 # Set environment variables for the GitHub MCP Server
-export MCP_SERVER_PORT=8889
+export MCP_SERVER_PORT=10617
 export MCP_LOG_FILE="$WORKSPACE_ROOT/logs/github_mcp_server.log"
 
 echo
@@ -160,51 +160,39 @@ elif [ "$1" = "test" ]; then
     go test ./...
 # Ensure the script exits after starting all components
 elif [ "$1" = "start-all" ]; then
-    echo "Starting all MCP components via canonical shell scripts..."
+    echo "Starting all MCP components in one script..."
     # Stop any existing processes
-    pkill -f "github-mcp-server"
-    pkill -f "tnos_mcp_server.py"
-    pkill -f "tnos_mcp_bridge.py"
-    pkill -f "enhanced_mobius_visualization_server.py"
+    pkill -f "github-mcp-server" 2>/dev/null
+    pkill -f "tnos_mcp_server.py" 2>/dev/null
+    pkill -f "github_mcp_bridge.py" 2>/dev/null
     sleep 2
 
-    # Start GitHub MCP Server
-    if [ -f "$WORKSPACE_ROOT/scripts/shell/start_github_mcp_server.sh" ]; then
-        bash "$WORKSPACE_ROOT/scripts/shell/start_github_mcp_server.sh"
-    else
-        echo "ERROR: start_github_mcp_server.sh not found!"
-        exit 1
-    fi
+    # Start GitHub MCP Server (Go binary)
+    echo "Starting GitHub MCP Server..."
+    "$WORKSPACE_ROOT/bin/github-mcp-server" &
+    GITHUB_MCP_PID=$!
     sleep 2
 
-    # Start TNOS MCP Server
-    if [ -f "$WORKSPACE_ROOT/scripts/shell/start_tnos_mcp_server.sh" ]; then
-        bash "$WORKSPACE_ROOT/scripts/shell/start_tnos_mcp_server.sh"
-    else
-        echo "ERROR: start_tnos_mcp_server.sh not found!"
-        exit 1
-    fi
+    # Start TNOS MCP Server (Python)
+    echo "Starting TNOS MCP Server..."
+    PYTHON311="$WORKSPACE_ROOT/systems/python/venv311/bin/python3.11"
+    TNOS_MCP_SERVER_PY="$WORKSPACE_ROOT/mcp/bridge/tnos_mcp_server.py"
+    "$PYTHON311" "$TNOS_MCP_SERVER_PY" &
+    TNOS_MCP_PID=$!
     sleep 2
 
-    # Start Visualization Server
-    if [ -f "$WORKSPACE_ROOT/scripts/shell/start_visualization_server.sh" ]; then
-        bash "$WORKSPACE_ROOT/scripts/shell/start_visualization_server.sh"
-    else
-        echo "ERROR: start_visualization_server.sh not found!"
-        exit 1
-    fi
+    # Start MCP Bridge (Python)
+    echo "Starting MCP Bridge..."
+    MCP_BRIDGE_PY="$WORKSPACE_ROOT/github-mcp-server/internal/bridge/github_mcp_bridge.py"
+    "$PYTHON311" "$MCP_BRIDGE_PY" --log-level info &
+    MCP_BRIDGE_PID=$!
     sleep 2
 
-    # Start MCP Bridge
-    if [ -f "$WORKSPACE_ROOT/scripts/shell/start_mcp_bridge.sh" ]; then
-        bash "$WORKSPACE_ROOT/scripts/shell/start_mcp_bridge.sh"
-    else
-        echo "ERROR: start_mcp_bridge.sh not found!"
-        exit 1
-    fi
-    sleep 2
-
-    echo "All MCP components started via canonical shell scripts."
+    echo "All MCP components started. PIDs:"
+    echo "  GitHub MCP Server: $GITHUB_MCP_PID"
+    echo "  TNOS MCP Server: $TNOS_MCP_PID"
+    echo "  MCP Bridge: $MCP_BRIDGE_PID"
+    echo "To stop all, use: pkill -f github-mcp-server; pkill -f tnos_mcp_server.py; pkill -f github_mcp_bridge.py"
     exit 0
 fi
 
@@ -267,6 +255,8 @@ start_tnos_mcp_server_only() {
     LOGS_DIR="$PROJECT_ROOT/logs"
     MCP_SERVER_SCRIPT="$PROJECT_ROOT/mcp/bridge/tnos_mcp_server.py"
     VENV_DIR="/Users/Jubicudis/Tranquility-Neuro-OS/systems/python/venv311"
+    CANONICAL_MCP_PATH="$PROJECT_ROOT/mcp/bridge/python"
+    export PYTHONPATH="$CANONICAL_MCP_PATH:$PYTHONPATH"
     mkdir -p "$LOGS_DIR"
     if [[ ! -f "$MCP_SERVER_SCRIPT" ]]; then
       echo "[SOLO][ERROR] TNOS MCP server script not found!"
@@ -278,7 +268,7 @@ start_tnos_mcp_server_only() {
     fi
     if [[ -f "$VENV_DIR/bin/activate" ]]; then
       source "$VENV_DIR/bin/activate"
-      "$VENV_DIR/bin/pip" install flask --quiet
+      "$VENV_DIR/bin/python3.11" -m pip install flask --quiet
     fi
     (cd "$PROJECT_ROOT" && nohup "$VENV_DIR/bin/python3.11" -u "$MCP_SERVER_SCRIPT" > "$LOGS_DIR/tnos_mcp_server.log" 2>&1 & echo $! > "$LOGS_DIR/tnos_mcp_server.pid")
     sleep 2
@@ -296,12 +286,12 @@ start_tnos_mcp_server_only() {
       fi
       exit 1
     fi
-    if ! wait_for_port "127.0.0.1" 8888 20; then
-      echo "[SOLO][ERROR] TNOS MCP Server did not open port 8888 (WebSocket) in time. Checking process..."
+    if ! wait_for_port "127.0.0.1" 9001 20; then
+      echo "[SOLO][ERROR] TNOS MCP Server did not open port 9001 (WebSocket) in time. Checking process..."
       if ! kill -0 $TNOS_PID 2>/dev/null; then
-        echo "[SOLO][ERROR] TNOS MCP server process died before port 8888 opened. Check $LOGS_DIR/tnos_mcp_server.log for errors."
+        echo "[SOLO][ERROR] TNOS MCP server process died before port 9001 opened. Check $LOGS_DIR/tnos_mcp_server.log for errors."
       else
-        echo "[SOLO][ERROR] TNOS MCP server process is running but port 8888 is not open. Possible binding issue."
+        echo "[SOLO][ERROR] TNOS MCP server process is running but port 9001 is not open. Possible binding issue."
       fi
       exit 1
     fi
@@ -317,57 +307,49 @@ start_all_mcp() {
     sleep 2
 
     echo "[MCP] Building GitHub MCP Server..."
-    go build -o ./bin/github-mcp-server ./cmd/server || { echo "[MCP] Build failed."; exit 1; }
-    cp -f ./bin/github-mcp-server "$WORKSPACE_ROOT/bin/github-mcp-server" 2>/dev/null
-
-    # Start GitHub MCP Server (mirrored logic)
-    echo "[MCP] Starting GitHub MCP Server on port 8889..."
-    PROJECT_ROOT="$WORKSPACE_ROOT"
-    LOGS_DIR="$PROJECT_ROOT/logs"
-    SERVER_LOG="$LOGS_DIR/github_mcp_server.log"
-    SERVER_BIN="$PROJECT_ROOT/github-mcp-server/bin/github-mcp-server"
-    SERVER_BIN_ALT="$PROJECT_ROOT/bin/github-mcp-server"
-    if [[ -f "$SERVER_BIN" ]]; then
-      GITHUB_MCP_SERVER="$SERVER_BIN"
-    elif [[ -f "$SERVER_BIN_ALT" ]]; then
-      GITHUB_MCP_SERVER="$SERVER_BIN_ALT"
-    else
-      echo "ERROR: GitHub MCP server binary not found."
+    # Canonical Go build location
+    cd "$WORKSPACE_ROOT/github-mcp-server" || exit 1
+    go build -o "$WORKSPACE_ROOT/bin/github-mcp-server" ./cmd/server || { echo "[MCP] Build failed."; exit 1; }
+    SERVER_BIN="$WORKSPACE_ROOT/bin/github-mcp-server"
+    if [[ ! -f "$SERVER_BIN" ]]; then
+      echo "ERROR: GitHub MCP server binary not found at $SERVER_BIN."
       exit 1
     fi
+    LOGS_DIR="$WORKSPACE_ROOT/logs"
     mkdir -p "$LOGS_DIR"
-    if lsof -i :8889 | grep LISTEN; then
-      echo "ERROR: Port 8889 is already in use. GitHub MCP server will not be started."
+    if lsof -i :10617 | grep LISTEN; then
+      echo "ERROR: Port 10617 is already in use. GitHub MCP server will not be started."
     else
-      nohup "$GITHUB_MCP_SERVER" > "$SERVER_LOG" 2>&1 &
+      nohup "$SERVER_BIN" > "$LOGS_DIR/github_mcp_server.log" 2>&1 &
       echo $! > "$LOGS_DIR/github_mcp_server.pid"
-      echo "GitHub MCP server started with PID $(cat "$LOGS_DIR/github_mcp_server.pid") on port 8889 (log: $SERVER_LOG)"
-      wait_for_port "127.0.0.1" 8889 20 || { echo "[MCP][ERROR] GitHub MCP Server did not open port 8889 in time."; exit 1; }
+      echo "GitHub MCP server started with PID $(cat "$LOGS_DIR/github_mcp_server.pid") on port 10617 (log: $LOGS_DIR/github_mcp_server.log)"
+      wait_for_port "127.0.0.1" 10617 20 || { echo "[MCP][ERROR] GitHub MCP Server did not open port 10617 in time."; exit 1; }
     fi
     sleep 2
 
-    # Start TNOS MCP Server (mirrored logic)
+    # Start TNOS MCP Server (canonical location)
     echo "[MCP] Starting TNOS MCP Server on port 8083..."
-    MCP_SERVER_SCRIPT="$PROJECT_ROOT/mcp/bridge/tnos_mcp_server.py"
-    VENV_DIR="/Users/Jubicudis/Tranquility-Neuro-OS/systems/python/venv311"
+    MCP_SERVER_SCRIPT="$WORKSPACE_ROOT/mcp/bridge/tnos_mcp_server.py"
+    VENV_DIR="$WORKSPACE_ROOT/systems/python/venv311"
+    CANONICAL_MCP_PATH="$WORKSPACE_ROOT/mcp/bridge/python"
+    export PYTHONPATH="$CANONICAL_MCP_PATH:$PYTHONPATH"
     if [[ ! -f "$MCP_SERVER_SCRIPT" ]]; then
-      echo "ERROR: TNOS MCP server script not found!"
+      echo "ERROR: TNOS MCP server script not found at $MCP_SERVER_SCRIPT!"
     else
       if lsof -i :8083 | grep LISTEN; then
         echo "ERROR: Port 8083 (TCP) is already in use. TNOS MCP server will not be started."
       else
         if [[ -f "$VENV_DIR/bin/activate" ]]; then
           source "$VENV_DIR/bin/activate"
-          "$VENV_DIR/bin/pip" install flask --quiet
+          "$VENV_DIR/bin/python3.11" -m pip install flask --quiet
         fi
-        (cd "$PROJECT_ROOT" && nohup "$VENV_DIR/bin/python3.11" -u "$MCP_SERVER_SCRIPT" > "$LOGS_DIR/tnos_mcp_server.log" 2>&1 & echo $! > "$LOGS_DIR/tnos_mcp_server.pid")
+        (cd "$WORKSPACE_ROOT" && nohup "$VENV_DIR/bin/python3.11" -u "$MCP_SERVER_SCRIPT" > "$LOGS_DIR/tnos_mcp_server.log" 2>&1 & echo $! > "$LOGS_DIR/tnos_mcp_server.pid")
         sleep 2
         TNOS_PID=$(cat "$LOGS_DIR/tnos_mcp_server.pid")
         if ! kill -0 $TNOS_PID 2>/dev/null; then
           echo "[MCP][ERROR] TNOS MCP server process failed to start (PID $TNOS_PID not running). Check $LOGS_DIR/tnos_mcp_server.log for details."
           exit 1
         fi
-        # Use robust port and /health check (mirrored from solo mode)
         if ! wait_for_port_and_health "127.0.0.1" 8083 60; then
           echo "[MCP][ERROR] TNOS MCP Server did not open port 8083 or /health endpoint in time. Checking process..."
           if ! kill -0 $TNOS_PID 2>/dev/null; then
@@ -377,12 +359,12 @@ start_all_mcp() {
           fi
           exit 1
         fi
-        if ! wait_for_port "127.0.0.1" 8888 20; then
-          echo "[MCP][ERROR] TNOS MCP Server did not open port 8888 (WebSocket) in time. Checking process..."
+        if ! wait_for_port "127.0.0.1" 9001 20; then
+          echo "[MCP][ERROR] TNOS MCP Server did not open port 9001 (WebSocket) in time. Checking process..."
           if ! kill -0 $TNOS_PID 2>/dev/null; then
-            echo "[MCP][ERROR] TNOS MCP server process died before port 8888 opened. Check $LOGS_DIR/tnos_mcp_server.log for errors."
+            echo "[MCP][ERROR] TNOS MCP server process died before port 9001 opened. Check $LOGS_DIR/tnos_mcp_server.log for errors."
           else
-            echo "[MCP][ERROR] TNOS MCP server process is running but port 8888 is not open. Possible binding issue."
+            echo "[MCP][ERROR] TNOS MCP server process is running but port 9001 is not open. Possible binding issue."
           fi
           exit 1
         fi
@@ -391,37 +373,14 @@ start_all_mcp() {
     fi
     sleep 2
 
-    # Start Enhanced Möbius Visualization Server (mirrored logic)
-    # [REMOVED] Visualization server is now an internal component of the TNOS MCP server.
-    # TODO: Ensure TNOS MCP server provides visualization features on port 7779 or as configured.
-    # If you need to test visualization, start the TNOS MCP server and access its visualization endpoint.
-    #
-    # VISUALIZATION_SERVER_SCRIPT="$PROJECT_ROOT/mcp/bridge/visualization/enhanced_mobius_visualization_server.py"
-    # if [[ ! -f "$VISUALIZATION_SERVER_SCRIPT" ]]; then
-    #   echo "ERROR: Enhanced Visualization server script not found!"
-    # else
-    #   if lsof -i :7779 | grep LISTEN; then
-    #     echo "ERROR: Port 7779 is already in use. Enhanced Visualization server will not be started."
-    #   else
-    #     # Remove fallback to system python3, always use venv
-    #     PYTHON_EXEC="$VENV_DIR/bin/python3.11"
-    #     "$VENV_DIR/bin/pip" install flask --quiet
-    #     nohup $PYTHON_EXEC "$VISUALIZATION_SERVER_SCRIPT" > "$LOGS_DIR/enhanced_visualization_server.log" 2>&1 &
-    #     echo $! > "$LOGS_DIR/enhanced_visualization_server.pid"
-    #     echo "Enhanced Möbius Visualization Server started on port 7779 (log: $LOGS_DIR/enhanced_visualization_server.log)"
-    #     wait_for_port "127.0.0.1" 7779 20 || { echo "[MCP][ERROR] Visualization Server did not open port 7779 in time."; exit 1; }
-    #   fi
-    # fi
-    # sleep 2
-
-    # Start MCP Bridge (mirrored logic)
-    echo "[MCP] Starting MCP Bridge between GitHub port 8889 and TNOS port 8083..."
-    PYTHON_BRIDGE="$PROJECT_ROOT/mcp/bridge/tnos_mcp_bridge.py"
+    # Start MCP Bridge (canonical location)
+    echo "[MCP] Starting MCP Bridge between GitHub port 10617 and TNOS port 9001..."
+    PYTHON_BRIDGE="$WORKSPACE_ROOT/github-mcp-server/internal/bridge/github_mcp_bridge.py"
     if [[ ! -f "$PYTHON_BRIDGE" ]]; then
       echo "[ERROR] Python bridge script not found: $PYTHON_BRIDGE"
       exit 1
     fi
-    nohup "$VENV_DIR/bin/python3.11" "$PYTHON_BRIDGE" > "$LOGS_DIR/mcp_bridge.log" 2>&1 &
+    nohup "$VENV_DIR/bin/python3.11" "$PYTHON_BRIDGE" --port 10619 > "$LOGS_DIR/mcp_bridge.log" 2>&1 &
     echo $! > "$LOGS_DIR/mcp_bridge.pid"
     echo "MCP Bridge started with PID $(cat "$LOGS_DIR/mcp_bridge.pid") (log: $LOGS_DIR/mcp_bridge.log)"
     # No port to wait for, but log connection attempt
@@ -446,19 +405,19 @@ status_all_mcp() {
     # GitHub MCP Server
     if [[ -f "$LOGS_DIR/github_mcp_server.pid" ]]; then
       G_PID=$(cat "$LOGS_DIR/github_mcp_server.pid")
-      if kill -0 $G_PID 2>/dev/null && lsof -i :8889 | grep LISTEN >/dev/null; then
-        echo "  [RUNNING] GitHub MCP Server (PID $G_PID, port 8889)"
+      if kill -0 $G_PID 2>/dev/null && lsof -i :10617 | grep LISTEN >/dev/null; then
+        echo "  [RUNNING] GitHub MCP Server (PID $G_PID, port 10617)"
       else
         echo "  [STOPPED] GitHub MCP Server"
       fi
     else
       echo "  [STOPPED] GitHub MCP Server"
     fi
-    # TNOS MCP Server
+    # TNOS MCP Server (WebSocket)
     if [[ -f "$LOGS_DIR/tnos_mcp_server.pid" ]]; then
       T_PID=$(cat "$LOGS_DIR/tnos_mcp_server.pid")
-      if kill -0 $T_PID 2>/dev/null && lsof -i :8083 | grep LISTEN >/dev/null; then
-        echo "  [RUNNING] TNOS MCP Server (PID $T_PID, port 8083)"
+      if kill -0 $T_PID 2>/dev/null && lsof -i :9001 | grep LISTEN >/dev/null; then
+        echo "  [RUNNING] TNOS MCP Server (PID $T_PID, WebSocket port 9001)"
       else
         echo "  [STOPPED] TNOS MCP Server"
       fi
@@ -468,27 +427,16 @@ status_all_mcp() {
     # MCP Bridge
     if [[ -f "$LOGS_DIR/mcp_bridge.pid" ]]; then
       B_PID=$(cat "$LOGS_DIR/mcp_bridge.pid")
-      if kill -0 $B_PID 2>/dev/null; then
-        echo "  [RUNNING] MCP Bridge (PID $B_PID)"
+      if kill -0 $B_PID 2>/dev/null && lsof -i :10619 | grep LISTEN >/dev/null; then
+        echo "  [RUNNING] MCP Bridge (PID $B_PID, port 10619)"
       else
         echo "  [STOPPED] MCP Bridge"
       fi
     else
       echo "  [STOPPED] MCP Bridge"
     fi
-    # Möbius Visualization Server
-    # [REMOVED] Visualization server is now an internal component of the TNOS MCP server.
-    # if [[ -f "$LOGS_DIR/enhanced_visualization_server.pid" ]]; then
-    #   V_PID=$(cat "$LOGS_DIR/enhanced_visualization_server.pid")
-    #   if kill -0 $V_PID 2>/dev/null && lsof -i :7779 | grep LISTEN >/dev/null; then
-    #     echo "  [RUNNING] Möbius Visualization Server (PID $V_PID, port 7779)"
-    #   else
-    #     echo "  [STOPPED] Möbius Visualization Server"
-    #   fi
-    # else
-    #   echo "  [STOPPED] Möbius Visualization Server"
-    # fi
-    echo "  [INFO] Visualization is now provided by the TNOS MCP server as an internal component."
+    # Visualization (internal)
+    echo "  [INFO] Visualization is now provided by the TNOS MCP server as an internal component on port 8083."
 }
 
 # Enhanced solo developer port/health check for TNOS MCP server

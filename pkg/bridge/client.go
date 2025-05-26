@@ -38,6 +38,8 @@ import (
 // Client is already defined in common.go
 // The methods in this file operate on the common Client type
 
+// Remove local port constants; use those from common.go
+
 // NewClient creates a new bridge client with the given options
 func NewClient(ctx context.Context, options ConnectionOptions) (*Client, error) {
 	// WHO: ClientFactory
@@ -49,12 +51,12 @@ func NewClient(ctx context.Context, options ConnectionOptions) (*Client, error) 
 	// EXTENT: Client creation
 
 	clientCtx, cancel := context.WithCancel(ctx)
-	
+
 	logger := options.Logger
 	if logger == nil {
 		logger = log.NewLogger()
 	}
-	
+
 	// Ensure context is initialized
 	if options.Context.Who == "" {
 		options.Context = translations.ContextVector7D{
@@ -68,7 +70,7 @@ func NewClient(ctx context.Context, options ConnectionOptions) (*Client, error) 
 			Source: "GitHubMCPServer",
 		}
 	}
-	
+
 	client := &Client{
 		ctx:        clientCtx,
 		cancelFunc: cancel,
@@ -80,15 +82,15 @@ func NewClient(ctx context.Context, options ConnectionOptions) (*Client, error) 
 			LastActive: time.Now(),
 		},
 	}
-	
+
 	err := client.connect()
 	if err != nil {
 		cancel()
 		return nil, fmt.Errorf("failed to connect to bridge: %w", err)
 	}
-	
+
 	go client.readPump()
-	
+
 	return client, nil
 }
 
@@ -102,60 +104,178 @@ func (c *Client) connect() error {
 	// HOW: Using FallbackRoute utility
 	// EXTENT: All connection attempts
 
-	fallbackFn := func() (interface{}, error) {
-		c.mu.Lock()
-		defer c.mu.Unlock()
-		if c.connected && c.conn != nil {
-			return nil, nil
-		}
-		u, err := url.Parse(c.options.ServerURL)
-		if err != nil {
-			return nil, fmt.Errorf("invalid bridge URL: %w", err)
-		}
-		headers := http.Header{}
-		for k, v := range c.options.Headers {
-			headers.Add(k, v)
-		}
-		dialer := websocket.Dialer{
-			HandshakeTimeout: WriteTimeout,
-		}
-		dialCtx := c.ctx
-		if c.options.Timeout > 0 {
-			var cancel context.CancelFunc
-			dialCtx, cancel = context.WithTimeout(c.ctx, c.options.Timeout)
-			defer cancel()
-		}
-		conn, resp, err := dialer.DialContext(dialCtx, u.String(), headers)
-		if err != nil {
-			statusCode := 0
-			if resp != nil {
-				statusCode = resp.StatusCode
+	// Canonical fallback URLs/ports from common.go
+	const (
+		TnosMCPURL   = "ws://localhost:9001/bridge" // TNOS MCP server (primary)
+		BridgeURL    = "ws://localhost:10619/bridge"
+		GitHubMCPURL = "ws://localhost:10617/bridge"
+		CopilotURL   = "ws://localhost:8083/bridge"
+	)
+
+	primaryFn := func() (interface{}, error) {
+		if c.options.ServerURL == "" || c.options.ServerURL == TnosMCPURL {
+			if c.logger != nil {
+				c.logger.Info("[Connect] Trying TNOS MCP server at %s", TnosMCPURL)
 			}
-			return nil, fmt.Errorf("failed to dial WebSocket: %w (status: %d)", err, statusCode)
+			return c.tryConnect(TnosMCPURL)
 		}
-		c.conn = conn
-		c.connected = true
-		c.stats.LastActive = time.Now()
-		return nil, nil
+		return c.tryConnect(c.options.ServerURL)
 	}
+	bridgeFallback := func() (interface{}, error) {
+		if c.options.ServerURL == BridgeURL {
+			return nil, fmt.Errorf("Already tried MCP Bridge URL")
+		}
+		if c.logger != nil {
+			c.logger.Warn("[FallbackRoute] Trying MCP Bridge fallback at %s", BridgeURL)
+		}
+		return c.tryConnect(BridgeURL)
+	}
+	githubMCPFallback := func() (interface{}, error) {
+		if c.options.ServerURL == GitHubMCPURL {
+			return nil, fmt.Errorf("Already tried GitHub MCP URL")
+		}
+		if c.logger != nil {
+			c.logger.Warn("[FallbackRoute] Trying GitHub MCP fallback at %s", GitHubMCPURL)
+		}
+		return c.tryConnect(GitHubMCPURL)
+	}
+	copilotFallback := func() (interface{}, error) {
+		if c.options.ServerURL == CopilotURL {
+			return nil, fmt.Errorf("Already tried Copilot LLM URL")
+		}
+		if c.logger != nil {
+			c.logger.Warn("[FallbackRoute] Trying Copilot LLM fallback at %s", CopilotURL)
+		}
+		return c.tryConnect(CopilotURL)
+	}
+
 	context7d := c.options.Context
 	operationName := "Connect"
 	ctx := c.ctx
-	// Provide four fallback functions for FallbackRoute
 	_, err := FallbackRoute(
 		ctx,
 		operationName,
 		context7d,
-		fallbackFn, // TNOS MCP (primary)
-		func() (interface{}, error) { return nil, fmt.Errorf("Bridge fallback not implemented") },
-		func() (interface{}, error) { return nil, fmt.Errorf("GitHub MCP fallback not implemented") },
-		func() (interface{}, error) { return nil, fmt.Errorf("Copilot fallback not implemented") },
+		primaryFn, // TNOS MCP (primary)
+		bridgeFallback,
+		githubMCPFallback,
+		copilotFallback,
 		c.logger,
 	)
 	if err != nil {
 		return err
 	}
 	return nil
+}
+
+// Helper for QHP handshake (shared for all fallback routes)
+func (c *Client) performQHPHandshake(conn *websocket.Conn) error {
+	fingerprint := ""
+	if c.options.Credentials != nil {
+		if val, ok := c.options.Credentials["fingerprint"]; ok {
+			fingerprint = val
+		}
+	}
+	if fingerprint == "" {
+		fingerprint = GenerateQuantumFingerprint("tnos-mcp") // Use node/system id as seed
+	}
+	handshakeMsg := map[string]interface{}{
+		"type":        "qhp_handshake",
+		"fingerprint": fingerprint,
+		"timestamp":   time.Now().Unix(),
+	}
+	if c.options.Credentials != nil {
+		if val, ok := c.options.Credentials["developer_override_token"]; ok && val != "" {
+			handshakeMsg["override_token"] = val
+		}
+	}
+	handshakeData, err := json.Marshal(handshakeMsg)
+	if err != nil {
+		return fmt.Errorf("failed to marshal QHP handshake: %w", err)
+	}
+	err = conn.WriteMessage(websocket.TextMessage, handshakeData)
+	if err != nil {
+		return fmt.Errorf("failed to send QHP handshake: %w", err)
+	}
+	ackCh := make(chan error, 1)
+	go func() {
+		type handshakeAck struct {
+			Type        string      `json:"type"`
+			Fingerprint string      `json:"fingerprint"`
+			TrustTable  interface{} `json:"trust_table"`
+			SessionKey  string      `json:"session_key"`
+		}
+		_, data, err := conn.ReadMessage()
+		if err != nil {
+			ackCh <- fmt.Errorf("failed to read QHP handshake ack: %w", err)
+			return
+		}
+		var ack handshakeAck
+		err = json.Unmarshal(data, &ack)
+		if err != nil {
+			ackCh <- fmt.Errorf("invalid QHP handshake ack: %w", err)
+			return
+		}
+		if ack.Type != "qhp_handshake_ack" {
+			ackCh <- fmt.Errorf("unexpected handshake response type: %s", ack.Type)
+			return
+		}
+		c.sessionKey = ack.SessionKey
+		ackCh <- nil
+	}()
+	select {
+	case err := <-ackCh:
+		if err != nil {
+			return err
+		}
+	case <-time.After(5 * time.Second):
+		return fmt.Errorf("QHP handshake timed out")
+	}
+	return nil
+}
+
+// tryConnect attempts a WebSocket connection to the given URL and updates the client state
+func (c *Client) tryConnect(serverURL string) (interface{}, error) {
+	c.mutex.Lock()
+	defer c.mutex.Unlock()
+	if c.connected && c.conn != nil {
+		return nil, nil
+	}
+	u, err := url.Parse(serverURL)
+	if err != nil {
+		return nil, fmt.Errorf("invalid bridge URL: %w", err)
+	}
+	headers := http.Header{}
+	for k, v := range c.options.Headers {
+		headers.Add(k, v)
+	}
+	dialer := websocket.Dialer{
+		HandshakeTimeout: WriteTimeout,
+	}
+	dialCtx := c.ctx
+	if c.options.Timeout > 0 {
+		var cancel context.CancelFunc
+		dialCtx, cancel = context.WithTimeout(c.ctx, c.options.Timeout)
+		defer cancel()
+	}
+	conn, resp, err := dialer.DialContext(dialCtx, u.String(), headers)
+	if err != nil {
+		statusCode := 0
+		if resp != nil {
+			statusCode = resp.StatusCode
+		}
+		return nil, fmt.Errorf("failed to dial WebSocket: %w (status: %d)", err, statusCode)
+	}
+	// Always perform QHP handshake after connection
+	err = c.performQHPHandshake(conn)
+	if err != nil {
+		conn.Close()
+		return nil, err
+	}
+	c.conn = conn
+	c.connected = true
+	c.stats.LastActive = time.Now()
+	return nil, nil
 }
 
 // Receive returns the next message from the bridge
@@ -247,7 +367,7 @@ func (c *Client) readPump() {
 	defer func() {
 		c.close()
 	}()
-	
+
 	// Configure read deadline from common.go
 	if ReadTimeout > 0 {
 		err := c.conn.SetReadDeadline(time.Now().Add(ReadTimeout))
@@ -255,10 +375,10 @@ func (c *Client) readPump() {
 			c.logger.Error("Failed to set read deadline", "error", err.Error())
 		}
 	}
-	
+
 	// Configure maximum message size from common.go
 	c.conn.SetReadLimit(MaxMessageSize)
-	
+
 	for {
 		// Reset the read deadline for each message
 		if ReadTimeout > 0 {
@@ -267,27 +387,27 @@ func (c *Client) readPump() {
 				c.logger.Error("Failed to reset read deadline", "error", err.Error())
 			}
 		}
-		
+
 		_, data, err := c.conn.ReadMessage()
 		if err != nil {
 			c.logger.Error("Failed to read message", "error", err.Error())
 			c.connected = false
-			
+
 			// Try to reconnect
 			if c.ctx.Err() == nil {
 				c.reconnect()
 			}
-			
+
 			return
 		}
-		
+
 		var msg Message
 		if err := json.Unmarshal(data, &msg); err != nil {
 			c.logger.Error("Failed to unmarshal message", "error", err.Error())
 			c.stats.ErrorCount++
 			continue
 		}
-		
+
 		// Process context if needed
 		if ctxMap, ok := msg.Context.(map[string]interface{}); ok {
 			// Convert context map to ContextVector7D
@@ -303,10 +423,10 @@ func (c *Client) readPump() {
 			}
 			msg.Context = contextVector
 		}
-		
+
 		c.stats.MessagesReceived++
 		c.stats.LastActive = time.Now()
-		
+
 		select {
 		case c.messages <- msg:
 		default:
@@ -370,16 +490,18 @@ func (c *Client) reconnect() {
 func (c *Client) close() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	
+
 	if c.conn != nil {
 		c.conn.Close()
 		c.conn = nil
 	}
-	
+
 	c.connected = false
-	
+
 	// Close the message channel when we're shutting down
 	if c.ctx.Err() != nil {
 		close(c.messages)
 	}
 }
+
+// Comments: Mobius/7D context and QHP handshake logic are now enforced for all fallback routes and canonical ports. Quantum symmetry is maintained by mirrored logic and context propagation across all MCP layers.
