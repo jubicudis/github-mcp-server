@@ -15,7 +15,9 @@
         "paths": {
             "*": ["*", "node_modules/*"],
             "bridge/*": ["src/bridge/*"],
-            "mcp/*": ["src/mcp/*", "../mcp/*"]
+            "mcp/*": ["src/mcp/*", "../mcp/*"],
+            "typescript/*": ["src/typescript/*"],
+            "utils/*": ["src/utils/*"]
         },
         "resolveJsonModule": true,
         "allowSyntheticDefaultImports": true,
@@ -40,7 +42,10 @@
         "src/**/*",
         "pkg/**/*",
         "cmd/**/*.js",
-        "test/**/*.js"
+        "test/**/*.js",
+        "../src/bridge/**/*",
+        "../src/typescript/**/*",
+        "../src/utils/**/*"
     ],
     "typeAcquisition": {
         "include": ["node"]

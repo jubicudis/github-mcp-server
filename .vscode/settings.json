@@ -112,5 +112,22 @@
 	"qhp.handshake.required": true,
 	"qhp.ports": [9001, 10619, 10617, 8083],
 	"qhp.protocol": "QHPv1.0",
-	"qhp.contextPropagation": "7D"
+	"qhp.contextPropagation": "7D",
+	
+	// Java project source paths and configuration
+	"java.project.sourcePaths": [
+		"../../systems/java/circulatory/src",
+		"../../systems/java/digestive/src",
+		"../../systems/java/endocrine/src",
+		"../../systems/java/excretory/src",
+		"../../systems/java/immune/src",
+		"../../systems/java/integumentary/src",
+		"../../systems/java/muscular/src",
+		"../../systems/java/nervous/src",
+		"../../systems/java/reproductive/src",
+		"../../systems/java/respiratory/src",
+		"../../systems/java/skeletal/src",
+		"../src"
+	],
+	"java.configuration.settings": "${workspaceFolder}/.vscode/java-settings.json"
 }
