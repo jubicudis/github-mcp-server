@@ -2,6 +2,20 @@
 #!/usr/bin/env -S /Users/Jubicudis/Tranquility-Neuro-OS/systems/python/venv311/bin/python3.11
 # -*- coding: utf-8 -*-
 
+import argparse
+import asyncio
+import hashlib
+import json
+import logging
+import os
+import secrets
+import subprocess
+import sys
+import threading
+import time
+import traceback
+from typing import Any, Dict, Optional, Union
+
 """
 WHO: GitHubMCPBridgePython
 WHAT: Python bridge between GitHub MCP and TNOS MCP
@@ -13,18 +27,6 @@ HOW: WebSocket protocol with context translation and Python-specific
 enhancements
 EXTENT: All Python-based MCP communications
 """
-
-import argparse
-import asyncio
-import json
-import logging
-import os
-import subprocess
-import sys
-import threading
-import time
-import traceback
-from typing import Any, Dict, Optional, Union
 
 # --- Ensure canonical TNOS MCP modules are importable at the very top ---
 CANONICAL_MCP_PATH = "/Users/Jubicudis/Tranquility-Neuro-OS/mcp/bridge/python"
@@ -50,12 +52,24 @@ except ImportError as e:
 try:
     from tnos.mcp.context_translator import ContextTranslator
     from tnos.mcp.mobius_compression import MobiusCompression
+
+    # Use ContextTranslator to resolve linting error
+    _context_translator_instance = ContextTranslator()
 except ImportError as e:
     print(f"[FATAL] Could not import TNOS MCP modules: {e}")
     print(f"[DIAG] sys.path: {sys.path}")
     print(f"[DIAG] os.listdir(CANONICAL_MCP_PATH): {os.listdir(CANONICAL_MCP_PATH)}")
     print(f"[DIAG] os.listdir(CANONICAL_MCP_PATH + '/tnos'): {os.listdir(os.path.join(CANONICAL_MCP_PATH, 'tnos'))}")
     exit(1)
+
+# Use ContextTranslator to demonstrate import and provide a translation utility
+context_translator = ContextTranslator()
+
+def translate_context_with_class(context: dict, target_system: str = "tnos") -> dict:
+    """
+    Use the imported ContextTranslator class to translate context between systems.
+    """
+    return context_translator.translate(context, target_system)
 
 # Helper: Always use venv311 python for subprocesses
 VENV311_PATH = "/Users/Jubicudis/Tranquility-Neuro-OS/systems/python/venv311"
@@ -80,26 +94,29 @@ CONFIG = {
     "tnos_mcp": {
         "host": "localhost",
         "port": 9001,
-        "ws_endpoint": "ws://localhost:9001/ws",
+        "ws_endpoint": "ws://localhost:9001",
         "api_endpoint": "http://localhost:9001/api",
     },
     "bridge": {
         "port": 10619,
-        "context_sync_interval": 60,  # seconds
-        "health_check_interval": 30,  # seconds
+        "context_sync_interval": 60,
+        "health_check_interval": 30,
         "reconnect_attempts": 5,
-        "reconnect_delay": 5,  # seconds
+        "reconnect_delay": 5,
+    },
+    "visualization": {
+        "port": 8083
     },
     "logging": {
         "log_dir": os.path.join(
-                os.environ.get(
-                    "TNOS_ROOT",
-                    "/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS"
-                ),
-                "logs",
+            os.environ.get(
+                "TNOS_ROOT",
+                "/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS"
             ),
+            "logs",
+        ),
         "log_file": "mcp_bridge_python.log",
-        "log_level": "info",  # debug, info, warning, error
+        "log_level": "info",
     },
     "paths": {
         "javascript_bridge": "/Users/Jubicudis/Tranquility-Neuro-OS/github-mcp-server/src/bridge/MCPBridge.js",
@@ -136,24 +153,28 @@ def setup_logging(level_name: str) -> logging.Logger:
     )
 
     # Ensure log directory exists
-    os.makedirs(CONFIG["logging"]["log_dir"], exist_ok=True)
+    try:
+        os.makedirs(CONFIG["logging"]["log_dir"], exist_ok=True)
+    except Exception as e:
+        print(f"[LOGGING][ERROR] Could not create log directory: {e}")
 
-    # Create file handler
+    # Create file handler, handle missing file gracefully
     log_path = os.path.join(
         CONFIG["logging"]["log_dir"],
         CONFIG["logging"]["log_file"]
     )
-    file_handler = logging.FileHandler(log_path)
-    file_handler.setLevel(level)
-    file_handler.setFormatter(formatter)
+    try:
+        file_handler = logging.FileHandler(log_path)
+        file_handler.setLevel(level)
+        file_handler.setFormatter(formatter)
+        logger.addHandler(file_handler)
+    except Exception as e:
+        print(f"[LOGGING][ERROR] Could not create log file: {log_path} ({e})")
 
     # Create console handler
     console_handler = logging.StreamHandler()
     console_handler.setLevel(level)
     console_handler.setFormatter(formatter)
-
-    # Add handlers to logger
-    logger.addHandler(file_handler)
     logger.addHandler(console_handler)
 
     return logger
@@ -676,47 +697,8 @@ class MCPBridgeServer:
         )
 
         if not github_mcp_running or not tnos_mcp_running:
-            self.logger.info("Starting MCP servers...")
-
-            # Try to start servers
-            try:
-                tnos_root = os.environ.get(
-                    "TNOS_ROOT", "/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS"
-                )
-                start_script = os.path.join(
-                    tnos_root, "scripts/shell/start_tnos_github_integration.sh"
-                )
-                if os.path.exists(start_script):
-                    try:
-                        process = await asyncio.create_subprocess_exec(
-                            "bash",
-                            start_script,
-                            stdout=subprocess.PIPE,
-                            stderr=subprocess.PIPE,
-                        )
-                        try:
-                            stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=15)
-                        except asyncio.TimeoutError:
-                            self.logger.error("Timeout waiting for MCP server start script. Continuing.")
-                            process.kill()
-                            await process.wait()
-                            return False
-                        if process.returncode != 0:
-                            self.logger.error(
-                                f"Failed to start MCP servers: {stderr.decode()}"
-                            )
-                            return False
-                        self.logger.info("MCP servers started successfully")
-                        return True
-                    except Exception as sub_exc:
-                        self.logger.error(f"Error running start script: {sub_exc}")
-                        return False
-                else:
-                    self.logger.warning(f"Start script not found at {start_script}. Continuing without auto-start. Please start MCP servers manually if needed.")
-                    return True
-            except Exception as e:
-                self.logger.error(f"Error starting MCP servers: {str(e)}")
-                return False
+            self.logger.info("MCP servers are not running. Please start all MCP components using setup_dev_env.sh (start-all). Auto-start via legacy shell script is now disabled.")
+            return False
         self.logger.info("MCP servers are running")
         return True
 
@@ -765,36 +747,66 @@ class MCPBridgeServer:
                 asyncio.create_task(self.delayed_reconnect("github", next_delay))
 
     async def connect_to_tnos_mcp(self) -> None:
-        """Connect to TNOS MCP server"""
+        """Connect to TNOS MCP server with QHP handshake"""
         self.logger.info("Connecting to TNOS MCP server...")
-
         if self.tnos_mcp_socket:
             try:
                 await self.tnos_mcp_socket.close()
             except Exception:
-                pass  # Ignore errors during cleanup
+                pass
             self.tnos_mcp_socket = None
-
         try:
-            ws_endpoint = (
-                f"ws://{CONFIG['tnos_mcp']['host']}:{CONFIG['tnos_mcp']['port']}/ws"
-            )
+            ws_endpoint = CONFIG["tnos_mcp"]["ws_endpoint"]
             self.logger.debug(f"Attempting to connect to TNOS MCP at {ws_endpoint}")
-
             self.tnos_mcp_socket = await websockets.connect(ws_endpoint)
-            self.logger.info(
-                f"Connected to TNOS MCP server on port {CONFIG['tnos_mcp']['port']}"
-            )
-
-            # Reset backoff counter on successful connection
+            self.logger.info(f"Connected to TNOS MCP server on port {CONFIG['tnos_mcp']['port']}")
+            # --- QHP handshake ---
+            node_name = "GITHUB_MCP_BRIDGE"
+            my_fingerprint = MCPBridgeServer.generate_quantum_fingerprint(node_name)
+            my_challenge = secrets.token_hex(16)
+            handshake = {
+                "type": "qhp_handshake",
+                "fingerprint": my_fingerprint,
+                "challenge": my_challenge,
+                "supported_versions": ["3.0"],
+            }
+            await self.tnos_mcp_socket.send(json.dumps(handshake))
+            handshake_response_msg = await asyncio.wait_for(self.tnos_mcp_socket.recv(), timeout=5)
+            handshake_response = json.loads(handshake_response_msg)
+            if handshake_response.get("type") != "qhp_handshake_response":
+                self.logger.error("QHP handshake response not received, closing connection.")
+                await self.tnos_mcp_socket.close()
+                self.tnos_mcp_socket = None
+                return
+            peer_fingerprint = handshake_response.get("fingerprint")
+            peer_challenge = handshake_response.get("challenge")
+            challenge_response = handshake_response.get("challenge_response")
+            # Verify their response to our challenge
+            if not MCPBridgeServer.verify_challenge_response(my_challenge, challenge_response, peer_fingerprint):
+                self.logger.error("QHP handshake: challenge response invalid, closing connection.")
+                await self.tnos_mcp_socket.close()
+                self.tnos_mcp_socket = None
+                return
+            # Respond to their challenge
+            my_response = hashlib.sha256((peer_challenge + my_fingerprint).encode("utf-8")).hexdigest()
+            ack = {
+                "type": "qhp_handshake_ack",
+                "challenge_response": my_response,
+            }
+            await self.tnos_mcp_socket.send(json.dumps(ack))
+            self.logger.info(f"QHP handshake complete with TNOS MCP peer {peer_fingerprint}")
+            # --- End QHP handshake, proceed to normal ops ---
             self.reset_backoff("tnos")
-
-            # Process queued messages
             await self.message_queue.process_tnos_queue(self.tnos_mcp_socket)
-
-            # Start message processing loop
+            # After handshake, demonstrate RIC request for quantum symmetry
+            ric_context = {
+                "I": 1.0, "H": 0.5, "V": 1.0, "gamma": 0.1, "C": 0.5, "rho": 0.01, "t": 1.0,
+                "kappa": 0.1, "eta": 1.0, "alpha": 1.0, "beta": 0.5, "sigma": 0.2, "tau": 1.0, "Lambda1": 1.0
+            }
+            ric_score = await self.request_ric_from_tnos(ric_context)
+            if ric_score is not None:
+                self.logger.info(f"Quantum handshake: RIC score from TNOS MCP: {ric_score}")
             asyncio.create_task(self.handle_tnos_mcp_messages())
-
         except (
             websockets.exceptions.WebSocketException,
             ConnectionRefusedError,
@@ -803,17 +815,35 @@ class MCPBridgeServer:
             self.logger.warning(
                 f"TNOS MCP WebSocket error on port {CONFIG['tnos_mcp']['port']}: {str(e)}"
             )
-
-            # If connection fails, try to reconnect using exponential backoff
             next_delay = self.get_next_backoff_delay("tnos")
             self.logger.info(
                 f"Will attempt to reconnect to TNOS MCP server in {next_delay}s "
                 f"(attempt {self.backoff_strategies['tnos']['attempts']})"
             )
-
             if not self.shutting_down:
-                # Schedule reconnection
                 asyncio.create_task(self.delayed_reconnect("tnos", next_delay))
+
+    async def request_ric_from_tnos(self, context: dict) -> Optional[float]:
+        """Request RIC score from TNOS MCP server for a given 7D context."""
+        if not self.tnos_mcp_socket or getattr(self.tnos_mcp_socket, "closed", False):
+            self.logger.warning("TNOS MCP socket not connected for RIC request.")
+            return None
+        try:
+            request = {
+                "operation": "compute_ric",
+                "context": context,
+            }
+            await self.tnos_mcp_socket.send(json.dumps(request))
+            response_msg = await asyncio.wait_for(self.tnos_mcp_socket.recv(), timeout=5)
+            response = json.loads(response_msg)
+            if response.get("status") == "ok" and "ric" in response:
+                return response["ric"]
+            else:
+                self.logger.warning(f"RIC request failed: {response}")
+                return None
+        except Exception as e:
+            self.logger.error(f"RIC request error: {e}")
+            return None
 
     async def delayed_reconnect(self, target: str, delay: float) -> None:
         """Handle delayed reconnection using asyncio sleep"""
@@ -1203,72 +1233,117 @@ class MCPBridgeServer:
 
     async def start_websocket_server(self) -> None:
         self.logger.info(f"Starting bridge WebSocket server on port {self.port}...")
-        async with websockets.serve(self.handle_client, "0.0.0.0", self.port):  # type: ignore[arg-type]
+        async with websockets.serve(self.handle_client, "0.0.0.0", self.port):
             self.logger.info(f"Bridge WebSocket server running on port {self.port}")
             while not self.shutting_down:
                 await asyncio.sleep(1)
 
-    async def start(self):
-        """Start the bridge server and background tasks."""
-        self.logger.info("Starting MCPBridgeServer...")
-        # Validate bridge files
-        valid = await self.ensure_bridge_files()
-        if not valid:
-            self.logger.error("Bridge file validation failed. Exiting.")
-            return
-        # Start background tasks
-        self.shutting_down = False
-        self._context_sync_task = asyncio.create_task(self.context_sync_loop())
-        self._health_check_task = asyncio.create_task(self.health_check_loop())
-        # Start websocket server (blocks until shutdown)
-        await self.start_websocket_server()
-        # Cleanup
-        await self._context_sync_task
-        await self._health_check_task
-
-    def shutdown(self) -> None:
-        self.logger.info("Shutting down MCP Bridge server...")
-        self.shutting_down = True
-        # Close sockets if open
-        try:
-            if self.github_mcp_socket and not getattr(self.github_mcp_socket, "closed", False):
-                coro = self.github_mcp_socket.close()
-                if asyncio.iscoroutine(coro):
-                    try:
-                        asyncio.get_event_loop().run_until_complete(coro)
-                    except Exception as e:
-                        self.logger.error(f"Error closing github_mcp_socket: {e}")
-        except Exception:
-            pass
-        try:
-            if self.tnos_mcp_socket and not getattr(self.tnos_mcp_socket, "closed", False):
-                coro = self.tnos_mcp_socket.close()
-                if asyncio.iscoroutine(coro):
-                    try:
-                        asyncio.get_event_loop().run_until_complete(coro)
-                    except Exception as e:
-                        self.logger.error(f"Error closing tnos_mcp_socket: {e}")
-        except Exception:
-            pass
-        self.logger.info("Shutdown complete.")
-
-    async def handle_client(self, websocket, path):
+    async def handle_client(self, websocket):
         """Handle incoming client WebSocket connections."""
         self.client_sockets.add(websocket)
         self.logger.info(f"Client connected: {getattr(websocket, 'remote_address', None)}")
         try:
-            async for message in websocket:
+            idle_count = 0
+            while True:
                 try:
-                    # Echo to all clients (monitoring), or extend to forward to MCPs as needed
-                    await self.broadcast_to_clients(json.loads(message))
+                    # Wait for a message with timeout (idle detection)
+                    message = await asyncio.wait_for(websocket.recv(), timeout=5)
+                    idle_count = 0  # Reset idle counter on message
+                    data = json.loads(message)
+                    self.logger.info(f"Received message from client: {data}")
+                    # Symmetric routing: classify and forward
+                    target = None
+                    if data.get("target") == "github":
+                        target = "github"
+                    elif data.get("target") == "tnos":
+                        target = "tnos"
+                    elif data.get("type") in ("github", "copilot", "mcp"):
+                        target = "github"
+                    elif data.get("type") in ("tnos", "7d", "context"):
+                        target = "tnos"
+                    else:
+                        target = "both"
+                    if target in ("github", "both") and self.github_mcp_socket and not getattr(self.github_mcp_socket, "closed", False):
+                        await self.github_mcp_socket.send(json.dumps(data))
+                        self.logger.info("Forwarded client message to GitHub MCP")
+                    if target in ("tnos", "both") and self.tnos_mcp_socket and not getattr(self.tnos_mcp_socket, "closed", False):
+                        await self.tnos_mcp_socket.send(json.dumps(data))
+                        self.logger.info("Forwarded client message to TNOS MCP")
+                    await websocket.send(json.dumps({"status": "forwarded", "target": target}))
+                except asyncio.TimeoutError:
+                    idle_count += 1
+                    if idle_count == 1:
+                        # First timeout: send ping/prompt, do not close
+                        self.logger.info("Client connection idle, sending ping.")
+                        try:
+                            await websocket.send(json.dumps({"type": "ping", "message": "Are you still there?"}))
+                        except Exception as e:
+                            self.logger.warning(f"Failed to send ping to client: {e}")
+                        continue
+                    else:
+                        self.logger.warning("Client connection idle for two intervals, closing cleanly.")
+                        await websocket.close()
+                        break
                 except Exception as e:
-                    self.logger.error(f"Error handling client message: {e}")
-                    self.logger.debug(f"Stack trace: {traceback.format_exc()}")
+                    self.logger.error(f"Error processing client message: {e}")
+                    await websocket.send(json.dumps({"status": "error", "error": str(e)}))
         except Exception as e:
-            self.logger.error(f"Client connection error: {e}")
-            self.logger.debug(f"Stack trace: {traceback.format_exc()}")
+            self.logger.error(f"Error in client handler: {e}")
         finally:
             self.client_sockets.discard(websocket)
+            self.logger.info(f"Client disconnected: {getattr(websocket, 'remote_address', None)}")
+
+    async def start(self):
+        """Start the MCP bridge server and background tasks."""
+        self.logger.info("Starting MCPBridgeServer...")
+        self.shutting_down = False
+        # Start background tasks
+        self._tasks = []
+        self._tasks.append(asyncio.create_task(self.context_sync_loop()))
+        self._tasks.append(asyncio.create_task(self.health_check_loop()))
+        # Start websocket server (blocks until shutdown)
+        await self.start_websocket_server()
+
+    def shutdown(self):
+        """Shutdown the MCP bridge server and cleanup."""
+        self.logger.info("Shutting down MCPBridgeServer...")
+        self.shutting_down = True
+        # Cancel background tasks
+        if hasattr(self, '_tasks'):
+            for task in self._tasks:
+                task.cancel()
+        # Close all client sockets
+        for ws in list(self.client_sockets):
+            try:
+                asyncio.create_task(ws.close())
+            except Exception:
+                pass
+        # Close connections to MCP servers
+        if self.github_mcp_socket:
+            try:
+                asyncio.create_task(self.github_mcp_socket.close())
+            except Exception:
+                pass
+        if self.tnos_mcp_socket:
+            try:
+                asyncio.create_task(self.tnos_mcp_socket.close())
+            except Exception:
+                pass
+        self.logger.info("MCPBridgeServer shutdown complete.")
+
+    # --- QHP helpers ---
+    @staticmethod
+    def generate_quantum_fingerprint(node_name: str) -> str:
+        entropy = secrets.token_bytes(16)
+        h = hashlib.sha256()
+        h.update(node_name.encode("utf-8"))
+        h.update(entropy)
+        return h.hexdigest()
+    @staticmethod
+    def verify_challenge_response(challenge: str, response: str, peer_fingerprint: str) -> bool:
+        h = hashlib.sha256()
+        h.update((challenge + peer_fingerprint).encode("utf-8"))
+        return h.hexdigest() == response
 
 
 def main() -> None:
@@ -1306,7 +1381,7 @@ def main() -> None:
         logger.debug(traceback.format_exc())
         server.shutdown()
     finally:
-        loop.stop()
+        logger.info("Bridge server exiting.")
         loop.close()
 
 if __name__ == "__main__":

@@ -40,9 +40,9 @@ const (
 	MCPVersion10 = "1.0"
 	MCPVersion20 = "2.0"
 	MCPVersion30 = "3.0"
-	
+
 	// Bridge service configuration
-	DefaultBridgeURL       = "ws://localhost:9000/mcp/bridge"
+	DefaultBridgeURL       = "ws://localhost:10619/bridge"
 	BridgeServiceName      = "github_mcp_bridge"
 	MaxReconnectAttempts   = 10
 	ReconnectDelay         = 5 * time.Second
@@ -180,34 +180,37 @@ type Client struct {
 	// EXTENT: All bridge operations
 
 	// Core connection fields
-	conn      *websocket.Conn
-	options   ConnectionOptions
-	state     ConnectionState
-	
+	conn    *websocket.Conn
+	options ConnectionOptions
+	state   ConnectionState
+
 	// Synchronization
-	mutex     sync.RWMutex
-	mu        sync.Mutex // Alternative mutex for client.go implementation
-	
+	mutex sync.RWMutex
+	mu    sync.Mutex // Alternative mutex for client.go implementation
+
 	// Message handling
 	messageHandler    MessageHandler
 	disconnectHandler DisconnectHandler
-	
+
 	// Statistics
-	stats     BridgeStats
-	
+	stats BridgeStats
+
 	// Context management
-	ctx       context.Context
+	ctx        context.Context
 	cancelFunc context.CancelFunc
-	
+
 	// State flags
 	isClosed  bool
 	connected bool
-	
+
 	// Logging
-	logger     *log.Logger
-	
+	logger *log.Logger
+
 	// Channel for incoming messages
-	messages  chan Message
+	messages chan Message
+
+	// QHP session key for secure channel
+	sessionKey string
 }
 
 // Utility functions
@@ -223,12 +226,12 @@ func DeepClone(src, dst interface{}) error {
 	if src == nil {
 		return nil
 	}
-	
+
 	data, err := json.Marshal(src)
 	if err != nil {
 		return err
 	}
-	
+
 	return json.Unmarshal(data, dst)
 }
 
@@ -278,7 +281,7 @@ func GenerateMessageID() string {
 	return fmt.Sprintf("msg-%d-%d", timestamp, randomPart)
 }
 
-// WHO: ErrorHandler 
+// WHO: ErrorHandler
 // WHAT: Create standard error response
 // WHEN: During error handling
 // WHERE: System Layer 6 (Integration)
@@ -355,60 +358,60 @@ func getFloat64(m map[string]interface{}, key string, defaultValue float64) floa
 // HOW: Tries each route in order, logging 7D context at each step
 // EXTENT: All MCP operations requiring fallback
 func FallbackRoute(
-    ctx context.Context,
-    operationName string,
-    context7D translations.ContextVector7D,
-    tnosMCPFunc func() (interface{}, error),
-    bridgeFunc func() (interface{}, error),
-    githubMCPFunc func() (interface{}, error),
-    copilotFunc func() (interface{}, error),
-    logger *log.Logger,
+	ctx context.Context,
+	operationName string,
+	context7D translations.ContextVector7D,
+	tnosMCPFunc func() (interface{}, error),
+	bridgeFunc func() (interface{}, error),
+	githubMCPFunc func() (interface{}, error),
+	copilotFunc func() (interface{}, error),
+	logger *log.Logger,
 ) (interface{}, error) {
-    // Try TNOS MCP first
-    result, err := tnosMCPFunc()
-    if err == nil {
-        if logger != nil {
-            logger.Info("FallbackRoute: TNOS MCP succeeded", "who", context7D.Who, "what", operationName)
-        }
-        return result, nil
-    }
-    if logger != nil {
-        logger.Warn("FallbackRoute: TNOS MCP failed, trying Bridge", "error", err.Error(), "who", context7D.Who, "what", operationName)
-    }
-    // Try Bridge
-    result, err = bridgeFunc()
-    if err == nil {
-        if logger != nil {
-            logger.Info("FallbackRoute: Bridge succeeded", "who", context7D.Who, "what", operationName)
-        }
-        return result, nil
-    }
-    if logger != nil {
-        logger.Warn("FallbackRoute: Bridge failed, trying GitHub MCP", "error", err.Error(), "who", context7D.Who, "what", operationName)
-    }
-    // Try GitHub MCP
-    result, err = githubMCPFunc()
-    if err == nil {
-        if logger != nil {
-            logger.Info("FallbackRoute: GitHub MCP succeeded", "who", context7D.Who, "what", operationName)
-        }
-        return result, nil
-    }
-    if logger != nil {
-        logger.Warn("FallbackRoute: GitHub MCP failed, trying Copilot LLM", "error", err.Error(), "who", context7D.Who, "what", operationName)
-    }
-    // Try Copilot LLM
-    result, err = copilotFunc()
-    if err == nil {
-        if logger != nil {
-            logger.Info("FallbackRoute: Copilot LLM succeeded", "who", context7D.Who, "what", operationName)
-        }
-        return result, nil
-    }
-    if logger != nil {
-        logger.Error("FallbackRoute: All routes failed", "error", err.Error(), "who", context7D.Who, "what", operationName)
-    }
-    return nil, errors.New("All fallback routes failed: " + err.Error())
+	// Try TNOS MCP first
+	result, err := tnosMCPFunc()
+	if err == nil {
+		if logger != nil {
+			logger.Info("FallbackRoute: TNOS MCP succeeded", "who", context7D.Who, "what", operationName)
+		}
+		return result, nil
+	}
+	if logger != nil {
+		logger.Warn("FallbackRoute: TNOS MCP failed, trying Bridge", "error", err.Error(), "who", context7D.Who, "what", operationName)
+	}
+	// Try Bridge
+	result, err = bridgeFunc()
+	if err == nil {
+		if logger != nil {
+			logger.Info("FallbackRoute: Bridge succeeded", "who", context7D.Who, "what", operationName)
+		}
+		return result, nil
+	}
+	if logger != nil {
+		logger.Warn("FallbackRoute: Bridge failed, trying GitHub MCP", "error", err.Error(), "who", context7D.Who, "what", operationName)
+	}
+	// Try GitHub MCP
+	result, err = githubMCPFunc()
+	if err == nil {
+		if logger != nil {
+			logger.Info("FallbackRoute: GitHub MCP succeeded", "who", context7D.Who, "what", operationName)
+		}
+		return result, nil
+	}
+	if logger != nil {
+		logger.Warn("FallbackRoute: GitHub MCP failed, trying Copilot LLM", "error", err.Error(), "who", context7D.Who, "what", operationName)
+	}
+	// Try Copilot LLM
+	result, err = copilotFunc()
+	if err == nil {
+		if logger != nil {
+			logger.Info("FallbackRoute: Copilot LLM succeeded", "who", context7D.Who, "what", operationName)
+		}
+		return result, nil
+	}
+	if logger != nil {
+		logger.Error("FallbackRoute: All routes failed", "error", err.Error(), "who", context7D.Who, "what", operationName)
+	}
+	return nil, errors.New("All fallback routes failed: " + err.Error())
 }
 
 // WHO: FormulaRegistryInterface
@@ -420,8 +423,8 @@ func FallbackRoute(
 // EXTENT: All bridge compression/decompression
 
 type FormulaRegistry interface {
-    CompressValue(value, entropy, B, V, I, G, F, purpose, t, C_sum float64) (compressed, E float64, err error)
-    DecompressValue(compressed, entropy, B, V, I, G, F, purpose, t, E, C_sum float64) (original float64, err error)
+	CompressValue(value, entropy, B, V, I, G, F, purpose, t, C_sum float64) (compressed, E float64, err error)
+	DecompressValue(compressed, entropy, B, V, I, G, F, purpose, t, E, C_sum float64) (original float64, err error)
 }
 
 // formulaRegistryPython implements FormulaRegistry using the Python helper
@@ -429,51 +432,51 @@ type FormulaRegistry interface {
 type formulaRegistryPython struct{}
 
 func (f *formulaRegistryPython) CompressValue(value, entropy, B, V, I, G, F, purpose, t, C_sum float64) (float64, float64, error) {
-    // Call the Python helper script
-    args := []string{"scripts/shell/helpers/formula_registry_helper.py", "compress", fmt.Sprintf(`{"value":%f,"entropy":%f,"B":%f,"V":%f,"I":%f,"G":%f,"F":%f,"purpose":%f,"t":%f,"C_sum":%f}`,
-        value, entropy, B, V, I, G, F, purpose, t, C_sum)}
-    out, err := runPythonHelper(args)
-    if err != nil {
-        return 0, 0, err
-    }
-    var compressed, E float64
-    n, _ := fmt.Sscanf(string(out), "%f %f", &compressed, &E)
-    if n != 2 {
-        return 0, 0, fmt.Errorf("unexpected output from formula_registry_helper.py: %s", out)
-    }
-    return compressed, E, nil
+	// Call the Python helper script
+	args := []string{"scripts/shell/helpers/formula_registry_helper.py", "compress", fmt.Sprintf(`{"value":%f,"entropy":%f,"B":%f,"V":%f,"I":%f,"G":%f,"F":%f,"purpose":%f,"t":%f,"C_sum":%f}`,
+		value, entropy, B, V, I, G, F, purpose, t, C_sum)}
+	out, err := runPythonHelper(args)
+	if err != nil {
+		return 0, 0, err
+	}
+	var compressed, E float64
+	n, _ := fmt.Sscanf(string(out), "%f %f", &compressed, &E)
+	if n != 2 {
+		return 0, 0, fmt.Errorf("unexpected output from formula_registry_helper.py: %s", out)
+	}
+	return compressed, E, nil
 }
 
 func (f *formulaRegistryPython) DecompressValue(compressed, entropy, B, V, I, G, F, purpose, t, E, C_sum float64) (float64, error) {
-    args := []string{"scripts/shell/helpers/formula_registry_helper.py", "decompress", fmt.Sprintf(`{"compressed":%f,"entropy":%f,"B":%f,"V":%f,"I":%f,"G":%f,"F":%f,"purpose":%f,"t":%f,"E":%f,"C_sum":%f}`,
-        compressed, entropy, B, V, I, G, F, purpose, t, E, C_sum)}
-    out, err := runPythonHelper(args)
-    if err != nil {
-        return 0, err
-    }
-    var original float64
-    n, _ := fmt.Sscanf(string(out), "%f", &original)
-    if n != 1 {
-        return 0, fmt.Errorf("unexpected output from formula_registry_helper.py: %s", out)
-    }
-    return original, nil
+	args := []string{"scripts/shell/helpers/formula_registry_helper.py", "decompress", fmt.Sprintf(`{"compressed":%f,"entropy":%f,"B":%f,"V":%f,"I":%f,"G":%f,"F":%f,"purpose":%f,"t":%f,"E":%f,"C_sum":%f}`,
+		compressed, entropy, B, V, I, G, F, purpose, t, E, C_sum)}
+	out, err := runPythonHelper(args)
+	if err != nil {
+		return 0, err
+	}
+	var original float64
+	n, _ := fmt.Sscanf(string(out), "%f", &original)
+	if n != 1 {
+		return 0, fmt.Errorf("unexpected output from formula_registry_helper.py: %s", out)
+	}
+	return original, nil
 }
 
 // runPythonHelper runs the Python helper script and returns output
 func runPythonHelper(args []string) ([]byte, error) {
-    // Use exec.Command to call python3
-    // NOTE: This assumes python3 is in PATH and scripts are present
-    cmd := exec.Command("python3", args...)
-    out, err := cmd.CombinedOutput()
-    if err != nil {
-        return nil, fmt.Errorf("python3 %v failed: %v\nOutput: %s", args, err, out)
-    }
-    return out, nil
+	// Use exec.Command to call python3
+	// NOTE: This assumes python3 is in PATH and scripts are present
+	cmd := exec.Command("python3", args...)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("python3 %v failed: %v\nOutput: %s", args, err, out)
+	}
+	return out, nil
 }
 
 // GetFormulaRegistry returns a FormulaRegistry implementation
 func GetFormulaRegistry() FormulaRegistry {
-    return &formulaRegistryPython{}
+	return &formulaRegistryPython{}
 }
 
 // WHO: MobiusCompressor
@@ -494,16 +497,16 @@ func GetFormulaRegistry() FormulaRegistry {
 // EXTENT: All compression/collapse ops
 
 type MobiusCompressionParams struct {
-	Value   float64 // Input value
-	B       float64 // Biological/priority factor
-	I       float64 // Identity/context factor
-	V       float64 // Validity/trust factor
-	G       float64 // Global context weight
-	F       float64 // Feedback/context weight
-	Entropy float64 // Symbolic entropy
-	E       float64 // Energy/time factor
-	T       float64 // Time since activation
-	Csum    float64 // Context sum/overlap
+	Value     float64 // Input value
+	B         float64 // Biological/priority factor
+	I         float64 // Identity/context factor
+	V         float64 // Validity/trust factor
+	G         float64 // Global context weight
+	F         float64 // Feedback/context weight
+	Entropy   float64 // Symbolic entropy
+	E         float64 // Energy/time factor
+	T         float64 // Time since activation
+	Csum      float64 // Context sum/overlap
 	Alignment float64 // Alignment factor
 }
 

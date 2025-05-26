@@ -12,6 +12,9 @@ package bridge
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -20,10 +23,9 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/jubicudis/github-mcp-server/pkg/log"
 	"github.com/jubicudis/github-mcp-server/pkg/translations"
-
-	"github.com/gorilla/websocket"
 )
 
 // Message types
@@ -276,6 +278,13 @@ func (b *Bridge) Connect() error {
 		}
 		b.disconnect()
 		return fmt.Errorf("handshake failed: %w", err)
+	}
+
+	// QHP: Quantum Handshake Protocol
+	if err := b.QHPHandshake(conn, "GITHUB_MCP_SERVER"); err != nil {
+		b.options.Logger.Error("QHP handshake failed", "error", err.Error())
+		b.disconnect()
+		return fmt.Errorf("QHP handshake failed: %w", err)
 	}
 
 	// Start message processing
@@ -958,7 +967,7 @@ func (b *Bridge) SendCommand(command string, payload map[string]interface{}) (Me
 			"command": command,
 		},
 	}
-	
+
 	// Add the payload items
 	for k, v := range payload {
 		message.Payload[k] = v
@@ -984,7 +993,7 @@ func (b *Bridge) SendQuery(command string, payload map[string]interface{}) (Mess
 			"command": command,
 		},
 	}
-	
+
 	// Add the payload items
 	for k, v := range payload {
 		message.Payload[k] = v
@@ -1021,6 +1030,107 @@ func (b *Bridge) SendContextSync() error {
 	return err
 }
 
+// QHP: Quantum Handshake Protocol types and helpers
+
+type QHPTrustEntry struct {
+	PeerFingerprint string
+	Timestamp       int64
+	SessionKey      string
+	DecayTimeout    int64
+	OverrideUsed    bool
+}
+
+// Trust table (in-memory, can be persisted)
+var qhpTrustTable = make(map[string]QHPTrustEntry)
+
+// GenerateQuantumFingerprint creates a unique cryptographic identity for this node
+func GenerateQuantumFingerprint(nodeName string) string {
+	entropy := make([]byte, 32)
+	_, err := rand.Read(entropy)
+	if err != nil {
+		panic("QHP: failed to generate entropy")
+	}
+	h := sha256.New()
+	h.Write([]byte(nodeName))
+	h.Write(entropy)
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+// QHPHandshake performs the challenge-response handshake
+func (b *Bridge) QHPHandshake(conn *websocket.Conn, nodeName string) error {
+	myFingerprint := GenerateQuantumFingerprint(nodeName)
+	myChallenge := make([]byte, 16)
+	_, err := rand.Read(myChallenge)
+	if err != nil {
+		return err
+	}
+	myChallengeHex := hex.EncodeToString(myChallenge)
+
+	// Send handshake initiation
+	handshakeMsg := map[string]interface{}{
+		"type":               "qhp_handshake",
+		"fingerprint":        myFingerprint,
+		"challenge":          myChallengeHex,
+		"supported_versions": []string{"3.0"},
+	}
+	if err := conn.WriteJSON(handshakeMsg); err != nil {
+		return err
+	}
+
+	// Wait for peer's handshake response
+	var peerResponse map[string]interface{}
+	if err := conn.ReadJSON(&peerResponse); err != nil {
+		return err
+	}
+	if peerResponse["type"] != "qhp_handshake_response" {
+		return errors.New("QHP: expected handshake response")
+	}
+	peerFingerprint, _ := peerResponse["fingerprint"].(string)
+	peerChallenge, _ := peerResponse["challenge"].(string)
+	peerChallengeResponse, _ := peerResponse["challenge_response"].(string)
+
+	// Verify peer's challenge response
+	myChallengeResp := sha256.Sum256([]byte(peerChallenge + myFingerprint))
+	myChallengeRespHex := hex.EncodeToString(myChallengeResp[:])
+	if peerChallengeResponse != myChallengeRespHex {
+		return errors.New("QHP: invalid challenge response from peer")
+	}
+
+	// Respond to peer's challenge
+	myChallengeResponse := sha256.Sum256([]byte(myChallengeHex + peerFingerprint))
+	myChallengeResponseHex := hex.EncodeToString(myChallengeResponse[:])
+	ackMsg := map[string]interface{}{
+		"type":               "qhp_handshake_ack",
+		"challenge_response": myChallengeResponseHex,
+	}
+	if err := conn.WriteJSON(ackMsg); err != nil {
+		return err
+	}
+
+	// Optionally: wait for peer's ack (not strictly required)
+
+	// Update trust table
+	qhpTrustTable[peerFingerprint] = QHPTrustEntry{
+		PeerFingerprint: peerFingerprint,
+		Timestamp:       time.Now().Unix(),
+		SessionKey:      "TODO: session key exchange",
+		DecayTimeout:    time.Now().Add(10 * time.Minute).Unix(), // Example decay
+		OverrideUsed:    false,                                   // Set true if developer override is used
+	}
+
+	// TODO: Integrate with C++ formula registry for advanced trust/context scoring
+	// (e.g., call out to C++ via cgo or RPC, or use formula registry for trust weighting)
+
+	return nil
+}
+
 // Helper functions
 
 // Note: generateMessageID is replaced by GenerateMessageID in common.go
+
+const (
+	TNOS_MCP_PORT      = 9001
+	GITHUB_MCP_PORT    = 10617
+	MCP_BRIDGE_PORT    = 10619
+	VISUALIZATION_PORT = 8083
+)
