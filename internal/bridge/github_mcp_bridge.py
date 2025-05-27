@@ -670,22 +670,114 @@ class FormulaRegistry:
         "ⓕ": "fallback_routing_formula",
         "ⓓ": "default_formula"
     }
+    # Feature toggle for formula registry availability
+    _formula_registry_available = True
+
+    @classmethod
+    def is_available(cls):
+        return getattr(cls, "_available", True)
+
+    @classmethod
+    def set_available(cls, available: bool):
+        cls._available = available
+
     @classmethod
     def select_formula(cls, context):
-        # Use context and symbol key to select formula
+        if not cls.is_available():
+            return "ⓓ"  # fallback to default if registry unavailable
         dim = context.get("dimension")
         if dim == "energy":
-            return cls.FORMULAS["ⓔ"]
+            return "ⓔ"
         elif dim == "compression":
-            return cls.FORMULAS["Ⓜ"]
+            return "Ⓜ"
         elif dim == "attention":
-            return cls.FORMULAS["Ⓣ"]
+            return "Ⓣ"
         elif dim == "context":
-            return cls.FORMULAS["Ⓛ"]
+            return "Ⓛ"
         elif dim == "fallback":
-            return cls.FORMULAS["ⓕ"]
-        return cls.FORMULAS["ⓓ"]
+            return "ⓕ"
+        return "ⓓ"
 
+    @classmethod
+    def get_formula_name(cls, symbol):
+        if not cls.is_available():
+            return cls.FORMULAS["ⓓ"]
+        return cls.FORMULAS.get(symbol, cls.FORMULAS["ⓓ"])
+
+    @classmethod
+    def execute_formula(cls, symbol, inputs, context=None):
+        # Forward formula execution to TNOS MCP server via bridge (HTTP API)
+        formula_name = cls.get_formula_name(symbol)
+        try:
+            import requests
+            url = CONFIG["tnos_mcp"]["api_endpoint"] + "/formula/execute"
+            payload = {
+                "formula": formula_name,
+                "inputs": inputs,
+                "context": context or {}
+            }
+            response = requests.post(url, json=payload, timeout=5)
+            response.raise_for_status()
+            result = response.json()
+            # Log the formula execution event
+            helical_memory = getattr(cls, "_helical_memory", None)
+            if helical_memory:
+                helical_memory.log(
+                    "FormulaRegistry", formula_name, time.time(), "github-mcp-server", "execute", "bridge", 1.0,
+                    f"Executed formula {formula_name} ({symbol}) via TNOS MCP bridge.", {"inputs": inputs, "context": context, "result": result}
+                )
+            cls.set_available(True)
+            return result
+        except Exception as e:
+            # Log error with stack trace
+            helical_memory = getattr(cls, "_helical_memory", None)
+            if helical_memory:
+                helical_memory.log(
+                    "FormulaRegistry", formula_name, time.time(), "github-mcp-server", "error", "bridge", 1.0,
+                    f"Error executing formula {formula_name} ({symbol}): {str(e)}", {"inputs": inputs, "context": context, "traceback": traceback.format_exc()}
+                )
+            cls.set_available(False)
+            raise
+
+    @classmethod
+    def get_formula_metadata(cls, symbol):
+        # Fetch formula metadata from TNOS MCP server via bridge (HTTP API)
+        formula_name = cls.get_formula_name(symbol)
+        try:
+            import requests
+            url = CONFIG["tnos_mcp"]["api_endpoint"] + f"/formula/metadata/{formula_name}"
+            response = requests.get(url, timeout=5)
+            response.raise_for_status()
+            metadata = response.json()
+            cls.set_available(True)
+            return metadata
+        except Exception as e:
+            helical_memory = getattr(cls, "_helical_memory", None)
+            if helical_memory:
+                helical_memory.log(
+                    "FormulaRegistry", formula_name, time.time(), "github-mcp-server", "error", "bridge", 1.0,
+                    f"Error fetching metadata for formula {formula_name} ({symbol}): {str(e)}", {"traceback": traceback.format_exc()}
+                )
+            cls.set_available(False)
+            return None
+
+    @classmethod
+    def set_helical_memory(cls, helical_memory):
+        cls._helical_memory = helical_memory
+
+
+# Utility: normalize_timestamp
+
+def normalize_timestamp(ts):
+    """Normalize timestamp to seconds since epoch (float). Accepts ms or s."""
+    if isinstance(ts, (int, float)):
+        if ts > 1e12:  # ms
+            return ts / 1000.0
+        return float(ts)
+    try:
+        return float(ts)
+    except Exception:
+        return time.time()
 
 # === Helical Memory Implementation ===
 class HelicalMemory:
@@ -699,13 +791,33 @@ class HelicalMemory:
     EXTENT: All major bridge events, QHP handshakes, errors, and context changes
     """
     def __init__(self, memory_dir=None):
+        # Robustly resolve the project root and memory directory
+        # Try to find github-mcp-server/memory from this file upward
+        current = os.path.abspath(__file__)
+        for _ in range(5):
+            candidate = os.path.join(os.path.dirname(current), "memory")
+            if os.path.isdir(candidate):
+                memory_dir = candidate
+                break
+            current = os.path.dirname(current)
         if memory_dir is None:
-            workspace_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-            memory_dir = os.path.join(workspace_root, "github-mcp-server", "memory")
+            # Fallback: try from CWD
+            cwd_candidate = os.path.join(os.getcwd(), "memory")
+            if os.path.isdir(cwd_candidate):
+                memory_dir = cwd_candidate
+            else:
+                # Last resort: create in CWD
+                memory_dir = cwd_candidate
+                os.makedirs(memory_dir, exist_ok=True)
         self.short_term_path = os.path.join(memory_dir, "short_term.log")
         self.long_term_path = os.path.join(memory_dir, "long_term.log")
         self.lock = threading.Lock()
         os.makedirs(memory_dir, exist_ok=True)
+        # Ensure log files exist
+        for path in [self.short_term_path, self.long_term_path]:
+            if not os.path.exists(path):
+                with open(path, "a") as f:
+                    f.write("")
 
     def log(self, who, what, when, where, why, how, extent, msg, extra=None):
         entry = {
@@ -729,315 +841,657 @@ class HelicalMemory:
                 f.write(line + "\n")
 
 
-# MCP Bridge Server class
-class MCPBridgeServer:
-    """
-    WHO: PythonMCPBridgeServer
-    WHAT: Main Python bridge server implementation
-    WHEN: During bridge operations
-    WHERE: System Layer 3 (Higher Thought)
-    WHY: To manage bridge lifecycle and communications
-    HOW: Using async WebSocket connections with error handling
-    EXTENT: All bridge server operations
+import json as _json
+import os as _os
+# --- Early startup logging for MCP Bridge Python ---
+import sys as _sys
+import time as _time
+import traceback as _traceback
 
-    TNOS Parallel Coding Policy: All AI instances (including QHP, PortAssignmentAI, etc.) must be created with full memory, DNA, and QHP capabilities. All changes to AI logic, memory, or DNA must be reflected in parallel across the MCP system.
-    """
 
-    @staticmethod
-    def generate_quantum_fingerprint(node_name: str) -> str:
-        entropy = secrets.token_bytes(16)
-        h = hashlib.sha256()
-        h.update(node_name.encode("utf-8"))
-        h.update(entropy)
-        return h.hexdigest()
-
-    @staticmethod
-    def verify_challenge_response(challenge: str, response: str, peer_fingerprint: str) -> bool:
-        h = hashlib.sha256()
-        h.update((challenge + peer_fingerprint).encode("utf-8"))
-        return h.hexdigest() == response
-
-    def __init__(self, logger: logging.Logger, port: Optional[int] = None):
-        self.logger = logger
-        self.port = port or CONFIG["bridge"]["port"]
-        self.github_mcp_socket = None
-        self.tnos_mcp_socket = None
-        self.client_sockets = set()
-        self.message_queue = MessageQueue(logger)
-        self.context_bridge = ContextBridge()
-        self.shutting_down = False
-        self.start_time = time.time()
-        self.helical_memory = HelicalMemory()
-
-        # --- CrewAI QHP/HelicalMemory integration ---
-        if CREWAI_AVAILABLE:
-            class HelicalMemory:
-                def __init__(self, max_length=128):
-                    self.primary = []
-                    self.secondary = []
-                    self.max_length = max_length
-                def store(self, event):
-                    compressed = QHPCrewAgent.tranquilspeak_compress(event)
-                    if len(self.primary) >= self.max_length:
-                        self.primary.pop(0)
-                        self.secondary.pop(0)
-                    self.primary.append(compressed)
-                    parity = hashlib.sha256(json.dumps(compressed, sort_keys=True).encode()).hexdigest()
-                    self.secondary.append({"parity": parity, "timestamp": time.time()})
-                def reconstruct(self, idx):
-                    if idx < len(self.primary):
-                        return self.primary[idx]
-                    elif idx < len(self.secondary):
-                        return {"reconstructed": True, **self.secondary[idx]}
-                    return None
-                def get_all(self):
-                    return list(self.primary)
-            class QHPCrewAgent:
-                def __init__(self, name, port, memory, logger):
-                    self.name = name
-                    self.port = port
-                    self.memory = memory
-                    self.logger = logger
-                    self.fingerprint = MCPBridgeServer.generate_quantum_fingerprint(name)
-                    self.trust_table = {}
-                @staticmethod
-                def tranquilspeak_compress(event):
-                    if isinstance(event, dict):
-                        role = event.get("role") or event.get("type") or "SYS"
-                        action = event.get("action") or event.get("operation") or event.get("type") or "EVT"
-                        target = event.get("target") or event.get("peer") or event.get("port") or "*"
-                        ts = event.get("ts") or event.get("timestamp") or int(time.time())
-                        return f"~{role}@{action}/{target} [ts:{ts}]"
-                    return str(event)
-                @staticmethod
-                def tranquilspeak_decompress(ts_str):
-                    return {"decompressed": ts_str}
-                def observe_ports(self):
-                    observed = {}
-                    for pname, pnum in [("github_mcp", 10617), ("tnos_mcp", 9001), ("bridge", 10619), ("visualization", 8083)]:
-                        pid = get_pid_on_port_static(pnum)
-                        observed[pname] = bool(pid)
-                    event = {"type": "port_observation", "ports": observed, "ts": time.time()}
-                    self.memory.log(self.name, "port_observation", time.time(), "bridge", "monitor", "observe_ports", 1.0, "Observed MCP ports", {"ports": observed})
-                    self.memory.store(event)
-                    return observed
-                def perform_qhp_handshake(self, peer_name, peer_port):
-                    my_challenge = secrets.token_hex(16)
-                    my_fp = self.fingerprint
-                    peer_fp = MCPBridgeServer.generate_quantum_fingerprint(peer_name)
-                    peer_challenge = secrets.token_hex(16)
-                    my_response = hashlib.sha256((peer_challenge + my_fp).encode("utf-8")).hexdigest()
-                    peer_response = hashlib.sha256((my_challenge + peer_fp).encode("utf-8")).hexdigest()
-                    session_key = secrets.token_hex(32)
-                    self.trust_table[peer_name] = {
-                        "peer_fingerprint": peer_fp,
-                        "challenge": my_challenge,
-                        "challenge_response": peer_response,
-                        "session_key": session_key,
-                        "timestamp": time.time(),
-                    }
-                    event = {
-                        "type": "qhp_handshake",
-                        "peer": peer_name,
-                        "peer_fp": peer_fp,
-                        "my_fp": my_fp,
-                        "challenge": my_challenge,
-                        "peer_challenge": peer_challenge,
-                        "my_response": my_response,
-                        "peer_response": peer_response,
-                        "session_key": session_key,
-                        "ts": time.time(),
-                    }
-                    self.memory.log(self.name, "QHP handshake", time.time(), "bridge", "trust", "QHP", 1.0, f"QHP handshake with {peer_name}", event)
-                    self.memory.store(event)
-                    self.logger.info(f"[QHP][CrewAI][TS] {QHPCrewAgent.tranquilspeak_compress(event)}")
-                    self.logger.info(f"[QHP][CrewAI] Handshake with {peer_name} complete. Session key: {session_key}. Trust table updated.")
-                    return True
-                def decay_trust(self, timeout=600):
-                    now = time.time()
-                    expired = [k for k, v in self.trust_table.items() if now - v["timestamp"] > timeout]
-                    for k in expired:
-                    if expired:
-                        self.logger.info(f"[QHP][CrewAI] Decayed trust for: {expired}")
-                def get_trust_table(self):
-                    return dict(self.trust_table)
-            self.helical_memory = HelicalMemory(max_length=256)
-            self.qhp_bridge_agent = QHPCrewAgent("MCPBridge", 10619, self.helical_memory, self.logger)
-            self.qhp_tnos_agent = QHPCrewAgent("TNOS_MCP", 9001, self.helical_memory, self.logger)
-
-        # Initialize backoff strategies
-        self.backoff_strategies = {
-            "github": {
-                "attempts": 0,
-                "max_attempts": float("inf"),  # Never stop trying
-                "base_delay": 1.0,  # second
-                "max_delay": 30.0,  # seconds
-            },
-            "tnos": {
-                "attempts": 0,
-                "max_attempts": float("inf"),  # Never stop trying
-                "base_delay": 1.0,  # second
-                "max_delay": 30.0,  # seconds
-            },
+# Minimal helical memory logger for early startup
+class _EarlyHelicalMemory:
+    def __init__(self):
+        # Try to find github-mcp-server/memory from this file upward
+        current = _os.path.abspath(__file__)
+        memory_dir = None
+        for _ in range(5):
+            candidate = _os.path.join(_os.path.dirname(current), "memory")
+            if _os.path.isdir(candidate):
+                memory_dir = candidate
+                break
+            current = _os.path.dirname(current)
+        if memory_dir is None:
+            cwd_candidate = _os.path.join(_os.getcwd(), "memory")
+            if _os.path.isdir(cwd_candidate):
+                memory_dir = cwd_candidate
+            else:
+                memory_dir = cwd_candidate
+                _os.makedirs(memory_dir, exist_ok=True)
+        self.short_term_path = _os.path.join(memory_dir, "short_term.log")
+        self.long_term_path = _os.path.join(memory_dir, "long_term.log")
+        for path in [self.short_term_path, self.long_term_path]:
+            if not _os.path.exists(path):
+                with open(path, "a") as f:
+                    f.write("")
+    def log(self, who, what, when, where, why, how, extent, msg, extra=None):
+        entry = {
+            "who": who,
+            "what": what,
+            "when": when,
+            "where": where,
+            "why": why,
+            "how": how,
+            "extent": extent,
+            "ts": int(_time.time()),
+            "msg": msg,
         }
-
-    def get_next_backoff_delay(self, target: str) -> float:
-        """Calculate next backoff delay using exponential strategy"""
-        strategy = self.backoff_strategies[target]
-        delay = min(
-            strategy["base_delay"] * (2 ** strategy["attempts"]), strategy["max_delay"]
-        )
-        strategy["attempts"] += 1
-        return delay
-
-    def reset_backoff(self, target: str) -> None:
-        """Reset backoff counter on successful connection"""
-        strategy = self.backoff_strategies[target]
-        strategy["attempts"] = 0
-
-    async def check_server_running(self, host: str, port: int) -> bool:
-        """Check if a server is running using a connection test"""
+        if extra:
+            entry.update(extra)
+        line = _json.dumps(entry)
         try:
-            reader, writer = await asyncio.open_connection(host, port)
-            writer.close()
-            await writer.wait_closed()
-            return True
-        except (ConnectionRefusedError, OSError):
-            return False
+            with open(self.short_term_path, "a") as f:
+                f.write(line + "\n")
+            with open(self.long_term_path, "a") as f:
+                f.write(line + "\n")
+        except Exception:
+            pass  # Don't crash on logging failure
 
-    async def ensure_servers_running(self) -> bool:
-        """Ensure MCP servers are running"""
-        self.logger.info("Checking if MCP servers are running...")
+# Early startup logging
+try:
+    _early_memory = _EarlyHelicalMemory()
+    _early_memory.log(
+        "MCPBridgePython", "startup", _time.time(), "github-mcp-server", "init", "python_entry", 1.0,
+        "MCP Bridge Python process starting up (early log)"
+    )
+except Exception:
+    pass
 
-        github_mcp_running = await self.check_server_running(
-            CONFIG["github_mcp"]["host"], CONFIG["github_mcp"]["port"]
-        )
-        tnos_mcp_running = await self.check_server_running(
-            CONFIG["tnos_mcp"]["host"], CONFIG["tnos_mcp"]["port"]
-        )
-
-        if not github_mcp_running or not tnos_mcp_running:
-            self.logger.info("MCP servers are not running. Please start all MCP components using setup_dev_env.sh (start-all). Auto-start via legacy shell script is now disabled.")
-            return False
-        self.logger.info("MCP servers are running")
-        return True
-
-    async def connect_to_tnos_mcp(self) -> None:
-        self.logger.info("Connecting to TNOS MCP server...")
-        self.helical_memory.log("MCPBridgeServer", "connect", time.time(), "bridge", "init", "connect_to_tnos_mcp", 1.0, "Attempting to connect to TNOS MCP server.")
-        if self.tnos_mcp_socket:
-            try:
-                await self.tnos_mcp_socket.close()
-            except Exception:
-                pass
-            self.tnos_mcp_socket = None
+# Main entrypoint try/except for fatal errors
+try:
+    # --- Quantum Handshake Protocol (QHP) utilities ---
+    def get_pid_on_port_static(port):
         try:
-            ws_endpoint = CONFIG["tnos_mcp"]["ws_endpoint"]
-            self.logger.debug(f"Attempting to connect to TNOS MCP at {ws_endpoint}")
-            self.helical_memory.log("MCPBridgeServer", "connect", time.time(), "bridge", "init", "connect_to_tnos_mcp", 1.0, f"Connecting to {ws_endpoint}")
-            self.tnos_mcp_socket = await websockets.connect(ws_endpoint)
-            self.logger.info(f"Connected to TNOS MCP server on port {CONFIG['tnos_mcp']['port']}")
-            self.helical_memory.log("MCPBridgeServer", "connect", time.time(), "bridge", "success", "connect_to_tnos_mcp", 1.0, f"Connected to TNOS MCP server on port {CONFIG['tnos_mcp']['port']}")
-            # --- QHP handshake ---
-            node_name = "GITHUB_MCP_BRIDGE"
-            my_fingerprint = MCPBridgeServer.generate_quantum_fingerprint(node_name)
-            my_challenge = secrets.token_hex(16)
-            handshake = {
-                "type": "qhp_handshake",
-                "fingerprint": my_fingerprint,
-                "challenge": my_challenge,
-                "supported_versions": ["3.0"],
-            }
-            await self.tnos_mcp_socket.send(json.dumps(handshake))
-            self.helical_memory.log("MCPBridgeServer", "QHP handshake", time.time(), "bridge", "init", "QHP", 1.0, "Sent QHP handshake to TNOS MCP", {"handshake": handshake})
-            handshake_response_msg = await asyncio.wait_for(self.tnos_mcp_socket.recv(), timeout=5)
-            handshake_response = json.loads(handshake_response_msg)
-            if handshake_response.get("type") != "qhp_handshake_response":
-                self.logger.error("QHP handshake response not received, closing connection.")
-                self.helical_memory.log("MCPBridgeServer", "QHP handshake", time.time(), "bridge", "failure", "QHP", 1.0, "QHP handshake response not received from TNOS MCP.")
-                await self.tnos_mcp_socket.close()
-                self.tnos_mcp_socket = None
-                return
-            peer_fingerprint = handshake_response.get("fingerprint")
-            peer_challenge = handshake_response.get("challenge")
-            challenge_response = handshake_response.get("challenge_response")
-            # Verify their response to our challenge
-            if not MCPBridgeServer.verify_challenge_response(my_challenge, challenge_response, peer_fingerprint):
-                self.logger.error("QHP handshake: challenge response invalid, closing connection.")
-                self.helical_memory.log("MCPBridgeServer", "QHP handshake", time.time(), "bridge", "failure", "QHP", 1.0, "QHP handshake: challenge response invalid.")
-                await self.tnos_mcp_socket.close()
-                self.tnos_mcp_socket = None
-                return
-            # Respond to their challenge
-            my_response = hashlib.sha256((peer_challenge + my_fingerprint).encode("utf-8")).hexdigest()
-            ack = {
-                "type": "qhp_handshake_ack",
-                "challenge_response": my_response,
-            }
-            await self.tnos_mcp_socket.send(json.dumps(ack))
-            self.logger.info(f"QHP handshake complete with TNOS MCP peer {peer_fingerprint}")
-            self.helical_memory.log("MCPBridgeServer", "QHP handshake", time.time(), "bridge", "trust", "QHP", 1.0, f"Handshake complete with {peer_fingerprint}", {"peer": peer_fingerprint})
-            # --- End QHP handshake, proceed to normal ops ---
-            self.reset_backoff("tnos")
-            await self.message_queue.process_tnos_queue(self.tnos_mcp_socket)
-            # After handshake, demonstrate RIC request for quantum symmetry
-            ric_context = {
-                "I": 1.0, "H": 0.5, "V": 1.0, "gamma": 0.1, "C": 0.5, "rho": 0.01, "t": 1.0,
-                "kappa": 0.1, "eta": 1.0, "alpha": 1.0, "beta": 0.5, "sigma": 0.2, "tau": 1.0, "Lambda1": 1.0
-            }
-            ric_score = await self.request_ric_from_tnos(ric_context)
-            if ric_score is not None:
-                self.logger.info(f"Quantum handshake: RIC score from TNOS MCP: {ric_score}")
-                self.helical_memory.log("MCPBridgeServer", "RIC", time.time(), "bridge", "trust", "QHP", 1.0, f"RIC score from TNOS MCP: {ric_score}")
-            asyncio.create_task(self.handle_tnos_mcp_messages())
-        except (
-            websockets.exceptions.WebSocketException,
-            ConnectionRefusedError,
-            OSError,
-        ) as e:
-            self.logger.warning(
-                f"TNOS MCP WebSocket error on port {CONFIG['tnos_mcp']['port']}: {str(e)}"
-            )
-            self.helical_memory.log("MCPBridgeServer", "error", time.time(), "bridge", "failure", "connect_to_tnos_mcp", 1.0, f"TNOS MCP WebSocket error: {str(e)}")
-            next_delay = self.get_next_backoff_delay("tnos")
-            self.logger.info(
-                f"Will attempt to reconnect to TNOS MCP server in {next_delay}s "
-                f"(attempt {self.backoff_strategies['tnos']['attempts']})"
-            )
-            if not self.shutting_down:
-                asyncio.create_task(self.delayed_reconnect("tnos", next_delay))
+            result = subprocess.run([
+                'lsof', '-i', f':{port}', '-t'
+            ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            pid_str = result.stdout.strip()
+            if pid_str:
+                return int(pid_str.split('\n')[0])
+        except Exception as e:
+            print(f"[QHP][Self-Heal][ERROR] Could not get PID on port {port}: {e}")
+        return None
 
-    async def connect_to_github_mcp(self) -> None:
-        self.logger.info("Connecting to GitHub MCP server...")
-        self.helical_memory.log("MCPBridgeServer", "connect", time.time(), "bridge", "init", "connect_to_github_mcp", 1.0, "Attempting to connect to GitHub MCP server.")
-        if self.github_mcp_socket:
+    # --- CrewAI import and availability check ---
+    try:
+        import importlib.util
+        CREWAI_AVAILABLE = importlib.util.find_spec("crewai") is not None and importlib.util.find_spec("langchain") is not None
+    except ImportError:
+        CREWAI_AVAILABLE = False
+
+    # --- MobiusCompression and ContextTranslator integration ---
+    try:
+        from tnos.mcp.mobius_compression import MobiusCompression
+    except ImportError:
+        try:
+            from mcp.bridge.python.tnos.mcp.mobius_compression import \
+                MobiusCompression
+        except ImportError:
+            class MobiusCompression:
+                @staticmethod
+                def compress(data, context=None):
+                    return f"[MOBIUS_STUB_COMPRESS]{data}"
+                @staticmethod
+                def decompress(data, context=None):
+                    return f"[MOBIUS_STUB_DECOMPRESS]{data}"
+    try:
+        from tnos.mcp.context_translator import ContextTranslator
+    except ImportError:
+        try:
+            from mcp.bridge.python.tnos.mcp.context_translator import \
+                ContextTranslator
+        except ImportError:
+            class ContextTranslator:
+                @staticmethod
+                def to_7d(context):
+                    # Minimal stub: ensure 7D keys
+                    keys = ["who","what","when","where","why","how","extent"]
+                    return {k: context.get(k, f"{k}_default") for k in keys}
+                @staticmethod
+                def from_7d(context):
+                    return context
+
+    # --- Formula Registry and TranquilSpeak Symbol Key ---
+    class FormulaRegistry:
+        SYMBOL_KEY = {
+            "attention_binding": "Ⓣ",
+            "context_mapping": "Ⓛ",
+            "energy_optimization": "ⓔ",
+            "mobius": "Ⓜ",
+            "fallback": "ⓕ",
+            "default": "ⓓ"
+        }
+        FORMULAS = {
+            "Ⓣ": "attention_binding_formula",
+            "Ⓛ": "context_mapping_formula",
+            "ⓔ": "energy_optimization_formula",
+            "Ⓜ": "mobius_compression_formula",
+            "ⓕ": "fallback_routing_formula",
+            "ⓓ": "default_formula"
+        }
+        # Feature toggle for formula registry availability
+        _formula_registry_available = True
+
+        @classmethod
+        def is_available(cls):
+            return getattr(cls, "_available", True)
+
+        @classmethod
+        def set_available(cls, available: bool):
+            cls._available = available
+
+        @classmethod
+        def select_formula(cls, context):
+            if not cls.is_available():
+                return "ⓓ"  # fallback to default if registry unavailable
+            dim = context.get("dimension")
+            if dim == "energy":
+                return "ⓔ"
+            elif dim == "compression":
+                return "Ⓜ"
+            elif dim == "attention":
+                return "Ⓣ"
+            elif dim == "context":
+                return "Ⓛ"
+            elif dim == "fallback":
+                return "ⓕ"
+            return "ⓓ"
+
+        @classmethod
+        def get_formula_name(cls, symbol):
+            if not cls.is_available():
+                return cls.FORMULAS["ⓓ"]
+            return cls.FORMULAS.get(symbol, cls.FORMULAS["ⓓ"])
+
+        @classmethod
+        def execute_formula(cls, symbol, inputs, context=None):
+            # Forward formula execution to TNOS MCP server via bridge (HTTP API)
+            formula_name = cls.get_formula_name(symbol)
             try:
-                await self.github_mcp_socket.close()
-            except Exception:
-                pass  # Ignore errors during cleanup
+                import requests
+                url = CONFIG["tnos_mcp"]["api_endpoint"] + "/formula/execute"
+                payload = {
+                    "formula": formula_name,
+                    "inputs": inputs,
+                    "context": context or {}
+                }
+                response = requests.post(url, json=payload, timeout=5)
+                response.raise_for_status()
+                result = response.json()
+                # Log the formula execution event
+                helical_memory = getattr(cls, "_helical_memory", None)
+                if helical_memory:
+                    helical_memory.log(
+                        "FormulaRegistry", formula_name, time.time(), "github-mcp-server", "execute", "bridge", 1.0,
+                        f"Executed formula {formula_name} ({symbol}) via TNOS MCP bridge.", {"inputs": inputs, "context": context, "result": result}
+                    )
+                cls.set_available(True)
+                return result
+            except Exception as e:
+                # Log error with stack trace
+                helical_memory = getattr(cls, "_helical_memory", None)
+                if helical_memory:
+                    helical_memory.log(
+                        "FormulaRegistry", formula_name, time.time(), "github-mcp-server", "error", "bridge", 1.0,
+                        f"Error executing formula {formula_name} ({symbol}): {str(e)}", {"inputs": inputs, "context": context, "traceback": traceback.format_exc()}
+                    )
+                cls.set_available(False)
+                raise
+
+        @classmethod
+        def get_formula_metadata(cls, symbol):
+            # Fetch formula metadata from TNOS MCP server via bridge (HTTP API)
+            formula_name = cls.get_formula_name(symbol)
+            try:
+                import requests
+                url = CONFIG["tnos_mcp"]["api_endpoint"] + f"/formula/metadata/{formula_name}"
+                response = requests.get(url, timeout=5)
+                response.raise_for_status()
+                metadata = response.json()
+                cls.set_available(True)
+                return metadata
+            except Exception as e:
+                helical_memory = getattr(cls, "_helical_memory", None)
+                if helical_memory:
+                    helical_memory.log(
+                        "FormulaRegistry", formula_name, time.time(), "github-mcp-server", "error", "bridge", 1.0,
+                        f"Error fetching metadata for formula {formula_name} ({symbol}): {str(e)}", {"traceback": traceback.format_exc()}
+                    )
+                cls.set_available(False)
+                return None
+
+        @classmethod
+        def set_helical_memory(cls, helical_memory):
+            cls._helical_memory = helical_memory
+
+
+    # Utility: normalize_timestamp
+
+    def normalize_timestamp(ts):
+        """Normalize timestamp to seconds since epoch (float). Accepts ms or s."""
+        if isinstance(ts, (int, float)):
+            if ts > 1e12:  # ms
+                return ts / 1000.0
+            return float(ts)
+        try:
+            return float(ts)
+        except Exception:
+            return time.time()
+
+    # === Helical Memory Implementation ===
+    class HelicalMemory:
+        """
+        WHO: HelicalMemory
+        WHAT: 7D contextual logging for short-term and long-term memory
+        WHEN: During all bridge operations
+        WHERE: github-mcp-server/memory/
+        WHY: To provide persistent, queryable logs for system introspection and debugging
+        HOW: Appends JSON log entries to short_term.log and long_term.log
+        EXTENT: All major bridge events, QHP handshakes, errors, and context changes
+        """
+        def __init__(self, memory_dir=None):
+            # Robustly resolve the project root and memory directory
+            # Try to find github-mcp-server/memory from this file upward
+            current = os.path.abspath(__file__)
+            for _ in range(5):
+                candidate = os.path.join(os.path.dirname(current), "memory")
+                if os.path.isdir(candidate):
+                    memory_dir = candidate
+                    break
+                current = os.path.dirname(current)
+            if memory_dir is None:
+                # Fallback: try from CWD
+                cwd_candidate = os.path.join(os.getcwd(), "memory")
+                if os.path.isdir(cwd_candidate):
+                    memory_dir = cwd_candidate
+                else:
+                    # Last resort: create in CWD
+                    memory_dir = cwd_candidate
+                    os.makedirs(memory_dir, exist_ok=True)
+            self.short_term_path = os.path.join(memory_dir, "short_term.log")
+            self.long_term_path = os.path.join(memory_dir, "long_term.log")
+            self.lock = threading.Lock()
+            os.makedirs(memory_dir, exist_ok=True)
+            # Ensure log files exist
+            for path in [self.short_term_path, self.long_term_path]:
+                if not os.path.exists(path):
+                    with open(path, "a") as f:
+                        f.write("")
+
+        def log(self, who, what, when, where, why, how, extent, msg, extra=None):
+            entry = {
+                "who": who,
+                "what": what,
+                "when": when,
+                "where": where,
+                "why": why,
+                "how": how,
+                "extent": extent,
+                "ts": int(time.time()),
+                "msg": msg,
+            }
+            if extra:
+                entry.update(extra)
+            line = json.dumps(entry)
+            with self.lock:
+                with open(self.short_term_path, "a") as f:
+                    f.write(line + "\n")
+                with open(self.long_term_path, "a") as f:
+                    f.write(line + "\n")
+
+
+    # MCP Bridge Server class
+    class MCPBridgeServer:
+        """
+        WHO: PythonMCPBridgeServer
+        WHAT: Main Python bridge server implementation
+        WHEN: During bridge operations
+        WHERE: System Layer 3 (Higher Thought)
+        WHY: To manage bridge lifecycle and communications
+        HOW: Using async WebSocket connections with error handling
+        EXTENT: All bridge server operations
+
+        TNOS Parallel Coding Policy: All AI instances (including QHP, PortAssignmentAI, etc.) must be created with full memory, DNA, and QHP capabilities. All changes to AI logic, memory, or DNA must be reflected in parallel across the MCP system.
+        """
+
+        @staticmethod
+        def generate_quantum_fingerprint(node_name: str) -> str:
+            entropy = secrets.token_bytes(16)
+            h = hashlib.sha256()
+            h.update(node_name.encode("utf-8"))
+            h.update(entropy)
+            return h.hexdigest()
+
+        @staticmethod
+        def verify_challenge_response(challenge: str, response: str, peer_fingerprint: str) -> bool:
+            h = hashlib.sha256()
+            h.update((challenge + peer_fingerprint).encode("utf-8"))
+            return h.hexdigest() == response
+
+        def __init__(self, logger: logging.Logger, port: Optional[int] = None):
+            self.logger = logger
+            self.port = port or CONFIG["bridge"]["port"]
             self.github_mcp_socket = None
-        try:
-            ws_endpoint = CONFIG["github_mcp"]["ws_endpoint"]
-            self.logger.debug(f"Attempting to connect to GitHub MCP at {ws_endpoint}")
-            self.helical_memory.log("MCPBridgeServer", "connect", time.time(), "bridge", "init", "connect_to_github_mcp", 1.0, f"Connecting to {ws_endpoint}")
-            self.github_mcp_socket = await websockets.connect(ws_endpoint)
-            self.logger.info("Connected to GitHub MCP server")
-            self.helical_memory.log("MCPBridgeServer", "connect", time.time(), "bridge", "success", "connect_to_github_mcp", 1.0, "Connected to GitHub MCP server")
-            self.reset_backoff("github")
-            await self.message_queue.process_github_queue(self.github_mcp_socket)
-            asyncio.create_task(self.handle_github_mcp_messages())
-        except (
-            websockets.exceptions.WebSocketException,
-            ConnectionRefusedError,
-            OSError,
-        ) as e:
-            self.logger.error(f"GitHub MCP WebSocket error: {str(e)}")
-            self.helical_memory.log("MCPBridgeServer", "error", time.time(), "bridge", "failure", "connect_to_github_mcp", 1.0, f"GitHub MCP WebSocket error: {str(e)}")
-            next_delay = self.get_next_backoff_delay("github")
-            self.logger.info(
-                f"Will attempt to reconnect to GitHub MCP server in {next_delay}s "
-                f"(attempt {self.backoff_strategies['github']['attempts']})"
+            self.tnos_mcp_socket = None
+            self.client_sockets = set()
+            self.message_queue = MessageQueue(logger)
+            self.context_bridge = ContextBridge()
+            self.shutting_down = False
+            self.start_time = time.time()
+            self.helical_memory = HelicalMemory()
+            # --- CrewAI QHP/HelicalMemory integration ---
+            if CREWAI_AVAILABLE:
+                class QHPCrewAgent:
+                    def __init__(self, name, port, memory, logger):
+                        self.name = name
+                        self.port = port
+                        self.memory = memory
+                        self.logger = logger
+                        self.fingerprint = MCPBridgeServer.generate_quantum_fingerprint(name)
+                        self.trust_table = {}
+                    @staticmethod
+                    def tranquilspeak_compress(event):
+                        if isinstance(event, dict):
+                            role = event.get("role") or event.get("type") or "SYS"
+                            action = event.get("action") or event.get("operation") or event.get("type") or "EVT"
+                            target = event.get("target") or event.get("peer") or event.get("port") or "*"
+                            ts = event.get("ts") or event.get("timestamp") or int(time.time())
+                            return f"~{role}@{action}/{target} [ts:{ts}]"
+                        return str(event)
+                    @staticmethod
+                    def tranquilspeak_decompress(ts_str):
+                        return {"decompressed": ts_str}
+                    def observe_ports(self):
+                        observed = {}
+                        for pname, pnum in [("github_mcp", 10617), ("tnos_mcp", 9001), ("bridge", 10619), ("visualization", 8083)]:
+                            pid = get_pid_on_port_static(pnum)
+                            observed[pname] = bool(pid)
+                        event = {"type": "port_observation", "ports": observed, "ts": time.time()}
+                        self.memory.log(self.name, "port_observation", time.time(), "bridge", "monitor", "observe_ports", 1.0, "Observed MCP ports", {"ports": observed})
+                        return observed
+                    def perform_qhp_handshake(self, peer_name, peer_port):
+                        my_challenge = secrets.token_hex(16)
+                        my_fp = self.fingerprint
+                        peer_fp = MCPBridgeServer.generate_quantum_fingerprint(peer_name)
+                        peer_challenge = secrets.token_hex(16)
+                        my_response = hashlib.sha256((peer_challenge + my_fp).encode("utf-8")).hexdigest()
+                        peer_response = hashlib.sha256((my_challenge + peer_fp).encode("utf-8")).hexdigest()
+                        session_key = secrets.token_hex(32)
+                        self.trust_table[peer_name] = {
+                            "peer_fingerprint": peer_fp,
+                            "challenge": my_challenge,
+                            "challenge_response": peer_response,
+                            "session_key": session_key,
+                            "timestamp": time.time(),
+                        }
+                        event = {
+                            "type": "qhp_handshake",
+                            "peer": peer_name,
+                            "peer_fp": peer_fp,
+                            "my_fp": my_fp,
+                            "challenge": my_challenge,
+                            "peer_challenge": peer_challenge,
+                            "my_response": my_response,
+                            "peer_response": peer_response,
+                            "session_key": session_key,
+                            "ts": time.time(),
+                        }
+                        self.memory.log(self.name, "QHP handshake", time.time(), "bridge", "trust", "QHP", 1.0, f"QHP handshake with {peer_name}", event)
+                        self.logger.info(f"[QHP][CrewAI][TS] {QHPCrewAgent.tranquilspeak_compress(event)}")
+                        self.logger.info(f"[QHP][CrewAI] Handshake with {peer_name} complete. Session key: {session_key}. Trust table updated.")
+                        return True
+                    def decay_trust(self, timeout=600):
+                        now = time.time()
+                        expired = [k for k, v in self.trust_table.items() if now - v["timestamp"] > timeout]
+                        for k in expired:
+                            del self.trust_table[k]
+                        if expired:
+                            self.logger.info(f"[QHP][CrewAI] Decayed trust for: {expired}")
+                    def get_trust_table(self):
+                        return dict(self.trust_table)
+                self.qhp_bridge_agent = QHPCrewAgent("MCPBridge", 10619, self.helical_memory, self.logger)
+                self.qhp_tnos_agent = QHPCrewAgent("TNOS_MCP", 9001, self.helical_memory, self.logger)
+
+            # Initialize backoff strategies
+            self.backoff_strategies = {
+                "github": {
+                    "attempts": 0,
+                    "max_attempts": float("inf"),  # Never stop trying
+                    "base_delay": 1.0,  # second
+                    "max_delay": 30.0,  # seconds
+                },
+                "tnos": {
+                    "attempts": 0,
+                    "max_attempts": float("inf"),  # Never stop trying
+                    "base_delay": 1.0,  # second
+                    "max_delay": 30.0,  # seconds
+                },
+            }
+
+        def get_next_backoff_delay(self, target: str) -> float:
+            """Calculate next backoff delay using exponential strategy"""
+            strategy = self.backoff_strategies[target]
+            delay = min(
+                strategy["base_delay"] * (2 ** strategy["attempts"]), strategy["max_delay"]
             )
-            if not self.shutting_down:
-                asyncio.create_task(self.delayed_reconnect("github", next_delay))
-# ...existing code...
+            strategy["attempts"] += 1
+            return delay
+
+        def reset_backoff(self, target: str) -> None:
+            """Reset backoff counter on successful connection"""
+            strategy = self.backoff_strategies[target]
+            strategy["attempts"] = 0
+
+        async def check_server_running(self, host: str, port: int) -> bool:
+            """Check if a server is running using a connection test"""
+            try:
+                reader, writer = await asyncio.open_connection(host, port)
+                writer.close()
+                await writer.wait_closed()
+                return True
+            except (ConnectionRefusedError, OSError):
+                return False
+
+        async def ensure_servers_running(self) -> bool:
+            """Ensure MCP servers are running"""
+            self.logger.info("Checking if MCP servers are running...")
+
+            github_mcp_running = await self.check_server_running(
+                CONFIG["github_mcp"]["host"], CONFIG["github_mcp"]["port"]
+            )
+            tnos_mcp_running = await self.check_server_running(
+                CONFIG["tnos_mcp"]["host"], CONFIG["tnos_mcp"]["port"]
+            )
+
+            if not github_mcp_running or not tnos_mcp_running:
+                self.logger.info("MCP servers are not running. Please start all MCP components using setup_dev_env.sh (start-all). Auto-start via legacy shell script is now disabled.")
+                return False
+            self.logger.info("MCP servers are running")
+            return True
+
+        async def connect_to_tnos_mcp(self) -> None:
+            self.logger.info("Connecting to TNOS MCP server...")
+            self.helical_memory.log("MCPBridgeServer", "connect", time.time(), "bridge", "init", "connect_to_tnos_mcp", 1.0, "Attempting to connect to TNOS MCP server.")
+            if self.tnos_mcp_socket:
+                try:
+                    await self.tnos_mcp_socket.close()
+                except Exception:
+                    pass
+                self.tnos_mcp_socket = None
+            try:
+                ws_endpoint = CONFIG["tnos_mcp"]["ws_endpoint"]
+                self.logger.debug(f"Attempting to connect to TNOS MCP at {ws_endpoint}")
+                self.helical_memory.log("MCPBridgeServer", "connect", time.time(), "bridge", "init", "connect_to_tnos_mcp", 1.0, f"Connecting to {ws_endpoint}")
+                self.tnos_mcp_socket = await websockets.connect(ws_endpoint)
+                self.logger.info(f"Connected to TNOS MCP server on port {CONFIG['tnos_mcp']['port']}")
+                self.helical_memory.log("MCPBridgeServer", "connect", time.time(), "bridge", "success", "connect_to_tnos_mcp", 1.0, f"Connected to TNOS MCP server on port {CONFIG['tnos_mcp']['port']}")
+                # --- QHP handshake ---
+                node_name = "GITHUB_MCP_BRIDGE"
+                my_fingerprint = MCPBridgeServer.generate_quantum_fingerprint(node_name)
+                my_challenge = secrets.token_hex(16)
+                handshake = {
+                    "type": "qhp_handshake",
+                    "fingerprint": my_fingerprint,
+                    "challenge": my_challenge,
+                    "supported_versions": ["3.0"],
+                }
+                await self.tnos_mcp_socket.send(json.dumps(handshake))
+                self.helical_memory.log("MCPBridgeServer", "QHP handshake", time.time(), "bridge", "init", "QHP", 1.0, "Sent QHP handshake to TNOS MCP", {"handshake": handshake})
+                handshake_response_msg = await asyncio.wait_for(self.tnos_mcp_socket.recv(), timeout=5)
+                handshake_response = json.loads(handshake_response_msg)
+                if handshake_response.get("type") != "qhp_handshake_response":
+                    self.logger.error("QHP handshake response not received, closing connection.")
+                    self.helical_memory.log("MCPBridgeServer", "QHP handshake", time.time(), "bridge", "failure", "QHP", 1.0, "QHP handshake response not received from TNOS MCP.")
+                    await self.tnos_mcp_socket.close()
+                    self.tnos_mcp_socket = None
+                    return
+                peer_fingerprint = handshake_response.get("fingerprint")
+                peer_challenge = handshake_response.get("challenge")
+                challenge_response = handshake_response.get("challenge_response")
+                # Verify their response to our challenge
+                if not MCPBridgeServer.verify_challenge_response(my_challenge, challenge_response, peer_fingerprint):
+                    self.logger.error("QHP handshake: challenge response invalid, closing connection.")
+                    self.helical_memory.log("MCPBridgeServer", "QHP handshake", time.time(), "bridge", "failure", "QHP", 1.0, "QHP handshake: challenge response invalid.")
+                    await self.tnos_mcp_socket.close()
+                    self.tnos_mcp_socket = None
+                    return
+                # Respond to their challenge
+                my_response = hashlib.sha256((peer_challenge + my_fingerprint).encode("utf-8")).hexdigest()
+                ack = {
+                    "type": "qhp_handshake_ack",
+                    "challenge_response": my_response,
+                }
+                await self.tnos_mcp_socket.send(json.dumps(ack))
+                self.logger.info(f"QHP handshake complete with TNOS MCP peer {peer_fingerprint}")
+                self.helical_memory.log("MCPBridgeServer", "QHP handshake", time.time(), "bridge", "trust", "QHP", 1.0, f"Handshake complete with {peer_fingerprint}", {"peer": peer_fingerprint})
+                # --- End QHP handshake, proceed to normal ops ---
+                self.reset_backoff("tnos")
+                await self.message_queue.process_tnos_queue(self.tnos_mcp_socket)
+                # After handshake, demonstrate RIC request for quantum symmetry
+                ric_context = {
+                    "I": 1.0, "H": 0.5, "V": 1.0, "gamma": 0.1, "C": 0.5, "rho": 0.01, "t": 1.0,
+                    "kappa": 0.1, "eta": 1.0, "alpha": 1.0, "beta": 0.5, "sigma": 0.2, "tau": 1.0, "Lambda1": 1.0
+                }
+                ric_score = await self.request_ric_from_tnos(ric_context)
+                if ric_score is not None:
+                    self.logger.info(f"Quantum handshake: RIC score from TNOS MCP: {ric_score}")
+                    self.helical_memory.log("MCPBridgeServer", "RIC", time.time(), "bridge", "trust", "QHP", 1.0, f"RIC score from TNOS MCP: {ric_score}")
+                asyncio.create_task(self.handle_tnos_mcp_messages())
+            except (
+                websockets.exceptions.WebSocketException,
+                ConnectionRefusedError,
+                OSError,
+            ) as e:
+                self.logger.warning(
+                    f"TNOS MCP WebSocket error on port {CONFIG['tnos_mcp']['port']}: {str(e)}\n{traceback.format_exc()}"
+                )
+                self.helical_memory.log("MCPBridgeServer", "error", time.time(), "bridge", "failure", "connect_to_tnos_mcp", 1.0, f"TNOS MCP WebSocket error: {str(e)}", {"traceback": traceback.format_exc()})
+                next_delay = self.get_next_backoff_delay("tnos")
+                self.logger.info(
+                    f"Will attempt to reconnect to TNOS MCP server in {next_delay}s "
+                    f"(attempt {self.backoff_strategies['tnos']['attempts']})"
+                )
+                if not self.shutting_down:
+                    asyncio.create_task(self.delayed_reconnect("tnos", next_delay))
+
+        async def connect_to_github_mcp(self) -> None:
+            self.logger.info("Connecting to GitHub MCP server...")
+            self.helical_memory.log("MCPBridgeServer", "connect", time.time(), "bridge", "init", "connect_to_github_mcp", 1.0, "Attempting to connect to GitHub MCP server.")
+            if self.github_mcp_socket:
+                try:
+                    await self.github_mcp_socket.close()
+                except Exception:
+                    pass  # Ignore errors during cleanup
+                self.github_mcp_socket = None
+            try:
+                ws_endpoint = CONFIG["github_mcp"]["ws_endpoint"]
+                self.logger.debug(f"Attempting to connect to GitHub MCP at {ws_endpoint}")
+                self.helical_memory.log("MCPBridgeServer", "connect", time.time(), "bridge", "init", "connect_to_github_mcp", 1.0, f"Connecting to {ws_endpoint}")
+                self.github_mcp_socket = await websockets.connect(ws_endpoint)
+                self.logger.info("Connected to GitHub MCP server")
+                self.helical_memory.log("MCPBridgeServer", "connect", time.time(), "bridge", "success", "connect_to_github_mcp", 1.0, "Connected to GitHub MCP server")
+                self.reset_backoff("github")
+                await self.message_queue.process_github_queue(self.github_mcp_socket)
+                asyncio.create_task(self.handle_github_mcp_messages())
+            except (
+                websockets.exceptions.WebSocketException,
+                ConnectionRefusedError,
+                OSError,
+            ) as e:
+                self.logger.error(f"GitHub MCP WebSocket error: {str(e)}\n{traceback.format_exc()}")
+                self.helical_memory.log("MCPBridgeServer", "error", time.time(), "bridge", "failure", "connect_to_github_mcp", 1.0, f"GitHub MCP WebSocket error: {str(e)}", {"traceback": traceback.format_exc()})
+                next_delay = self.get_next_backoff_delay("github")
+                self.logger.info(
+                    f"Will attempt to reconnect to GitHub MCP server in {next_delay}s "
+                    f"(attempt {self.backoff_strategies['github']['attempts']})"
+                )
+                if not self.shutting_down:
+                    asyncio.create_task(self.delayed_reconnect("github", next_delay))
+except Exception:
+    # Log the startup error to the early helical memory
+    try:
+        _early_memory.log(
+            "MCPBridgePython", "startup_error", _time.time(), "github-mcp-server", "init", "python_entry", 1.0,
+            "Fatal error during MCP Bridge Python startup", {"traceback": traceback.format_exc()}
+        )
+    except Exception:
+        pass  # Ignore errors in the error logging itself
+def main():
+    helical_memory = None
+    try:
+        # Initialize helical memory as early as possible
+        helical_memory = HelicalMemory()
+        helical_memory.log(
+            "MCPBridgePython", "startup", time.time(), "github-mcp-server", "init", "python_entry", 1.0,
+            "Python MCP Bridge entrypoint invoked."
+        )
+        logger = setup_logging(CONFIG["logging"]["log_level"])
+        logger.info("[MCPBridgePython] Entrypoint started. Initializing bridge server...")
+        helical_memory.log(
+            "MCPBridgePython", "startup", time.time(), "github-mcp-server", "init", "python_entry", 1.0,
+            "Logger initialized. Starting MCPBridgeServer."
+        )
+        FormulaRegistry.set_helical_memory(helical_memory)
+        bridge_server = MCPBridgeServer(logger)
+        helical_memory.log(
+            "MCPBridgePython", "startup", time.time(), "github-mcp-server", "init", "python_entry", 1.0,
+            "MCPBridgeServer object created. Entering asyncio event loop."
+        )
+        asyncio.run(bridge_server.ensure_servers_running())
+        helical_memory.log(
+            "MCPBridgePython", "startup", time.time(), "github-mcp-server", "success", "python_entry", 1.0,
+            "MCP Bridge Python startup completed successfully."
+        )
+    except Exception as e:
+        tb = traceback.format_exc()
+        if helical_memory is None:
+            try:
+                helical_memory = HelicalMemory()
+            except Exception:
+                helical_memory = None
+        if helical_memory:
+            helical_memory.log(
+                "MCPBridgePython", "fatal_error", time.time(), "github-mcp-server", "crash", "python_entry", 1.0,
+                f"Fatal error in MCP Bridge Python: {str(e)}", {"traceback": tb}
+            )
+        print(f"[FATAL][MCPBridgePython] {e}\n{tb}", file=sys.stderr)
+        sys.exit(1)
+    finally:
+        if helical_memory:
+            helical_memory.log(
+                "MCPBridgePython", "exit", time.time(), "github-mcp-server", "shutdown", "python_entry", 1.0,
+                "MCP Bridge Python process exiting."
+            )
+
+if __name__ == "__main__":
+    main()
