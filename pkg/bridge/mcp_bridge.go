@@ -25,6 +25,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/jubicudis/github-mcp-server/pkg/log"
+	logpkg "github.com/jubicudis/github-mcp-server/pkg/log"
 	"github.com/jubicudis/github-mcp-server/pkg/translations"
 )
 
@@ -240,6 +241,8 @@ func (b *Bridge) Connect() error {
 	b.options.Logger.Info("Connecting to MCP bridge",
 		"url", b.url,
 		"protocol", b.protocolVersion)
+	_ = logpkg.LogHelicalEvent(logpkg.NewHelicalEvent(
+		"MCPBridge", "connect", "bridge", "integration", "GoBridge", "full", "Connecting to MCP bridge: "+b.url))
 
 	// Standardize handshake timeout to 60s
 	dialer := websocket.Dialer{
@@ -255,6 +258,8 @@ func (b *Bridge) Connect() error {
 		if errors.Is(err, context.DeadlineExceeded) {
 			b.options.Logger.Error("[7DContext] Context deadline exceeded during Bridge.Connect (timeout=60s)")
 		}
+		_ = logpkg.LogHelicalEvent(logpkg.NewHelicalEvent(
+			"MCPBridge", "connect_error", "bridge", "integration", "GoBridge", "full", "Connection failed: "+err.Error()))
 		return fmt.Errorf("connection failed: %w", err)
 	}
 
@@ -295,7 +300,8 @@ func (b *Bridge) Connect() error {
 	b.options.Logger.Info("Connected to MCP bridge",
 		"url", b.url,
 		"protocol", b.protocolVersion)
-
+	_ = logpkg.LogHelicalEvent(logpkg.NewHelicalEvent(
+		"MCPBridge", "connected", "bridge", "integration", "GoBridge", "full", "Connected to MCP bridge: "+b.url))
 	return nil
 }
 
@@ -321,6 +327,8 @@ func (b *Bridge) Disconnect() {
 	close(b.sendCh)
 
 	b.options.Logger.Info("Disconnected from MCP bridge")
+	_ = logpkg.LogHelicalEvent(logpkg.NewHelicalEvent(
+		"MCPBridge", "disconnected", "bridge", "integration", "GoBridge", "full", "Disconnected from MCP bridge: "+b.url))
 }
 
 // disconnect closes the connection without locking
@@ -646,13 +654,13 @@ func (b *Bridge) handleReadError(err error) {
 		err,
 		websocket.CloseNormalClosure,
 		websocket.CloseGoingAway) {
-
 		b.options.Logger.Error("WebSocket read error",
 			"error", err.Error())
-
 		b.mu.Lock()
 		b.stats.errors++
 		b.mu.Unlock()
+		_ = logpkg.LogHelicalEvent(logpkg.NewHelicalEvent(
+			"MCPBridge", "read_error", "bridge", "integration", "GoBridge", "full", "WebSocket read error: "+err.Error()))
 	}
 }
 
@@ -1082,15 +1090,21 @@ func (b *Bridge) QHPHandshake(conn *websocket.Conn, nodeName string) error {
 		"session_key":        sessionKey,
 	}
 	if err := conn.WriteJSON(handshakeMsg); err != nil {
+		_ = logpkg.LogHelicalEvent(logpkg.NewHelicalEvent(
+			"MCPBridge", "qhp_handshake_error", "bridge", "integration", "QHP", "full", "QHP handshake send failed: "+err.Error()))
 		return err
 	}
 
 	// Wait for peer's handshake response
 	var peerResponse map[string]interface{}
 	if err := conn.ReadJSON(&peerResponse); err != nil {
+		_ = logpkg.LogHelicalEvent(logpkg.NewHelicalEvent(
+			"MCPBridge", "qhp_handshake_error", "bridge", "integration", "QHP", "full", "QHP handshake read failed: "+err.Error()))
 		return err
 	}
 	if peerResponse["type"] != "qhp_handshake_response" {
+		_ = logpkg.LogHelicalEvent(logpkg.NewHelicalEvent(
+			"MCPBridge", "qhp_handshake_error", "bridge", "integration", "QHP", "full", "QHP handshake: expected handshake response, got: "+fmt.Sprint(peerResponse["type"])))
 		return errors.New("QHP: expected handshake response")
 	}
 	peerFingerprint, _ := peerResponse["fingerprint"].(string)
@@ -1101,6 +1115,8 @@ func (b *Bridge) QHPHandshake(conn *websocket.Conn, nodeName string) error {
 	myChallengeResp := sha256.Sum256([]byte(peerChallenge + myFingerprint))
 	myChallengeRespHex := hex.EncodeToString(myChallengeResp[:])
 	if peerChallengeResponse != myChallengeRespHex {
+		_ = logpkg.LogHelicalEvent(logpkg.NewHelicalEvent(
+			"MCPBridge", "qhp_handshake_error", "bridge", "integration", "QHP", "full", "QHP handshake: invalid challenge response from peer"))
 		return errors.New("QHP: invalid challenge response from peer")
 	}
 
@@ -1113,6 +1129,8 @@ func (b *Bridge) QHPHandshake(conn *websocket.Conn, nodeName string) error {
 		"session_key":        sessionKey,
 	}
 	if err := conn.WriteJSON(ackMsg); err != nil {
+		_ = logpkg.LogHelicalEvent(logpkg.NewHelicalEvent(
+			"MCPBridge", "qhp_handshake_error", "bridge", "integration", "QHP", "full", "QHP handshake ack send failed: "+err.Error()))
 		return err
 	}
 
@@ -1125,6 +1143,8 @@ func (b *Bridge) QHPHandshake(conn *websocket.Conn, nodeName string) error {
 		OverrideUsed:    false,
 	}
 	b.options.Logger.Info("QHP handshake complete. Session key exchanged.", "peer", peerFingerprint, "session_key", sessionKey)
+	_ = logpkg.LogHelicalEvent(logpkg.NewHelicalEvent(
+		"MCPBridge", "qhp_handshake_complete", "bridge", "integration", "QHP", "full", "QHP handshake complete. Peer: "+peerFingerprint+", session_key: "+sessionKey))
 	return nil
 }
 
@@ -1138,3 +1158,5 @@ const (
 	MCP_BRIDGE_PORT    = 10619
 	VISUALIZATION_PORT = 8083
 )
+
+// All connection logic, fallback, and QHP handshake must use ws://localhost:9001, ws://localhost:10617, ws://localhost:10619, ws://localhost:8083 (no /ws or /bridge)

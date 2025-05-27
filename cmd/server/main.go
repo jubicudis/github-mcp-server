@@ -32,6 +32,7 @@ import (
 
 	// Import external packages
 	"github.com/gorilla/websocket"
+	logpkg "github.com/jubicudis/github-mcp-server/pkg/log"
 )
 
 // Server configuration
@@ -150,6 +151,9 @@ func main() {
 
 	// Initialize logger
 	logger = initLogger(config)
+	// Log server startup to helical memory
+	_ = logpkg.LogHelicalEvent(logpkg.NewHelicalEvent(
+		"MCPServer", "startup", "github-mcp-server", "init", "GoMain", "full", "GitHub MCP Server starting up"))
 	logger.Info("Starting GitHub MCP Server", "version", "1.0")
 	logger.Info("Configuration loaded", "host", config.Host, "port", config.Port)
 
@@ -183,7 +187,8 @@ func main() {
 		logger.Info("Server listening", "address", addr)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			logger.Error("Server failed to start", "error", err.Error())
-			// Use os.Exit for fatal errors since we don't have a Fatal method
+			_ = logpkg.LogHelicalEvent(logpkg.NewHelicalEvent(
+				"MCPServer", "fatal_error", "github-mcp-server", "crash", "GoMain", "full", "Server failed to start: "+err.Error()))
 			os.Exit(1)
 		}
 	}()
@@ -201,6 +206,8 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	sig := <-quit
 	logger.Info("Received termination signal", "signal", sig.String())
+	_ = logpkg.LogHelicalEvent(logpkg.NewHelicalEvent(
+		"MCPServer", "shutdown", "github-mcp-server", "signal", "GoMain", "full", "Received termination signal: "+sig.String()))
 
 	// Create context with timeout for graceful shutdown
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second) // Increased timeout for proper shutdown
@@ -212,9 +219,13 @@ func main() {
 	// Shutdown server gracefully
 	if err := server.Shutdown(ctx); err != nil {
 		logger.Error("Server shutdown failed", "error", err.Error())
+		_ = logpkg.LogHelicalEvent(logpkg.NewHelicalEvent(
+			"MCPServer", "shutdown_error", "github-mcp-server", "shutdown", "GoMain", "full", "Server shutdown failed: "+err.Error()))
 	}
 
 	logger.Info("Server shutdown complete")
+	_ = logpkg.LogHelicalEvent(logpkg.NewHelicalEvent(
+		"MCPServer", "shutdown_complete", "github-mcp-server", "shutdown", "GoMain", "full", "Server shutdown complete"))
 }
 
 // Initialize logger
@@ -276,15 +287,15 @@ func handleRoot(w http.ResponseWriter, r *http.Request) {
 func handleHealth(w http.ResponseWriter, r *http.Request) {
 	// Import context timeout from common.go
 	bridgeTimeout := 5 * time.Second
-	
+
 	// Create a context with timeout to check GitHub Copilot connection status
 	ctx, cancel := context.WithTimeout(r.Context(), bridgeTimeout)
 	defer cancel()
-	
+
 	// Variables to store component statuses
 	copilotStatus := "unknown"
 	copilotDetails := map[string]interface{}{}
-	
+
 	// Check GitHub Copilot connection in a context-aware manner
 	copilotChan := make(chan bool, 1)
 	go func() {
@@ -294,20 +305,20 @@ func handleHealth(w http.ResponseWriter, r *http.Request) {
 		}
 		copilotChan <- true
 	}()
-	
+
 	// Wait for completion or timeout
 	select {
-		case <-copilotChan:
-			// Successfully checked status
-		case <-ctx.Done():
-			if ctx.Err() == context.DeadlineExceeded {
-				// Using error definition from pkg/bridge/common.go
-				logger.Warn("Context deadline exceeded when checking GitHub Copilot status")
-				copilotStatus = "timeout"
-				copilotDetails["error"] = "context deadline exceeded"
-			}
+	case <-copilotChan:
+		// Successfully checked status
+	case <-ctx.Done():
+		if ctx.Err() == context.DeadlineExceeded {
+			// Using error definition from pkg/bridge/common.go
+			logger.Warn("Context deadline exceeded when checking GitHub Copilot status")
+			copilotStatus = "timeout"
+			copilotDetails["error"] = "context deadline exceeded"
+		}
 	}
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]interface{}{
@@ -1456,7 +1467,7 @@ func processTNOSBridgeMessage(bridgeClient *bridge.Client, message bridge.Messag
 
 		// Acknowledge formula update
 		ackMessage := bridge.Message{
-			Type:    "formula_ack",
+			Type: "formula_ack",
 			Payload: map[string]interface{}{
 				"status": "received",
 				"name":   formulaName,

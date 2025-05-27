@@ -155,10 +155,17 @@ try {
 }
 
 // Export all properties from the actual bridge
-module.exports = {
-  ...actualBridge,
-  // Export the bridge implementation functions for diagnostic testing
-  bridgeMCPContext,
-  translateContext,
-  ContextVector7D
-};
+// Export the actual bridge implementation for diagnostics and runtime
+try {
+  module.exports = require('../src/typescript/neuro/bridge/MCPBridge.js');
+} catch (e) {
+  // Fallback: export diagnostics only
+  module.exports = {
+    bridgeMCPContext,
+    ContextVector7D,
+    error: 'Failed to load actual MCPBridge implementation',
+    details: e && e.message
+  };
+}
+
+// If any wsEndpoint or connection logic exists here, ensure it uses ws://localhost:10617, ws://localhost:9001, ws://localhost:10619, ws://localhost:8083 (no /ws or /bridge subpaths)

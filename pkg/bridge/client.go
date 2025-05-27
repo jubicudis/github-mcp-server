@@ -106,7 +106,7 @@ func (c *Client) connect() error {
 
 	// Canonical fallback URLs/ports from common.go
 	const (
-		TnosMCPURL   = "ws://localhost:9001/bridge" // TNOS MCP server (primary)
+		TnosMCPURL   = "ws://localhost:9001" // TNOS MCP server (primary) - FIXED: removed /bridge
 		BridgeURL    = "ws://localhost:10619/bridge"
 		GitHubMCPURL = "ws://localhost:10617/bridge"
 		CopilotURL   = "ws://localhost:8083/bridge"
