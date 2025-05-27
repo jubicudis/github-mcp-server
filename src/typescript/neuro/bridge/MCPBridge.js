@@ -75,7 +75,7 @@ const CONFIG = {
   githubMcp: {
     host: "localhost",
     port: 10617,
-    wsEndpoint: "ws://localhost:10617/ws",
+    wsEndpoint: "ws://localhost:10617",
     apiEndpoint: "http://localhost:10617/api",
   },
 
@@ -83,7 +83,7 @@ const CONFIG = {
   tnosMcp: {
     host: "localhost",
     port: 9001,
-    wsEndpoint: `ws://localhost:9001/ws`,
+    wsEndpoint: `ws://localhost:9001`,
     apiEndpoint: `http://localhost:9001/api`,
   },
 
@@ -151,7 +151,7 @@ if (!fs.existsSync(CONFIG.logging.logDir)) {
  * WHO: BridgeLogger
  * WHAT: Log bridge events and errors
  * WHEN: Throughout bridge operations
- * WHERE: System Layer 2 (Reactive)
+ * WHERE: System Layer (Reactive)
  * WHY: To record bridge operation details
  * HOW: Using structured logging with timestamps
  * EXTENT: All bridge events and messages
@@ -617,7 +617,7 @@ function connectToTnosMcp() {
   }
 
   // First try the main port
-  const wsEndpoint = `ws://${CONFIG.tnosMcp.host}:${CONFIG.tnosMcp.port}/ws`;
+  const wsEndpoint = CONFIG.tnosMcp.wsEndpoint;
   log("debug", `Attempting to connect to TNOS MCP at ${wsEndpoint}`);
 
   tnosMcpSocket = new WebSocket(wsEndpoint);

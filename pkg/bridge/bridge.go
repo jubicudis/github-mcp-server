@@ -25,6 +25,14 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+// Canonical QHP endpoints for fallback and connection logic
+const (
+	TnosMCPURL   = "ws://localhost:9001"
+	BridgeURL    = "ws://localhost:10619"
+	GitHubMCPURL = "ws://localhost:10617"
+	CopilotURL   = "ws://localhost:8083"
+)
+
 // ConnectionOptions defines options for creating a new bridge client connection
 // ConnectionOptions defines options for creating a new bridge client connection
 // Import from common.go to avoid redeclaration
@@ -539,7 +547,7 @@ func (b *MCPBridge) handleMessages() {
 			// Connection closed, exit loop
 			return
 		}
-		
+
 		// Set read deadline using timeout from common.go
 		if ReadTimeout > 0 {
 			err := b.conn.SetReadDeadline(time.Now().Add(ReadTimeout))

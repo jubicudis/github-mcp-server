@@ -295,20 +295,38 @@ start_tnos_mcp_server_only() {
     echo "[SOLO] TNOS MCP server started with PID $TNOS_PID (log: $LOGS_DIR/tnos_mcp_server.log)"
 }
 
+# === Helical Memory Setup ===
+HELICAL_MEMORY_DIR="$WORKSPACE_ROOT/github-mcp-server/memory"
+mkdir -p "$HELICAL_MEMORY_DIR"
+HELICAL_SHORT_TERM="$HELICAL_MEMORY_DIR/short_term.log"
+HELICAL_LONG_TERM="$HELICAL_MEMORY_DIR/long_term.log"
+
+log_helical_event() {
+    local who="$1"; local what="$2"; local when="$3"; local where="$4"; local why="$5"; local how="$6"; local extent="$7"; local msg="$8"
+    local ts="$(date +%s)"
+    local entry="{\"who\":\"$who\",\"what\":\"$what\",\"when\":$when,\"where\":\"$where\",\"why\":\"$why\",\"how\":\"$how\",\"extent\":\"$extent\",\"ts\":$ts,\"msg\":\"$msg\"}"
+    echo "$entry" >> "$HELICAL_SHORT_TERM"
+    echo "$entry" >> "$HELICAL_LONG_TERM"
+}
+
+# Example: log startup event
+log_helical_event "setup_dev_env.sh" "startup" "$(date +%s)" "github-mcp-server" "init" "shell" "full" "Canonical startup script invoked."
+
 start_all_mcp() {
+    log_helical_event "setup_dev_env.sh" "start_all_mcp" "$(date +%s)" "github-mcp-server" "start" "shell" "full" "Starting all MCP components."
     echo "[MCP] Stopping any existing MCP processes..."
     pkill -f "github-mcp-server"
     pkill -f "tnos_mcp_server.py"
     pkill -f "tnos_mcp_bridge.py"
     pkill -f "enhanced_mobius_visualization_server.py"
     sleep 2
-
-    echo "[MCP] Building GitHub MCP Server..."
+    log_helical_event "setup_dev_env.sh" "start_all_mcp" "$(date +%s)" "github-mcp-server" "build" "go" "full" "Building GitHub MCP Server."
     # Canonical Go build location
     cd "$WORKSPACE_ROOT/github-mcp-server" || exit 1
     go build -o "$WORKSPACE_ROOT/bin/github-mcp-server" ./cmd/server || { echo "[MCP] Build failed."; exit 1; }
     SERVER_BIN="$WORKSPACE_ROOT/bin/github-mcp-server"
     if [[ ! -f "$SERVER_BIN" ]]; then
+      log_helical_event "setup_dev_env.sh" "start_all_mcp" "$(date +%s)" "github-mcp-server" "error" "go" "fail" "GitHub MCP server binary not found."
       echo "ERROR: GitHub MCP server binary not found at $SERVER_BIN."
       exit 1
     fi
