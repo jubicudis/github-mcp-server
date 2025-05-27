@@ -19,10 +19,10 @@ import (
 )
 
 var (
-	helicalShortTerm  = "short_term.log"
-	helicalLongTerm   = "long_term.log"
-	helicalOnce       sync.Once
-	resolvedMemoryDir string
+	helicalMemoryDir = "../memory" // relative to github-mcp-server/pkg/log
+	helicalShortTerm = "short_term.log"
+	helicalLongTerm  = "long_term.log"
+	helicalOnce      sync.Once
 )
 
 // HelicalEvent represents a 7D context event for helical memory
@@ -44,40 +44,12 @@ type HelicalEvent struct {
 	Meta   map[string]interface{} `json:"meta,omitempty"`
 }
 
-// getMemoryDir returns the absolute path to the memory directory
-func getMemoryDir() string {
-	helicalOnce.Do(func() {
-		// Try to resolve project root (github-mcp-server)
-		execPath, err := os.Executable()
-		if err == nil {
-			root := filepath.Dir(execPath)
-			// Look for github-mcp-server/memory
-			for i := 0; i < 4; i++ {
-				candidate := filepath.Join(root, "memory")
-				if fi, err := os.Stat(candidate); err == nil && fi.IsDir() {
-					resolvedMemoryDir = candidate
-					return
-				}
-				root = filepath.Dir(root)
-			}
-		}
-		// Fallback: try CWD/memory
-		cwd, _ := os.Getwd()
-		candidate := filepath.Join(cwd, "memory")
-		if fi, err := os.Stat(candidate); err == nil && fi.IsDir() {
-			resolvedMemoryDir = candidate
-			return
-		}
-		// Last resort: use relative path
-		resolvedMemoryDir = filepath.Join("..", "memory")
-	})
-	return resolvedMemoryDir
-}
-
 // ensureHelicalMemoryDir ensures the memory/ directory exists
 func ensureHelicalMemoryDir() {
-	dir := getMemoryDir()
-	_ = os.MkdirAll(dir, 0755)
+	helicalOnce.Do(func() {
+		dir := filepath.Join("..", "memory")
+		_ = os.MkdirAll(dir, 0755)
+	})
 }
 
 // LogHelicalEvent logs a 7D context event to both short_term.log and long_term.log
@@ -89,7 +61,7 @@ func LogHelicalEvent(event HelicalEvent) error {
 	}
 	line := string(b) + "\n"
 	for _, fname := range []string{helicalShortTerm, helicalLongTerm} {
-		fpath := filepath.Join(getMemoryDir(), fname)
+		fpath := filepath.Join("..", "memory", fname)
 		f, err := os.OpenFile(fpath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 		if err != nil {
 			return fmt.Errorf("helical memory open %s: %w", fname, err)

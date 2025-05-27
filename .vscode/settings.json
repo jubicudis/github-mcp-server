@@ -7,13 +7,11 @@
 	// HOW: Using VS Code settings JSON with quantum symmetry
 	// EXTENT: All GitHub MCP server operations
 	
+	"go.useLanguageServer": true,
 	"go.buildFlags": ["-tags=mcp,tnos"],
 	"go.testFlags": ["-tags=mcp,tnos,test,symmetry"],
-	
-	// Enhanced GitHub MCP specific settings
 	"go.lintFlags": ["--enable=gosec,govet"],
 	"go.coverOnSave": false,
-	"go.useLanguageServer": true,
 	"go.toolsEnvVars": {
 		"GO111MODULE": "on",
 		"TNOS_CONTEXT_MODE": "debug",
