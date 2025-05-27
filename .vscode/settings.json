@@ -48,9 +48,9 @@
 	"C_Cpp.default.cppStandard": "c++20",
 	"C_Cpp.enhancedColorization": "enabled",
 	"C_Cpp.default.includePath": [
-		"${workspaceFolder}/internal/bridge/cpp",
-		"${workspaceFolder}/../include",
-		"${workspaceFolder}/../core/compression/cpp"
+		"/Users/Jubicudis/Tranquility-Neuro-OS/github-mcp-server/internal/bridge/cpp",
+		"/Users/Jubicudis/Tranquility-Neuro-OS/include",
+		"/Users/Jubicudis/Tranquility-Neuro-OS/core/compression/cpp"
 	],
 	"C_Cpp.default.defines": [
 		"MCP_SERVER",
@@ -88,8 +88,8 @@
 	"python.testing.pytestArgs": [
 		"."
 	],
-	"python.defaultInterpreterPath": "${workspaceFolder}/.venv/bin/python3.11",
-	"python.pythonPath": "${workspaceFolder}/.venv/bin/python3.11",
+	"python.defaultInterpreterPath": "/Users/Jubicudis/Tranquility-Neuro-OS/github-mcp-server/.venv/bin/python3.11",
+	"python.pythonPath": "/Users/Jubicudis/Tranquility-Neuro-OS/github-mcp-server/.venv/bin/python3.11",
 	
 	// MCP canonical port and endpoint settings for QHP
 	"mcp.tnos.port": 9001,
@@ -115,7 +115,7 @@
 	"java.project.sourcePaths": [
 		"/Users/Jubicudis/Tranquility-Neuro-OS/github-mcp-server/src"
 	],
-	"java.configuration.settings": "${workspaceFolder}/.vscode/java-settings.json",
+	"java.configuration.settings": "/Users/Jubicudis/Tranquility-Neuro-OS/github-mcp-server/.vscode/java-settings.json",
 	// --- PERFORMANCE & UI TUNING (deduplicated, valid values only, applied globally) ---
 	"editor.minimap.enabled": false,
 	"editor.renderWhitespace": "none",
