@@ -41,7 +41,6 @@
 	"ai.experimental.chat.api.chat7DFormatting": true,
 	
 	// Enhanced IntelliSense for MCP
-	"editor.suggest.preview": true,
 	"editor.suggestSelection": "first",
 	
 	// C++ support for GitHub MCP bridge components
@@ -114,18 +113,42 @@
 	
 	// Java project source paths and configuration
 	"java.project.sourcePaths": [
-		"../../systems/java/circulatory/src",
-		"../../systems/java/digestive/src",
-		"../../systems/java/endocrine/src",
-		"../../systems/java/excretory/src",
-		"../../systems/java/immune/src",
-		"../../systems/java/integumentary/src",
-		"../../systems/java/muscular/src",
-		"../../systems/java/nervous/src",
-		"../../systems/java/reproductive/src",
-		"../../systems/java/respiratory/src",
-		"../../systems/java/skeletal/src",
-		"../src"
+		"/Users/Jubicudis/Tranquility-Neuro-OS/github-mcp-server/src"
 	],
-	"java.configuration.settings": "${workspaceFolder}/.vscode/java-settings.json"
+	"java.configuration.settings": "${workspaceFolder}/.vscode/java-settings.json",
+	// --- PERFORMANCE & UI TUNING (deduplicated, valid values only, applied globally) ---
+	"editor.minimap.enabled": false,
+	"editor.renderWhitespace": "none",
+	"editor.renderControlCharacters": false,
+	"editor.scrollBeyondLastLine": false,
+	"editor.smoothScrolling": false,
+	"editor.codeLens": false,
+	"editor.folding": false,
+	"editor.occurrencesHighlight": "off",
+	"editor.selectionHighlight": false,
+	"editor.matchBrackets": "never",
+	"editor.hover.enabled": false,
+	"editor.inlineSuggest.enabled": false,
+	"editor.quickSuggestions": { "other": false, "comments": false, "strings": false },
+	"editor.parameterHints.enabled": false,
+	"editor.renderLineHighlight": "none",
+	"editor.gotoLocation.multipleResults": "goto",
+	"editor.suggestOnTriggerCharacters": false,
+	"editor.wordBasedSuggestions": "off",
+	"editor.suggest.showWords": false,
+	"editor.suggest.preview": false,
+	"editor.acceptSuggestionOnEnter": "smart",
+	"workbench.editor.limit.enabled": true,
+	"workbench.editor.limit.value": 5,
+	"workbench.editor.limit.perEditorGroup": true,
+	"workbench.tree.indent": 8,
+	"workbench.tree.renderIndentGuides": "none",
+	"window.menuBarVisibility": "compact",
+	"window.titleBarStyle": "native",
+	"workbench.list.smoothScrolling": false,
+	"workbench.reduceMotion": "on",
+	"files.maxMemoryForLargeFilesMB": 4096,
+	"editor.largeFileOptimizations": true,
+	"files.restoreUndoStack": false
+	// --- END PERFORMANCE & UI TUNING ---
 }
