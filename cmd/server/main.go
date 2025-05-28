@@ -163,6 +163,19 @@ func main() {
 	gitHubClient = gitHubClientAdapter
 	logger.Info("GitHub client initialized")
 
+	// --- Formula Registry Initialization ---
+	formulaPath := "config/formulas.json"
+	if err := bridge.LoadBridgeFormulaRegistry(formulaPath); err != nil {
+		logger.Error("Failed to load formula registry", "error", err.Error(), "path", formulaPath)
+	} else {
+		reg := bridge.GetBridgeFormulaRegistry()
+		count := 0
+		if reg != nil {
+			count = len(reg.ListFormulas())
+		}
+		logger.Info("Formula registry loaded", "count", count, "path", formulaPath)
+	}
+
 	// Define HTTP routes
 	http.HandleFunc("/", handleRoot)
 	http.HandleFunc("/api/health", handleHealth)
