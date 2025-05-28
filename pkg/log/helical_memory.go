@@ -19,7 +19,7 @@ import (
 )
 
 var (
-	helicalMemoryDir = "../memory" // relative to github-mcp-server/pkg/log
+	helicalMemoryDir = filepath.Join("..", "..", "memory") // github-mcp-server/memory
 	helicalShortTerm = "short_term.log"
 	helicalLongTerm  = "long_term.log"
 	helicalOnce      sync.Once
@@ -47,8 +47,7 @@ type HelicalEvent struct {
 // ensureHelicalMemoryDir ensures the memory/ directory exists
 func ensureHelicalMemoryDir() {
 	helicalOnce.Do(func() {
-		dir := filepath.Join("..", "memory")
-		_ = os.MkdirAll(dir, 0755)
+		_ = os.MkdirAll(helicalMemoryDir, 0755)
 	})
 }
 
@@ -61,7 +60,7 @@ func LogHelicalEvent(event HelicalEvent) error {
 	}
 	line := string(b) + "\n"
 	for _, fname := range []string{helicalShortTerm, helicalLongTerm} {
-		fpath := filepath.Join("..", "memory", fname)
+		fpath := filepath.Join(helicalMemoryDir, fname)
 		f, err := os.OpenFile(fpath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 		if err != nil {
 			return fmt.Errorf("helical memory open %s: %w", fname, err)
