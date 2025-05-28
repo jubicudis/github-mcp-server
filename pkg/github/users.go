@@ -86,8 +86,9 @@ func (s *UserService) ListFollowers(username string) ([]User, error) {
 	err := s.client.Request(context.Background(), http.MethodGet, path, nil, &followers)
 	return followers, err
 }
-	// WHO: FollowingLister
-	// WHAT: List users being followed
+
+// WHO: FollowingLister
+// WHAT: List users being followed
 func (s *UserService) ListFollowing(username string) ([]User, error) {
 	// WHO: FollowingLister
 	// WHAT: List users being followed
@@ -124,7 +125,7 @@ func (s *UserService) GetContext() map[string]interface{} {
 			"extent": "UserContext",
 		}
 	}
-	
+
 	// Return context with client information
 	userAgent := "unknown"
 	if s.client != nil {

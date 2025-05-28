@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jubicudis/github-mcp-server/pkg/github/testutil"
+	"github-mcp-server/pkg/github/testutil"
 
 	"github.com/google/go-github/v49/github"
 	"github.com/migueleliasweb/go-github-mock/src/mock"

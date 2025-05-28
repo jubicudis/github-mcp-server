@@ -70,7 +70,7 @@ func MobiusCompressRemote(data []byte, context map[string]interface{}) ([]byte, 
 
 // MobiusCompressWithPlanck calls MobiusCompressRemote with Planck dimensions from context
 func MobiusCompressWithPlanck(data []byte, context map[string]interface{}) ([]byte, map[string]interface{}, error) {
-	// WHO: CompressionIntegrator 
+	// WHO: CompressionIntegrator
 	// WHAT: Integrate Planck dimensions into compression
 	// WHEN: During advanced compression operations
 	// WHERE: System Layer 6 (Integration)
@@ -80,7 +80,7 @@ func MobiusCompressWithPlanck(data []byte, context map[string]interface{}) ([]by
 
 	// Extract Planck dimensions from context
 	length, mass, timeP, charge, temp, amount, luminous := getPlanckDimensions(context)
-	
+
 	// Add dimensions to context for the remote call
 	enrichedContext := make(map[string]interface{})
 	if context != nil {
@@ -88,7 +88,7 @@ func MobiusCompressWithPlanck(data []byte, context map[string]interface{}) ([]by
 			enrichedContext[k] = v
 		}
 	}
-	
+
 	// Ensure dimensions are set in the enriched context
 	enrichedContext["planck_length"] = length
 	enrichedContext["planck_mass"] = mass
@@ -97,7 +97,7 @@ func MobiusCompressWithPlanck(data []byte, context map[string]interface{}) ([]by
 	enrichedContext["planck_temperature"] = temp
 	enrichedContext["planck_amount"] = amount
 	enrichedContext["planck_luminous_intensity"] = luminous
-	
+
 	return MobiusCompressRemote(data, enrichedContext)
 }
 

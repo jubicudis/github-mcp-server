@@ -17,9 +17,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jubicudis/github-mcp-server/pkg/bridge"
-	"github.com/jubicudis/github-mcp-server/pkg/log"
-	"github.com/jubicudis/github-mcp-server/pkg/translations"
+	"github-mcp-server/pkg/bridge"
+	"github-mcp-server/pkg/log"
+	"github-mcp-server/pkg/translations"
 
 	"github.com/google/go-github/v49/github"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -62,7 +62,10 @@ func InitializeMCPBridge(enableCompression bool) error {
 		ctx,
 		operationName,
 		context7d,
-		func() (interface{}, error) { fmt.Println("Initializing MCP Bridge between GitHub and TNOS"); return nil, nil },
+		func() (interface{}, error) {
+			fmt.Println("Initializing MCP Bridge between GitHub and TNOS")
+			return nil, nil
+		},
 		func() (interface{}, error) { return nil, fmt.Errorf("Bridge fallback not implemented") },
 		func() (interface{}, error) { return nil, fmt.Errorf("GitHub MCP fallback not implemented") },
 		func() (interface{}, error) { return nil, fmt.Errorf("Copilot fallback not implemented") },
@@ -131,7 +134,12 @@ func (t *GitHubContextTranslator) TranslateToTNOS(githubContext map[string]inter
 		ctx,
 		operationName,
 		context7d,
-		func() (interface{}, error) { if t.EnableLogging && t.Logger != nil { t.Logger.Debug("Translating context from GitHub to TNOS") }; return nil, nil },
+		func() (interface{}, error) {
+			if t.EnableLogging && t.Logger != nil {
+				t.Logger.Debug("Translating context from GitHub to TNOS")
+			}
+			return nil, nil
+		},
 		func() (interface{}, error) { return nil, fmt.Errorf("Bridge fallback not implemented") },
 		func() (interface{}, error) { return nil, fmt.Errorf("GitHub MCP fallback not implemented") },
 		func() (interface{}, error) { return nil, fmt.Errorf("Copilot fallback not implemented") },
@@ -178,7 +186,12 @@ func (t *GitHubContextTranslator) TranslateFromTNOS(tnosContext map[string]inter
 		ctx,
 		operationName,
 		context7d,
-		func() (interface{}, error) { if t.EnableLogging && t.Logger != nil { t.Logger.Debug("Translating context from TNOS to GitHub") }; return nil, nil },
+		func() (interface{}, error) {
+			if t.EnableLogging && t.Logger != nil {
+				t.Logger.Debug("Translating context from TNOS to GitHub")
+			}
+			return nil, nil
+		},
 		func() (interface{}, error) { return nil, fmt.Errorf("Bridge fallback not implemented") },
 		func() (interface{}, error) { return nil, fmt.Errorf("GitHub MCP fallback not implemented") },
 		func() (interface{}, error) { return nil, fmt.Errorf("Copilot fallback not implemented") },

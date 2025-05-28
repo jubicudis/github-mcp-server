@@ -13,7 +13,7 @@ package github_test
 import (
 	"testing"
 
-	githubpkg "github.com/jubicudis/github-mcp-server/pkg/github"
+	githubpkg "github-mcp-server/pkg/github"
 )
 
 // TestClientAdapter verifies that the adapter pattern works correctly

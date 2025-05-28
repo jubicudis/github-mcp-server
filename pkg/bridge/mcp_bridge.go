@@ -23,10 +23,11 @@ import (
 	"sync"
 	"time"
 
+	"github-mcp-server/pkg/log"
+	logpkg "github-mcp-server/pkg/log"
+	"github-mcp-server/pkg/translations"
+
 	"github.com/gorilla/websocket"
-	"github.com/jubicudis/github-mcp-server/pkg/log"
-	logpkg "github.com/jubicudis/github-mcp-server/pkg/log"
-	"github.com/jubicudis/github-mcp-server/pkg/translations"
 )
 
 // Message types

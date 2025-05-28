@@ -26,13 +26,14 @@ import (
 
 	// Import internal packages with proper module paths
 
-	"github.com/jubicudis/github-mcp-server/pkg/bridge"
-	"github.com/jubicudis/github-mcp-server/pkg/log"
-	"github.com/jubicudis/github-mcp-server/pkg/translations"
+	"github-mcp-server/pkg/bridge"
+	"github-mcp-server/pkg/log"
+	"github-mcp-server/pkg/translations"
 
 	// Import external packages
+	logpkg "github-mcp-server/pkg/log"
+
 	"github.com/gorilla/websocket"
-	logpkg "github.com/jubicudis/github-mcp-server/pkg/log"
 )
 
 // Server configuration

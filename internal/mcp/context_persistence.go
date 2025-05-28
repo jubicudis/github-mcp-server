@@ -16,7 +16,26 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
+
+	"github-mcp-server/pkg/translations"
 )
+
+// ContextStats tracks statistics for context persistence and access
+// WHO: Statistics component
+// WHAT: Tracks context usage and sync stats
+// WHEN: During all persistence operations
+// WHERE: Internal to ContextPersistence
+// WHY: For monitoring and optimization
+// HOW: Using counters and timestamps
+// EXTENT: All context operations
+
+type ContextStats struct {
+	DimensionCount map[string]int // Tracks access count for each 7D dimension
+	LastSyncTime   time.Time      // Last time contexts were synced to storage
+	TotalContexts  int            // Total number of contexts stored
+	UpdateCount    int            // Number of context updates
+	AccessCount    int            // Number of context retrievals
+}
 
 // ContextPersistenceConfig defines configuration for context persistence
 type ContextPersistenceConfig struct {
@@ -32,50 +51,44 @@ type ContextPersistenceConfig struct {
 type ContextEntry struct {
 	// WHO: Context storage component
 	// WHAT: Context entry representation
-	Vector     ContextVector7D      `json:"vector"`      // WHAT: The 7D context vector
-	Metadata   map[string]string    `json:"metadata"`    // WHAT: Associated metadata
-	CreateTime time.Time            `json:"create_time"` // WHEN: Creation timestamp
-	UpdateTime time.Time            `json:"update_time"` // WHEN: Last update timestamp
-	Source     string               `json:"source"`      // WHERE: Context origin
-	Usage      int                  `json:"usage"`       // EXTENT: Number of times used
-	Tags       []string             `json:"tags"`        // HOW: Classification tags
-	Compressed bool                 `json:"compressed"`  // HOW: Compression status
-	Variables  map[string]float64   `json:"variables"`   // HOW: Compression variables
+	Vector     translations.ContextVector7D    `json:"vector"`      // WHAT: The 7D context vector
+	Metadata   map[string]string  `json:"metadata"`    // WHAT: Associated metadata
+	CreateTime time.Time          `json:"create_time"` // WHEN: Creation timestamp
+	UpdateTime time.Time          `json:"update_time"` // WHEN: Last update timestamp
+	Source     string             `json:"source"`      // WHERE: Context origin
+	Usage      int                `json:"usage"`       // EXTENT: Number of times used
+	Tags       []string           `json:"tags"`        // HOW: Classification tags
+	Compressed bool               `json:"compressed"`  // HOW: Compression status
+	Variables  map[string]float64 `json:"variables"`   // HOW: Compression variables
 }
 
 // ContextPersistence manages the storage and retrieval of context vectors
 type ContextPersistence struct {
 	// WHO: Context manager component
 	// WHAT: Context persistence implementation
-	config        ContextPersistenceConfig // HOW: Configuration parameters
-	contextCache  map[string]*ContextEntry // WHERE: In-memory context cache
-	mutex         sync.RWMutex             // HOW: Thread safety mechanism
-	syncTimer     *time.Timer              // WHEN: Timer for synchronization
-	contextStats  ContextStats             // WHAT: Usage statistics tracking
-	sessionActive bool                     // WHEN: Active session indicator
-}
-
-// ContextStats tracks usage metrics for contexts
-type ContextStats struct {
-	// WHO: Statistics component
-	// WHAT: Context usage metrics
-	TotalContexts    int            // EXTENT: Total number of contexts
-	AccessCount      int            // EXTENT: Number of context accesses
-	UpdateCount      int            // EXTENT: Number of context updates
-	CompressionRatio float64        // EXTENT: Average compression ratio
-	LastSyncTime     time.Time      // WHEN: Last synchronization time
-	DimensionCount   map[string]int // WHAT: Count of dimension access
-}
-
-// NewContextPersistence creates a new context persistence manager
-func NewContextPersistence(config ContextPersistenceConfig) (*ContextPersistence, error) {
-	// WHO: Context persistence factory
-	// WHAT: Manager instance creation
 	// WHEN: During system initialization
 	// WHERE: Bridge system startup
 	// WHY: To establish context storage
 	// HOW: Using provided configuration
 	// EXTENT: Single persistence manager
+
+	config       ContextPersistenceConfig
+	contextCache map[string]*ContextEntry
+	contextStats ContextStats
+	sessionActive bool
+	syncTimer    *time.Timer
+	mutex        sync.RWMutex
+}
+
+// NewContextPersistence creates a new ContextPersistence manager
+func NewContextPersistence(config ContextPersistenceConfig) (*ContextPersistence, error) {
+	// WHO: Context manager component
+	// WHAT: Context persistence initialization
+	// WHEN: During system startup
+	// WHERE: Bridge system initialization
+	// WHY: To set up context storage
+	// HOW: Using provided configuration
+	// EXTENT: Single manager instance
 
 	// Set default values if needed
 	if config.SyncInterval == 0 {
@@ -118,7 +131,7 @@ func NewContextPersistence(config ContextPersistenceConfig) (*ContextPersistence
 // startSyncTimer initiates periodic synchronization of contexts to storage
 func (cp *ContextPersistence) startSyncTimer() {
 	// WHO: Synchronization component
-	// WHAT: Timer initialization 
+	// WHAT: Timer initialization
 	// WHEN: During manager creation
 	// WHERE: Context persistence
 	// WHY: To ensure regular persistence
@@ -137,7 +150,7 @@ func (cp *ContextPersistence) startSyncTimer() {
 		cp.mutex.Lock()
 		cp.contextStats.LastSyncTime = time.Now()
 		cp.mutex.Unlock()
-		
+
 		// Schedule next sync if session is active
 		if cp.sessionActive {
 			cp.startSyncTimer()
@@ -146,7 +159,7 @@ func (cp *ContextPersistence) startSyncTimer() {
 }
 
 // StoreContext saves a context vector with associated metadata
-func (cp *ContextPersistence) StoreContext(id string, vector *ContextVector7D, source string, tags []string) error {
+func (cp *ContextPersistence) StoreContext(id string, vector *translations.ContextVector7D, source string, tags []string) error {
 	// WHO: Storage component
 	// WHAT: Context storage
 	// WHEN: During context creation/update
@@ -161,7 +174,7 @@ func (cp *ContextPersistence) StoreContext(id string, vector *ContextVector7D, s
 	// Create new entry or update existing one
 	now := time.Now()
 	entry, exists := cp.contextCache[id]
-	
+
 	if !exists {
 		// Create new entry
 		entry = &ContextEntry{
@@ -212,7 +225,7 @@ func (cp *ContextPersistence) StoreContext(id string, vector *ContextVector7D, s
 }
 
 // GetContext retrieves a stored context by ID
-func (cp *ContextPersistence) GetContext(id string) (*ContextVector7D, error) {
+func (cp *ContextPersistence) GetContext(id string) (*translations.ContextVector7D, error) {
 	// WHO: Retrieval component
 	// WHAT: Context retrieval
 	// WHEN: During request processing
@@ -233,7 +246,7 @@ func (cp *ContextPersistence) GetContext(id string) (*ContextVector7D, error) {
 	// Update usage stats
 	entry.Usage++
 	cp.contextStats.AccessCount++
-	
+
 	// Update dimension access statistics
 	cp.trackDimensionAccess(entry.Vector)
 
@@ -249,7 +262,7 @@ func (cp *ContextPersistence) GetContext(id string) (*ContextVector7D, error) {
 }
 
 // trackDimensionAccess updates statistics on which context dimensions are accessed
-func (cp *ContextPersistence) trackDimensionAccess(vector ContextVector7D) {
+func (cp *ContextPersistence) trackDimensionAccess(vector translations.ContextVector7D) {
 	// WHO: Statistics component
 	// WHAT: Dimension access tracking
 	// WHEN: During context retrieval

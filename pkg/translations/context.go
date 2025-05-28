@@ -17,7 +17,7 @@ import (
 	"math"
 	"time"
 
-	"github.com/jubicudis/github-mcp-server/pkg/log"
+	"github-mcp-server/pkg/log"
 )
 
 // ContextVector7D represents a 7D context vector
@@ -1191,7 +1191,7 @@ type contextKey int
 // HOW: Using key constant
 // EXTENT: All context storage/retrieval operations
 const (
-    contextVector7DKey contextKey = iota
+	contextVector7DKey contextKey = iota
 )
 
 // ContextWithVector adds a 7D Context Vector to a Go context
@@ -1203,7 +1203,7 @@ const (
 // HOW: Using context.WithValue
 // EXTENT: All context propagation operations
 func ContextWithVector(ctx context.Context, vector ContextVector7D) context.Context {
-    return context.WithValue(ctx, contextVector7DKey, vector)
+	return context.WithValue(ctx, contextVector7DKey, vector)
 }
 
 // VectorFromContext extracts a 7D Context Vector from a Go context
@@ -1215,16 +1215,16 @@ func ContextWithVector(ctx context.Context, vector ContextVector7D) context.Cont
 // HOW: Using context.Value with type assertion
 // EXTENT: All context access operations
 func VectorFromContext(ctx context.Context) (ContextVector7D, bool) {
-    value := ctx.Value(contextVector7DKey)
-    if value == nil {
-        return ContextVector7D{}, false
-    }
-    
-    if vector, ok := value.(ContextVector7D); ok {
-        return vector, true
-    }
-    
-    return ContextVector7D{}, false
+	value := ctx.Value(contextVector7DKey)
+	if value == nil {
+		return ContextVector7D{}, false
+	}
+
+	if vector, ok := value.(ContextVector7D); ok {
+		return vector, true
+	}
+
+	return ContextVector7D{}, false
 }
 
 // MCPContextToTNOS converts MCP context format to TNOS 7D context
@@ -1236,74 +1236,74 @@ func VectorFromContext(ctx context.Context) (ContextVector7D, bool) {
 // HOW: Using standardized mapping
 // EXTENT: All inbound context translations
 func MCPContextToTNOS(mcpContext map[string]interface{}) ContextVector7D {
-    // Extract values with fallbacks for MCP format
-    who, _ := mcpContext["identity"].(string)
-    what, _ := mcpContext["operation"].(string)
-    where, _ := mcpContext["location"].(string)
-    why, _ := mcpContext["purpose"].(string)
-    how, _ := mcpContext["method"].(string)
-    source, _ := mcpContext["source"].(string)
+	// Extract values with fallbacks for MCP format
+	who, _ := mcpContext["identity"].(string)
+	what, _ := mcpContext["operation"].(string)
+	where, _ := mcpContext["location"].(string)
+	why, _ := mcpContext["purpose"].(string)
+	how, _ := mcpContext["method"].(string)
+	source, _ := mcpContext["source"].(string)
 
-    // Handle numeric values
-    var when int64
-    var extent float64
+	// Handle numeric values
+	var when int64
+	var extent float64
 
-    if whenVal, ok := mcpContext["timestamp"]; ok {
-        switch v := whenVal.(type) {
-        case int64:
-            when = v
-        case float64:
-            when = int64(v)
-        case int:
-            when = int64(v)
-        default:
-            when = time.Now().Unix()
-        }
-    } else {
-        when = time.Now().Unix()
-    }
+	if whenVal, ok := mcpContext["timestamp"]; ok {
+		switch v := whenVal.(type) {
+		case int64:
+			when = v
+		case float64:
+			when = int64(v)
+		case int:
+			when = int64(v)
+		default:
+			when = time.Now().Unix()
+		}
+	} else {
+		when = time.Now().Unix()
+	}
 
-    if extentVal, ok := mcpContext["scope"]; ok {
-        switch v := extentVal.(type) {
-        case float64:
-            extent = v
-        case int:
-            extent = float64(v)
-        case int64:
-            extent = float64(v)
-        default:
-            extent = 1.0
-        }
-    } else {
-        extent = 1.0
-    }
+	if extentVal, ok := mcpContext["scope"]; ok {
+		switch v := extentVal.(type) {
+		case float64:
+			extent = v
+		case int:
+			extent = float64(v)
+		case int64:
+			extent = float64(v)
+		default:
+			extent = 1.0
+		}
+	} else {
+		extent = 1.0
+	}
 
-    // Extract metadata
-    meta := make(map[string]interface{})
-    if metaVal, ok := mcpContext["metadata"].(map[string]interface{}); ok {
-        meta = metaVal
-    }
+	// Extract metadata
+	meta := make(map[string]interface{})
+	if metaVal, ok := mcpContext["metadata"].(map[string]interface{}); ok {
+		meta = metaVal
+	}
 
-    // Ensure compression factors exist
-    ensureCompressionFactors(meta)
+	// Ensure compression factors exist
+	ensureCompressionFactors(meta)
 
-    // Check if there's a stored _tnos_context for complete roundtrip
-    if tnosCtx, ok := mcpContext["_tnos_context"].(map[string]interface{}); ok {
-        // We have a full TNOS context stored, use that directly
-        return FromMap(tnosCtx)
-    }
+	// Check if there's a stored _tnos_context for complete roundtrip
+	if tnosCtx, ok := mcpContext["_tnos_context"].(map[string]interface{}); ok {
+		// We have a full TNOS context stored, use that directly
+		return FromMap(tnosCtx)
+	}
 
-    return ContextVector7D{
-        Who:    who,
-        What:   what,
-        When:   when,
-        Where:  where,
-        Why:    why,
-        How:    how,
-        Extent: extent,
-        Meta:   meta,
-        Source: source,
-    }
+	return ContextVector7D{
+		Who:    who,
+		What:   what,
+		When:   when,
+		Where:  where,
+		Why:    why,
+		How:    how,
+		Extent: extent,
+		Meta:   meta,
+		Source: source,
+	}
 }
 
 // TNOSContextToMCP converts TNOS 7D context to MCP format
@@ -1315,22 +1315,22 @@ func MCPContextToTNOS(mcpContext map[string]interface{}) ContextVector7D {
 // HOW: Using standardized mapping
 // EXTENT: All outbound context translations
 func TNOSContextToMCP(tnos7D ContextVector7D) map[string]interface{} {
-    // Convert to the standard MCP format
-    mcpContext := map[string]interface{}{
-        "identity":  tnos7D.Who,
-        "operation": tnos7D.What,
-        "timestamp": tnos7D.When,
-        "location":  tnos7D.Where,
-        "purpose":   tnos7D.Why,
-        "method":    tnos7D.How,
-        "scope":     tnos7D.Extent,
-        "metadata":  tnos7D.Meta,
-        "source":    tnos7D.Source,
-        // Store the complete 7D context for roundtrip preservation
-        "_tnos_context": tnos7D.ToMap(),
-    }
+	// Convert to the standard MCP format
+	mcpContext := map[string]interface{}{
+		"identity":  tnos7D.Who,
+		"operation": tnos7D.What,
+		"timestamp": tnos7D.When,
+		"location":  tnos7D.Where,
+		"purpose":   tnos7D.Why,
+		"method":    tnos7D.How,
+		"scope":     tnos7D.Extent,
+		"metadata":  tnos7D.Meta,
+		"source":    tnos7D.Source,
+		// Store the complete 7D context for roundtrip preservation
+		"_tnos_context": tnos7D.ToMap(),
+	}
 
-    return mcpContext
+	return mcpContext
 }
 
 // WHO: ContextManager
@@ -1341,14 +1341,14 @@ func TNOSContextToMCP(tnos7D ContextVector7D) map[string]interface{} {
 // HOW: Using Go context with values
 // EXTENT: All context operations
 func CreateContext7D(baseCtx context.Context, who, what, where, why, how string, extent float64) context.Context {
-    // Create a new context vector
-    cv := NewContext(who, what, where, why, how, extent)
-    
-    // Apply compression as per TNOS guidelines
-    cv = CompressContext(cv, nil)
-    
-    // Store in Go context
-    return ContextWithVector(baseCtx, cv)
+	// Create a new context vector
+	cv := NewContext(who, what, where, why, how, extent)
+
+	// Apply compression as per TNOS guidelines
+	cv = CompressContext(cv, nil)
+
+	// Store in Go context
+	return ContextWithVector(baseCtx, cv)
 }
 
 // WHO: ContextMigrator
@@ -1359,19 +1359,19 @@ func CreateContext7D(baseCtx context.Context, who, what, where, why, how string,
 // HOW: Using serialization/deserialization
 // EXTENT: All cross-system operations
 func MigrateContext(baseCtx context.Context, serializedContext string, logger *log.Logger) (context.Context, error) {
-    // Parse JSON context
-    var contextMap map[string]interface{}
-    err := json.Unmarshal([]byte(serializedContext), &contextMap)
-    if err != nil {
-        if logger != nil {
-            logger.Error("Failed to unmarshal context", "error", err.Error())
-        }
-        return baseCtx, err
-    }
-    
-    // Convert to 7D context
-    cv := MCPContextToTNOS(contextMap)
-    
-    // Store in Go context
-    return ContextWithVector(baseCtx, cv), nil
+	// Parse JSON context
+	var contextMap map[string]interface{}
+	err := json.Unmarshal([]byte(serializedContext), &contextMap)
+	if err != nil {
+		if logger != nil {
+			logger.Error("Failed to unmarshal context", "error", err.Error())
+		}
+		return baseCtx, err
+	}
+
+	// Convert to 7D context
+	cv := MCPContextToTNOS(contextMap)
+
+	// Store in Go context
+	return ContextWithVector(baseCtx, cv), nil
 }

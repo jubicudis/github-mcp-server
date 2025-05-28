@@ -11,22 +11,18 @@
 package utils
 
 import (
-	"encoding/json"
 	"fmt"
+	"github-mcp-server/models"
+	"github-mcp-server/pkg/bridge"
 	"log"
 	"time"
-
-	"github.com/jubicudis/github-mcp-server/internal/mcp"
-	"github.com/jubicudis/github-mcp-server/models"
-
-	mcpGo "github.com/mark3labs/mcp-go/mcp"
 )
 
-// Global bridge connection - would be initialized during server startup
-var utilsMcpBridge *mcp.TNOSMCPBridge
+// Global bridge connection - initialized during server startup
+var utilsMcpBridge *bridge.Bridge
 
 // InitializeUtilsMCPBridge sets up the MCP bridge connection for utils package
-func InitializeUtilsMCPBridge(config mcp.BridgeConfig) error {
+func InitializeUtilsMCPBridge(options bridge.BridgeOptions) error {
 	// WHO: BridgeInitializer
 	// WHAT: Bridge setup
 	// WHEN: During server initialization
@@ -39,7 +35,7 @@ func InitializeUtilsMCPBridge(config mcp.BridgeConfig) error {
 		return nil // Already initialized
 	}
 
-	utilsMcpBridge = mcp.NewTNOSMCPBridge(config)
+	utilsMcpBridge = bridge.NewBridge(options)
 	if utilsMcpBridge == nil {
 		return fmt.Errorf("failed to create MCP bridge")
 	}
@@ -49,7 +45,7 @@ func InitializeUtilsMCPBridge(config mcp.BridgeConfig) error {
 }
 
 // GetUtilsMCPBridge returns the global bridge instance
-func GetUtilsMCPBridge() *mcp.TNOSMCPBridge {
+func GetUtilsMCPBridge() *bridge.Bridge {
 	// WHO: BridgeProvider
 	// WHAT: Bridge access
 	// WHEN: During tool execution
@@ -63,75 +59,38 @@ func GetUtilsMCPBridge() *mcp.TNOSMCPBridge {
 
 // SendToUtilsTNOSMCP sends a message to TNOS MCP and returns the response
 func SendToUtilsTNOSMCP(message models.MCPMessage) (*models.MCPMessage, error) {
-	// WHO: MessageSender
-	// WHAT: MCP communication
-	// WHEN: During tool execution
-	// WHERE: Bridge operations
-	// WHY: To execute remote tools
-	// HOW: Using bridge protocol
-	// EXTENT: Complete request-response cycle
-
 	if utilsMcpBridge == nil {
 		return nil, fmt.Errorf("utils MCP bridge not initialized")
 	}
-
-	// Send the request via the bridge
 	startTime := time.Now()
-
-	// Create a CallToolRequest as required by the MCP bridge
-	toolRequest := mcpGo.CallToolRequest{}
-	toolRequest.Params.Name = message.Tool
-	toolRequest.Params.Arguments = message.Parameters
-
-	result, err := utilsMcpBridge.SendRequest(toolRequest)
+	// Use SendCommand for tool execution
+	respMsg, err := utilsMcpBridge.SendCommand(message.Tool, message.Parameters)
 	if err != nil {
 		log.Printf("Error sending request to MCP bridge: %v", err)
 		return nil, fmt.Errorf("bridge communication error: %w", err)
 	}
-
 	elapsed := time.Since(startTime)
 	log.Printf("MCP request for tool %s completed in %s", message.Tool, elapsed)
-
-	// Process the response - extract text content
 	response := &models.MCPMessage{
 		Tool:       message.Tool,
 		Parameters: message.Parameters,
 		Context:    message.Context,
 		Result:     make(map[string]interface{}),
 	}
-
 	// Extract result from response
-	if result != nil {
-		// Extract text content from the first content item
-		if len(result.Content) > 0 {
-			if textContent, ok := result.Content[0].(mcpGo.TextContent); ok {
-				// Try to parse the text as JSON
-				var resultData map[string]interface{}
-				if err := json.Unmarshal([]byte(textContent.Text), &resultData); err == nil {
-					response.Result = resultData
-				} else {
-					// If parsing fails, store as raw text
-					response.Result["raw"] = textContent.Text
+	if respMsg.Payload != nil {
+		response.Result = respMsg.Payload
+	}
+	if respMsg.Type == "error" {
+		if respMsg.Payload != nil {
+			if errMap, ok := respMsg.Payload["error"].(map[string]interface{}); ok {
+				response.Error = &models.MCPError{
+					Code:    fmt.Sprintf("%v", errMap["code"]),
+					Message: fmt.Sprintf("%v", errMap["message"]),
+					Details: fmt.Sprintf("%v", errMap["details"]),
 				}
-			}
-		}
-
-		// Check if the result was an error
-		if result.IsError {
-			errorMsg := "Error from tool execution"
-
-			// Try to extract error message from content
-			if len(result.Content) > 0 {
-				if textContent, ok := result.Content[0].(mcpGo.TextContent); ok {
-					errorMsg = textContent.Text
-				}
-			}
-
-			response.Error = &models.MCPError{
-				Message: errorMsg,
 			}
 		}
 	}
-
 	return response, nil
 }

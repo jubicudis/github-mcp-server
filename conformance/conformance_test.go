@@ -433,4 +433,3 @@ type inputSchema struct {
 	Properties map[string]any `json:"properties,omitempty"`
 	Required   []string       `json:"required,omitempty"`
 }
-
