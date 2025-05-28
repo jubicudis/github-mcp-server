@@ -21,9 +21,10 @@ import (
 	"sync"
 	"time"
 
+	"github-mcp-server/pkg/log"
+	"github-mcp-server/pkg/translations"
+
 	"github.com/gorilla/websocket"
-	"github.com/jubicudis/github-mcp-server/pkg/log"
-	"github.com/jubicudis/github-mcp-server/pkg/translations"
 )
 
 // Protocol constants - centralized from bridge.go and client.go

@@ -10,10 +10,10 @@ package github
 import (
 	"context"
 	"encoding/json"
+	"github-mcp-server/pkg/github/testutil"
+	"github-mcp-server/pkg/log"
 	"net/http"
 	"testing"
-	"github.com/jubicudis/github-mcp-server/pkg/github/testutil"
-	"github.com/jubicudis/github-mcp-server/pkg/log"
 
 	"github.com/google/go-github/v49/github"
 	"github.com/migueleliasweb/go-github-mock/src/mock"

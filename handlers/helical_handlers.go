@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/jubicudis/github-mcp-server/utils"
+	"github-mcp-server/utils"
 )
 
 // WHO: HelicalToolsHandler
@@ -174,12 +174,3 @@ func HelicalRetrieveHandler(w http.ResponseWriter, r *http.Request, ctx context.
 	}
 	utils.RespondWithJSON(w, http.StatusOK, map[string]interface{}{"data": decompressed})
 }
-
-// Example: Optionally sync context or use remote compression via TNOS MCP bridge
-// import "github.com/jubicudis/github-mcp-server/utils/tnos_bridge_client"
-//
-// In handler, e.g.:
-//   newContext, err := utils.Sync7DContext(params.Context)
-//   compressed, meta, err := utils.MobiusCompressRemote(params.Data, newContext)
-//
-// This enables cross-system context and compression integration.

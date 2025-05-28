@@ -237,9 +237,9 @@ func initHelicalDB() error {
 
 // Persistent SQLite instance and mutex for thread safety
 var (
-	helicalSQLiteDB     *sql.DB
-	helicalSQLiteOnce   sync.Once
-	helicalSQLiteErr    error
+	helicalSQLiteDB   *sql.DB
+	helicalSQLiteOnce sync.Once
+	helicalSQLiteErr  error
 )
 
 const helicalSQLiteDBPath = "helical_store.sqlite3"

@@ -16,9 +16,10 @@ import (
 	"net/url"
 	"time"
 
+	"github-mcp-server/pkg/log"
+	"github-mcp-server/pkg/translations"
+
 	"github.com/gorilla/websocket"
-	"github.com/jubicudis/github-mcp-server/pkg/log"
-	"github.com/jubicudis/github-mcp-server/pkg/translations"
 )
 
 // DefaultProtocolVersion and other protocol constants are defined in common.go
@@ -52,9 +53,12 @@ func NewClient(ctx context.Context, options ConnectionOptions) (*Client, error) 
 
 	clientCtx, cancel := context.WithCancel(ctx)
 
-	logger := options.Logger
-	if logger == nil {
-		logger = log.NewLogger()
+	// Use a basic logger if log package is missing
+	var logger *log.Logger
+	if options.Logger != nil {
+		logger = options.Logger
+	} else {
+		logger = log.NewLogger() // fallback to default logger
 	}
 
 	// Ensure context is initialized
@@ -77,10 +81,7 @@ func NewClient(ctx context.Context, options ConnectionOptions) (*Client, error) 
 		options:    options,
 		logger:     logger,
 		messages:   make(chan Message, 100),
-		stats: BridgeStats{
-			StartTime:  time.Now(),
-			LastActive: time.Now(),
-		},
+		stats:      BridgeStats{},
 	}
 
 	err := client.connect()

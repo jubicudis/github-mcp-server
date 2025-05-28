@@ -24,7 +24,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jubicudis/github-mcp-server/pkg/translations"
+	"github-mcp-server/pkg/translations"
 
 	"encoding/base64"
 

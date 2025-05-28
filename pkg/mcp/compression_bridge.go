@@ -69,7 +69,7 @@ func (cb *CompressionBridge) Compress(ctx context.Context, data string, contextM
 
 // Decompress sends data to the TNOS MCP server for decompression.
 func (cb *CompressionBridge) Decompress(ctx context.Context, compressedData string, compressionVars map[string]interface{}) (*CompressionResponse, error) {
-	params := map[string]interface{}{ "compression_vars": compressionVars }
+	params := map[string]interface{}{"compression_vars": compressionVars}
 	// Pass through 7D context and metadata if present in compressionVars
 	for _, k := range []string{"who", "what", "when", "where", "why", "how", "intent", "geo", "file_path", "runtime_path", "transfer_distance", "formula_key"} {
 		if v, ok := compressionVars[k]; ok {
@@ -117,11 +117,11 @@ func (cb *CompressionBridge) sendRequest(ctx context.Context, req CompressionReq
 func logCompressionOperation(opType, data string, req CompressionRequest, resp *CompressionResponse, err error) {
 	logFile := "/logs/compression_debug.log"
 	entry := map[string]interface{}{
-		"timestamp":        time.Now().Format(time.RFC3339Nano),
-		"operation":        opType,
-		"data_length":      len(data),
-		"request_context":  req.Context,
-		"request_params":   req.Params,
+		"timestamp":       time.Now().Format(time.RFC3339Nano),
+		"operation":       opType,
+		"data_length":     len(data),
+		"request_context": req.Context,
+		"request_params":  req.Params,
 	}
 	if resp != nil {
 		entry["success"] = resp.Success

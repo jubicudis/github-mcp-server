@@ -16,8 +16,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jubicudis/github-mcp-server/pkg/bridge"
-	"github.com/jubicudis/github-mcp-server/pkg/log"
+	"github-mcp-server/pkg/bridge"
+	"github-mcp-server/pkg/log"
 
 	"github.com/gorilla/websocket"
 )
@@ -1097,16 +1097,16 @@ func (b *MCPBridge) applyMobiusCompression(
 	// Context sum (Csum) and alignment
 	Csum := 0.3 // Placeholder; in production, compute from context
 	params := bridge.MobiusCompressionParams{
-		Value:    float64(len(messageJSON)),
-		B:        B,
-		V:        V,
-		I:        I,
-		G:        G,
-		F:        F,
-		Entropy:  entropy,
-		E:        E,
-		T:        t,
-		Csum:     Csum,
+		Value:   float64(len(messageJSON)),
+		B:       B,
+		V:       V,
+		I:       I,
+		G:       G,
+		F:       F,
+		Entropy: entropy,
+		E:       E,
+		T:       t,
+		Csum:    Csum,
 	}
 	compressedValue, alignment := bridge.MobiusCompress(params)
 
@@ -1117,16 +1117,16 @@ func (b *MCPBridge) applyMobiusCompression(
 	meta["compressionFactor"] = compressedValue
 	meta["timestamp"] = now
 	meta["factors"] = map[string]interface{}{
-		"B": B,
-		"V": V,
-		"I": I,
-		"G": G,
-		"F": F,
-		"E": E,
-		"t": t,
-		"Csum": Csum,
+		"B":         B,
+		"V":         V,
+		"I":         I,
+		"G":         G,
+		"F":         F,
+		"E":         E,
+		"t":         t,
+		"Csum":      Csum,
 		"alignment": alignment,
-		"entropy": entropy,
+		"entropy":   entropy,
 	}
 
 	compressed := map[string]interface{}{

@@ -14,8 +14,7 @@ package github
 
 import (
 	// Ensure all required test dependencies are referenced
-	_ "github.com/jubicudis/github-mcp-server/pkg/github/testutil"
-	_ "github.com/jubicudis/github-mcp-server/pkg/translations"
+	_ "github-mcp-server/pkg/github/testutil"
 )
 
 // TestHelper provides a placeholder function to ensure the testing package is properly initialized

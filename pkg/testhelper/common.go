@@ -77,16 +77,16 @@ func NewTestWebSocketClient(t *testing.T, url string) *websocket.Conn {
 	dialer := websocket.Dialer{
 		HandshakeTimeout: TestTimeout,
 	}
-	
+
 	conn, _, err := dialer.Dial(url, http.Header{})
 	if err != nil {
 		t.Fatalf("Failed to connect to WebSocket server: %v", err)
 	}
-	
+
 	return conn
 }
 
-// WHO: ErrorComparer 
+// WHO: ErrorComparer
 // WHAT: Error comparison utility
 // WHEN: During error checking in tests
 // WHERE: All test suites

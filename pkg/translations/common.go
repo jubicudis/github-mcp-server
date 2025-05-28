@@ -30,7 +30,7 @@ const (
 	ContextKeyWhat   = "what"
 	ContextKeyWhen   = "when"
 	ContextKeyWhere  = "where"
-	ContextKeyWhy    = "why" 
+	ContextKeyWhy    = "why"
 	ContextKeyHow    = "how"
 	ContextKeyExtent = "extent"
 )
@@ -57,10 +57,10 @@ type TranslationHelper interface {
 	// Core serialization operations
 	ToJSON(v interface{}) (string, error)
 	FromJSON(data string, v interface{}) error // Interface still uses FromJSON for implementations
-	
+
 	// Context operations
 	ApplyContextVector(v interface{}, context map[string]string) (interface{}, error)
-	
+
 	// Message translation operations
 	TranslateMessageToTNOS(ctx context.Context, message interface{}) (interface{}, error)
 	TranslateMessageFromTNOS(ctx context.Context, message interface{}) (interface{}, error)
@@ -77,12 +77,12 @@ func ToJSON(v interface{}) (string, error) {
 	if v == nil {
 		return "{}", nil
 	}
-	
+
 	data, err := json.Marshal(v)
 	if err != nil {
 		return "", err
 	}
-	
+
 	return string(data), nil
 }
 
@@ -97,11 +97,11 @@ func DecodeJSON(data string, v interface{}) error {
 	if data == "" {
 		return ErrEmptyMessage
 	}
-	
+
 	return json.Unmarshal([]byte(data), v)
 }
 
-// WHO: ContextProcessor 
+// WHO: ContextProcessor
 // WHAT: Extract standard 7D context
 // WHEN: During context processing
 // WHERE: All translation components
@@ -110,49 +110,49 @@ func DecodeJSON(data string, v interface{}) error {
 // EXTENT: All context operations
 func Extract7DContext(ctx map[string]interface{}) map[string]string {
 	result := make(map[string]string)
-	
+
 	// Extract with defaults
 	if who, ok := ctx[ContextKeyWho].(string); ok && who != "" {
 		result[ContextKeyWho] = who
 	} else {
 		result[ContextKeyWho] = DefaultWho
 	}
-	
+
 	if what, ok := ctx[ContextKeyWhat].(string); ok && what != "" {
 		result[ContextKeyWhat] = what
 	} else {
 		result[ContextKeyWhat] = DefaultWhat
 	}
-	
+
 	if when, ok := ctx[ContextKeyWhen].(string); ok && when != "" {
 		result[ContextKeyWhen] = when
 	} else {
 		result[ContextKeyWhen] = ""
 	}
-	
+
 	if where, ok := ctx[ContextKeyWhere].(string); ok && where != "" {
 		result[ContextKeyWhere] = where
 	} else {
 		result[ContextKeyWhere] = DefaultWhere
 	}
-	
+
 	if why, ok := ctx[ContextKeyWhy].(string); ok && why != "" {
 		result[ContextKeyWhy] = why
 	} else {
 		result[ContextKeyWhy] = DefaultWhy
 	}
-	
+
 	if how, ok := ctx[ContextKeyHow].(string); ok && how != "" {
 		result[ContextKeyHow] = how
 	} else {
 		result[ContextKeyHow] = DefaultHow
 	}
-	
+
 	if extent, ok := ctx[ContextKeyExtent].(string); ok && extent != "" {
 		result[ContextKeyExtent] = extent
 	} else {
 		result[ContextKeyExtent] = "1.0"
 	}
-	
+
 	return result
 }
