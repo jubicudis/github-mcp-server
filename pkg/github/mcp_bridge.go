@@ -8,6 +8,9 @@
  * EXTENT: All communications between GitHub and TNOS
  */
 
+// NOTE: This file is a GitHub-specific adapter. All core bridge logic and protocol are defined in pkg/bridge.
+// Do NOT duplicate bridge logic here. Import and use the canonical bridge types from pkg/bridge only.
+
 package github
 
 import (
