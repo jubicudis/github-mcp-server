@@ -28,6 +28,7 @@ import (
 
 	"github-mcp-server/pkg/bridge"
 	"github-mcp-server/pkg/log"
+	"github-mcp-server/pkg/mcp"
 	"github-mcp-server/pkg/translations"
 
 	// Import external packages
@@ -63,6 +64,7 @@ var (
 	broadcast    = make(chan []byte)
 	gitHubClient GitHubService
 	startTime    = time.Now() // Start time for uptime calculation
+	compressionBridge *mcp.CompressionBridge
 )
 
 // Client represents a connected websocket client
@@ -162,6 +164,13 @@ func main() {
 	gitHubClientAdapter := NewClient(config.GitHubToken, logger)
 	gitHubClient = gitHubClientAdapter
 	logger.Info("GitHub client initialized")
+
+	// Initialize CompressionBridge with TNOS MCP server URL from config
+	mcpServerHost := getEnv("TNOS_SERVER_HOST", "localhost")
+	mcpServerPort := getEnv("TNOS_SERVER_PORT", "9001")
+	mcpServerURL := "http://" + mcpServerHost + ":" + mcpServerPort
+	compressionBridge = mcp.NewCompressionBridge(mcpServerURL)
+	logger.Info("CompressionBridge initialized", "serverURL", mcpServerURL)
 
 	// --- Formula Registry Initialization ---
 	formulaPath := "config/formulas.json"
@@ -1575,39 +1584,50 @@ func handleVisualizationRequest(message bridge.Message, client *bridge.Client) {
 
 // handleCompressionRequest processes compression requests
 func handleCompressionRequest(message bridge.Message, client *bridge.Client) {
-	// WHO: CompressionManager
-	// WHAT: Handle compression requests
-	// WHEN: During compression operations
-	// WHERE: System Layer 6 (Integration)
-	// WHY: To compress/decompress data
-	// HOW: Using Möbius compression
-	// EXTENT: Single compression request
-
 	logger.Debug("Processing compression request")
-
-	// Check if we have payload data
 	if message.Payload == nil {
 		logger.Error("Invalid compression request format: missing payload")
 		return
 	}
-
-	// Process compression request (implementation depends on specific needs)
-	// ...
-
-	// Extract request ID if available
 	requestID, _ := message.Payload["requestId"].(string)
-
-	// Send response back to bridge
+	operation, _ := message.Payload["operation"].(string)
+	data, _ := message.Payload["data"].(string)
+	contextMap, _ := message.Payload["context"].(map[string]interface{})
+	params, _ := message.Payload["params"].(map[string]interface{})
+	var resp *mcp.CompressionResponse
+	var err error
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	if operation == "compress" {
+		resp, err = compressionBridge.Compress(ctx, data, contextMap, params)
+	} else if operation == "decompress" {
+		compressionVars, _ := message.Payload["compression_vars"].(map[string]interface{})
+		resp, err = compressionBridge.Decompress(ctx, data, compressionVars)
+	} else {
+		logger.Error("Unknown compression operation", "operation", operation)
+		return
+	}
+	responsePayload := map[string]interface{}{
+		"status":    "success",
+		"requestId": requestID,
+	}
+	if err != nil {
+		responsePayload["status"] = "error"
+		responsePayload["error"] = err.Error()
+	} else if resp != nil {
+		responsePayload["compressed_data"] = resp.CompressedData
+		responsePayload["decompressed_data"] = resp.DecompressedData
+		responsePayload["compression_vars"] = resp.CompressionVars
+		responsePayload["entropy"] = resp.Entropy
+		responsePayload["compression_ratio"] = resp.CompressionRatio
+		responsePayload["location_metadata"] = resp.LocationMetadata
+		responsePayload["energy_metrics"] = resp.EnergyMetrics
+	}
 	response := bridge.Message{
 		Type:      "compression_response",
 		Timestamp: time.Now().Unix(),
-		Payload: map[string]interface{}{
-			"status":    "success",
-			"requestId": requestID,
-			// Add compression result here
-		},
+		Payload:   responsePayload,
 	}
-
 	if err := client.Send(response); err != nil {
 		logger.Error("Failed to send compression response", "error", err.Error())
 	}
