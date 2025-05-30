@@ -33,7 +33,7 @@ type GitHubService interface {
 
 // GitHubClientAdapter adapts the GitHub client to the server's needs
 type GitHubClientAdapter struct {
-	client    *pkggithub.Client
+	client    pkggithub.GitHubService // Accept interface, not concrete type
 	logger    *log.Logger
 	getClient pkggithub.GetClientFn
 }
@@ -51,7 +51,7 @@ func NewClient(token string, logger *log.Logger) *GitHubClientAdapter {
 	}
 
 	return &GitHubClientAdapter{
-		client:    client,
+		client:    client, // Now interface, not *Client
 		logger:    logger,
 		getClient: getClient,
 	}

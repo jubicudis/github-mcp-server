@@ -72,7 +72,10 @@
 	"search.exclude": {
 		"**/node_modules": true,
 		"**/logs": true,
-		"**/build": true
+		"**/build": true,
+		"**/.venv": true,
+		"**/__pycache__": true,
+		"**/.git": true
 	},
 	
 	// WHO: ConfigurationManager
@@ -149,6 +152,11 @@
 	"workbench.reduceMotion": "on",
 	"files.maxMemoryForLargeFilesMB": 4096,
 	"editor.largeFileOptimizations": true,
-	"files.restoreUndoStack": false
+	"files.restoreUndoStack": false,
+	"files.exclude": {
+		"**/.venv": true,
+		"**/__pycache__": true,
+		"**/.git": true
+	}
 	// --- END PERFORMANCE & UI TUNING ---
 }

@@ -465,12 +465,12 @@ func (f *formulaRegistryPython) DecompressValue(compressed, entropy, B, V, I, G,
 
 // runPythonHelper runs the Python helper script and returns output
 func runPythonHelper(args []string) ([]byte, error) {
-	// Use exec.Command to call python3
-	// NOTE: This assumes python3 is in PATH and scripts are present
-	cmd := exec.Command("python3", args...)
+	// Use exec.Command to call python3.11
+	// NOTE: This assumes python3.11 is in PATH and scripts are present
+	cmd := exec.Command("python3.11", args...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		return nil, fmt.Errorf("python3 %v failed: %v\nOutput: %s", args, err, out)
+		return nil, fmt.Errorf("python3.11 %v failed: %v\nOutput: %s", args, err, out)
 	}
 	return out, nil
 }
