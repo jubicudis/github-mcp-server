@@ -27,6 +27,7 @@ import (
 	// Import internal packages with proper module paths
 
 	"github-mcp-server/pkg/bridge"
+	"github-mcp-server/pkg/github"
 	"github-mcp-server/pkg/log"
 	"github-mcp-server/pkg/mcp"
 	"github-mcp-server/pkg/translations"
@@ -62,9 +63,13 @@ var (
 	clients      = make(map[*Client]bool)
 	clientsMtx   sync.Mutex
 	broadcast    = make(chan []byte)
-	gitHubClient GitHubService
+	gitHubClient github.GitHubService
 	startTime    = time.Now() // Start time for uptime calculation
 	compressionBridge *mcp.CompressionBridge
+
+	// Track all HTTP servers for graceful shutdown
+	servers      []*http.Server
+	serversMtx   sync.Mutex
 )
 
 // Client represents a connected websocket client
@@ -161,7 +166,7 @@ func main() {
 	logger.Info("Configuration loaded", "host", config.Host, "port", config.Port)
 
 	// Initialize GitHub client
-	gitHubClientAdapter := NewClient(config.GitHubToken, logger)
+	gitHubClientAdapter := github.NewClient(config.GitHubToken, logger)
 	gitHubClient = gitHubClientAdapter
 	logger.Info("GitHub client initialized")
 
@@ -185,39 +190,8 @@ func main() {
 		logger.Info("Formula registry loaded", "count", count, "path", formulaPath)
 	}
 
-	// Define HTTP routes
-	http.HandleFunc("/", handleRoot)
-	http.HandleFunc("/api/health", handleHealth)
-	http.HandleFunc("/api/status", handleStatus)
-	http.HandleFunc("/ws", handleWebSocket)
-
-	// GitHub API routes
-	http.HandleFunc("/api/github/repositories", handleGitHubRepositories)
-	http.HandleFunc("/api/github/issues", handleGitHubIssues)
-	http.HandleFunc("/api/github/pullrequests", handleGitHubPullRequests)
-	http.HandleFunc("/api/github/search", handleGitHubSearch)
-	http.HandleFunc("/api/github/code-scanning", handleGitHubCodeScanning)
-	http.HandleFunc("/api/context", handleContext)
-
-	// Add the /bridge handler
-	http.HandleFunc("/bridge", handleBridge)
-
-	// Start HTTP server
-	addr := fmt.Sprintf("%s:%d", config.Host, config.Port)
-	server := &http.Server{
-		Addr: addr,
-	}
-
-	// Start server in a goroutine
-	go func() {
-		logger.Info("Server listening", "address", addr)
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.Error("Server failed to start", "error", err.Error())
-			_ = logpkg.LogHelicalEvent(logpkg.NewHelicalEvent(
-				"MCPServer", "fatal_error", "github-mcp-server", "crash", "GoMain", "full", "Server failed to start: "+err.Error()))
-			os.Exit(1)
-		}
-	}()
+	// Start HTTP servers on all canonical ports
+	startAllServers()
 
 	// Start WebSocket broadcaster
 	go handleBroadcasts()
@@ -242,12 +216,16 @@ func main() {
 	// Close all client connections
 	closeAllClients()
 
-	// Shutdown server gracefully
-	if err := server.Shutdown(ctx); err != nil {
-		logger.Error("Server shutdown failed", "error", err.Error())
-		_ = logpkg.LogHelicalEvent(logpkg.NewHelicalEvent(
-			"MCPServer", "shutdown_error", "github-mcp-server", "shutdown", "GoMain", "full", "Server shutdown failed: "+err.Error()))
+	// Gracefully shutdown all HTTP servers
+	serversMtx.Lock()
+	for _, srv := range servers {
+		if err := srv.Shutdown(ctx); err != nil {
+			logger.Error("Server shutdown failed", "address", srv.Addr, "error", err.Error())
+			_ = logpkg.LogHelicalEvent(logpkg.NewHelicalEvent(
+				"MCPServer", "shutdown_error", "github-mcp-server", "shutdown", "GoMain", "full", "Server shutdown failed: "+err.Error()))
+		}
 	}
+	serversMtx.Unlock()
 
 	logger.Info("Server shutdown complete")
 	_ = logpkg.LogHelicalEvent(logpkg.NewHelicalEvent(
@@ -1726,4 +1704,49 @@ func handleBridgeError(message bridge.Message) {
 	logger.Error("Bridge error received",
 		"code", errorCode,
 		"message", errorMsg)
+}
+
+// Canonical MCP/QHP ports
+var canonicalPorts = []int{9001, 10617, 10619, 8083}
+
+func startAllServers() {
+	for _, port := range canonicalPorts {
+		go func(p int) {
+			mux := http.NewServeMux()
+			mux.HandleFunc("/", handleRoot)
+			mux.HandleFunc("/api/health", handleHealth)
+			mux.HandleFunc("/api/status", handleStatus)
+			mux.HandleFunc("/ws", handleWebSocket)
+
+			// GitHub API routes
+			mux.HandleFunc("/api/github/repositories", handleGitHubRepositories)
+			mux.HandleFunc("/api/github/issues", handleGitHubIssues)
+			mux.HandleFunc("/api/github/pullrequests", handleGitHubPullRequests)
+			mux.HandleFunc("/api/github/search", handleGitHubSearch)
+			mux.HandleFunc("/api/github/code-scanning", handleGitHubCodeScanning)
+			mux.HandleFunc("/api/context", handleContext)
+
+			// Add the /bridge handler
+			mux.HandleFunc("/bridge", handleBridge)
+
+			addr := fmt.Sprintf("%s:%d", config.Host, p)
+			server := &http.Server{Addr: addr, Handler: mux}
+
+			// Track server for shutdown
+			serversMtx.Lock()
+			servers = append(servers, server)
+			serversMtx.Unlock()
+
+			// Start server in a goroutine
+			go func() {
+				logger.Info("Server listening", "address", addr)
+				if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+					logger.Error("Server failed to start", "error", err.Error())
+					_ = logpkg.LogHelicalEvent(logpkg.NewHelicalEvent(
+						"MCPServer", "fatal_error", "github-mcp-server", "crash", "GoMain", "full", "Server failed to start: "+err.Error()))
+					os.Exit(1)
+				}
+			}()
+		}(port)
+	}
 }
