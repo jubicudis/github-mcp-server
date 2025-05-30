@@ -27,7 +27,6 @@ import (
 	// Import internal packages with proper module paths
 
 	"github-mcp-server/pkg/bridge"
-	"github-mcp-server/pkg/github"
 	"github-mcp-server/pkg/log"
 	"github-mcp-server/pkg/mcp"
 	"github-mcp-server/pkg/translations"
@@ -63,7 +62,7 @@ var (
 	clients      = make(map[*Client]bool)
 	clientsMtx   sync.Mutex
 	broadcast    = make(chan []byte)
-	gitHubClient github.GitHubService
+	gitHubClient GitHubService
 	startTime    = time.Now() // Start time for uptime calculation
 	compressionBridge *mcp.CompressionBridge
 
@@ -166,7 +165,7 @@ func main() {
 	logger.Info("Configuration loaded", "host", config.Host, "port", config.Port)
 
 	// Initialize GitHub client
-	gitHubClientAdapter := github.NewClient(config.GitHubToken, logger)
+	gitHubClientAdapter := NewClient(config.GitHubToken, logger)
 	gitHubClient = gitHubClientAdapter
 	logger.Info("GitHub client initialized")
 
