@@ -1287,3 +1287,8 @@ func (b *MCPBridge) CompressWithRegistry(value, entropy, B, V, I, G, F, purpose,
 	registry := GetFormulaRegistry()
 	return registry.CompressValue(value, entropy, B, V, I, G, F, purpose, t, C_sum)
 }
+
+// SetConn sets the WebSocket connection for the bridge client (for server-side use)
+func (c *Client) SetConn(conn *websocket.Conn) {
+	c.conn = conn
+}

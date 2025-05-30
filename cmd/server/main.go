@@ -199,6 +199,9 @@ func main() {
 	http.HandleFunc("/api/github/code-scanning", handleGitHubCodeScanning)
 	http.HandleFunc("/api/context", handleContext)
 
+	// Add the /bridge handler
+	http.HandleFunc("/bridge", handleBridge)
+
 	// Start HTTP server
 	addr := fmt.Sprintf("%s:%d", config.Host, config.Port)
 	server := &http.Server{
@@ -1355,6 +1358,74 @@ func connectToBridge() {
 			processTNOSBridgeMessage(bridgeClient, message)
 		}
 	}()
+}
+
+// --- MCP Bridge WebSocket Handler ---
+func handleBridge(w http.ResponseWriter, r *http.Request) {
+	upgrader := websocket.Upgrader{
+		CheckOrigin: func(r *http.Request) bool { return true },
+	}
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		logger.Error("Failed to upgrade /bridge connection: %v", err)
+		return
+	}
+	defer conn.Close()
+
+	// Create a bridge client for this WebSocket session
+	ctx := context.Background()
+	options := bridge.ConnectionOptions{
+		ServerURL:   "", // Not used for server-side
+		Timeout:     60 * time.Second,
+		MaxRetries:  0,
+		RetryDelay:  0,
+		Headers:     nil,
+		Context:     translations.ContextVector7D{Who: "BridgeServer", What: "Session", When: time.Now().Unix(), Where: "Layer6", Why: "WebSocket", How: "Upgrade", Extent: 1.0},
+		Logger:      logger,
+	}
+	bridgeClient, err := bridge.NewBridgeMCPClient(ctx, options)
+	if err != nil {
+		logger.Error("Failed to create bridge client: %v", err)
+		return
+	}
+	// Set the WebSocket connection on the bridge client (must be supported by bridge package)
+	if setter, ok := interface{}(bridgeClient).(interface{ SetConn(*websocket.Conn) }); ok {
+		setter.SetConn(conn)
+	}
+	if err := bridgeClient.Connect(ctx); err != nil {
+		logger.Error("Bridge client failed to connect: %v", err)
+		return
+	}
+
+	// Forward messages from WebSocket to bridge
+	go func() {
+		for {
+			_, msg, err := conn.ReadMessage()
+			if err != nil {
+				logger.Error("WebSocket read error: %v", err)
+				bridgeClient.Close()
+				return
+			}
+			_ = bridgeClient.SendMessage(msg)
+		}
+	}()
+
+	// Forward messages from bridge to WebSocket
+	bridgeClient.OnMessage(func(message bridge.Message) error {
+		msgBytes, err := json.Marshal(message)
+		if err == nil {
+			_ = conn.WriteMessage(websocket.TextMessage, msgBytes)
+		}
+		return nil
+	})
+
+	// Wait for connection close
+	for {
+		if _, _, err := conn.NextReader(); err != nil {
+			bridgeClient.Close()
+			return
+		}
+	}
 }
 
 // processMCPBridgeMessage handles messages received from the main MCP bridge
