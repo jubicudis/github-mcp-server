@@ -5,9 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
-	"os"
 	"time"
+
+	logpkg "github-mcp-server/pkg/log"
 )
 
 // CompressionRequest represents a request to the TNOS MCP server for compression or decompression.
@@ -113,33 +115,53 @@ func (cb *CompressionBridge) sendRequest(ctx context.Context, req CompressionReq
 	return &compResp, nil
 }
 
-// logCompressionOperation logs all compression/decompression operations to /logs/compression_debug.log
+// logCompressionOperation logs all compression/decompression operations to Helical Memory (TNOS-compliant)
 func logCompressionOperation(opType, data string, req CompressionRequest, resp *CompressionResponse, err error) {
-	logFile := "/logs/compression_debug.log"
-	entry := map[string]interface{}{
-		"timestamp":       time.Now().Format(time.RFC3339Nano),
-		"operation":       opType,
-		"data_length":     len(data),
-		"request_context": req.Context,
-		"request_params":  req.Params,
+	meta := map[string]interface{}{
+		"request_params": req.Params,
 	}
 	if resp != nil {
-		entry["success"] = resp.Success
-		entry["entropy"] = resp.Entropy
-		entry["compression_ratio"] = resp.CompressionRatio
-		entry["location_metadata"] = resp.LocationMetadata
-		entry["energy_metrics"] = resp.EnergyMetrics
-		entry["error"] = resp.Error
+		meta["success"] = resp.Success
+		meta["entropy"] = resp.Entropy
+		meta["compression_ratio"] = resp.CompressionRatio
+		meta["location_metadata"] = resp.LocationMetadata
+		meta["energy_metrics"] = resp.EnergyMetrics
+		meta["error"] = resp.Error
 	}
 	if err != nil {
-		entry["go_error"] = err.Error()
+		meta["go_error"] = err.Error()
 	}
-	b, _ := json.Marshal(entry)
-	f, ferr := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if ferr == nil {
-		defer f.Close()
-		f.Write(append(b, '\n'))
+	context := req.Context
+	who := "CompressionBridge"
+	what := opType
+	where := "github-mcp-server"
+	why := "compression"
+	how := "Go"
+	extent := "full"
+	if context != nil {
+		if v, ok := context["who"].(string); ok && v != "" {
+			who = v
+		}
+		if v, ok := context["what"].(string); ok && v != "" {
+			what = v
+		}
+		if v, ok := context["where"].(string); ok && v != "" {
+			where = v
+		}
+		if v, ok := context["why"].(string); ok && v != "" {
+			why = v
+		}
+		if v, ok := context["how"].(string); ok && v != "" {
+			how = v
+		}
+		if v, ok := context["extent"].(string); ok && v != "" {
+			extent = v
+		}
 	}
+	msg := fmt.Sprintf("%s operation, data_length=%d", opType, len(data))
+	event := logpkg.NewHelicalEvent(who, what, where, why, how, extent, msg)
+	event.Meta = meta
+	_ = logpkg.LogHelicalEvent(event)
 }
 
 // Example usage:
