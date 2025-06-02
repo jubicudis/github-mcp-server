@@ -177,6 +177,16 @@ start_tnos_mcp() {
     fi
 }
 
+# Fallback: If TNOS MCP server cannot connect to Hemoflux or Formula Registry, disengage TNOS MCP and start only GitHub MCP server
+check_tnos_systems_health() {
+    # Check C++ Circulatory (Hemoflux/Formula Registry) health
+    if ! check_circulatory_health; then
+        echo "[WARN] Hemoflux/Formula Registry health check failed. TNOS MCP server will not be started."
+        return 1
+    fi
+    return 0
+}
+
 # Stop all components
 stop_all() {
     echo "Stopping all MCP components..."
@@ -212,11 +222,23 @@ case "$1" in
         check_python_version  # Checks MCP venv only
         ensure_python_deps    # Installs Flask/websockets in MCP venv only
         check_formula_registry
-        validate_circulatory_system
         build_github_mcp
-        start_tnos_mcp        # Uses MCP venv only
-        start_github_mcp
-        status_all
+        if check_tnos_systems_health; then
+            validate_circulatory_system
+            start_tnos_mcp        # Uses MCP venv only
+            start_github_mcp
+            status_all
+        else
+            echo "[FALLBACK] Starting only GitHub MCP server and routing Copilot extension to fallback port."
+            start_github_mcp
+            # VSCode Copilot extension fallback: update .vscode/settings.json to point to GitHub MCP server
+            if [ -f "$WORKSPACE_ROOT/.vscode/settings.json" ]; then
+                cp "$WORKSPACE_ROOT/.vscode/settings.json" "$WORKSPACE_ROOT/.vscode/settings.json.bak"
+                jq '(."github.copilot.mcpServerUrl" // empty) |= "http://127.0.0.1:'"$QHP_GITHUB_PORT"'"' "$WORKSPACE_ROOT/.vscode/settings.json.bak" > "$WORKSPACE_ROOT/.vscode/settings.json" 2>/dev/null \
+                  || echo '  // Could not update github.copilot.mcpServerUrl in .vscode/settings.json (jq not found or invalid JSON)'
+            fi
+            status_all
+        fi
         ;;
     stop-all)
         stop_all
