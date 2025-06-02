@@ -22,6 +22,6 @@ FROM gcr.io/distroless/base-debian12
 # Set the working directory
 WORKDIR /server
 # Copy the binary from the build stage
-COPY --from=build /build/github-mcp-server .
+COPY --from=build /systems/tnos_shared/build/github-mcp-server .
 # Command to run the server
 CMD ["./github-mcp-server", "stdio"]

@@ -13,7 +13,7 @@
         "moduleResolution": "NodeNext",
         "baseUrl": "..",
         "paths": {
-            "*": ["*", "node_modules/*"],
+            "*": ["*", "systems/tnos_shared/node_modules/*"],
             "bridge/*": ["src/bridge/*"],
             "mcp/*": ["src/mcp/*", "../mcp/*"],
             "typescript/*": ["src/typescript/*"],
@@ -31,7 +31,7 @@
         "lib": ["ES2022", "DOM"]
     },
     "exclude": [
-        "node_modules",
+        "systems/tnos_shared/node_modules",
         "build",
         "bin",
         "target",

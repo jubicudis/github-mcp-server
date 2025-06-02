@@ -70,7 +70,7 @@
 	
 	// MCP-specific search settings
 	"search.exclude": {
-		"**/node_modules": true,
+		"**/systems/tnos_shared/node_modules": true,
 		"**/logs": true,
 		"**/build": true,
 		"**/.venv": true,
