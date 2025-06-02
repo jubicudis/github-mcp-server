@@ -12,7 +12,7 @@ go 1.24.3
 require (
 	github.com/docker/docker v28.0.4+incompatible
 	github.com/google/go-cmp v0.7.0
-	github.com/google/go-github/v71 v71.0.0 // indirect; Use v71 only for MCP integration; v49 removed to resolve version conflict
+	github.com/google/go-github/v71 v71.0.0 // indirect; Use v71 only for MCP integration
 	github.com/gorilla/websocket v1.5.3
 	github.com/mark3labs/mcp-go v0.26.0
 	github.com/migueleliasweb/go-github-mock v1.3.0

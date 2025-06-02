@@ -20,12 +20,13 @@ MCP_VENV_DIR="/Users/Jubicudis/Tranquility-Neuro-OS/mcp/venv"
 MCP_PYTHON311="/Users/Jubicudis/Tranquility-Neuro-OS/mcp/venv/bin/python3.11"
 TNOS_VENV_DIR="/Users/Jubicudis/Tranquility-Neuro-OS/systems/python/nervous/venv311"
 TNOS_PYTHON311="/Users/Jubicudis/Tranquility-Neuro-OS/systems/python/nervous/venv311/bin/python3.11"
-GITHUB_MCP_BIN="/Users/Jubicudis/Tranquility-Neuro-OS/github-mcp-server/bin/github-mcp-server"
+# PATCH: Use TNOS-compliant build and log directories
+GITHUB_MCP_BIN="/Users/Jubicudis/Tranquility-Neuro-OS/systems/tnos_shared/github-mcp-server/bin/github-mcp-server"
 GITHUB_MCP_SRC="/Users/Jubicudis/Tranquility-Neuro-OS/github-mcp-server/cmd/server"
 TNOS_MCP_SERVER_PY="/Users/Jubicudis/Tranquility-Neuro-OS/mcp/bridge/tnos_mcp_server.py"
 CIRCULATORY_BIN="/Users/Jubicudis/Tranquility-Neuro-OS/systems/cpp/circulatory/bin/circulatory"
 FORMULA_REGISTRY_DYLIB="/Users/Jubicudis/Tranquility-Neuro-OS/systems/cpp/circulatory/libformula_registry.dylib"
-LOGS_DIR="/Users/Jubicudis/Tranquility-Neuro-OS/logs"
+LOGS_DIR="/Users/Jubicudis/Tranquility-Neuro-OS/systems/memory/github"
 
 # Debug: Print workspace and venv paths
 echo "[DEBUG] WORKSPACE_ROOT: $WORKSPACE_ROOT"
@@ -34,6 +35,7 @@ echo "[DEBUG] MCP_PYTHON311: $MCP_PYTHON311"
 
 # Canonical logs
 mkdir -p "$LOGS_DIR"
+mkdir -p "/Users/Jubicudis/Tranquility-Neuro-OS/systems/tnos_shared/github-mcp-server/bin"
 
 # QHP-compliant environment variables
 export QHP_TNOS_PORT
@@ -144,7 +146,7 @@ validate_circulatory_system() {
 build_github_mcp() {
     if [ ! -f "$GITHUB_MCP_BIN" ]; then
         echo "Building GitHub MCP server..."
-        mkdir -p "$WORKSPACE_ROOT/github-mcp-server/bin"
+        mkdir -p "/Users/Jubicudis/Tranquility-Neuro-OS/systems/tnos_shared/github-mcp-server/bin"
         cd "$WORKSPACE_ROOT/github-mcp-server" || exit 1
         go build -o "$GITHUB_MCP_BIN" "$GITHUB_MCP_SRC" || { echo "Build failed."; exit 1; }
     fi
@@ -156,7 +158,7 @@ start_github_mcp() {
         echo "[INFO] GitHub MCP server already running on port $QHP_GITHUB_PORT."
     else
         echo "Starting GitHub MCP server on port $QHP_GITHUB_PORT..."
-        nohup "$GITHUB_MCP_BIN" > "$LOGS_DIR/github_mcp_server.log" 2>&1 &
+        nohup "$GITHUB_MCP_BIN" > "$LOGS_DIR/short_term.log" 2>&1 &
         echo $! > "$LOGS_DIR/github_mcp_server.pid"
         wait_for_port "127.0.0.1" $QHP_GITHUB_PORT 30 || { echo "[ERROR] GitHub MCP server did not open port $QHP_GITHUB_PORT."; exit 1; }
     fi

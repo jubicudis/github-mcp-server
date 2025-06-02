@@ -18,7 +18,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"strconv"
 	"sync"
 	"syscall"
@@ -57,18 +56,18 @@ type Config struct {
 
 // Global variables
 var (
-	config       Config
-	logger       *log.Logger
-	clients      = make(map[*Client]bool)
-	clientsMtx   sync.Mutex
-	broadcast    = make(chan []byte)
-	gitHubClient GitHubService
-	startTime    = time.Now() // Start time for uptime calculation
+	config            Config
+	logger            *log.Logger
+	clients           = make(map[*Client]bool)
+	clientsMtx        sync.Mutex
+	broadcast         = make(chan []byte)
+	gitHubClient      GitHubService
+	startTime         = time.Now() // Start time for uptime calculation
 	compressionBridge *mcp.CompressionBridge
 
 	// Track all HTTP servers for graceful shutdown
-	servers      []*http.Server
-	serversMtx   sync.Mutex
+	servers    []*http.Server
+	serversMtx sync.Mutex
 )
 
 // Client represents a connected websocket client
@@ -233,18 +232,12 @@ func main() {
 
 // Initialize logger
 func initLogger(config Config) *log.Logger {
-	// Get log directory from environment
-	logDir := getEnv("MCP_LOG_DIR", filepath.Join(os.Getenv("TNOS_ROOT"), "logs"))
-	if logDir == "" {
-		logDir = filepath.Join(os.Getenv("HOME"), "logs")
-	}
-
-	// Create log directory if it doesn't exist
-	if err := os.MkdirAll(logDir, 0755); err != nil {
+	// Use TNOS-compliant log path
+	logFilePath := "/systems/memory/github/short_term.log"
+	if err := os.MkdirAll("/systems/memory/github", 0755); err != nil {
 		fmt.Printf("Failed to create log directory: %v\n", err)
 	}
 
-	// Initialize logger
 	logger := log.NewLogger()
 
 	// Configure the logger based on the config
@@ -260,8 +253,6 @@ func initLogger(config Config) *log.Logger {
 		logger = logger.WithLevel(log.LevelInfo) // Default level
 	}
 
-	// Add file output if needed
-	logFilePath := filepath.Join(logDir, config.LogFile)
 	logFile, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err == nil {
 		logger = logger.WithOutput(logFile)
@@ -1352,13 +1343,13 @@ func handleBridge(w http.ResponseWriter, r *http.Request) {
 	// Create a bridge client for this WebSocket session
 	ctx := context.Background()
 	options := bridge.ConnectionOptions{
-		ServerURL:   "", // Not used for server-side
-		Timeout:     60 * time.Second,
-		MaxRetries:  0,
-		RetryDelay:  0,
-		Headers:     nil,
-		Context:     translations.ContextVector7D{Who: "BridgeServer", What: "Session", When: time.Now().Unix(), Where: "Layer6", Why: "WebSocket", How: "Upgrade", Extent: 1.0},
-		Logger:      logger,
+		ServerURL:  "", // Not used for server-side
+		Timeout:    60 * time.Second,
+		MaxRetries: 0,
+		RetryDelay: 0,
+		Headers:    nil,
+		Context:    translations.ContextVector7D{Who: "BridgeServer", What: "Session", When: time.Now().Unix(), Where: "Layer6", Why: "WebSocket", How: "Upgrade", Extent: 1.0},
+		Logger:     logger,
 	}
 	bridgeClient, err := bridge.NewBridgeMCPClient(ctx, options)
 	if err != nil {

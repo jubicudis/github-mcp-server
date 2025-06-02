@@ -157,6 +157,38 @@
 		"**/.venv": true,
 		"**/__pycache__": true,
 		"**/.git": true
+	},
+	"[javascript]": {
+		"editor.defaultFormatter": "esbenp.prettier-vscode",
+		"editor.formatOnSave": true
+	},
+	"[typescript]": {
+		"editor.defaultFormatter": "esbenp.prettier-vscode",
+		"editor.formatOnSave": true
+	},
+	"[json]": {
+		"editor.defaultFormatter": "esbenp.prettier-vscode"
+	},
+	"[shellscript]": {
+		"editor.defaultFormatter": "esbenp.prettier-vscode"
+	},
+	"[rust]": {
+		"editor.defaultFormatter": "esbenp.prettier-vscode",
+		"editor.formatOnSave": true
+	},
+	"eslint.enable": true,
+	"eslint.validate": ["javascript", "typescript"],
+	"prettier.requireConfig": false,
+	"prettier.enable": true,
+	"rust-analyzer.cargo.runBuildScripts": true,
+	"rust-analyzer.checkOnSave.command": "clippy",
+	"code-runner.executorMap": {
+		"go": "go run",
+		"python": "python3",
+		"javascript": "node",
+		"typescript": "ts-node",
+		"rust": "cargo run",
+		"shellscript": "bash"
 	}
 	// --- END PERFORMANCE & UI TUNING ---
 }

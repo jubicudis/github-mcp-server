@@ -19,7 +19,7 @@ import (
 )
 
 var (
-	helicalMemoryDir = filepath.Join("..", "..", "memory") // github-mcp-server/memory
+	helicalMemoryDir = "/systems/memory/github" // TNOS-compliant log directory
 	helicalShortTerm = "short_term.log"
 	helicalLongTerm  = "long_term.log"
 	helicalOnce      sync.Once
