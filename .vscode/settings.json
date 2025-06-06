@@ -92,7 +92,6 @@
 		"."
 	],
 	"python.defaultInterpreterPath": "/Users/Jubicudis/Tranquility-Neuro-OS/github-mcp-server/.venv/bin/python3.11",
-	"python.pythonPath": "/Users/Jubicudis/Tranquility-Neuro-OS/github-mcp-server/.venv/bin/python3.11",
 	
 	// MCP canonical port and endpoint settings for QHP
 	"mcp.tnos.port": 9001,

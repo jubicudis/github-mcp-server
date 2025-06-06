@@ -12,6 +12,7 @@ package github
 
 import (
 	"fmt"
+	models "github-mcp-server/pkg/models"
 )
 
 // Repository represents a GitHub repository
@@ -111,8 +112,7 @@ func (e *DetailedAPIError) Error() string {
 	return fmt.Sprintf("GitHub API error: %s (status: %d, request: %s)", e.Message, e.StatusCode, e.RequestID)
 }
 
-// User represents a GitHub user
-// Note: This extends the base User model from models.go with additional fields
+// ExtendedUser extends the base User model from models.
 type ExtendedUser struct {
 	// WHO: UserManager
 	// WHAT: Extended user data structure
@@ -122,13 +122,13 @@ type ExtendedUser struct {
 	// HOW: Using structured data
 	// EXTENT: Single user data
 
-	User           // Embed base User struct from models.go
+	models.User           // Embed base User struct from models.go
 	Following int  `json:"following"`
 	Followers int  `json:"followers"`
 	SiteAdmin bool `json:"site_admin"`
 }
 
-// ExtendedRepository represents a GitHub repository with extended information
+// ExtendedRepository embeds base Repository from models.
 type ExtendedRepository struct {
 	// WHO: RepoManager
 	// WHAT: Extended repository data structure
@@ -138,7 +138,7 @@ type ExtendedRepository struct {
 	// HOW: Using structured data
 	// EXTENT: Single repository data
 
-	Repository               // Embed base Repository struct from models.go
+	models.Repository               // Embed base Repository struct from models.go
 	ForksCount      int      `json:"forks_count"`
 	StargazersCount int      `json:"stargazers_count"`
 	WatchersCount   int      `json:"watchers_count"`
@@ -150,7 +150,7 @@ type ExtendedRepository struct {
 	HasWiki         bool     `json:"has_wiki"`
 }
 
-// ExtendedIssue represents a GitHub issue with extended information
+// ExtendedIssue embeds base Issue.
 type ExtendedIssue struct {
 	// WHO: IssueManager
 	// WHAT: Extended issue data structure
@@ -160,9 +160,9 @@ type ExtendedIssue struct {
 	// HOW: Using structured data
 	// EXTENT: Single issue data
 
-	Issue            // Embed base Issue struct from models.go
+	models.Issue            // Embed base Issue struct from models.go
 	Comments  int    `json:"comments"`
-	Assignees []User `json:"assignees"`
+	Assignees []models.User `json:"assignees"`
 	Labels    []struct {
 		Name        string `json:"name"`
 		Color       string `json:"color"`
@@ -176,7 +176,7 @@ type ExtendedIssue struct {
 	ClosedAt string `json:"closed_at"`
 }
 
-// PullRequest represents a GitHub pull request
+// PullRequest refers to models.PullRequest
 type PullRequest struct {
 	// WHO: PRManager
 	// WHAT: Base pull request data structure

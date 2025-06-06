@@ -16,8 +16,9 @@ import (
 	"net/url"
 	"time"
 
-	"github-mcp-server/pkg/log"
-	"github-mcp-server/pkg/translations"
+	"github.com/jubicudis/github-mcp-server/pkg/common"
+	"github.com/jubicudis/github-mcp-server/pkg/log"
+	"github.com/jubicudis/github-mcp-server/pkg/translations"
 
 	"github.com/gorilla/websocket"
 )

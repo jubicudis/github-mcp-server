@@ -1,9 +1,0 @@
-{"who":"setup_dev_env.sh","what":"startup","when":1748319421,"where":"github-mcp-server","why":"init","how":"shell","extent":"full","ts":1748319421,"msg":"Canonical startup script invoked."}
-{"who":"setup_dev_env.sh","what":"start_all_mcp","when":1748319421,"where":"github-mcp-server","why":"start","how":"shell","extent":"full","ts":1748319421,"msg":"Starting all MCP components."}
-{"who":"setup_dev_env.sh","what":"start_all_mcp","when":1748319425,"where":"github-mcp-server","why":"build","how":"go","extent":"full","ts":1748319425,"msg":"Building GitHub MCP Server."}
-{"who":"MCPServer","what":"startup","when":1748319733,"where":"github-mcp-server","why":"init","how":"GoMain","extent":"full","ts":1748319733,"msg":"GitHub MCP Server starting up"}
-{"who":"setup_dev_env.sh","what":"startup","when":1748344528,"where":"github-mcp-server","why":"init","how":"shell","extent":"full","ts":1748344528,"msg":"Canonical startup script invoked."}
-{"who":"setup_dev_env.sh","what":"start_all_mcp","when":1748344529,"where":"github-mcp-server","why":"start","how":"shell","extent":"full","ts":1748344529,"msg":"Starting all MCP components."}
-{"who":"MCPServer","what":"shutdown","when":1748344531,"where":"github-mcp-server","why":"signal","how":"GoMain","extent":"full","ts":1748344531,"msg":"Received termination signal: terminated"}
-{"who":"MCPServer","what":"shutdown_complete","when":1748344531,"where":"github-mcp-server","why":"shutdown","how":"GoMain","extent":"full","ts":1748344531,"msg":"Server shutdown complete"}
-{"who":"setup_dev_env.sh","what":"start_all_mcp","when":1748344533,"where":"github-mcp-server","why":"build","how":"go","extent":"full","ts":1748344533,"msg":"Building GitHub MCP Server."}

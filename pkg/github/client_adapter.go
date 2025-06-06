@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	models "github-mcp-server/pkg/models"
 	"github-mcp-server/pkg/translations"
 )
 
@@ -239,7 +240,7 @@ func (a *ClientCompatibilityAdapter) GetRepository(owner, repo string) (*Reposit
 }
 
 // GetFileContent returns the content of a file from a GitHub repository
-func (a *ClientCompatibilityAdapter) GetFileContent(owner, repo, path, ref string) (*RepoContent, error) {
+func (a *ClientCompatibilityAdapter) GetFileContent(owner, repo, path, ref string) (*models.RepoContent, error) {
 	// WHO: ContentRetriever
 	// WHAT: Get file content
 	// WHEN: During content operations
@@ -272,7 +273,7 @@ func (a *ClientCompatibilityAdapter) GetFileContent(owner, repo, path, ref strin
 
 		// Use advanced client to get file content
 		// This is a placeholder for the actual implementation
-		return &RepoContent{
+		return &models.RepoContent{
 			Name:    path,
 			Path:    path,
 			SHA:     "abc123",
@@ -288,7 +289,7 @@ func (a *ClientCompatibilityAdapter) GetFileContent(owner, repo, path, ref strin
 	}
 
 	// Create a content object manually for now
-	content := &RepoContent{
+	content := &models.RepoContent{
 		Name:     path,
 		Path:     path,
 		SHA:      "abc123",
@@ -300,7 +301,7 @@ func (a *ClientCompatibilityAdapter) GetFileContent(owner, repo, path, ref strin
 }
 
 // ListRepositoryContents lists the contents of a directory in a GitHub repository
-func (a *ClientCompatibilityAdapter) ListRepositoryContents(owner, repo, path, ref string) ([]*DirectoryEntry, error) {
+func (a *ClientCompatibilityAdapter) ListRepositoryContents(owner, repo, path, ref string) ([]*models.DirectoryEntry, error) {
 	// WHO: DirectoryLister
 	// WHAT: List directory contents
 	// WHEN: During content operations
@@ -332,7 +333,7 @@ func (a *ClientCompatibilityAdapter) ListRepositoryContents(owner, repo, path, r
 
 		// Use advanced client to list contents
 		// This is a placeholder for the actual implementation
-		return []*DirectoryEntry{
+		return []*models.DirectoryEntry{
 			{
 				Name: "file1.txt",
 				Path: path + "/file1.txt",
@@ -354,7 +355,7 @@ func (a *ClientCompatibilityAdapter) ListRepositoryContents(owner, repo, path, r
 	}
 
 	// Create directory entries manually for now
-	entries := []*DirectoryEntry{
+	entries := []*models.DirectoryEntry{
 		{
 			Name: "file1.txt",
 			Path: path + "/file1.txt",
