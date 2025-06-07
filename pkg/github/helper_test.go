@@ -9,12 +9,9 @@ package github
 
 import (
 	"context"
-	"encoding/json"
-	"net/http"
 	"testing"
 
-	"github.com/google/go-github/v49/github"
-	mcp_go "github.com/mark3labs/mcp-go/mcp"
+	"github.com/google/go-github/v71/github"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -40,100 +37,6 @@ func stubGetClientFn(client *Client) GetClientFn {
 	return func(context.Context) (*github.Client, error) {
 		return githubClient, nil
 	}
-}
-
-// WHO: TestUtility
-// WHAT: GitHub API client factory for tests
-// WHEN: During test setup
-// WHERE: Test execution context
-// WHY: To provide mock clients with consistent interface
-// HOW: Using httpclient wrapping
-// EXTENT: For all GitHub API test cases
-func NewTestClient(httpClient *http.Client) *github.Client {
-	if httpClient == nil {
-		httpClient = http.DefaultClient
-	}
-	return github.NewClient(httpClient)
-}
-
-// expectQueryParams is a helper function to create a partial mock that expects a
-// request with the given query parameters, with the ability to chain a response handler.
-func expectQueryParams(t *testing.T, expectedQueryParams map[string]string) *partialMock {
-	// WHO: TestUtility
-	// WHAT: Query parameter validation
-	// WHEN: During HTTP request testing
-	// WHERE: Mock HTTP handler
-	// WHY: To validate request parameters
-	// HOW: Using request inspection
-	// EXTENT: For all HTTP param tests
-	return &partialMock{
-		t:                   t,
-		expectedQueryParams: expectedQueryParams,
-	}
-}
-
-// expectRequestBody is a helper function to create a partial mock that expects a
-// request with the given body, with the ability to chain a response handler.
-func expectRequestBody(t *testing.T, expectedRequestBody any) *partialMock {
-	return &partialMock{
-		t:                   t,
-		expectedRequestBody: expectedRequestBody,
-	}
-}
-
-type partialMock struct {
-	t                   *testing.T
-	expectedQueryParams map[string]string
-	expectedRequestBody any
-}
-
-func (p *partialMock) andThen(responseHandler http.HandlerFunc) http.HandlerFunc {
-	p.t.Helper()
-	return func(w http.ResponseWriter, r *http.Request) {
-		if p.expectedRequestBody != nil {
-			var unmarshaledRequestBody any
-			err := json.NewDecoder(r.Body).Decode(&unmarshaledRequestBody)
-			require.NoError(p.t, err)
-
-			require.Equal(p.t, p.expectedRequestBody, unmarshaledRequestBody)
-		}
-
-		if p.expectedQueryParams != nil {
-			require.Equal(p.t, len(p.expectedQueryParams), len(r.URL.Query()))
-			for k, v := range p.expectedQueryParams {
-				require.Equal(p.t, v, r.URL.Query().Get(k))
-			}
-		}
-
-		responseHandler(w, r)
-	}
-}
-
-// mockResponse is a helper function to create a mock HTTP response handler
-// that returns a specified status code and marshaled body.
-func mockResponse(t *testing.T, code int, body interface{}) http.HandlerFunc {
-	t.Helper()
-	return func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(code)
-		b, err := json.Marshal(body)
-		require.NoError(t, err)
-		_, _ = w.Write(b)
-	}
-}
-
-// Use testutil.CreateMCPRequest instead of this local function
-
-// getTextResult is a helper function that returns a text result from a tool call.
-func getTextResult(t *testing.T, result *mcp_go.CallToolResult) string {
-	t.Helper()
-	assert.NotNil(t, result)
-	assert.NotEmpty(t, result.Content, "CallToolResult has no content")
-
-	// In a real implementation, we would extract text from various content types
-	// But for our tests, we'll marshal the content as JSON and return that
-	contentJson, err := json.Marshal(result.Content[0])
-	require.NoError(t, err)
-	return string(contentJson)
 }
 
 // WHO: TestUtility

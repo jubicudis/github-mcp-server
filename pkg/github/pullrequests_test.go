@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/go-github/v49/github"
+	"github.com/google/go-github/v71/github"
 	"github.com/migueleliasweb/go-github-mock/src/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -1010,8 +1010,8 @@ func TestGetPullRequestComments(t *testing.T) {
 			Path:      testutil.Ptr(prFile1),
 			Position:  testutil.Ptr(5),
 			CommitID:  testutil.Ptr(prCommitID),
-			CreatedAt: testutil.Ptr(time.Now().Add(-24 * time.Hour)),
-			UpdatedAt: testutil.Ptr(time.Now().Add(-24 * time.Hour)),
+			CreatedAt: testutil.Ptr(github.Timestamp{Time: time.Now().Add(-24 * time.Hour)}),
+			UpdatedAt: testutil.Ptr(github.Timestamp{Time: time.Now().Add(-24 * time.Hour)}),
 		},
 		{
 			ID:      testutil.Ptr(int64(102)),
@@ -1023,8 +1023,8 @@ func TestGetPullRequestComments(t *testing.T) {
 			Path:      testutil.Ptr(prFile2),
 			Position:  testutil.Ptr(10),
 			CommitID:  testutil.Ptr(prCommitID),
-			CreatedAt: testutil.Ptr(time.Now().Add(-12 * time.Hour)),
-			UpdatedAt: testutil.Ptr(time.Now().Add(-12 * time.Hour)),
+			CreatedAt: testutil.Ptr(github.Timestamp{Time: time.Now().Add(-12 * time.Hour)}),
+			UpdatedAt: testutil.Ptr(github.Timestamp{Time: time.Now().Add(-12 * time.Hour)}),
 		},
 	}
 
@@ -1136,7 +1136,7 @@ func TestGetPullRequestReviews(t *testing.T) {
 				Login: testutil.Ptr(prApprover),
 			},
 			CommitID:    testutil.Ptr(prCommitID),
-			SubmittedAt: testutil.Ptr(time.Now().Add(-24 * time.Hour)),
+			SubmittedAt: testutil.Ptr(github.Timestamp{Time: time.Now().Add(-24 * time.Hour)}),
 		},
 		{
 			ID:      testutil.Ptr(int64(202)),
@@ -1147,7 +1147,7 @@ func TestGetPullRequestReviews(t *testing.T) {
 				Login: testutil.Ptr(prReviewer),
 			},
 			CommitID:    testutil.Ptr(prCommitID),
-			SubmittedAt: testutil.Ptr(time.Now().Add(-12 * time.Hour)),
+			SubmittedAt: testutil.Ptr(github.Timestamp{Time: time.Now().Add(-12 * time.Hour)}),
 		},
 	}
 
@@ -1262,7 +1262,7 @@ func TestCreatePullRequestReview(t *testing.T) {
 			Login: testutil.Ptr(prReviewer),
 		},
 		CommitID:    testutil.Ptr(prCommitID),
-		SubmittedAt: testutil.Ptr(time.Now()),
+		SubmittedAt: testutil.Ptr(github.Timestamp{Time: time.Now()}),
 	}
 
 	tests := []struct {

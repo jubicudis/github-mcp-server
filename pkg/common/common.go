@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	githubapi "github.com/google/go-github/v49/github"
+	githubapi "github.com/google/go-github/v71/github"
 	"github.com/gorilla/websocket"
 	"github.com/mark3labs/mcp-go/mcp"
 )
@@ -101,8 +101,6 @@ var (
 )
 
 // ========== From github/common.go ==========
-// Ptr returns a pointer to any value.
-func Ptr[T any](v T) *T { return &v }
 
 type StringTranslationFunc func(key, defaultValue string) string
 
@@ -120,10 +118,21 @@ func OptionalParamOK[T any](r mcp.CallToolRequest, p string) (value T, ok bool, 
     return
 }
 
-func RequiredParam[T comparable](r mcp.CallToolRequest, p string) (T, error) { var zero T; v, ok := r.Params.Arguments[p]; if !ok { return zero, fmt.Errorf("missing required parameter: %s", p) }; if vv, ok2 := v.(T); !ok2 || vv == zero { return zero, fmt.Errorf("invalid parameter: %s", p) }; return vv, nil }
+func RequiredParam[T comparable](r mcp.CallToolRequest, p string) (T, error) { 
+    var zero T
+    v, ok := r.Params.Arguments[p]
+    if !ok {
+        return zero, fmt.Errorf("missing required parameter: %s", p)
+    }
+    value, ok2 := v.(T)
+    if !ok2 || value == zero {
+        return zero, fmt.Errorf("invalid parameter: %s", p)
+    }
+    return value, nil
+}
 
 func RequiredIntParam(r mcp.CallToolRequest, p string) (int, error) { v, err := RequiredParam[float64](r, p); if err != nil { return 0, err }; return int(v), nil }
-func OptionalIntParam(r mcp.CallToolRequest, p string) (int, error) { v, err := OptionalParamOK[float64](r, p); return int(v), err }
+func OptionalIntParam(r mcp.CallToolRequest, p string) (int, error) { v, _, err := OptionalParamOK[float64](r, p); return int(v), err }
 func OptionalIntParamWithDefault(r mcp.CallToolRequest, p string, d int) (int, error) { v, err := OptionalIntParam(r, p); if err != nil { return 0, err }; if v == 0 { return d, nil }; return v, nil }
 
 func isAcceptedError(err error) bool { var acceptedError *githubapi.AcceptedError; return errors.As(err, &acceptedError) }
@@ -175,7 +184,66 @@ const (
 	TestBridgeAddress = "localhost:9000"
 )
 
-func ToJSONTest(v interface{}) (string, error) { return json.Marshal(v) }
+func ToJSONTest(v interface{}) (string, error) { b, err := json.Marshal(v); return string(b), err }
 func FromJSONTest(data string, v interface{}) error { return json.Unmarshal([]byte(data), v) }
 func NewTestContext() (context.Context, context.CancelFunc) { return context.WithTimeout(context.Background(), TestTimeout) }
 func ErrorsEqual(err1, err2 error) bool { if err1 == nil && err2 == nil { return true }; if err1 == nil || err2 == nil { return false }; return err1.Error() == err2.Error() }
+
+// ========== Generic Map Helper Functions ==========
+
+// GetString retrieves a string value from a map with a default fallback
+func GetString(m map[string]interface{}, key, defaultValue string) string {
+	if m == nil {
+		return defaultValue
+	}
+	
+	if val, ok := m[key]; ok {
+		if str, ok := val.(string); ok {
+			return str
+		}
+	}
+	return defaultValue
+}
+
+// GetInt64 retrieves an int64 value from a map with a default fallback
+func GetInt64(m map[string]interface{}, key string, defaultValue int64) int64 {
+	if m == nil {
+		return defaultValue
+	}
+	
+	if val, ok := m[key]; ok {
+		switch v := val.(type) {
+		case int64:
+			return v
+		case int:
+			return int64(v)
+		case float64:
+			return int64(v)
+		}
+	}
+	return defaultValue
+}
+
+// GetFloat64 retrieves a float64 value from a map with a default fallback
+func GetFloat64(m map[string]interface{}, key string, defaultValue float64) float64 {
+	if m == nil {
+		return defaultValue
+	}
+	
+	if val, ok := m[key]; ok {
+		switch v := val.(type) {
+		case float64:
+			return v
+		case int:
+			return float64(v)
+		case int64:
+			return float64(v)
+		}
+	}
+	return defaultValue
+}
+
+// Ptr is a convenience function for creating a pointer to a value
+func Ptr[T any](v T) *T {
+	return &v
+}

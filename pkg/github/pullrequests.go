@@ -9,10 +9,13 @@ import (
 
 	"github-mcp-server/pkg/translations"
 
-	"github.com/google/go-github/v49/github"
+	"github.com/google/go-github/v71/github"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
+
+// GetClientFn is a function type for getting GitHub clients
+type GetClientFn func(ctx context.Context) (*github.Client, error)
 
 // GetPullRequest creates a tool to get details of a specific pull request.
 func GetPullRequest(getClient GetClientFn, t translations.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {

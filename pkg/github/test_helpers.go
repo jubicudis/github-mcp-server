@@ -10,29 +10,23 @@
 package github
 
 import (
-	"encoding/json"
 	"testing"
 
+	"github-mcp-server/pkg/github/testutil"
+
 	"github.com/mark3labs/mcp-go/mcp"
-	"github.com/stretchr/testify/require"
 )
 
-// Ptr function is now defined in common.go
+// Ptr function is now defined in common.go and testutil package
 
 // CreateTestTranslateFunc returns a simple translation function for tests
+// This is a wrapper around testutil.CreateTestTranslateFuncSimple for backward compatibility
 func CreateTestTranslateFunc() func(key string, defaultValue string) string {
-	return func(key string, defaultValue string) string {
-		return key // Just return the key for testing
-	}
+	return testutil.CreateTestTranslateFuncSimple()
 }
 
 // GetTextContent extracts text content from an MCP result
+// This is a wrapper around testutil.GetTextContent for backward compatibility
 func GetTextContent(t *testing.T, result *mcp.CallToolResult) string {
-	require.NotNil(t, result)
-	require.NotEmpty(t, result.Content, "CallToolResult has no content")
-
-	// For testing purposes, we'll convert the first content item to JSON
-	contentJSON, err := json.Marshal(result.Content[0])
-	require.NoError(t, err)
-	return string(contentJSON)
+	return testutil.GetTextContent(t, result)
 }

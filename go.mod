@@ -7,7 +7,7 @@
 // EXTENT: All package imports in GitHub MCP server
 module github-mcp-server
 
-go 1.24.3
+go 1.24.4
 
 require (
 	github.com/docker/docker v28.0.4+incompatible
@@ -71,7 +71,6 @@ require (
 	go.opentelemetry.io/otel/trace v1.35.0 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.9.0 // indirect
-	golang.org/x/crypto v0.32.0 // indirect
 	golang.org/x/sys v0.30.0 // indirect
 	golang.org/x/text v0.22.0 // indirect
 	golang.org/x/time v0.8.0 // indirect
