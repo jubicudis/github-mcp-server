@@ -12,8 +12,11 @@ package github
 
 import (
 	"context"
+	"errors"
+	"fmt"
 
 	"github.com/google/go-github/v71/github"
+	"github.com/mark3labs/mcp-go/mcp"
 )
 
 // API endpoint constants
@@ -203,3 +206,115 @@ const (
 
 // GetClientFn is a function type for getting GitHub clients
 type GetClientFn func(ctx context.Context) (*github.Client, error)
+
+// Ptr returns a pointer to any value - utility for creating pointers to values
+func Ptr[T any](v T) *T { return &v }
+
+// OptionalParamOK retrieves an optional parameter with type checking
+func OptionalParamOK[T any](r mcp.CallToolRequest, p string) (value T, ok bool, err error) {
+    val, exists := r.Params.Arguments[p]
+    if !exists { return }
+    value, ok = val.(T)
+    if !ok { err = fmt.Errorf("parameter %s is not of type %T, is %T", p, value, val); ok = true }
+    return
+}
+
+// OptionalParam retrieves an optional parameter
+func OptionalParam[T any](r mcp.CallToolRequest, p string) (value T, _ error) {
+    v, _, err := OptionalParamOK[T](r, p)
+    return v, err
+}
+
+// RequiredParam retrieves a required parameter with error handling
+func RequiredParam[T comparable](r mcp.CallToolRequest, p string) (T, error) { 
+    var zero T
+    v, ok := r.Params.Arguments[p]
+    if !ok {
+        return zero, fmt.Errorf("missing required parameter: %s", p)
+    }
+    value, ok2 := v.(T)
+    if !ok2 || value == zero {
+        return zero, fmt.Errorf("invalid parameter: %s", p)
+    }
+    return value, nil
+}
+
+// RequiredInt retrieves a required integer parameter directly
+func RequiredInt(r mcp.CallToolRequest, p string) (int, error) {
+    v, err := RequiredParam[float64](r, p)
+    if err != nil {
+        return 0, err
+    }
+    return int(v), nil
+}
+
+// RequiredIntParam retrieves a required integer parameter
+func RequiredIntParam(r mcp.CallToolRequest, p string) (int, error) { 
+    v, err := RequiredParam[float64](r, p) 
+    if err != nil { return 0, err }
+    return int(v), nil 
+}
+
+// OptionalInt retrieves an optional integer parameter
+func OptionalInt(r mcp.CallToolRequest, p string) (int, bool, error) { 
+    v, ok, err := OptionalParamOK[float64](r, p) 
+    if err != nil || !ok { return 0, ok, err }
+    return int(v), ok, nil 
+}
+
+// OptionalIntParam gets an optional integer parameter
+func OptionalIntParam(r mcp.CallToolRequest, p string) (int, error) { 
+    v, _, err := OptionalParamOK[float64](r, p)
+    return int(v), err 
+}
+
+// OptionalIntParamWithDefault gets an optional integer parameter with default
+func OptionalIntParamWithDefault(r mcp.CallToolRequest, p string, d int) (int, error) { 
+    v, err := OptionalIntParam(r, p)
+    if err != nil { return 0, err }
+    if v == 0 { return d, nil }
+    return v, nil 
+}
+
+// WithPagination adds pagination parameters to a tool
+func WithPagination(t mcp.Tool) mcp.Tool {
+    return t.WithNumber("page", 
+            mcp.Description("Page number for pagination")).
+        WithNumber("per_page", 
+            mcp.Description("Number of results per page"))
+}
+
+// OptionalPaginationParams gets pagination parameters
+func OptionalPaginationParams(r mcp.CallToolRequest) (*github.ListOptions, error) {
+    opts := &github.ListOptions{}
+    
+    page, hasPage, err := OptionalInt(r, "page")
+    if err != nil {
+        return nil, fmt.Errorf("invalid page parameter: %w", err)
+    }
+    
+    perPage, hasPerPage, err := OptionalInt(r, "per_page")
+    if err != nil {
+        return nil, fmt.Errorf("invalid per_page parameter: %w", err)
+    }
+    
+    if hasPage {
+        opts.Page = page
+    } else {
+        opts.Page = 1 // Default
+    }
+    
+    if hasPerPage {
+        opts.PerPage = perPage
+    } else {
+        opts.PerPage = 30 // Default
+    }
+    
+    return opts, nil
+}
+
+// isAcceptedError checks if error is an AcceptedError
+func isAcceptedError(err error) bool { 
+    var acceptedError *github.AcceptedError
+    return errors.As(err, &acceptedError) 
+}

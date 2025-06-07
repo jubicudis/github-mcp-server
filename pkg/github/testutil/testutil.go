@@ -15,10 +15,18 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/google/go-github/v49/github"
+	"github-mcp-server/pkg/common"
+
+	"github.com/google/go-github/v71/github"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/stretchr/testify/require"
 )
+
+// NullTranslationHelperFunc returns a null translation helper function
+// This bridges between the TranslationHelper interface and TranslationHelperFunc type
+func NullTranslationHelperFunc(key string, defaultValue string) string {
+	return defaultValue
+}
 
 // StubGetClientFn returns a function that returns the provided client, useful for testing
 func StubGetClientFn(client *github.Client) func(context.Context) (*github.Client, error) {
@@ -26,8 +34,6 @@ func StubGetClientFn(client *github.Client) func(context.Context) (*github.Clien
 		return client, nil
 	}
 }
-
-// Note: StubGetClientWithTokenFn is defined in test_helpers.go
 
 // StubGetClientFnForCustomClient creates a GetClientFn that works with any type that provides the client interface
 func StubGetClientFnForCustomClient(client interface{}) func(context.Context) (*github.Client, error) {
@@ -62,6 +68,14 @@ func CreateTestTranslateFunc() TranslateFunc {
 	}
 }
 
+// CreateTestTranslateFuncSimple returns a simple translation helper function
+// Compatible with translations.TranslationHelperFunc signature
+func CreateTestTranslateFuncSimple() func(key string, defaultValue string) string {
+	return func(key string, defaultValue string) string {
+		return key // Just return the key for testing
+	}
+}
+
 // CreateMCPRequest creates an MCP request with the provided arguments
 func CreateMCPRequest(args map[string]interface{}) mcp.CallToolRequest {
 	req := mcp.CallToolRequest{}
@@ -85,9 +99,22 @@ func GetTextResult(t *testing.T, result *mcp.CallToolResult) string {
 	return ""
 }
 
-// Ptr returns a pointer to the provided value
-func Ptr[T any](v T) *T {
-	return &v
+// GetTextContent extracts text content from an MCP result and converts to JSON
+// This is an alternative to GetTextResult that returns JSON-formatted content
+func GetTextContent(t *testing.T, result *mcp.CallToolResult) string {
+	require.NotNil(t, result)
+	require.NotEmpty(t, result.Content, "CallToolResult has no content")
+
+	// For testing purposes, we'll convert the first content item to JSON
+	contentJSON, err := json.Marshal(result.Content[0])
+	require.NoError(t, err)
+	return string(contentJSON)
+}
+
+// PtrTo is a convenience function for creating a pointer to a value
+// Imported from pkg/common/common.go but renamed to avoid generic issue
+func PtrTo[T any](v T) *T {
+	return common.Ptr(v)
 }
 
 // QueryParamMatcher is a middleware that matches query parameters
@@ -123,8 +150,8 @@ func (m *QueryParamMatcher) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// ExpectQueryParams creates a middleware that validates query parameters
-func ExpectQueryParams(t *testing.T, expected map[string]string) *QueryParamMatcher {
+// CreateQueryParamExpectation creates a middleware that validates query parameters
+func CreateQueryParamExpectation(t *testing.T, expected map[string]string) *QueryParamMatcher {
 	return CreateQueryParamMatcher(t, expected)
 }
 
@@ -155,4 +182,58 @@ func MockResponse(t *testing.T, statusCode int, body interface{}) http.Handler {
 	}
 
 	return http.HandlerFunc(handler)
+}
+
+// NewTestClient creates a GitHub client for testing
+func NewTestClient(httpClient *http.Client) *github.Client {
+	if httpClient == nil {
+		httpClient = http.DefaultClient
+	}
+	return github.NewClient(httpClient)
+}
+
+// PartialMock is a utility for creating mock HTTP handlers with expectations
+type PartialMock struct {
+	T                   *testing.T
+	ExpectedQueryParams map[string]string
+	ExpectedRequestBody any
+}
+
+// ExpectQueryParams creates a PartialMock with expected query parameters
+func ExpectQueryParams(t *testing.T, expectedQueryParams map[string]string) *PartialMock {
+	return &PartialMock{
+		T:                   t,
+		ExpectedQueryParams: expectedQueryParams,
+	}
+}
+
+// ExpectRequestBody creates a PartialMock with an expected request body
+func ExpectRequestBody(t *testing.T, expectedRequestBody any) *PartialMock {
+	return &PartialMock{
+		T:                   t,
+		ExpectedRequestBody: expectedRequestBody,
+	}
+}
+
+// AndThen chains a response handler to the PartialMock after validating expectations
+func (p *PartialMock) AndThen(responseHandler http.HandlerFunc) http.HandlerFunc {
+	p.T.Helper()
+	return func(w http.ResponseWriter, r *http.Request) {
+		if p.ExpectedRequestBody != nil {
+			var unmarshaledRequestBody any
+			err := json.NewDecoder(r.Body).Decode(&unmarshaledRequestBody)
+			require.NoError(p.T, err)
+
+			require.Equal(p.T, p.ExpectedRequestBody, unmarshaledRequestBody)
+		}
+
+		if p.ExpectedQueryParams != nil {
+			require.Equal(p.T, len(p.ExpectedQueryParams), len(r.URL.Query()))
+			for k, v := range p.ExpectedQueryParams {
+				require.Equal(p.T, v, r.URL.Query().Get(k))
+			}
+		}
+
+		responseHandler(w, r)
+	}
 }

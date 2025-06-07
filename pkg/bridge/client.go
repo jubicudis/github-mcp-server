@@ -14,36 +14,36 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"sync"
 	"time"
 
-	"github.com/jubicudis/github-mcp-server/pkg/common"
-	"github.com/jubicudis/github-mcp-server/pkg/log"
-	"github.com/jubicudis/github-mcp-server/pkg/translations"
+	"github-mcp-server/pkg/common"
+	"github-mcp-server/pkg/log"
+	"github-mcp-server/pkg/translations"
 
 	"github.com/gorilla/websocket"
 )
 
 // DefaultProtocolVersion and other protocol constants are defined in common.go
 
-// Message is imported from common.go
-// Representing a message sent over the bridge
-
-// Use Message type from common.go instead of defining a separate ClientMessage type
-
-// BridgeStats is imported from common.go
-// WHO: StatsCollector
-// WHAT: Bridge operational statistics
-
-// ConnectionOptions is imported from common.go
-// Containing options for connecting to the bridge
-
-// Client is already defined in common.go
-// The methods in this file operate on the common Client type
-
-// Remove local port constants; use those from common.go
+// Bridge is our own client implementation that wraps the common.Client
+type Bridge struct {
+	conn       *websocket.Conn
+	options    common.ConnectionOptions
+	state      common.ConnectionState
+	mutex      sync.RWMutex
+	mu         sync.Mutex
+	stats      common.BridgeStats
+	ctx        context.Context
+	cancelFunc context.CancelFunc
+	logger     *log.Logger
+	messages   chan common.Message
+	connected  bool        // Flag to track connection status
+	sessionKey string      // Session key from handshake
+}
 
 // NewClient creates a new bridge client with the given options
-func NewClient(ctx context.Context, options ConnectionOptions) (*Client, error) {
+func NewClient(ctx context.Context, options common.ConnectionOptions) (*Bridge, error) {
 	// WHO: ClientFactory
 	// WHAT: Create bridge client
 	// WHEN: During client initialization
@@ -56,33 +56,35 @@ func NewClient(ctx context.Context, options ConnectionOptions) (*Client, error) 
 
 	// Use a basic logger if log package is missing
 	var logger *log.Logger
-	if options.Logger != nil {
-		logger = options.Logger
+	if loggerInterface, ok := options.Logger.(*log.Logger); ok {
+		logger = loggerInterface
 	} else {
 		logger = log.NewLogger() // fallback to default logger
 	}
 
 	// Ensure context is initialized
-	if options.Context.Who == "" {
-		options.Context = translations.ContextVector7D{
-			Who:    "BridgeClient",
-			What:   "Connection",
-			When:   time.Now().Unix(),
-			Where:  "SystemLayer6",
-			Why:    "Communication",
-			How:    "WebSocket",
-			Extent: 1.0,
-			Source: "GitHubMCPServer",
+	if options.Context == nil {
+		// Create a default context
+		options.Context = map[string]interface{}{
+			"who":    "BridgeClient",
+			"what":   "Connection",
+			"when":   time.Now().Unix(),
+			"where":  "SystemLayer6",
+			"why":    "Communication",
+			"how":    "WebSocket",
+			"extent": 1.0,
+			"source": "GitHubMCPServer",
 		}
 	}
 
-	client := &Client{
+	client := &Bridge{
 		ctx:        clientCtx,
 		cancelFunc: cancel,
 		options:    options,
 		logger:     logger,
-		messages:   make(chan Message, 100),
-		stats:      BridgeStats{},
+		messages:   make(chan common.Message, common.MessageBufferSize),
+		stats:      common.BridgeStats{},
+		state:      common.StateDisconnected,
 	}
 
 	err := client.connect()
@@ -97,7 +99,7 @@ func NewClient(ctx context.Context, options ConnectionOptions) (*Client, error) 
 }
 
 // connect establishes a WebSocket connection to the bridge
-func (c *Client) connect() error {
+func (c *Bridge) connect() error {
 	// WHO: ConnectionManager
 	// WHAT: Establish WebSocket connection with fallback
 	// WHEN: During client (re)connection
@@ -151,13 +153,13 @@ func (c *Client) connect() error {
 		return c.tryConnect(CopilotURL)
 	}
 
-	context7d := c.options.Context
+	contextMap := c.options.Context
 	operationName := "Connect"
 	ctx := c.ctx
 	_, err := FallbackRoute(
 		ctx,
 		operationName,
-		context7d,
+		contextMap,
 		primaryFn, // TNOS MCP (primary)
 		bridgeFallback,
 		githubMCPFallback,
@@ -171,7 +173,7 @@ func (c *Client) connect() error {
 }
 
 // Helper for QHP handshake (shared for all fallback routes)
-func (c *Client) performQHPHandshake(conn *websocket.Conn) error {
+func (c *Bridge) performQHPHandshake(conn *websocket.Conn) error {
 	fingerprint := ""
 	if c.options.Credentials != nil {
 		if val, ok := c.options.Credentials["fingerprint"]; ok {
@@ -237,7 +239,7 @@ func (c *Client) performQHPHandshake(conn *websocket.Conn) error {
 }
 
 // tryConnect attempts a WebSocket connection to the given URL and updates the client state
-func (c *Client) tryConnect(serverURL string) (interface{}, error) {
+func (c *Bridge) tryConnect(serverURL string) (interface{}, error) {
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 	if c.connected && c.conn != nil {
@@ -281,7 +283,7 @@ func (c *Client) tryConnect(serverURL string) (interface{}, error) {
 }
 
 // Receive returns the next message from the bridge
-func (c *Client) Receive() (Message, error) {
+func (c *Bridge) Receive() (common.Message, error) {
 	// WHO: MessageReceiver
 	// WHAT: Receive bridge messages
 	// WHEN: During message processing
@@ -293,16 +295,16 @@ func (c *Client) Receive() (Message, error) {
 	select {
 	case msg, ok := <-c.messages:
 		if !ok {
-			return Message{}, ErrConnectionClosed
+			return common.Message{}, ErrConnectionClosed
 		}
 		return msg, nil
 	case <-c.ctx.Done():
-		return Message{}, c.ctx.Err()
+		return common.Message{}, c.ctx.Err()
 	}
 }
 
 // Send sends a message to the bridge
-func (c *Client) Send(msg Message) error {
+func (c *Bridge) Send(msg common.Message) error {
 	// WHO: MessageSender
 	// WHAT: Send bridge messages with fallback and compression
 	// WHEN: During message transmission
@@ -311,7 +313,7 @@ func (c *Client) Send(msg Message) error {
 	// HOW: Using FallbackRoute and FormulaRegistry
 	// EXTENT: All message sends
 
-	context7d := c.options.Context
+	contextMap := c.options.Context
 	operationName := "SendMessage"
 	ctx := c.ctx
 	fallbackSend := func() (interface{}, error) {
@@ -320,8 +322,11 @@ func (c *Client) Send(msg Message) error {
 		if !c.connected || c.conn == nil {
 			return nil, ErrBridgeNotConnected
 		}
-		if msg.Context == nil && c.options.Context.Who != "" {
-			msg.Context = c.options.Context
+		if msg.Context == nil && c.options.Context != nil {
+			// Check if who key exists in the context map
+			if _, ok := c.options.Context["who"]; ok {
+				msg.Context = c.options.Context
+			}
 		}
 		// Compression logic can be added here if needed, using shared utilities
 		data, err := json.Marshal(msg)
@@ -346,7 +351,7 @@ func (c *Client) Send(msg Message) error {
 	_, err := FallbackRoute(
 		ctx,
 		operationName,
-		context7d,
+		contextMap,
 		fallbackSend,
 		func() (interface{}, error) { return nil, fmt.Errorf("Bridge fallback not implemented") },
 		func() (interface{}, error) { return nil, fmt.Errorf("GitHub MCP fallback not implemented") },
@@ -357,7 +362,7 @@ func (c *Client) Send(msg Message) error {
 }
 
 // readPump continuously reads messages from the WebSocket
-func (c *Client) readPump() {
+func (c *Bridge) readPump() {
 	// WHO: MessagePump
 	// WHAT: Read WebSocket messages
 	// WHEN: During connection lifetime
@@ -403,7 +408,7 @@ func (c *Client) readPump() {
 			return
 		}
 
-		var msg Message
+		var msg common.Message
 		if err := json.Unmarshal(data, &msg); err != nil {
 			c.logger.Error("Failed to unmarshal message", "error", err.Error())
 			c.stats.ErrorCount++
@@ -438,7 +443,7 @@ func (c *Client) readPump() {
 }
 
 // reconnect attempts to reestablish the WebSocket connection
-func (c *Client) reconnect() {
+func (c *Bridge) reconnect() {
 	// WHO: ReconnectionManager
 	// WHAT: Reconnect to bridge with fallback
 	// WHEN: During connection loss
@@ -455,14 +460,14 @@ func (c *Client) reconnect() {
 	if retryDelay <= 0 {
 		retryDelay = 2 * time.Second
 	}
-	context7d := c.options.Context
+	contextMap := c.options.Context
 	operationName := "Reconnect"
 	ctx := c.ctx
 	for i := 0; i < maxRetries; i++ {
 		_, err := FallbackRoute(
 			ctx,
 			operationName,
-			context7d,
+			contextMap,
 			func() (interface{}, error) {
 				c.logger.Info("Attempting to reconnect to bridge", "attempt", i+1)
 				err := c.connect()
@@ -489,7 +494,7 @@ func (c *Client) reconnect() {
 }
 
 // close closes the WebSocket connection and cleans up resources
-func (c *Client) close() {
+func (c *Bridge) close() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 

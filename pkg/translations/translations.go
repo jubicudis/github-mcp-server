@@ -44,24 +44,7 @@ func (cv ContextVector7D) ToJSON() (string, error) {
 	return string(data), nil
 }
 
-// FromJSON converts JSON to context vector
-// Note: This function is only defined in translations.go, not in context.go
-func FromJSON(jsonStr string) (ContextVector7D, error) {
-	// WHO: JSONParser
-	// WHAT: Parse JSON to context
-	// WHEN: During context deserialization
-	// WHERE: System Layer 6 (Integration)
-	// WHY: To process external data
-	// HOW: Using JSON unmarshaling
-	// EXTENT: Single context deserialization
-
-	var cv ContextVector7D
-	err := json.Unmarshal([]byte(jsonStr), &cv)
-	if err != nil {
-		return NewContextVector7D(map[string]interface{}{}), err
-	}
-	return cv, nil
-}
+// Note: FromJSON is now in helper_interfaces.go to avoid duplicate declarations
 
 // Helper function to safely extract string values from a map
 func getStringValue(m map[string]interface{}, key, defaultValue string) string {
@@ -88,8 +71,6 @@ func CompressTranslationContext(cv ContextVector7D) ContextVector7D {
 	compressed := cv.Compress()
 	return *compressed
 }
-
-type TranslationHelperFunc func(key string, defaultValue string) string
 
 // CreateTranslationHelper creates a translation helper function
 func CreateTranslationHelper() (TranslationHelperFunc, func()) {

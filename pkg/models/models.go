@@ -180,3 +180,16 @@ type SearchResult struct {
     Items             []interface{}            `json:"items"`
     ItemsTyped        map[string][]interface{} // Typed items by resource type
 }
+
+// User represents a GitHub user
+type User struct {
+    Login     string `json:"login"`
+    ID        int64  `json:"id"`
+    NodeID    string `json:"node_id"`
+    AvatarURL string `json:"avatar_url"`
+    HTMLURL   string `json:"html_url"`
+    Name      string `json:"name"`
+    Email     string `json:"email"`
+    URL       string `json:"url"`
+    Type      string `json:"type"`
+}

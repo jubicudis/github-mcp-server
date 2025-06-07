@@ -16,7 +16,7 @@ import (
 
 	"github-mcp-server/pkg/github/testutil"
 
-	"github.com/google/go-github/v49/github"
+	"github.com/google/go-github/v71/github"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/migueleliasweb/go-github-mock/src/mock"
 	"github.com/stretchr/testify/assert"
@@ -621,7 +621,7 @@ func TestListIssues(t *testing.T) {
 			Body:      testutil.Ptr("This is the first test issue"),
 			State:     testutil.Ptr("open"),
 			HTMLURL:   testutil.Ptr("https://github.com/owner/repo/issues/123"),
-			CreatedAt: testutil.Ptr(time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)),
+			CreatedAt: testutil.Ptr(github.Timestamp{Time: time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)}),
 		},
 		{
 			Number:    testutil.Ptr(456),
@@ -630,7 +630,7 @@ func TestListIssues(t *testing.T) {
 			State:     testutil.Ptr("open"),
 			HTMLURL:   testutil.Ptr("https://github.com/owner/repo/issues/456"),
 			Labels:    []*github.Label{{Name: testutil.Ptr("bug")}},
-			CreatedAt: testutil.Ptr(time.Date(2023, 2, 1, 0, 0, 0, 0, time.UTC)),
+			CreatedAt: testutil.Ptr(github.Timestamp{Time: time.Date(2023, 2, 1, 0, 0, 0, 0, time.UTC)}),
 		},
 	}
 
@@ -980,7 +980,7 @@ func TestGetIssueComments(t *testing.T) {
 			User: &github.User{
 				Login: testutil.Ptr("user1"),
 			},
-			CreatedAt: testutil.Ptr(time.Now().Add(-time.Hour * 24)),
+			CreatedAt: testutil.Ptr(github.Timestamp{Time: time.Now().Add(-time.Hour * 24)}),
 		},
 		{
 			ID:   testutil.Ptr(int64(456)),
@@ -988,7 +988,7 @@ func TestGetIssueComments(t *testing.T) {
 			User: &github.User{
 				Login: testutil.Ptr("user2"),
 			},
-			CreatedAt: testutil.Ptr(time.Now().Add(-time.Hour)),
+			CreatedAt: testutil.Ptr(github.Timestamp{Time: time.Now().Add(-time.Hour)}),
 		},
 	}
 

@@ -10,7 +10,7 @@ import (
 	"github-mcp-server/pkg/github/testutil"
 	"github-mcp-server/pkg/log"
 
-	"github.com/google/go-github/v49/github"
+	"github.com/google/go-github/v71/github"
 	"github.com/migueleliasweb/go-github-mock/src/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

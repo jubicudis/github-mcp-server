@@ -11,8 +11,22 @@ package translations
 
 import (
 	"context"
+	"encoding/json"
 )
 
+// ErrEmptyMessage indicates an empty message was provided
+var ErrEmptyMessage = &MessageError{message: "empty message"}
+
+// MessageError is a custom error type
+type MessageError struct {
+	message string
+}
+
+func (e *MessageError) Error() string {
+	return e.message
+}
+
+// TranslationHelper is defined in helper_interfaces.go
 // NullTranslationHelper is a no-op implementation for testing
 // WHO: TranslationProvider
 // WHAT: NullObject pattern implementation
@@ -28,14 +42,20 @@ type nullTranslationHelper struct{}
 
 // ToJSON implements the TranslationHelper interface
 func (n *nullTranslationHelper) ToJSON(v interface{}) (string, error) {
-	return ToJSON(v)
+	if v == nil {
+		return "{}", nil
+	}
+	data, err := json.Marshal(v)
+	return string(data), err
 }
 
 // FromJSON implements the TranslationHelper interface
 func (n *nullTranslationHelper) FromJSON(data string, v interface{}) error {
 	// Use helper function that handles the unmarshaling correctly
-	_, err := FromJSON(data)
-	return err
+	if data == "" {
+		return ErrEmptyMessage
+	}
+	return json.Unmarshal([]byte(data), v)
 }
 
 // ApplyContextVector implements the TranslationHelper interface

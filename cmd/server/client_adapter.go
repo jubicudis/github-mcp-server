@@ -17,7 +17,7 @@ import (
 	pkggithub "github-mcp-server/pkg/github"
 	"github-mcp-server/pkg/log"
 
-	githubapi "github.com/google/go-github/v49/github" // Import the go-github client
+	githubapi "github.com/google/go-github/v71/github" // Import the go-github client
 	"github.com/mark3labs/mcp-go/mcp"
 )
 

@@ -9,7 +9,7 @@ import (
 
 	"github-mcp-server/pkg/translations"
 
-	"github.com/google/go-github/v49/github"
+	"github.com/google/go-github/v71/github"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
