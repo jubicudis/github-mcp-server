@@ -13,6 +13,7 @@ package github
 import (
 	"context"
 	"fmt"
+	"github-mcp-server/pkg/common"
 	"github-mcp-server/pkg/translations"
 	"io"
 	"net/http"
@@ -50,22 +51,22 @@ func GetCodeScanningAlert(getClient GetClientFn, t translations.TranslationHelpe
 
 // extractAlertParams extracts parameters for getting a specific code scanning alert
 func extractAlertParams(request mcp.CallToolRequest) (owner, repo string, alertNumber int, err error) {
-	owner, err = RequiredParam[string](request, "owner")
+	owner, err = common.RequiredParam[string](request, "owner")
 	if err != nil {
 		return
 	}
 
-	repo, err = RequiredParam[string](request, "repo")
+	repo, err = common.RequiredParam[string](request, "repo")
 	if err != nil {
 		return
 	}
 
-	alertNumberInt, err := RequiredInt(request, "alertNumber")
+	alertNumber, err = common.RequiredIntParam(request, "alertNumber")
 	if err != nil {
 		return
 	}
 
-	return owner, repo, alertNumberInt, nil
+	return owner, repo, alertNumber, nil
 }
 
 // Refactor common logic for parameter extraction

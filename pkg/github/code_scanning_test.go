@@ -16,7 +16,9 @@ import (
 	"testing"
 
 	"github-mcp-server/pkg/common"
-	gh "github-mcp-server/pkg/github"
+
+	githubpkg "github.com/jubicudis/github-mcp-server/pkg/github"
+	"github.com/jubicudis/github-mcp-server/pkg/github/testutil"
 
 	"github.com/google/go-github/v71/github"
 	"github.com/migueleliasweb/go-github-mock/src/mock"
@@ -33,7 +35,7 @@ func TestGetCodeScanningAlert(t *testing.T) {
 	adaptedTranslateFn := func(key string, defaultValue string) string {
 		return translateFn(context.Background(), key)
 	}
-	tool, _ := gh.GetCodeScanningAlert(testutil.StubGetClientFnWithClient(mockClient), adaptedTranslateFn)
+	tool, _ := githubpkg.GetCodeScanningAlert(testutil.StubGetClientFnWithClient(mockClient), adaptedTranslateFn)
 	assert.NotEmpty(t, tool.Description)
 	assert.Contains(t, tool.InputSchema.Properties, "owner")
 	assert.Contains(t, tool.InputSchema.Properties, "repo")
@@ -99,7 +101,7 @@ func TestGetCodeScanningAlert(t *testing.T) {
 			translateFn := func(key string, defaultValue string) string {
 				return key // Simple translation function for testing
 			}
-			_, handler := gh.GetCodeScanningAlert(testutil.StubGetClientFnWithClient(tc.mockedClient), translateFn)
+			_, handler := githubpkg.GetCodeScanningAlert(testutil.StubGetClientFnWithClient(tc.mockedClient), translateFn)
 
 			// Create call request
 			request := testutil.CreateMCPRequest(tc.requestArgs)
@@ -137,7 +139,7 @@ func TestListCodeScanningAlerts(t *testing.T) {
 	translateFn := func(key string, defaultValue string) string {
 		return key // Simple translation function for testing
 	}
-	tool, _ := gh.ListCodeScanningAlerts(testutil.StubGetClientFnWithClient(mockHttpClient), translateFn)
+	tool, _ := githubpkg.ListCodeScanningAlerts(testutil.StubGetClientFnWithClient(mockHttpClient), translateFn)
 	assert.NotEmpty(t, tool.Description)
 	assert.Contains(t, tool.InputSchema.Properties, "owner")
 	assert.Contains(t, tool.InputSchema.Properties, "repo")
@@ -218,7 +220,7 @@ func TestListCodeScanningAlerts(t *testing.T) {
 			translateFn := func(key string, defaultValue string) string {
 				return key // Simple translation function for testing
 			}
-			_, handler := gh.ListCodeScanningAlerts(testutil.StubGetClientFnWithClient(tc.mockedClient), translateFn)
+			_, handler := githubpkg.ListCodeScanningAlerts(testutil.StubGetClientFnWithClient(tc.mockedClient), translateFn)
 			request := testutil.CreateMCPRequest(tc.requestArgs)
 
 			// Call handler

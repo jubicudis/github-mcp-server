@@ -10,12 +10,13 @@ package github_test
 import (
 	"context"
 	"encoding/json"
+	"github-mcp-server/pkg/common"
 	"net/http"
 	"testing"
 	"time"
 
-	"github-mcp-server/pkg/common"
-	"github-mcp-server/pkg/testutil"
+	githubpkg "github.com/jubicudis/github-mcp-server/pkg/github"
+	"github.com/jubicudis/github-mcp-server/pkg/github/testutil"
 
 	"github.com/google/go-github/v71/github"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -458,7 +459,7 @@ func assertIssueResult(t *testing.T, expected, actual *github.Issue) {
 func TestCreateIssue(t *testing.T) {
 	// Verify tool definition once
 	mockClient := github.NewClient(nil)
-	tool, _ := CreateIssue(testutil.StubGetClientFn(mockClient), NullTranslationHelperFunc)
+	tool, _ := githubpkg.CreateIssue(testutil.StubGetClientFn(mockClient), NullTranslationHelperFunc)
 
 	assert.Equal(t, "create_issue", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -559,7 +560,7 @@ func TestCreateIssue(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
 			client := github.NewClient(tc.mockedClient)
-			_, handler := CreateIssue(testutil.StubGetClientFn(client), NullTranslationHelperFunc)
+			_, handler := githubpkg.CreateIssue(testutil.StubGetClientFn(client), NullTranslationHelperFunc)
 
 			// Create call request
 			request := testutil.CreateMCPRequest(tc.requestArgs)

@@ -70,15 +70,17 @@ func GetIssue(getClient GetClientFn, t translations.TranslationHelperFunc) (tool
 			// HOW: Using GitHub API client
 			// EXTENT: Single issue data retrieval
 
-			owner, err := common.RequiredParam(request, "owner")
+			owner, err := common.OptionalStringArrayParam(request, "owner")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			repo, err := common.RequiredParam(request, "repo")
+
+			repo, err := common.OptionalStringArrayParam(request, "repo")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			issueNumber, err := common.RequiredInt(request, "issue_number")
+
+			issueNumber, err := common.OptionalIntParamWithDefault(request, "issue_number", 0)
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
@@ -87,7 +89,7 @@ func GetIssue(getClient GetClientFn, t translations.TranslationHelperFunc) (tool
 			if err != nil {
 				return nil, fmt.Errorf("failed to get GitHub client: %w", err)
 			}
-			issue, resp, err := client.Issues.Get(ctx, owner, repo, issueNumber)
+			issue, resp, err := client.Issues.Get(ctx, owner[0], repo[0], issueNumber)
 			if err != nil {
 				return nil, fmt.Errorf("failed to get issue: %w", err)
 			}
@@ -107,7 +109,7 @@ func GetIssue(getClient GetClientFn, t translations.TranslationHelperFunc) (tool
 			}
 
 			return mcp.NewToolResultText(string(r)), nil
-		}
+		})
 }
 
 // AddIssueComment creates a tool to add a comment to an issue.
@@ -132,15 +134,7 @@ func AddIssueComment(getClient GetClientFn, t translations.TranslationHelperFunc
 			),
 		),
 		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			owner, err := common.RequiredParam(request, "owner")
-			if err != nil {
-				return mcp.NewToolResultError(err.Error()), nil
-			}
-			repo, err := common.RequiredParam(request, "repo")
-			if err != nil {
-				return mcp.NewToolResultError(err.Error()), nil
-			}
-			issueNumber, err := common.RequiredInt(request, "issue_number")
+			owner, repo, issueNumber, err := extractIssueParams(request)
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}

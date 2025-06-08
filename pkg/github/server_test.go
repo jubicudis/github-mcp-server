@@ -15,14 +15,19 @@ import (
 	"testing"
 	"time"
 
-	"github-mcp-server/pkg/common"
-	"github-mcp-server/pkg/testutil"
+	"github.com/jubicudis/github-mcp-server/pkg/common"
+	githubpkg "github.com/jubicudis/github-mcp-server/pkg/github"
+	"github.com/jubicudis/github-mcp-server/pkg/github/testutil"
 
 	"github.com/google/go-github/v71/github"
 	"github.com/migueleliasweb/go-github-mock/src/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// Helper aliases for legacy test expectations
+var expectRequestBody = testutil.MockResponse
+var expectQueryParams = testutil.CreateQueryParamExpectation
 
 // Test constants for repeated literals
 const (
@@ -44,7 +49,7 @@ const (
 func TestGetMe(t *testing.T) {
 	// Verify tool definition
 	mockClient := github.NewClient(nil)
-	tool, _ := GetMe(testutil.StubGetClientFn(mockClient), testutil.NullTranslationHelperFunc)
+	tool, _ := githubpkg.GetMe(testutil.StubGetClientFn(mockClient), testutil.NullTranslationHelperFunc)
 
 	assert.Equal(t, "get_me", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -122,7 +127,7 @@ func TestGetMe(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
 			client := github.NewClient(tc.mockedClient)
-			_, handler := GetMe(testutil.StubGetClientFn(client), testutil.NullTranslationHelperFunc)
+			_, handler := githubpkg.GetMe(testutil.StubGetClientFn(client), testutil.NullTranslationHelperFunc)
 
 			// Create call request
 			request := testutil.CreateMCPRequest(tc.requestArgs)

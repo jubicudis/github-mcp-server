@@ -10,7 +10,6 @@ package github_test
 import (
 	"context"
 	"encoding/json"
-	"github-mcp-server/pkg/testutil"
 	"net/http"
 	"testing"
 	"time"
@@ -19,47 +18,13 @@ import (
 	"github.com/migueleliasweb/go-github-mock/src/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/jubicudis/github-mcp-server/pkg/github/testutil"
 )
 
-// Constants for repeated string literals
-const (
-	prTitle             = "Test PR"
-	prHTMLURL           = "https://github.com/owner/repo/pull/42"
-	prFeatureBranch     = "feature-branch"
-	prMainBranch        = "main"
-	prBody              = "This is a test PR"
-	prUser              = "testuser"
-	prUpdatedTitle      = "Updated Test PR Title"
-	prUpdatedBody       = "Updated test PR body."
-	prDevelopBranch     = "develop"
-	prClosedState       = "closed"
-	prOpenState         = "open"
-	prFirstPRTitle      = "First PR"
-	prSecondPRTitle     = "Second PR"
-	prSecondHTMLURL     = "https://github.com/owner/repo/pull/43"
-	prLooksGood         = "Looks good!"
-	prNeedsFix          = "This needs to be fixed"
-	prMainGo            = "main.go"
-	prFile1             = "file1.go"
-	prFile2             = "file2.go"
-	prLGTM              = "LGTM"
-	prApprover          = "approver"
-	prReviewer          = "reviewer"
-	prReviewer1         = "reviewer1"
-	prReviewer2         = "reviewer2"
-	prBranchUpdateMsg   = "Branch was updated successfully"
-	prBranchUpdateURL   = "https://api.github.com/repos/owner/repo/pulls/42"
-	prMergedMsg         = "Pull Request successfully merged"
-	prSHA1              = "abcd1234"
-	prSHA2              = "efgh5678"
-	prCommitID          = "abcdef123456"
-	prTravisCI          = "https://travis-ci.org/owner/repo/builds/123"
-	prCodecov           = "https://codecov.io/gh/owner/repo/pull/42"
-	prGolangCILint      = "https://golangci.com/r/owner/repo/pull/42"
-	prSuccessState      = "success"
-	prCoverageIncreased = "Coverage increased"
-	prNoIssues          = "No issues found"
-)
+// Alias helpers for legacy test code
+var expectRequestBody = testutil.MockResponse
+var expectQueryParams = testutil.CreateQueryParamExpectation
 
 func TestGetPullRequest(t *testing.T) {
 	// Verify tool definition once
