@@ -5,12 +5,12 @@
 // WHY: To verify PR functionality
 // HOW: By testing MCP protocol handlers
 // EXTENT: All PR operations
-package github
+package github_test
 
 import (
 	"context"
 	"encoding/json"
-	"github-mcp-server/pkg/github/testutil"
+	"github-mcp-server/pkg/testutil"
 	"net/http"
 	"testing"
 	"time"

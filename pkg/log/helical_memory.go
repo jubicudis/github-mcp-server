@@ -89,3 +89,13 @@ func NewHelicalEvent(who, what, where, why, how, extent, msg string) HelicalEven
 		Msg:    msg,
 	}
 }
+
+// Transition logic for standalone and blood-connected modes
+func SetHelicalMemoryMode(mode string) {
+	if mode == "standalone" {
+		helicalMemoryDir = "/systems/memory/github/standalone"
+	} else if mode == "blood-connected" {
+		helicalMemoryDir = "/systems/memory/github/blood-connected"
+	}
+	ensureHelicalMemoryDir()
+}

@@ -24,6 +24,7 @@ import (
 	"sync"
 	"time"
 
+	"github-mcp-server/pkg/log"
 	"github-mcp-server/pkg/translations"
 
 	"encoding/base64"
@@ -1216,4 +1217,53 @@ func base64DecodeString(s string) ([]byte, error) {
 	// EXTENT: String decoding
 
 	return base64.StdEncoding.DecodeString(s)
+}
+
+// loggerAdapter adapts a log.Logger to the Logger interface
+type loggerAdapter struct {
+	logger *log.Logger
+}
+
+func (a *loggerAdapter) Debug(msg string, args ...interface{}) {
+	if a.logger != nil {
+		a.logger.Debug(msg, args...)
+	}
+}
+
+func (a *loggerAdapter) Info(msg string, args ...interface{}) {
+	if a.logger != nil {
+		a.logger.Info(msg, args...)
+	}
+}
+
+func (a *loggerAdapter) Error(msg string, args ...interface{}) {
+	if a.logger != nil {
+		a.logger.Error(msg, args...)
+	}
+}
+
+// NewClient creates a new GitHub API client with the given token and logger.
+// This is a simplified wrapper around NewAdvancedClient.
+func NewClient(token string, logger *log.Logger) *Client {
+	var logAdapter Logger
+	if logger != nil {
+		logAdapter = &loggerAdapter{logger: logger}
+	}
+
+	options := ClientOptions{
+		APIBaseURL:     DefaultAPIBaseURL,
+		GraphQLBaseURL: DefaultGraphQLBaseURL,
+		AcceptHeader:   DefaultAcceptHeader,
+		UserAgent:      DefaultUserAgent,
+		Timeout:        DefaultTimeout,
+		CacheTimeout:   DefaultCacheTimeout,
+		Logger:         logAdapter,
+		Token:          token,
+	}
+
+	client, err := NewAdvancedClient(options)
+	if err != nil {
+		panic(fmt.Sprintf("failed to create GitHub client: %v", err))
+	}
+	return client
 }

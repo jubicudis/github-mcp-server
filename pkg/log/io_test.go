@@ -450,6 +450,36 @@ func TestBufferedContextWriter(t *testing.T) {
 	}
 }
 
+// Test for standalone mode configuration
+func TestStandaloneModeConfiguration(t *testing.T) {
+	ConfigureIOForBridge("standalone")
+	// Add assertions to validate standalone mode behavior
+}
+
+// Test for blood-connected mode configuration
+func TestBloodConnectedModeConfiguration(t *testing.T) {
+	ConfigureIOForBridge("blood-connected")
+	// Add assertions to validate blood-connected mode behavior
+}
+
+// Test for helical memory mode switching
+func TestHelicalMemoryModeSwitching(t *testing.T) {
+	SetHelicalMemoryMode("standalone")
+	// Add assertions to validate directory setup for standalone mode
+
+	SetHelicalMemoryMode("blood-connected")
+	// Add assertions to validate directory setup for blood-connected mode
+}
+
+// Test for logger mode updates
+func TestLoggerModeUpdates(t *testing.T) {
+	UpdateLoggerMode("standalone")
+	// Add assertions to validate logger behavior in standalone mode
+
+	UpdateLoggerMode("blood-connected")
+	// Add assertions to validate logger behavior in blood-connected mode
+}
+
 // MockLogger implements LoggerInterface for testing
 // WHO: MockLogComponent
 // WHAT: Mock Logger Implementation

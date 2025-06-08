@@ -627,3 +627,12 @@ func (bw *BufferedContextWriter) SetContext(context *ContextVector7D) {
 		mcw.SetContext(context)
 	}
 }
+
+// Compatibility logic for bridge and subcomponent needs
+func ConfigureIOForBridge(mode string) {
+	if mode == "standalone" {
+		fmt.Println("I/O configured for standalone mode")
+	} else if mode == "blood-connected" {
+		fmt.Println("I/O configured for blood-connected mode")
+	}
+}

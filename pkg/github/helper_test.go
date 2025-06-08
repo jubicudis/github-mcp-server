@@ -5,7 +5,7 @@
 // WHY: To provide reusable test utilities
 // HOW: By implementing common test functions
 // EXTENT: All test files
-package github
+package github_test
 
 import (
 	"context"
@@ -15,7 +15,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github-mcp-server/pkg/github/testutil"
+	"github-mcp-server/pkg/testutil"
 )
 
 // Test constants

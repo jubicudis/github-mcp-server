@@ -8,6 +8,10 @@
  * EXTENT: All GitHub API interactions
  */
 
+// Purpose: Entry point for the GitHub MCP server
+// This file is responsible for initializing the server, handling API requests, and managing WebSocket connections.
+// It is distinct from the mcpcurl's main.go file, which handles CLI operations.
+
 package main
 
 import (
@@ -27,6 +31,7 @@ import (
 
 	"github-mcp-server/pkg/bridge"
 	"github-mcp-server/pkg/common"
+	"github-mcp-server/pkg/github"
 	"github-mcp-server/pkg/log"
 	"github-mcp-server/pkg/mcp"
 	"github-mcp-server/pkg/translations"
@@ -188,6 +193,10 @@ func main() {
 		}
 		logger.Info("Formula registry loaded", "count", count, "path", formulaPath)
 	}
+
+	// Initialize Blood System
+	ctx := context.Background()
+	github.InitializeBloodSystem(ctx)
 
 	// Start HTTP servers on all canonical ports
 	startAllServers()
@@ -1771,46 +1780,29 @@ func handleBroadcasts() {
 // Connect to MCP bridge
 func connectToBridge() {
 	// WHO: BridgeConnector
-	// WHAT: Connect to TNOS MCP bridge
+	// WHAT: Connect to Blood Bridge
 	// WHEN: During server startup
 	// WHERE: System Layer 6 (Integration)
-	// WHY: To integrate with TNOS system
-	// HOW: Using WebSocket connection with retry and blood circulation
-	// EXTENT: Bridge connection lifecycle with error handling
+	// WHY: To integrate with Blood Bridge
+	// HOW: Using WebSocket connection with retry logic
+	// EXTENT: Blood Bridge connection lifecycle with error handling
 
-	// Log connection attempt
-	logger.Info("Connecting to MCP bridge", "port", config.BridgePort)
+	logger.Info("Connecting to Blood Bridge", "port", config.BridgePort)
 
-	// Create a context for the bridge connection with extended timeout (60s instead of 5s)
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second) // Increased timeout for bridge connection
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
-	// Create a context vector for the bridge connection
 	bridgeContext := translations.NewContextVector7D(map[string]interface{}{
 		"who":    "BridgeConnector",
-		"what":   "Bridge_Connection",
+		"what":   "Blood_Bridge_Connection",
 		"when":   time.Now().Unix(),
 		"where":  "MCP_Server",
-		"why":    "TNOS_Integration",
+		"why":    "Blood_Integration",
 		"how":    "WebSocket_Protocol",
 		"extent": 1.0,
 		"source": "github_mcp",
 	})
 
-	// Initialize the formula registry for blood bridge operations
-	formulaRegistryPath := os.Getenv("FORMULA_REGISTRY_PATH")
-	if formulaRegistryPath == "" {
-		formulaRegistryPath = "config/formulas/bridge_formulas.json"
-	}
-	
-	// Initialize the formula registry with core formulas
-	if err := bridge.LoadBridgeFormulaRegistry(formulaRegistryPath); err != nil {
-		logger.Warn("Failed to load formula registry from file, using default formulas", "error", err.Error())
-	} else {
-		logger.Info("Loaded formula registry successfully", "path", formulaRegistryPath)
-	}
-
-	// Convert 7D context to a map for the blood bridge
 	contextMap := map[string]interface{}{
 		"who":    bridgeContext.Who,
 		"what":   bridgeContext.What,
@@ -1822,22 +1814,9 @@ func connectToBridge() {
 		"source": bridgeContext.Source,
 	}
 
-	// Set up regular bridge connection options
-	opts := common.ConnectionOptions{
-		ServerURL:  fmt.Sprintf("ws://localhost:%d/bridge", config.BridgePort),
-		ServerPort: config.BridgePort,
-		Context:    contextMap,
-		Logger:     logger,
-		Timeout:    60 * time.Second, // Increased timeout to match handshake timeout
-		MaxRetries: 5,
-		RetryDelay: 2 * time.Second,
-	}
-
-	// Set up blood bridge connection options
-	var bloodOpts common.ConnectionOptions
-	bloodOpts = common.ConnectionOptions{
-		ServerURL:   "localhost",
-		ServerPort:  bridge.TNOSMCPPort,
+	bloodOpts := common.ConnectionOptions{
+		ServerURL:   "ws://localhost:10619/bridge",
+		ServerPort:  10619,
 		Context:     contextMap,
 		Logger:      logger,
 		Timeout:     60 * time.Second,
@@ -1847,251 +1826,14 @@ func connectToBridge() {
 		Credentials: map[string]string{"source": "github-mcp-server"},
 		Headers:     map[string]string{"X-QHP-Version": "1.0"},
 	}
-	
-	// Create the blood circulation bridge
-	bloodCirculation, err := bridge.NewBloodCirculation(ctx, bloodOpts)
+
+	bloodBridge, err := bridge.NewBloodCirculation(ctx, bloodOpts)
 	if err != nil {
-		logger.Error("Failed to initialize blood circulation bridge", "error", err.Error())
-		// Continue with regular bridge connection as fallback
-	} else {
-		logger.Info("Blood circulation bridge initialized successfully")
+		logger.Error("Failed to connect to Blood Bridge", "error", err.Error())
+		logger.Info("Operating in standalone mode")
+		return
 	}
 
-	// Connect to the bridge with retry
-	var bridgeClient *bridge.Client
-	var bridgeErr error
-
-	for i := 0; i < 5; i++ { // Try 5 times
-		bridgeClient, bridgeErr = bridge.NewClient(ctx, opts)
-		if bridgeErr == nil {
-			break
-		}
-		logger.Warn("Failed to connect to MCP bridge, retrying...", "attempt", i+1, "error", bridgeErr.Error())
-		time.Sleep(2 * time.Second) // Wait before retry
-	}
-
-	if bridgeErr != nil {
-		logger.Error("Failed to connect to MCP bridge after retries", "error", bridgeErr.Error())
-		// Continue with blood bridge only
-		if bloodCirculation != nil {
-			logger.Info("Continuing with blood bridge only, without regular bridge")
-		} else {
-			return
-		}
-	} else {
-		logger.Info("Successfully connected to MCP bridge")
-
-		// Handle bridge messages in a goroutine
-		go func() {
-			for {
-				message, err := bridgeClient.Receive()
-				if err != nil {
-					logger.Error("Error receiving bridge message", "error", err.Error())
-
-					// Attempt to reconnect if disconnected
-					time.Sleep(5 * time.Second)
-					newCtx, newCancel := context.WithTimeout(context.Background(), 60*time.Second) // Increased timeout for retry attempts
-					bridgeClient, err = bridge.NewClient(newCtx, opts)
-					newCancel()
-
-					if err != nil {
-						logger.Error("Failed to reconnect to bridge", "error", err.Error())
-						return
-					}
-
-					continue
-				}
-
-				// Process bridge message
-				logger.Debug("Received bridge message", "type", message.Type)
-				processTNOSBridgeMessage(bridgeClient, message)
-			}
-		}()
-	}
-
-	// If blood circulation is available, set up a handler for its messages
-	if bloodCirculation != nil {
-		go processBloodCirculationMessages(bloodCirculation)
-	}
-}
-
-// handleBloodCellMessage processes data messages carried by red blood cells
-func handleBloodCellMessage(bloodCirculation *bridge.BloodCirculation, cell *bridge.BloodCell, messageType string) {
-	// Get the formula registry for translations
-	registry := bridge.GetBridgeFormulaRegistry()
-	
-	// Process based on message type
-	switch messageType {
-	case "github_event":
-		// Handle GitHub event
-		logger.Info("Blood cell carrying GitHub event", "id", cell.ID)
-		
-		// Extract event data
-		if eventData, ok := cell.Payload["data"].(map[string]interface{}); ok {
-			// Process GitHub event
-			// This is where we'd integrate with the GitHub API
-			logger.Debug("Processing GitHub event data", "event_type", eventData["type"])
-			
-			// If we have a formula registry, translate the event
-			if registry != nil {
-				translationParams := map[string]interface{}{
-					"data":       eventData,
-					"formula_key": "github_event",
-					"context": map[string]interface{}{
-						"who":    cell.Context7D.Who,
-						"what":   cell.Context7D.What,
-						"when":   cell.Context7D.When,
-						"where":  cell.Context7D.Where,
-						"why":    cell.Context7D.Why,
-						"how":    cell.Context7D.How,
-						"extent": cell.Context7D.Extent,
-						"source": cell.Source,
-					},
-				}
-				
-				result, err := registry.ExecuteFormula("github.translate", translationParams)
-				if err != nil {
-					logger.Error("Failed to translate GitHub event", "error", err.Error())
-				} else {
-					logger.Debug("Translated GitHub event successfully")
-					
-					// Broadcast event to WebSocket clients if applicable
-					if translatedData, ok := result["translated_data"].(map[string]interface{}); ok {
-						event := map[string]interface{}{
-							"type":      "github_event",
-							"source":    "blood_bridge",
-							"timestamp": time.Now().Unix(),
-							"data":      translatedData,
-						}
-						
-						eventData, _ := json.Marshal(event)
-						broadcast <- eventData
-					}
-				}
-			}
-		}
-		
-	case "tnos_data":
-		// Handle TNOS data
-		logger.Info("Blood cell carrying TNOS data", "id", cell.ID)
-		
-		// Extract TNOS data
-		if tnosData, ok := cell.Payload["data"].(map[string]interface{}); ok {
-			// Process TNOS data
-			logger.Debug("Processing TNOS data", "data_type", tnosData["type"])
-		}
-		
-	case "query":
-		// Handle query message
-		logger.Info("Blood cell carrying query", "id", cell.ID)
-		
-		// Extract query
-		query, ok := cell.Payload["query"].(string)
-		if ok {
-			// Process query
-			// Prepare response
-			response := map[string]interface{}{
-				"type": "query_response",
-				"id":   cell.ID,
-				"data": map[string]interface{}{
-					"result": "processed",
-					"query":  query,
-				},
-			}
-			
-			// Create and queue response cell
-			responseCell := &bridge.BloodCell{
-				ID:          "response-" + time.Now().Format(time.RFC3339Nano),
-				Type:        "Red",
-				Payload:     response,
-				Timestamp:   time.Now().Unix(),
-				Source:      "github-mcp-server",
-				Destination: cell.Source,
-				Priority:    5,
-				OxygenLevel: 1.0,
-				Context7D:   cell.Context7D,
-			}
-			
-			// Queue the cell for sending
-			bloodCirculation.QueueBloodCell(responseCell)
-		}
-	}
-}
-
-// handleBloodCellControl processes control messages carried by white blood cells
-func handleBloodCellControl(bloodCirculation *bridge.BloodCirculation, cell *bridge.BloodCell, action string) {
-	switch action {
-	case "initialize":
-		// Handle initialization
-		logger.Info("Blood circulation initialization message", "id", cell.ID, "source", cell.Source)
-		
-		// Send acknowledgment
-		response := map[string]interface{}{
-			"type":   "control",
-			"action": "initialize_ack",
-			"source": "github-mcp-server",
-		}
-		// Create and queue a response cell
-		responseCell := &bridge.BloodCell{
-			ID:          "init-ack-" + time.Now().Format(time.RFC3339Nano),
-			Type:        "White",
-			Payload:     response,
-			Timestamp:   time.Now().Unix(),
-			Source:      "github-mcp-server",
-			Destination: cell.Source,
-			Priority:    10,
-			OxygenLevel: 1.0,
-			Context7D:   cell.Context7D,
-		}
-		bloodCirculation.QueueBloodCell(responseCell)
-		
-	case "heartbeat":
-		// Handle heartbeat
-		logger.Debug("Received heartbeat from blood circulation", "id", cell.ID)
-		
-		// Send heartbeat response
-		response := map[string]interface{}{
-			"type":       "control",
-			"action":     "heartbeat_ack",
-			"source":     "github-mcp-server",
-			"timestamp":  time.Now().Unix(),
-		}
-		// Create and queue a response cell
-		responseCell := &bridge.BloodCell{
-			ID:          "heartbeat-ack-" + time.Now().Format(time.RFC3339Nano),
-			Type:        "White",
-			Payload:     response,
-			Timestamp:   time.Now().Unix(),
-			Source:      "github-mcp-server",
-			Destination: cell.Source,
-			Priority:    10,
-			OxygenLevel: 1.0,
-			Context7D:   cell.Context7D,
-		}
-		bloodCirculation.QueueBloodCell(responseCell)
-		
-	case "shutdown":
-		// Handle shutdown
-		logger.Info("Blood circulation shutdown requested", "id", cell.ID, "source", cell.Source)
-		
-		// Send acknowledgment before shutting down
-		response := map[string]interface{}{
-			"type":   "control",
-			"action": "shutdown_ack",
-			"source": "github-mcp-server",
-		}
-		// Create and queue a response cell
-		responseCell := &bridge.BloodCell{
-			ID:          "shutdown-ack-" + time.Now().Format(time.RFC3339Nano),
-			Type:        "White",
-			Payload:     response,
-			Timestamp:   time.Now().Unix(),
-			Source:      "github-mcp-server",
-			Destination: cell.Source,
-			Priority:    10,
-			OxygenLevel: 1.0,
-			Context7D:   cell.Context7D,
-		}
-		bloodCirculation.QueueBloodCell(responseCell)
-	}
+	logger.Info("Successfully connected to Blood Bridge")
+	go processBloodCirculationMessages(bloodBridge)
 }

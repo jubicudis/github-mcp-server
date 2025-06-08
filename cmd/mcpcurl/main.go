@@ -1,3 +1,7 @@
+// Purpose: Entry point for the MCP Curl CLI tool
+// This file is responsible for handling command-line arguments and executing MCP-related operations.
+// It is distinct from the server's main.go file, which handles server-side operations.
+
 package main
 
 import (

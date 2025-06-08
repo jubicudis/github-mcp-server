@@ -5,7 +5,7 @@
 // WHY: To verify GitHub API integration
 // HOW: By testing MCP protocol handlers
 // EXTENT: Server functionality verification
-package github
+package github_test
 
 import (
 	"context"
@@ -15,7 +15,8 @@ import (
 	"testing"
 	"time"
 
-	"github-mcp-server/pkg/github/testutil"
+	"github-mcp-server/pkg/common"
+	"github-mcp-server/pkg/testutil"
 
 	"github.com/google/go-github/v71/github"
 	"github.com/migueleliasweb/go-github-mock/src/mock"
@@ -52,17 +53,17 @@ func TestGetMe(t *testing.T) {
 
 	// Setup mock user response
 	mockUser := &github.User{
-		Login:     testutil.Ptr(testUserLogin),
-		Name:      testutil.Ptr(testUserName),
-		Email:     testutil.Ptr(testUserEmail),
-		Bio:       testutil.Ptr(testUserBio),
-		Company:   testutil.Ptr(testUserCompany),
-		Location:  testutil.Ptr(testUserLocation),
-		HTMLURL:   testutil.Ptr(testUserHTMLURL),
+		Login:     common.Ptr(testUserLogin),
+		Name:      common.Ptr(testUserName),
+		Email:     common.Ptr(testUserEmail),
+		Bio:       common.Ptr(testUserBio),
+		Company:   common.Ptr(testUserCompany),
+		Location:  common.Ptr(testUserLocation),
+		HTMLURL:   common.Ptr(testUserHTMLURL),
 		CreatedAt: &github.Timestamp{Time: time.Now().Add(-365 * 24 * time.Hour)},
-		Type:      testutil.Ptr(testUserType),
+		Type:      common.Ptr(testUserType),
 		Plan: &github.Plan{
-			Name: testutil.Ptr(testUserPlan),
+			Name: common.Ptr(testUserPlan),
 		},
 	}
 

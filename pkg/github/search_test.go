@@ -5,7 +5,7 @@
 // WHY: To verify search functionality
 // HOW: By testing MCP protocol handlers
 // EXTENT: All search operations
-package github
+package github_test
 
 import (
 	"context"
@@ -80,12 +80,12 @@ func TestSearchRepositories(t *testing.T) {
 			mockedClient: mock.NewMockedHTTPClient(
 				mock.WithRequestMatchHandler(
 					mock.GetSearchRepositories,
-					expectQueryParams(t, map[string]string{
+					testutil.ExpectQueryParams(t, map[string]string{
 						"q":        repoSearchQuery,
 						"page":     "2",
 						"per_page": "10",
-					}).andThen(
-						mockResponse(t, http.StatusOK, mockSearchResult),
+					}).AndThen(
+						testutil.MockResponse(t, http.StatusOK, mockSearchResult),
 					),
 				),
 			),

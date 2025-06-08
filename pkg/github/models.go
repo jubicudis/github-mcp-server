@@ -10,6 +10,28 @@
 
 package github
 
+// Repository represents a GitHub repository
+type Repository struct {
+	// WHO: RepoStructureManager
+	// WHAT: Repository data structure
+	// WHEN: During repository operations
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To model repository data
+	// HOW: Using GitHub API schema
+	// EXTENT: Repository representation
+
+	ID            int64  `json:"id"`
+	NodeID        string `json:"node_id"`
+	Name          string `json:"name"`
+	FullName      string `json:"full_name"`
+	Description   string `json:"description"`
+	Private       bool   `json:"private"`
+	Owner         User   `json:"owner"`
+	HTMLURL       string `json:"html_url"`
+	URL           string `json:"url"`
+	DefaultBranch string `json:"default_branch"`
+}
+
 // RepoContent represents content retrieved from a repository
 type RepoContent struct {
 	// WHO: ContentStructureManager
@@ -288,4 +310,18 @@ type SearchResult struct {
 	IncompleteResults bool                     `json:"incomplete_results"`
 	Items             []interface{}            `json:"items"`
 	ItemsTyped        map[string][]interface{} // Typed items by resource type
+}
+
+// User represents a GitHub user
+type User struct {
+	// WHO: UserStructureManager
+	// WHAT: User data structure
+	// WHEN: During user operations
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To model user data
+	// HOW: Using GitHub API schema
+	// EXTENT: User representation
+
+	Login     string `json:"login"`
+	ID        int64  `json:"id"`
 }

@@ -5,7 +5,7 @@
 // WHY: To verify issue functionality
 // HOW: By testing MCP protocol handlers
 // EXTENT: All issue operations
-package github
+package github_test
 
 import (
 	"context"
@@ -14,7 +14,8 @@ import (
 	"testing"
 	"time"
 
-	"github-mcp-server/pkg/github/testutil"
+	"github-mcp-server/pkg/common"
+	"github-mcp-server/pkg/testutil"
 
 	"github.com/google/go-github/v71/github"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -22,9 +23,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
-
-// Add a NullTranslationHelperFunc to this test file for use in tests
-var NullTranslationHelperFunc = func(key, defaultValue string) string { return defaultValue }
 
 // Define constants for repeated string literals to resolve duplication warnings
 const (
@@ -40,14 +38,14 @@ const (
 )
 
 var mockIssue = &github.Issue{
-	Number:    testutil.Ptr(123),
-	Title:     testutil.Ptr(testIssueTitle),
-	Body:      testutil.Ptr(testIssueBody),
-	State:     testutil.Ptr("open"),
-	HTMLURL:   testutil.Ptr(urlIssue123),
-	Assignees: []*github.User{{Login: testutil.Ptr("user1")}, {Login: testutil.Ptr("user2")}},
-	Labels:    []*github.Label{{Name: testutil.Ptr("bug")}, {Name: testutil.Ptr(helpWanted)}},
-	Milestone: &github.Milestone{Number: testutil.Ptr(5)},
+	Number:    common.Ptr(123),
+	Title:     common.Ptr(testIssueTitle),
+	Body:      common.Ptr(testIssueBody),
+	State:     common.Ptr("open"),
+	HTMLURL:   common.Ptr(urlIssue123),
+	Assignees: []*github.User{{Login: common.Ptr("user1")}, {Login: common.Ptr("user2")}},
+	Labels:    []*github.Label{{Name: common.Ptr("bug")}, {Name: common.Ptr(helpWanted)}},
+	Milestone: &github.Milestone{Number: common.Ptr(5)},
 }
 
 func TestGetIssue(t *testing.T) {
@@ -67,11 +65,11 @@ func TestGetIssue(t *testing.T) {
 
 	// Setup mock issue for success case
 	mockIssue := &github.Issue{
-		Number:  testutil.Ptr(42),
-		Title:   testutil.Ptr(testIssueTitle),
-		Body:    testutil.Ptr(testIssueBody),
-		State:   testutil.Ptr("open"),
-		HTMLURL: testutil.Ptr("https://github.com/owner/repo/issues/42"),
+		Number:  common.Ptr(42),
+		Title:   common.Ptr(testIssueTitle),
+		Body:    common.Ptr(testIssueBody),
+		State:   common.Ptr("open"),
+		HTMLURL: common.Ptr("https://github.com/owner/repo/issues/42"),
 	}
 
 	tests := []struct {
@@ -166,12 +164,12 @@ func TestAddIssueComment(t *testing.T) {
 
 	// Setup mock comment for success case
 	mockComment := &github.IssueComment{
-		ID:   testutil.Ptr(int64(123)),
-		Body: testutil.Ptr("This is a test comment"),
+		ID:   common.Ptr(int64(123)),
+		Body: common.Ptr("This is a test comment"),
 		User: &github.User{
-			Login: testutil.Ptr("testuser"),
+			Login: common.Ptr("testuser"),
 		},
-		HTMLURL: testutil.Ptr("https://github.com/owner/repo/issues/42#issuecomment-123"),
+		HTMLURL: common.Ptr("https://github.com/owner/repo/issues/42#issuecomment-123"),
 	}
 
 	tests := []struct {

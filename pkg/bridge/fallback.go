@@ -21,21 +21,23 @@ import (
 // RouteOperation represents a function that can be executed with fallback
 type RouteOperation func() (interface{}, error)
 
+// FallbackFunction is a function that can be executed as a fallback (legacy type)
+type FallbackFunction func() (interface{}, error)
+
 // FallbackRoute executes the primary operation and falls back to alternatives if it fails
 // The context argument is passed as-is to operations
 func FallbackRoute(
 	ctx context.Context,
 	operationName string,
 	contextData map[string]interface{},
-	primaryOp RouteOperation,
-	fallback1 RouteOperation,
-	fallback2 RouteOperation,
-	fallback3 RouteOperation,
+	primaryOp FallbackFunction, // Changed to use FallbackFunction for compatibility
+	fallback1 FallbackFunction, // Changed to use FallbackFunction for compatibility
+	fallback2 FallbackFunction, // Changed to use FallbackFunction for compatibility
+	fallback3 FallbackFunction, // Changed to use FallbackFunction for compatibility
 	logger *log.Logger,
 ) (interface{}, error) {
 	startTime := time.Now()
 
-	// Try the primary operation
 	result, err := primaryOp()
 	if err == nil {
 		if logger != nil {
@@ -45,55 +47,23 @@ func FallbackRoute(
 		return result, nil
 	}
 
-	// Log the primary failure
 	if logger != nil {
-		logger.Warn("[%s] Primary operation failed: %s", operationName, err.Error())
+		logger.Warn("[%s] Primary operation failed: %v", operationName, err)
 	}
 
-	// Try fallback 1
-	result, err = fallback1()
-	if err == nil {
-		if logger != nil {
-			logger.Info("[%s] Fallback 1 succeeded in %s", 
-				operationName, time.Since(startTime))
+	for i, fallback := range []FallbackFunction{fallback1, fallback2, fallback3} {
+		result, err = fallback()
+		if err == nil {
+			if logger != nil {
+				logger.Debug("[%s] Fallback #%d succeeded in %s", 
+					operationName, i+1, time.Since(startTime))
+			}
+			return result, nil
 		}
-		return result, nil
-	}
-
-	// Log fallback 1 failure
-	if logger != nil {
-		logger.Warn("[%s] Fallback 1 failed: %s", operationName, err.Error())
-	}
-
-	// Try fallback 2
-	result, err = fallback2()
-	if err == nil {
 		if logger != nil {
-			logger.Info("[%s] Fallback 2 succeeded in %s", 
-				operationName, time.Since(startTime))
+			logger.Warn("[%s] Fallback #%d failed: %v", operationName, i+1, err)
 		}
-		return result, nil
 	}
 
-	// Log fallback 2 failure
-	if logger != nil {
-		logger.Warn("[%s] Fallback 2 failed: %s", operationName, err.Error())
-	}
-
-	// Try fallback 3 (final attempt)
-	result, err = fallback3()
-	if err == nil {
-		if logger != nil {
-			logger.Info("[%s] Fallback 3 succeeded in %s", 
-				operationName, time.Since(startTime))
-		}
-		return result, nil
-	}
-
-	// All attempts failed
-	if logger != nil {
-		logger.Error("[%s] All fallback routes failed: %s", operationName, err.Error())
-	}
-	
-	return nil, fmt.Errorf("all fallback routes failed for operation %s: %w", operationName, err)
+	return nil, fmt.Errorf("[%s] All fallback operations failed", operationName)
 }

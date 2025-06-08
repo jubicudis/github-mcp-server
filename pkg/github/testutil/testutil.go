@@ -112,7 +112,7 @@ func GetTextContent(t *testing.T, result *mcp.CallToolResult) string {
 }
 
 // PtrTo is a convenience function for creating a pointer to a value
-// Imported from pkg/common/common.go but renamed to avoid generic issue
+// This delegates to common.Ptr to ensure consistent pointer creation across the codebase
 func PtrTo[T any](v T) *T {
 	return common.Ptr(v)
 }
@@ -148,11 +148,6 @@ func (m *QueryParamMatcher) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if m.next != nil {
 		m.next.ServeHTTP(w, r)
 	}
-}
-
-// CreateQueryParamExpectation creates a middleware that validates query parameters
-func CreateQueryParamExpectation(t *testing.T, expected map[string]string) *QueryParamMatcher {
-	return CreateQueryParamMatcher(t, expected)
 }
 
 // MockResponse creates an HTTP handler that returns the provided response
@@ -199,8 +194,9 @@ type PartialMock struct {
 	ExpectedRequestBody any
 }
 
-// ExpectQueryParams creates a PartialMock with expected query parameters
-func ExpectQueryParams(t *testing.T, expectedQueryParams map[string]string) *PartialMock {
+// CreateQueryParamExpectation creates a PartialMock with expected query parameters
+// This function replaces the duplicate ExpectQueryParams to avoid conflicts
+func CreateQueryParamExpectation(t *testing.T, expectedQueryParams map[string]string) *PartialMock {
 	return &PartialMock{
 		T:                   t,
 		ExpectedQueryParams: expectedQueryParams,

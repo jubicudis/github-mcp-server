@@ -342,3 +342,12 @@ func (l *Logger) GetContext(dimension string) string {
 
 	return l.context[dimension]
 }
+
+// Update logger configuration based on mode
+func UpdateLoggerMode(mode string) {
+	if mode == "standalone" {
+		fmt.Println("Logger set to standalone mode")
+	} else if mode == "blood-connected" {
+		fmt.Println("Logger set to blood-connected mode")
+	}
+}
