@@ -10,11 +10,11 @@ package github_test
 import (
 	"context"
 	"encoding/json"
-	"github-mcp-server/pkg/common"
 	"net/http"
 	"testing"
 	"time"
 
+	"github.com/jubicudis/github-mcp-server/pkg/common"
 	githubpkg "github.com/jubicudis/github-mcp-server/pkg/github"
 	"github.com/jubicudis/github-mcp-server/pkg/github/testutil"
 
@@ -289,29 +289,29 @@ func TestSearchIssues(t *testing.T) {
 
 	// Setup mock search results
 	mockSearchResult := &github.IssuesSearchResult{
-		Total:             testutil.Ptr(2),
-		IncompleteResults: testutil.Ptr(false),
+		Total:             testutil.PtrTo(2),
+		IncompleteResults: testutil.PtrTo(false),
 		Issues: []*github.Issue{
 			{
-				Number:   testutil.Ptr(42),
-				Title:    testutil.Ptr("Bug: Something is broken"),
-				Body:     testutil.Ptr("This is a bug report"),
-				State:    testutil.Ptr("open"),
-				HTMLURL:  testutil.Ptr("https://github.com/owner/repo/issues/42"),
-				Comments: testutil.Ptr(5),
+				Number:   testutil.PtrTo(42),
+				Title:    testutil.PtrTo("Bug: Something is broken"),
+				Body:     testutil.PtrTo("This is a bug report"),
+				State:    testutil.PtrTo("open"),
+				HTMLURL:  testutil.PtrTo("https://github.com/owner/repo/issues/42"),
+				Comments: testutil.PtrTo(5),
 				User: &github.User{
-					Login: testutil.Ptr("user1"),
+					Login: testutil.PtrTo("user1"),
 				},
 			},
 			{
-				Number:   testutil.Ptr(43),
-				Title:    testutil.Ptr("Feature: Add new functionality"),
-				Body:     testutil.Ptr("This is a feature request"),
-				State:    testutil.Ptr("open"),
-				HTMLURL:  testutil.Ptr("https://github.com/owner/repo/issues/43"),
-				Comments: testutil.Ptr(3),
+				Number:   testutil.PtrTo(43),
+				Title:    testutil.PtrTo("Feature: Add new functionality"),
+				Body:     testutil.PtrTo("This is a feature request"),
+				State:    testutil.PtrTo("open"),
+				HTMLURL:  testutil.PtrTo("https://github.com/owner/repo/issues/43"),
+				Comments: testutil.PtrTo(3),
 				User: &github.User{
-					Login: testutil.Ptr("user2"),
+					Login: testutil.PtrTo("user2"),
 				},
 			},
 		},
@@ -486,8 +486,8 @@ func TestCreateIssue(t *testing.T) {
 				mock.WithRequestMatchHandler(
 					mock.PostReposIssuesByOwnerByRepo,
 					expectRequestBody(t, map[string]any{
-						"title":     testutil.Ptr(testIssueTitle),
-						"body":      testutil.Ptr(testIssueBody),
+						"title":     testutil.PtrTo(testIssueTitle),
+						"body":      testutil.PtrTo(testIssueBody),
 						"labels":    []any{"bug", helpWanted},
 						"assignees": []any{"user1", "user2"},
 						"milestone": float64(5),
@@ -499,8 +499,8 @@ func TestCreateIssue(t *testing.T) {
 			requestArgs: map[string]interface{}{
 				"owner":     "owner",
 				"repo":      "repo",
-				"title":     testutil.Ptr(testIssueTitle),
-				"body":      testutil.Ptr(testIssueBody),
+				"title":     testutil.PtrTo(testIssueTitle),
+				"body":      testutil.PtrTo(testIssueBody),
 				"assignees": []any{"user1", "user2"},
 				"labels":    []any{"bug", helpWanted},
 				"milestone": float64(5),
@@ -514,25 +514,25 @@ func TestCreateIssue(t *testing.T) {
 				mock.WithRequestMatchHandler(
 					mock.PostReposIssuesByOwnerByRepo,
 					mockResponse(t, http.StatusCreated, &github.Issue{
-						Number:  testutil.Ptr(124),
-						Title:   testutil.Ptr(minimalIssue),
-						HTMLURL: testutil.Ptr("https://github.com/owner/repo/issues/124"),
-						State:   testutil.Ptr("open"),
+						Number:  testutil.PtrTo(124),
+						Title:   testutil.PtrTo(minimalIssue),
+						HTMLURL: testutil.PtrTo("https://github.com/owner/repo/issues/124"),
+						State:   testutil.PtrTo("open"),
 					}),
 				),
 			),
 			requestArgs: map[string]interface{}{
 				"owner":     "owner",
 				"repo":      "repo",
-				"title":     testutil.Ptr(minimalIssue),
+				"title":     testutil.PtrTo(minimalIssue),
 				"assignees": nil, // Expect no failure with nil optional value.
 			},
 			expectError: false,
 			expectedIssue: &github.Issue{
-				Number:  testutil.Ptr(124),
-				Title:   testutil.Ptr(minimalIssue),
-				HTMLURL: testutil.Ptr("https://github.com/owner/repo/issues/124"),
-				State:   testutil.Ptr("open"),
+				Number:  testutil.PtrTo(124),
+				Title:   testutil.PtrTo(minimalIssue),
+				HTMLURL: testutil.PtrTo("https://github.com/owner/repo/issues/124"),
+				State:   testutil.PtrTo("open"),
 			},
 		},
 		{
@@ -549,7 +549,7 @@ func TestCreateIssue(t *testing.T) {
 			requestArgs: map[string]interface{}{
 				"owner": "owner",
 				"repo":  "repo",
-				"title": testutil.Ptr(""),
+				"title": testutil.PtrTo(""),
 			},
 			expectError:    false,
 			expectedErrMsg: "missing required parameter: title",
@@ -615,21 +615,21 @@ func TestListIssues(t *testing.T) {
 	// Setup mock issues for success case
 	mockIssues := []*github.Issue{
 		{
-			Number:    testutil.Ptr(123),
-			Title:     testutil.Ptr("First Issue"),
-			Body:      testutil.Ptr("This is the first test issue"),
-			State:     testutil.Ptr("open"),
-			HTMLURL:   testutil.Ptr("https://github.com/owner/repo/issues/123"),
-			CreatedAt: testutil.Ptr(github.Timestamp{Time: time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)}),
+			Number:    testutil.PtrTo(123),
+			Title:     testutil.PtrTo("First Issue"),
+			Body:      testutil.PtrTo("This is the first test issue"),
+			State:     testutil.PtrTo("open"),
+			HTMLURL:   testutil.PtrTo("https://github.com/owner/repo/issues/123"),
+			CreatedAt: testutil.PtrTo(github.Timestamp{Time: time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)}),
 		},
 		{
-			Number:    testutil.Ptr(456),
-			Title:     testutil.Ptr("Second Issue"),
-			Body:      testutil.Ptr("This is the second test issue"),
-			State:     testutil.Ptr("open"),
-			HTMLURL:   testutil.Ptr("https://github.com/owner/repo/issues/456"),
-			Labels:    []*github.Label{{Name: testutil.Ptr("bug")}},
-			CreatedAt: testutil.Ptr(github.Timestamp{Time: time.Date(2023, 2, 1, 0, 0, 0, 0, time.UTC)}),
+			Number:    testutil.PtrTo(456),
+			Title:     testutil.PtrTo("Second Issue"),
+			Body:      testutil.PtrTo("This is the second test issue"),
+			State:     testutil.PtrTo("open"),
+			HTMLURL:   testutil.PtrTo("https://github.com/owner/repo/issues/456"),
+			Labels:    []*github.Label{{Name: testutil.PtrTo("bug")}},
+			CreatedAt: testutil.PtrTo(github.Timestamp{Time: time.Date(2023, 2, 1, 0, 0, 0, 0, time.UTC)}),
 		},
 	}
 
@@ -785,9 +785,9 @@ func TestUpdateIssue(t *testing.T) {
 				mock.WithRequestMatchHandler(
 					mock.PatchReposIssuesByOwnerByRepoByIssueNumber,
 					expectRequestBody(t, map[string]any{
-						"title":     testutil.Ptr(updatedIssueTitle),
-						"body":      testutil.Ptr(updatedIssueDescription),
-						"state":     testutil.Ptr("closed"),
+						"title":     testutil.PtrTo(updatedIssueTitle),
+						"body":      testutil.PtrTo(updatedIssueDescription),
+						"state":     testutil.PtrTo("closed"),
 						"labels":    []any{"bug", "priority"},
 						"assignees": []any{"assignee1", "assignee2"},
 						"milestone": float64(5),
@@ -800,9 +800,9 @@ func TestUpdateIssue(t *testing.T) {
 				"owner":        "owner",
 				"repo":         "repo",
 				"issue_number": float64(123),
-				"title":        testutil.Ptr(updatedIssueTitle),
-				"body":         testutil.Ptr(updatedIssueDescription),
-				"state":        testutil.Ptr("closed"),
+				"title":        testutil.PtrTo(updatedIssueTitle),
+				"body":         testutil.PtrTo(updatedIssueDescription),
+				"state":        testutil.PtrTo("closed"),
 				"labels":       []any{"bug", "priority"},
 				"assignees":    []any{"assignee1", "assignee2"},
 				"milestone":    float64(5),
@@ -816,10 +816,10 @@ func TestUpdateIssue(t *testing.T) {
 				mock.WithRequestMatchHandler(
 					mock.PatchReposIssuesByOwnerByRepoByIssueNumber,
 					mockResponse(t, http.StatusOK, &github.Issue{
-						Number:  testutil.Ptr(123),
-						Title:   testutil.Ptr(onlyTitleUpdated),
-						HTMLURL: testutil.Ptr(urlIssue123),
-						State:   testutil.Ptr("open"),
+						Number:  testutil.PtrTo(123),
+						Title:   testutil.PtrTo(onlyTitleUpdated),
+						HTMLURL: testutil.PtrTo(urlIssue123),
+						State:   testutil.PtrTo("open"),
 					}),
 				),
 			),
@@ -827,14 +827,14 @@ func TestUpdateIssue(t *testing.T) {
 				"owner":        "owner",
 				"repo":         "repo",
 				"issue_number": float64(123),
-				"title":        testutil.Ptr(onlyTitleUpdated),
+				"title":        testutil.PtrTo(onlyTitleUpdated),
 			},
 			expectError: false,
 			expectedIssue: &github.Issue{
-				Number:  testutil.Ptr(123),
-				Title:   testutil.Ptr(onlyTitleUpdated),
-				HTMLURL: testutil.Ptr(urlIssue123),
-				State:   testutil.Ptr("open"),
+				Number:  testutil.PtrTo(123),
+				Title:   testutil.PtrTo(onlyTitleUpdated),
+				HTMLURL: testutil.PtrTo(urlIssue123),
+				State:   testutil.PtrTo("open"),
 			},
 		},
 		{
@@ -852,7 +852,7 @@ func TestUpdateIssue(t *testing.T) {
 				"owner":        "owner",
 				"repo":         "repo",
 				"issue_number": float64(999),
-				"title":        testutil.Ptr("This issue doesn't exist"),
+				"title":        testutil.PtrTo("This issue doesn't exist"),
 			},
 			expectError:    true,
 			expectedErrMsg: "failed to update issue",
@@ -872,7 +872,7 @@ func TestUpdateIssue(t *testing.T) {
 				"owner":        "owner",
 				"repo":         "repo",
 				"issue_number": float64(123),
-				"state":        testutil.Ptr("invalid_state"),
+				"state":        testutil.PtrTo("invalid_state"),
 			},
 			expectError:    true,
 			expectedErrMsg: "failed to update issue",
@@ -974,20 +974,20 @@ func TestGetIssueComments(t *testing.T) {
 	// Setup mock comments for success case
 	mockComments := []*github.IssueComment{
 		{
-			ID:   testutil.Ptr(int64(123)),
-			Body: testutil.Ptr("This is the first comment"),
+			ID:   testutil.PtrTo(int64(123)),
+			Body: testutil.PtrTo("This is the first comment"),
 			User: &github.User{
-				Login: testutil.Ptr("user1"),
+				Login: testutil.PtrTo("user1"),
 			},
-			CreatedAt: testutil.Ptr(github.Timestamp{Time: time.Now().Add(-time.Hour * 24)}),
+			CreatedAt: testutil.PtrTo(github.Timestamp{Time: time.Now().Add(-time.Hour * 24)}),
 		},
 		{
-			ID:   testutil.Ptr(int64(456)),
-			Body: testutil.Ptr("This is the second comment"),
+			ID:   testutil.PtrTo(int64(456)),
+			Body: testutil.PtrTo("This is the second comment"),
 			User: &github.User{
-				Login: testutil.Ptr("user2"),
+				Login: testutil.PtrTo("user2"),
 			},
-			CreatedAt: testutil.Ptr(github.Timestamp{Time: time.Now().Add(-time.Hour)}),
+			CreatedAt: testutil.PtrTo(github.Timestamp{Time: time.Now().Add(-time.Hour)}),
 		},
 	}
 

@@ -15,8 +15,7 @@ import (
 	"net/http"
 	"testing"
 
-	"github-mcp-server/pkg/common"
-
+	"github.com/jubicudis/github-mcp-server/pkg/common"
 	githubpkg "github.com/jubicudis/github-mcp-server/pkg/github"
 	"github.com/jubicudis/github-mcp-server/pkg/github/testutil"
 

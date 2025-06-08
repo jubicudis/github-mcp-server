@@ -9,7 +9,8 @@ package github_test
 
 import (
 	"github.com/jubicudis/github-mcp-server/pkg/github/testutil"
-)
+
+	githubpkg "github.com/jubicudis/github-mcp-server/pkg/github")
 
 // Helper aliases for legacy test expectations
 var expectRequestBody = testutil.MockResponse

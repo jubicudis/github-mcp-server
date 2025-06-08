@@ -19,6 +19,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	githubpkg "github.com/jubicudis/github-mcp-server/pkg/github"
 	"github.com/jubicudis/github-mcp-server/pkg/github/testutil"
 )
 
@@ -29,7 +30,7 @@ var expectQueryParams = testutil.CreateQueryParamExpectation
 func TestGetPullRequest(t *testing.T) {
 	// Verify tool definition once
 	mockClient := github.NewClient(nil)
-	tool, _ := GetPullRequest(testutil.StubGetClientFnWithClient(mockClient), testutil.NullTranslationHelperFunc)
+	tool, _ := githubpkg.GetPullRequest(testutil.StubGetClientFnWithClient(mockClient), testutil.NullTranslationHelperFunc)
 
 	assert.Equal(t, "get_pull_request", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -40,20 +41,20 @@ func TestGetPullRequest(t *testing.T) {
 
 	// Setup mock PR for success case
 	mockPR := &github.PullRequest{
-		Number:  testutil.Ptr(42),
-		Title:   testutil.Ptr(prTitle),
-		State:   testutil.Ptr(prOpenState),
-		HTMLURL: testutil.Ptr(prHTMLURL),
+		Number:  testutil.PtrTo(42),
+		Title:   testutil.PtrTo(prTitle),
+		State:   testutil.PtrTo(prOpenState),
+		HTMLURL: testutil.PtrTo(prHTMLURL),
 		Head: &github.PullRequestBranch{
-			SHA: testutil.Ptr(prSHA1),
-			Ref: testutil.Ptr(prFeatureBranch),
+			SHA: testutil.PtrTo(prSHA1),
+			Ref: testutil.PtrTo(prFeatureBranch),
 		},
 		Base: &github.PullRequestBranch{
-			Ref: testutil.Ptr(prMainBranch),
+			Ref: testutil.PtrTo(prMainBranch),
 		},
-		Body: testutil.Ptr(prBody),
+		Body: testutil.PtrTo(prBody),
 		User: &github.User{
-			Login: testutil.Ptr(prUser),
+			Login: testutil.PtrTo(prUser),
 		},
 	}
 
@@ -106,7 +107,7 @@ func TestGetPullRequest(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
 			client := github.NewClient(tc.mockedClient)
-			_, handler := GetPullRequest(testutil.StubGetClientFnWithClient(client), testutil.NullTranslationHelperFunc)
+			_, handler := githubpkg.GetPullRequest(testutil.StubGetClientFnWithClient(client), testutil.NullTranslationHelperFunc)
 
 			// Create call request
 			request := testutil.CreateMCPRequest(tc.requestArgs)
@@ -180,21 +181,21 @@ func TestUpdatePullRequest(t *testing.T) {
 
 	// Setup mock PR for success case
 	mockUpdatedPR := &github.PullRequest{
-		Number:              testutil.Ptr(42),
-		Title:               testutil.Ptr(prUpdatedTitle),
-		State:               testutil.Ptr(prOpenState),
-		HTMLURL:             testutil.Ptr(prHTMLURL),
-		Body:                testutil.Ptr(prUpdatedBody),
-		MaintainerCanModify: testutil.Ptr(false),
+		Number:              testutil.PtrTo(42),
+		Title:               testutil.PtrTo(prUpdatedTitle),
+		State:               testutil.PtrTo(prOpenState),
+		HTMLURL:             testutil.PtrTo(prHTMLURL),
+		Body:                testutil.PtrTo(prUpdatedBody),
+		MaintainerCanModify: testutil.PtrTo(false),
 		Base: &github.PullRequestBranch{
-			Ref: testutil.Ptr(prDevelopBranch),
+			Ref: testutil.PtrTo(prDevelopBranch),
 		},
 	}
 
 	mockClosedPR := &github.PullRequest{
-		Number: testutil.Ptr(42),
-		Title:  testutil.Ptr(prTitle),
-		State:  testutil.Ptr(prClosedState), // State updated
+		Number: testutil.PtrTo(42),
+		Title:  testutil.PtrTo(prTitle),
+		State:  testutil.PtrTo(prClosedState), // State updated
 	}
 
 	tests := []struct {
@@ -320,7 +321,7 @@ func TestUpdatePullRequest(t *testing.T) {
 func TestListPullRequests(t *testing.T) {
 	// Verify tool definition once
 	mockClient := github.NewClient(nil)
-	tool, _ := ListPullRequests(testutil.StubGetClientFnWithClient(mockClient), testutil.NullTranslationHelperFunc)
+	tool, _ := githubpkg.ListPullRequests(testutil.StubGetClientFnWithClient(mockClient), testutil.NullTranslationHelperFunc)
 
 	assert.Equal(t, "list_pull_requests", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -338,16 +339,16 @@ func TestListPullRequests(t *testing.T) {
 	// Setup mock PRs for success case
 	mockPRs := []*github.PullRequest{
 		{
-			Number:  testutil.Ptr(42),
-			Title:   testutil.Ptr(prFirstPRTitle),
-			State:   testutil.Ptr(prOpenState),
-			HTMLURL: testutil.Ptr(prHTMLURL),
+			Number:  testutil.PtrTo(42),
+			Title:   testutil.PtrTo(prFirstPRTitle),
+			State:   testutil.PtrTo(prOpenState),
+			HTMLURL: testutil.PtrTo(prHTMLURL),
 		},
 		{
-			Number:  testutil.Ptr(43),
-			Title:   testutil.Ptr(prSecondPRTitle),
-			State:   testutil.Ptr(prClosedState),
-			HTMLURL: testutil.Ptr(prSecondHTMLURL),
+			Number:  testutil.PtrTo(43),
+			Title:   testutil.PtrTo(prSecondPRTitle),
+			State:   testutil.PtrTo(prClosedState),
+			HTMLURL: testutil.PtrTo(prSecondHTMLURL),
 		},
 	}
 
@@ -412,7 +413,7 @@ func TestListPullRequests(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
 			client := github.NewClient(tc.mockedClient)
-			_, handler := ListPullRequests(testutil.StubGetClientFnWithClient(client), testutil.NullTranslationHelperFunc)
+			_, handler := githubpkg.ListPullRequests(testutil.StubGetClientFnWithClient(client), testutil.NullTranslationHelperFunc)
 
 			// Create call request
 			request := testutil.CreateMCPRequest(tc.requestArgs)
@@ -464,9 +465,9 @@ func TestMergePullRequest(t *testing.T) {
 
 	// Setup mock merge result for success case
 	mockMergeResult := &github.PullRequestMergeResult{
-		Merged:  testutil.Ptr(true),
-		Message: testutil.Ptr(prMergedMsg),
-		SHA:     testutil.Ptr(prSHA1),
+		Merged:  testutil.PtrTo(true),
+		Message: testutil.PtrTo(prMergedMsg),
+		SHA:     testutil.PtrTo(prSHA1),
 	}
 
 	tests := []struct {
@@ -573,20 +574,20 @@ func TestGetPullRequestFiles(t *testing.T) {
 	// Setup mock PR files for success case
 	mockFiles := []*github.CommitFile{
 		{
-			Filename:  testutil.Ptr(prFile1),
-			Status:    testutil.Ptr("modified"),
-			Additions: testutil.Ptr(10),
-			Deletions: testutil.Ptr(5),
-			Changes:   testutil.Ptr(15),
-			Patch:     testutil.Ptr("@@ -1,5 +1,10 @@"),
+			Filename:  testutil.PtrTo(prFile1),
+			Status:    testutil.PtrTo("modified"),
+			Additions: testutil.PtrTo(10),
+			Deletions: testutil.PtrTo(5),
+			Changes:   testutil.PtrTo(15),
+			Patch:     testutil.PtrTo("@@ -1,5 +1,10 @@"),
 		},
 		{
-			Filename:  testutil.Ptr(prFile2),
-			Status:    testutil.Ptr("added"),
-			Additions: testutil.Ptr(20),
-			Deletions: testutil.Ptr(0),
-			Changes:   testutil.Ptr(20),
-			Patch:     testutil.Ptr("@@ -0,0 +1,20 @@"),
+			Filename:  testutil.PtrTo(prFile2),
+			Status:    testutil.PtrTo("added"),
+			Additions: testutil.PtrTo(20),
+			Deletions: testutil.PtrTo(0),
+			Changes:   testutil.PtrTo(20),
+			Patch:     testutil.PtrTo("@@ -0,0 +1,20 @@"),
 		},
 	}
 
@@ -688,37 +689,37 @@ func TestGetPullRequestStatus(t *testing.T) {
 
 	// Setup mock PR for successful PR fetch
 	mockPR := &github.PullRequest{
-		Number:  testutil.Ptr(42),
-		Title:   testutil.Ptr(prTitle),
-		HTMLURL: testutil.Ptr(prHTMLURL),
+		Number:  testutil.PtrTo(42),
+		Title:   testutil.PtrTo(prTitle),
+		HTMLURL: testutil.PtrTo(prHTMLURL),
 		Head: &github.PullRequestBranch{
-			SHA: testutil.Ptr(prSHA1),
-			Ref: testutil.Ptr(prFeatureBranch),
+			SHA: testutil.PtrTo(prSHA1),
+			Ref: testutil.PtrTo(prFeatureBranch),
 		},
 	}
 
 	// Setup mock status for success case
 	mockStatus := &github.CombinedStatus{
-		State:      testutil.Ptr(prSuccessState),
-		TotalCount: testutil.Ptr(3),
+		State:      testutil.PtrTo(prSuccessState),
+		TotalCount: testutil.PtrTo(3),
 		Statuses: []*github.RepoStatus{
 			{
-				State:       testutil.Ptr(prSuccessState),
-				Context:     testutil.Ptr("continuous-integration/travis-ci"),
-				Description: testutil.Ptr("Build succeeded"),
-				TargetURL:   testutil.Ptr(prTravisCI),
+				State:       testutil.PtrTo(prSuccessState),
+				Context:     testutil.PtrTo("continuous-integration/travis-ci"),
+				Description: testutil.PtrTo("Build succeeded"),
+				TargetURL:   testutil.PtrTo(prTravisCI),
 			},
 			{
-				State:       testutil.Ptr(prSuccessState),
-				Context:     testutil.Ptr("codecov/patch"),
-				Description: testutil.Ptr(prCoverageIncreased),
-				TargetURL:   testutil.Ptr(prCodecov),
+				State:       testutil.PtrTo(prSuccessState),
+				Context:     testutil.PtrTo("codecov/patch"),
+				Description: testutil.PtrTo(prCoverageIncreased),
+				TargetURL:   testutil.PtrTo(prCodecov),
 			},
 			{
-				State:       testutil.Ptr(prSuccessState),
-				Context:     testutil.Ptr("lint/golangci-lint"),
-				Description: testutil.Ptr(prNoIssues),
-				TargetURL:   testutil.Ptr(prGolangCILint),
+				State:       testutil.PtrTo(prSuccessState),
+				Context:     testutil.PtrTo("lint/golangci-lint"),
+				Description: testutil.PtrTo(prNoIssues),
+				TargetURL:   testutil.PtrTo(prGolangCILint),
 			},
 		},
 	}
@@ -850,8 +851,8 @@ func TestUpdatePullRequestBranch(t *testing.T) {
 
 	// Setup mock update result for success case
 	mockUpdateResult := &github.PullRequestBranchUpdateResponse{
-		Message: testutil.Ptr(prBranchUpdateMsg),
-		URL:     testutil.Ptr(prBranchUpdateURL),
+		Message: testutil.PtrTo(prBranchUpdateMsg),
+		URL:     testutil.PtrTo(prBranchUpdateURL),
 	}
 
 	tests := []struct {
@@ -966,30 +967,30 @@ func TestGetPullRequestComments(t *testing.T) {
 	// Setup mock PR comments for success case
 	mockComments := []*github.PullRequestComment{
 		{
-			ID:      testutil.Ptr(int64(101)),
-			Body:    testutil.Ptr(prLooksGood),
-			HTMLURL: testutil.Ptr("https://github.com/owner/repo/pull/42#discussion_r101"),
+			ID:      testutil.PtrTo(int64(101)),
+			Body:    testutil.PtrTo(prLooksGood),
+			HTMLURL: testutil.PtrTo("https://github.com/owner/repo/pull/42#discussion_r101"),
 			User: &github.User{
-				Login: testutil.Ptr(prReviewer1),
+				Login: testutil.PtrTo(prReviewer1),
 			},
-			Path:      testutil.Ptr(prFile1),
-			Position:  testutil.Ptr(5),
-			CommitID:  testutil.Ptr(prCommitID),
-			CreatedAt: testutil.Ptr(github.Timestamp{Time: time.Now().Add(-24 * time.Hour)}),
-			UpdatedAt: testutil.Ptr(github.Timestamp{Time: time.Now().Add(-24 * time.Hour)}),
+			Path:      testutil.PtrTo(prFile1),
+			Position:  testutil.PtrTo(5),
+			CommitID:  testutil.PtrTo(prCommitID),
+			CreatedAt: testutil.PtrTo(github.Timestamp{Time: time.Now().Add(-24 * time.Hour)}),
+			UpdatedAt: testutil.PtrTo(github.Timestamp{Time: time.Now().Add(-24 * time.Hour)}),
 		},
 		{
-			ID:      testutil.Ptr(int64(102)),
-			Body:    testutil.Ptr(prNeedsFix),
-			HTMLURL: testutil.Ptr("https://github.com/owner/repo/pull/42#discussion_r102"),
+			ID:      testutil.PtrTo(int64(102)),
+			Body:    testutil.PtrTo(prNeedsFix),
+			HTMLURL: testutil.PtrTo("https://github.com/owner/repo/pull/42#discussion_r102"),
 			User: &github.User{
-				Login: testutil.Ptr(prReviewer2),
+				Login: testutil.PtrTo(prReviewer2),
 			},
-			Path:      testutil.Ptr(prFile2),
-			Position:  testutil.Ptr(10),
-			CommitID:  testutil.Ptr(prCommitID),
-			CreatedAt: testutil.Ptr(github.Timestamp{Time: time.Now().Add(-12 * time.Hour)}),
-			UpdatedAt: testutil.Ptr(github.Timestamp{Time: time.Now().Add(-12 * time.Hour)}),
+			Path:      testutil.PtrTo(prFile2),
+			Position:  testutil.PtrTo(10),
+			CommitID:  testutil.PtrTo(prCommitID),
+			CreatedAt: testutil.PtrTo(github.Timestamp{Time: time.Now().Add(-12 * time.Hour)}),
+			UpdatedAt: testutil.PtrTo(github.Timestamp{Time: time.Now().Add(-12 * time.Hour)}),
 		},
 	}
 
@@ -1093,26 +1094,26 @@ func TestGetPullRequestReviews(t *testing.T) {
 	// Setup mock PR reviews for success case
 	mockReviews := []*github.PullRequestReview{
 		{
-			ID:      testutil.Ptr(int64(201)),
-			State:   testutil.Ptr("APPROVED"),
-			Body:    testutil.Ptr(prLGTM),
-			HTMLURL: testutil.Ptr("https://github.com/owner/repo/pull/42#pullrequestreview-201"),
+			ID:      testutil.PtrTo(int64(201)),
+			State:   testutil.PtrTo("APPROVED"),
+			Body:    testutil.PtrTo(prLGTM),
+			HTMLURL: testutil.PtrTo("https://github.com/owner/repo/pull/42#pullrequestreview-201"),
 			User: &github.User{
-				Login: testutil.Ptr(prApprover),
+				Login: testutil.PtrTo(prApprover),
 			},
-			CommitID:    testutil.Ptr(prCommitID),
-			SubmittedAt: testutil.Ptr(github.Timestamp{Time: time.Now().Add(-24 * time.Hour)}),
+			CommitID:    testutil.PtrTo(prCommitID),
+			SubmittedAt: testutil.PtrTo(github.Timestamp{Time: time.Now().Add(-24 * time.Hour)}),
 		},
 		{
-			ID:      testutil.Ptr(int64(202)),
-			State:   testutil.Ptr("CHANGES_REQUESTED"),
-			Body:    testutil.Ptr("Please address the following issues"),
-			HTMLURL: testutil.Ptr("https://github.com/owner/repo/pull/42#pullrequestreview-202"),
+			ID:      testutil.PtrTo(int64(202)),
+			State:   testutil.PtrTo("CHANGES_REQUESTED"),
+			Body:    testutil.PtrTo("Please address the following issues"),
+			HTMLURL: testutil.PtrTo("https://github.com/owner/repo/pull/42#pullrequestreview-202"),
 			User: &github.User{
-				Login: testutil.Ptr(prReviewer),
+				Login: testutil.PtrTo(prReviewer),
 			},
-			CommitID:    testutil.Ptr(prCommitID),
-			SubmittedAt: testutil.Ptr(github.Timestamp{Time: time.Now().Add(-12 * time.Hour)}),
+			CommitID:    testutil.PtrTo(prCommitID),
+			SubmittedAt: testutil.PtrTo(github.Timestamp{Time: time.Now().Add(-12 * time.Hour)}),
 		},
 	}
 
@@ -1219,15 +1220,15 @@ func TestCreatePullRequestReview(t *testing.T) {
 
 	// Setup mock review for success case
 	mockReview := &github.PullRequestReview{
-		ID:      testutil.Ptr(int64(301)),
-		State:   testutil.Ptr("APPROVED"),
-		Body:    testutil.Ptr(prLooksGood),
-		HTMLURL: testutil.Ptr("https://github.com/owner/repo/pull/42#pullrequestreview-301"),
+		ID:      testutil.PtrTo(int64(301)),
+		State:   testutil.PtrTo("APPROVED"),
+		Body:    testutil.PtrTo(prLooksGood),
+		HTMLURL: testutil.PtrTo("https://github.com/owner/repo/pull/42#pullrequestreview-301"),
 		User: &github.User{
-			Login: testutil.Ptr(prReviewer),
+			Login: testutil.PtrTo(prReviewer),
 		},
-		CommitID:    testutil.Ptr(prCommitID),
-		SubmittedAt: testutil.Ptr(github.Timestamp{Time: time.Now()}),
+		CommitID:    testutil.PtrTo(prCommitID),
+		SubmittedAt: testutil.PtrTo(github.Timestamp{Time: time.Now()}),
 	}
 
 	tests := []struct {
@@ -1597,23 +1598,23 @@ func TestCreatePullRequest(t *testing.T) {
 
 	// Setup mock PR for success case
 	mockPR := &github.PullRequest{
-		Number:  testutil.Ptr(42),
-		Title:   testutil.Ptr(prTitle),
-		State:   testutil.Ptr(prOpenState),
-		HTMLURL: testutil.Ptr(prHTMLURL),
+		Number:  testutil.PtrTo(42),
+		Title:   testutil.PtrTo(prTitle),
+		State:   testutil.PtrTo(prOpenState),
+		HTMLURL: testutil.PtrTo(prHTMLURL),
 		Head: &github.PullRequestBranch{
-			SHA: testutil.Ptr(prSHA1),
-			Ref: testutil.Ptr(prFeatureBranch),
+			SHA: testutil.PtrTo(prSHA1),
+			Ref: testutil.PtrTo(prFeatureBranch),
 		},
 		Base: &github.PullRequestBranch{
-			SHA: testutil.Ptr(prSHA2),
-			Ref: testutil.Ptr(prMainBranch),
+			SHA: testutil.PtrTo(prSHA2),
+			Ref: testutil.PtrTo(prMainBranch),
 		},
-		Body:                testutil.Ptr(prBody),
-		Draft:               testutil.Ptr(false),
-		MaintainerCanModify: testutil.Ptr(true),
+		Body:                testutil.PtrTo(prBody),
+		Draft:               testutil.PtrTo(false),
+		MaintainerCanModify: testutil.PtrTo(true),
 		User: &github.User{
-			Login: testutil.Ptr(prUser),
+			Login: testutil.PtrTo(prUser),
 		},
 	}
 

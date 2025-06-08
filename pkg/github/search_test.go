@@ -10,11 +10,11 @@ package github_test
 import (
 	"context"
 	"encoding/json"
-	"github-mcp-server/pkg/log"
 	"net/http"
 	"testing"
 
 	"github.com/google/go-github/v71/github"
+	"github.com/jubicudis/github-mcp-server/pkg/log"
 	"github.com/migueleliasweb/go-github-mock/src/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -46,7 +46,7 @@ type repoTestCase struct {
 
 func TestSearchRepositories(t *testing.T) {
 	logger := log.NewLogger()
-	mockClient := NewClient("", logger)
+	mockClient := githubpkg.NewClient("", logger)
 	tool, _ := githubpkg.SearchRepositories(testutil.StubGetClientFnForCustomClient(mockClient), testutil.NullTranslationHelperFunc)
 
 	assert.Equal(t, "search_repositories", tool.Name)
@@ -58,24 +58,24 @@ func TestSearchRepositories(t *testing.T) {
 
 	// Setup mock search results
 	mockSearchResult := &github.RepositoriesSearchResult{
-		Total:             Ptr(2),
-		IncompleteResults: Ptr(false),
+		Total:             testutil.PtrTo(2),
+		IncompleteResults: testutil.PtrTo(false),
 		Repositories: []*github.Repository{
 			{
-				ID:              Ptr(int64(12345)),
-				Name:            Ptr("repo-1"),
-				FullName:        Ptr("owner/repo-1"),
-				HTMLURL:         Ptr("https://github.com/owner/repo-1"),
-				Description:     Ptr("Test repository 1"),
-				StargazersCount: Ptr(100),
+				ID:              testutil.PtrTo(int64(12345)),
+				Name:            testutil.PtrTo("repo-1"),
+				FullName:        testutil.PtrTo("owner/repo-1"),
+				HTMLURL:         testutil.PtrTo("https://github.com/owner/repo-1"),
+				Description:     testutil.PtrTo("Test repository 1"),
+				StargazersCount: testutil.PtrTo(100),
 			},
 			{
-				ID:              Ptr(int64(67890)),
-				Name:            Ptr("repo-2"),
-				FullName:        Ptr("owner/repo-2"),
-				HTMLURL:         Ptr("https://github.com/owner/repo-2"),
-				Description:     Ptr("Test repository 2"),
-				StargazersCount: Ptr(50),
+				ID:              testutil.PtrTo(int64(67890)),
+				Name:            testutil.PtrTo("repo-2"),
+				FullName:        testutil.PtrTo("owner/repo-2"),
+				HTMLURL:         testutil.PtrTo("https://github.com/owner/repo-2"),
+				Description:     testutil.PtrTo("Test repository 2"),
+				StargazersCount: testutil.PtrTo(50),
 			},
 		},
 	}
@@ -145,7 +145,7 @@ func TestSearchRepositories(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
-			client := NewClient("", logger)
+			client := githubpkg.NewClient("", logger)
 			_, handler := githubpkg.SearchRepositories(testutil.StubGetClientFnForCustomClient(client), testutil.NullTranslationHelperFunc)
 
 			// Create call request
@@ -209,22 +209,22 @@ func TestSearchCode(t *testing.T) {
 
 	// Setup mock search results
 	mockSearchResult := &github.CodeSearchResult{
-		Total:             Ptr(2),
-		IncompleteResults: Ptr(false),
+		Total:             testutil.PtrTo(2),
+		IncompleteResults: testutil.PtrTo(false),
 		CodeResults: []*github.CodeResult{
 			{
-				Name:       Ptr("file1.go"),
-				Path:       Ptr("path/to/file1.go"),
-				SHA:        Ptr("abc123def456"),
-				HTMLURL:    Ptr("https://github.com/owner/repo/blob/main/path/to/file1.go"),
-				Repository: &github.Repository{Name: Ptr("repo"), FullName: Ptr("owner/repo")},
+				Name:       testutil.PtrTo("file1.go"),
+				Path:       testutil.PtrTo("path/to/file1.go"),
+				SHA:        testutil.PtrTo("abc123def456"),
+				HTMLURL:    testutil.PtrTo("https://github.com/owner/repo/blob/main/path/to/file1.go"),
+				Repository: &github.Repository{Name: testutil.PtrTo("repo"), FullName: testutil.PtrTo("owner/repo")},
 			},
 			{
-				Name:       Ptr("file2.go"),
-				Path:       Ptr("path/to/file2.go"),
-				SHA:        Ptr("def456abc123"),
-				HTMLURL:    Ptr("https://github.com/owner/repo/blob/main/path/to/file2.go"),
-				Repository: &github.Repository{Name: Ptr("repo"), FullName: Ptr("owner/repo")},
+				Name:       testutil.PtrTo("file2.go"),
+				Path:       testutil.PtrTo("path/to/file2.go"),
+				SHA:        testutil.PtrTo("def456abc123"),
+				HTMLURL:    testutil.PtrTo("https://github.com/owner/repo/blob/main/path/to/file2.go"),
+				Repository: &github.Repository{Name: testutil.PtrTo("repo"), FullName: testutil.PtrTo("owner/repo")},
 			},
 		},
 	}
@@ -362,26 +362,26 @@ func TestSearchUsers(t *testing.T) {
 
 	// Setup mock search results
 	mockSearchResult := &github.UsersSearchResult{
-		Total:             Ptr(2),
-		IncompleteResults: Ptr(false),
+		Total:             testutil.PtrTo(2),
+		IncompleteResults: testutil.PtrTo(false),
 		Users: []*github.User{
 			{
-				Login:     Ptr("user1"),
-				ID:        Ptr(int64(1001)),
-				HTMLURL:   Ptr("https://github.com/user1"),
-				AvatarURL: Ptr("https://avatars.githubusercontent.com/u/1001"),
-				Type:      Ptr("User"),
-				Followers: Ptr(100),
-				Following: Ptr(50),
+				Login:     testutil.PtrTo("user1"),
+				ID:        testutil.PtrTo(int64(1001)),
+				HTMLURL:   testutil.PtrTo("https://github.com/user1"),
+				AvatarURL: testutil.PtrTo("https://avatars.githubusercontent.com/u/1001"),
+				Type:      testutil.PtrTo("User"),
+				Followers: testutil.PtrTo(100),
+				Following: testutil.PtrTo(50),
 			},
 			{
-				Login:     Ptr("user2"),
-				ID:        Ptr(int64(1002)),
-				HTMLURL:   Ptr("https://github.com/user2"),
-				AvatarURL: Ptr("https://avatars.githubusercontent.com/u/1002"),
-				Type:      Ptr("User"),
-				Followers: Ptr(200),
-				Following: Ptr(75),
+				Login:     testutil.PtrTo("user2"),
+				ID:        testutil.PtrTo(int64(1002)),
+				HTMLURL:   testutil.PtrTo("https://github.com/user2"),
+				AvatarURL: testutil.PtrTo("https://avatars.githubusercontent.com/u/1002"),
+				Type:      testutil.PtrTo("User"),
+				Followers: testutil.PtrTo(200),
+				Following: testutil.PtrTo(75),
 			},
 		},
 	}

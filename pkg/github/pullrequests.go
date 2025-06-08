@@ -10,10 +10,10 @@ import (
 
 	"github.com/jubicudis/github-mcp-server/pkg/common"
 	"github.com/jubicudis/github-mcp-server/pkg/translations"
-	"github.com/mark3labs/mcp-go/mcp"
-	"github.com/mark3labs/mcp-go/server"
 
 	"github.com/google/go-github/v71/github"
+	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/mark3labs/mcp-go/server"
 )
 
 // GetClientFn is a function type for getting GitHub clients
@@ -37,7 +37,15 @@ func GetPullRequest(getClient GetClientFn, t translations.TranslationHelperFunc)
 			),
 		),
 		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			owner, repo, pullNumber, err := extractPullRequestParams(request)
+			owner, err := common.RequiredParam[string](request, "owner")
+			if err != nil {
+				return mcp.NewToolResultError(err.Error()), nil
+			}
+			repo, err := common.RequiredParam[string](request, "repo")
+			if err != nil {
+				return mcp.NewToolResultError(err.Error()), nil
+			}
+			pullNumber, err := common.RequiredIntParam(request, "pullNumber")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
@@ -106,7 +114,15 @@ func UpdatePullRequest(getClient GetClientFn, t translations.TranslationHelperFu
 			),
 		),
 		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			owner, repo, pullNumber, err := extractPullRequestParams(request)
+			owner, err := common.RequiredParam[string](request, "owner")
+			if err != nil {
+				return mcp.NewToolResultError(err.Error()), nil
+			}
+			repo, err := common.RequiredParam[string](request, "repo")
+			if err != nil {
+				return mcp.NewToolResultError(err.Error()), nil
+			}
+			pullNumber, err := common.RequiredIntParam(request, "pullNumber")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
@@ -216,7 +232,7 @@ func ListPullRequests(getClient GetClientFn, t translations.TranslationHelperFun
 			common.WithPagination(),
 		),
 		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			owner, repo, err := common.RequiredParam[string](request, "owner")
+			owner, err := common.RequiredParam[string](request, "owner")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
@@ -244,14 +260,10 @@ func ListPullRequests(getClient GetClientFn, t translations.TranslationHelperFun
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			pagination, err := common.WithPagination(request)
+			pagination, err := common.OptionalPaginationParams(request)
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-
-			// Access pagination values
-			page := pagination["page"]
-			perPage := pagination["per_page"]
 
 			opts := &github.PullRequestListOptions{
 				State:     state,
@@ -260,8 +272,8 @@ func ListPullRequests(getClient GetClientFn, t translations.TranslationHelperFun
 				Sort:      sort,
 				Direction: direction,
 				ListOptions: github.ListOptions{
-					PerPage: perPage,
-					Page:    page,
+					PerPage: pagination.perPage,
+					Page:    pagination.page,
 				},
 			}
 
@@ -319,7 +331,15 @@ func MergePullRequest(getClient GetClientFn, t translations.TranslationHelperFun
 			),
 		),
 		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			owner, repo, pullNumber, err := extractPullRequestParams(request)
+			owner, err := common.RequiredParam[string](request, "owner")
+			if err != nil {
+				return mcp.NewToolResultError(err.Error()), nil
+			}
+			repo, err := common.RequiredParam[string](request, "repo")
+			if err != nil {
+				return mcp.NewToolResultError(err.Error()), nil
+			}
+			pullNumber, err := common.RequiredIntParam(request, "pullNumber")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
@@ -386,7 +406,15 @@ func GetPullRequestFiles(getClient GetClientFn, t translations.TranslationHelper
 			),
 		),
 		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			owner, repo, pullNumber, err := extractPullRequestParams(request)
+			owner, err := common.RequiredParam[string](request, "owner")
+			if err != nil {
+				return mcp.NewToolResultError(err.Error()), nil
+			}
+			repo, err := common.RequiredParam[string](request, "repo")
+			if err != nil {
+				return mcp.NewToolResultError(err.Error()), nil
+			}
+			pullNumber, err := common.RequiredIntParam(request, "pullNumber")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
@@ -437,7 +465,15 @@ func GetPullRequestStatus(getClient GetClientFn, t translations.TranslationHelpe
 			),
 		),
 		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			owner, repo, pullNumber, err := extractPullRequestParams(request)
+			owner, err := common.RequiredParam[string](request, "owner")
+			if err != nil {
+				return mcp.NewToolResultError(err.Error()), nil
+			}
+			repo, err := common.RequiredParam[string](request, "repo")
+			if err != nil {
+				return mcp.NewToolResultError(err.Error()), nil
+			}
+			pullNumber, err := common.RequiredIntParam(request, "pullNumber")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
@@ -505,7 +541,15 @@ func UpdatePullRequestBranch(getClient GetClientFn, t translations.TranslationHe
 			),
 		),
 		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			owner, repo, pullNumber, err := extractPullRequestParams(request)
+			owner, err := common.RequiredParam[string](request, "owner")
+			if err != nil {
+				return mcp.NewToolResultError(err.Error()), nil
+			}
+			repo, err := common.RequiredParam[string](request, "repo")
+			if err != nil {
+				return mcp.NewToolResultError(err.Error()), nil
+			}
+			pullNumber, err := common.RequiredIntParam(request, "pullNumber")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
@@ -526,7 +570,7 @@ func UpdatePullRequestBranch(getClient GetClientFn, t translations.TranslationHe
 			if err != nil {
 				// Check if it's an acceptedError. An acceptedError indicates that the update is in progress,
 				// and it's not a real error.
-				if resp != nil && resp.StatusCode == http.StatusAccepted && common.IsAcceptedError(err) {
+				if resp != nil && resp.StatusCode == http.StatusAccepted && isAcceptedError(err) {
 					return mcp.NewToolResultText("Pull request branch update is in progress"), nil
 				}
 				return nil, fmt.Errorf("failed to update pull request branch: %w", err)
@@ -568,7 +612,15 @@ func GetPullRequestComments(getClient GetClientFn, t translations.TranslationHel
 			),
 		),
 		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			owner, repo, pullNumber, err := extractPullRequestParams(request)
+			owner, err := common.RequiredParam[string](request, "owner")
+			if err != nil {
+				return mcp.NewToolResultError(err.Error()), nil
+			}
+			repo, err := common.RequiredParam[string](request, "repo")
+			if err != nil {
+				return mcp.NewToolResultError(err.Error()), nil
+			}
+			pullNumber, err := common.RequiredIntParam(request, "pullNumber")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
@@ -624,7 +676,15 @@ func GetPullRequestReviews(getClient GetClientFn, t translations.TranslationHelp
 			),
 		),
 		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			owner, repo, pullNumber, err := extractPullRequestParams(request)
+			owner, err := common.RequiredParam[string](request, "owner")
+			if err != nil {
+				return mcp.NewToolResultError(err.Error()), nil
+			}
+			repo, err := common.RequiredParam[string](request, "repo")
+			if err != nil {
+				return mcp.NewToolResultError(err.Error()), nil
+			}
+			pullNumber, err := common.RequiredIntParam(request, "pullNumber")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
@@ -724,7 +784,15 @@ func CreatePullRequestReview(getClient GetClientFn, t translations.TranslationHe
 			),
 		),
 		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			owner, repo, pullNumber, err := extractPullRequestParams(request)
+			owner, err := common.RequiredParam[string](request, "owner")
+			if err != nil {
+				return mcp.NewToolResultError(err.Error()), nil
+			}
+			repo, err := common.RequiredParam[string](request, "repo")
+			if err != nil {
+				return mcp.NewToolResultError(err.Error()), nil
+			}
+			pullNumber, err := common.RequiredIntParam(request, "pullNumber")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
@@ -879,7 +947,11 @@ func CreatePullRequest(getClient GetClientFn, t translations.TranslationHelperFu
 			),
 		),
 		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			owner, repo, err := common.RequiredParam[string](request, "owner")
+			owner, err := common.RequiredParam[string](request, "owner")
+			if err != nil {
+				return mcp.NewToolResultError(err.Error()), nil
+			}
+			repo, err := common.RequiredParam[string](request, "repo")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
@@ -949,21 +1021,4 @@ func CreatePullRequest(getClient GetClientFn, t translations.TranslationHelperFu
 
 			return mcp.NewToolResultText(string(r)), nil
 		}
-}
-
-// Updated parameter extraction to use shared utilities
-func extractPullRequestParams(request mcp.CallToolRequest) (string, string, int, error) {
-    owner, err := common.RequiredParam[string](request, "owner")
-    if err != nil {
-        return "", "", 0, err
-    }
-    repo, err := common.RequiredParam[string](request, "repo")
-    if err != nil {
-        return "", "", 0, err
-    }
-    pullNumber, err := common.RequiredIntParam(request, "pullNumber")
-    if err != nil {
-        return "", "", 0, err
-    }
-    return owner, repo, pullNumber, nil
 }

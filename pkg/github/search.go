@@ -13,7 +13,7 @@ import (
 	"fmt"
 	"io"
 
-	"github-mcp-server/pkg/translations"
+	"github.com/jubicudis/github-mcp-server/pkg/translations"
 
 	"github.com/google/go-github/v71/github"
 	"github.com/mark3labs/mcp-go/mcp"

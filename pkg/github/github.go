@@ -18,10 +18,10 @@ import (
 	"net/http"
 	"time"
 
-	"github-mcp-server/pkg/bridge"
-	"github-mcp-server/pkg/common"
-	"github-mcp-server/pkg/log"
-	"github-mcp-server/pkg/translations"
+	"github.com/jubicudis/github-mcp-server/pkg/bridge"
+	"github.com/jubicudis/github-mcp-server/pkg/common"
+	"github.com/jubicudis/github-mcp-server/pkg/log"
+	"github.com/jubicudis/github-mcp-server/pkg/translations"
 
 	"github.com/google/go-github/v53/github"
 	"github.com/mark3labs/mcp-go/mcp"
