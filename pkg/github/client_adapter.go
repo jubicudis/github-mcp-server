@@ -18,8 +18,8 @@ import (
 	"strings"
 	"time"
 
-	models "github-mcp-server/pkg/models"
-	"github-mcp-server/pkg/translations"
+	models "github.com/jubicudis/github-mcp-server/pkg/models"
+	"github.com/jubicudis/github-mcp-server/pkg/translations"
 )
 
 // Logger defines a custom logger interface that supports structured logging

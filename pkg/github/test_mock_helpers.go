@@ -10,13 +10,16 @@
 package github
 
 import (
-	"github-mcp-server/pkg/testutil"
 	"net/http"
+
+	"github.com/jubicudis/github-mcp-server/pkg/common"
+	"github.com/jubicudis/github-mcp-server/pkg/testutil"
 )
 
 // Ptr provides a pointer to the provided value
+// Deprecated: use common.Ptr instead
 func Ptr[T any](v T) *T {
-	return &v
+	return common.Ptr(v)
 }
 
 // mockResponse creates an HTTP handler that returns the provided response
