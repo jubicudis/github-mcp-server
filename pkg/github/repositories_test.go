@@ -7,13 +7,14 @@ import (
 	"testing"
 	"time"
 
-	"github-mcp-server/pkg/github/testutil"
-	"github-mcp-server/pkg/log"
-
 	"github.com/google/go-github/v71/github"
 	"github.com/migueleliasweb/go-github-mock/src/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/jubicudis/github-mcp-server/pkg/github/testutil"
+	githubpkg "github.com/jubicudis/github-mcp-server/pkg/github"
+	"github.com/jubicudis/github-mcp-server/pkg/log"
 )
 
 // Test constants for repeated string literals
@@ -52,10 +53,17 @@ const (
 	perPageKey     = "perPage"
 )
 
++// Helper aliases for legacy test expectations
++var expectRequestBody = testutil.MockResponse
++var expectQueryParams = testutil.CreateQueryParamExpectation
+
 func TestGetFileContents(t *testing.T) {
-	logger := log.NewLogger().WithLevel(log.LevelDebug)
-	mockClient := NewClient("", logger)
-	tool, _ := GetFileContents(testutil.StubGetClientFnWithClient(mockClient), testutil.NullTranslationHelperFunc)
+-   logger := log.NewLogger().WithLevel(log.LevelDebug)
+-   mockClient := NewClient("", logger)
+-   tool, _ := GetFileContents(testutil.StubGetClientFnWithClient(mockClient), testutil.NullTranslationHelperFunc)
++   logger := log.NewLogger().WithLevel(log.LevelDebug)
++   mockClient := githubpkg.NewClient("", logger)
++   tool, _ := githubpkg.GetFileContents(testutil.StubGetClientFnWithClient(mockClient), testutil.NullTranslationHelperFunc)
 
 	assert.Equal(t, "get_file_contents", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -168,8 +176,10 @@ func TestGetFileContents(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
-			client := NewClient("", logger)
-			_, handler := GetFileContents(testutil.StubGetClientFnWithClient(client), testutil.NullTranslationHelperFunc)
+-			client := NewClient("", logger)
+-			_, handler := GetFileContents(testutil.StubGetClientFnWithClient(client), testutil.NullTranslationHelperFunc)
++			client := githubpkg.NewClient("", logger)
++			_, handler := githubpkg.GetFileContents(testutil.StubGetClientFnWithClient(client), testutil.NullTranslationHelperFunc)
 
 			// Create call request
 			request := testutil.CreateMCPRequest(tc.requestArgs)
@@ -285,8 +295,10 @@ func TestForkRepository(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
-			client := NewClient("", logger)
-			_, handler := ForkRepository(testutil.StubGetClientFnWithClient(client), testutil.NullTranslationHelperFunc)
+-			client := NewClient("", logger)
+-			_, handler := ForkRepository(testutil.StubGetClientFnWithClient(client), testutil.NullTranslationHelperFunc)
++			client := githubpkg.NewClient("", logger)
++			_, handler := githubpkg.ForkRepository(testutil.StubGetClientFnWithClient(client), testutil.NullTranslationHelperFunc)
 
 			// Create call request
 			request := testutil.CreateMCPRequest(tc.requestArgs)
@@ -1451,7 +1463,7 @@ func TestPushFiles(t *testing.t) {
 	}
 }
 
-func TestListBranches(t *testing.T) {
+func TestListBranches(t *testing.t) {
 	logger := log.NewLogger().WithLevel(log.LevelDebug)
 	mockClient := NewClient("", logger)
 	tool, _ := ListBranches(testutil.StubGetClientFnWithClient(mockClient), testutil.NullTranslationHelperFunc)

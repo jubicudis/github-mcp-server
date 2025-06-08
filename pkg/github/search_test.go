@@ -10,7 +10,6 @@ package github_test
 import (
 	"context"
 	"encoding/json"
-	"github-mcp-server/pkg/github/testutil"
 	"github-mcp-server/pkg/log"
 	"net/http"
 	"testing"
@@ -19,7 +18,14 @@ import (
 	"github.com/migueleliasweb/go-github-mock/src/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	githubpkg "github.com/jubicudis/github-mcp-server/pkg/github"
+	"github.com/jubicudis/github-mcp-server/pkg/github/testutil"
 )
+
+// Helper aliases for legacy test expectations
+var expectRequestBody = testutil.MockResponse
+var expectQueryParams = testutil.CreateQueryParamExpectation
 
 // Test constants for repeated literals
 const (
@@ -41,7 +47,7 @@ type repoTestCase struct {
 func TestSearchRepositories(t *testing.T) {
 	logger := log.NewLogger()
 	mockClient := NewClient("", logger)
-	tool, _ := SearchRepositories(testutil.StubGetClientFnForCustomClient(mockClient), testutil.NullTranslationHelperFunc)
+	tool, _ := githubpkg.SearchRepositories(testutil.StubGetClientFnForCustomClient(mockClient), testutil.NullTranslationHelperFunc)
 
 	assert.Equal(t, "search_repositories", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -140,7 +146,7 @@ func TestSearchRepositories(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
 			client := NewClient("", logger)
-			_, handler := SearchRepositories(testutil.StubGetClientFnForCustomClient(client), testutil.NullTranslationHelperFunc)
+			_, handler := githubpkg.SearchRepositories(testutil.StubGetClientFnForCustomClient(client), testutil.NullTranslationHelperFunc)
 
 			// Create call request
 			request := testutil.CreateMCPRequest(tc.requestArgs)
@@ -190,7 +196,7 @@ type codeTestCase struct {
 func TestSearchCode(t *testing.T) {
 	logger := log.NewLogger()
 	mockClient := NewClient("", logger)
-	tool, _ := SearchCode(testutil.StubGetClientFnForCustomClient(mockClient), testutil.NullTranslationHelperFunc)
+	tool, _ := githubpkg.SearchCode(testutil.StubGetClientFnForCustomClient(mockClient), testutil.NullTranslationHelperFunc)
 
 	assert.Equal(t, "search_code", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -293,7 +299,7 @@ func TestSearchCode(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
 			client := NewClient("", logger)
-			_, handler := SearchCode(testutil.StubGetClientFnForCustomClient(client), testutil.NullTranslationHelperFunc)
+			_, handler := githubpkg.SearchCode(testutil.StubGetClientFnForCustomClient(client), testutil.NullTranslationHelperFunc)
 
 			// Create call request
 			request := testutil.CreateMCPRequest(tc.requestArgs)
@@ -343,7 +349,7 @@ type userTestCase struct {
 func TestSearchUsers(t *testing.T) {
 	logger := log.NewLogger()
 	mockClient := NewClient("", logger)
-	tool, _ := SearchUsers(testutil.StubGetClientFnForCustomClient(mockClient), testutil.NullTranslationHelperFunc)
+	tool, _ := githubpkg.SearchUsers(testutil.StubGetClientFnForCustomClient(mockClient), testutil.NullTranslationHelperFunc)
 
 	assert.Equal(t, "search_users", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -450,7 +456,7 @@ func TestSearchUsers(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
 			client := NewClient("", logger)
-			_, handler := SearchUsers(testutil.StubGetClientFnForCustomClient(client), testutil.NullTranslationHelperFunc)
+			_, handler := githubpkg.SearchUsers(testutil.StubGetClientFnForCustomClient(client), testutil.NullTranslationHelperFunc)
 
 			// Create call request
 			request := testutil.CreateMCPRequest(tc.requestArgs)

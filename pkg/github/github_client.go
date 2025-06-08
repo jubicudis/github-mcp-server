@@ -24,8 +24,11 @@ import (
 	"sync"
 	"time"
 
+	"github-mcp-server/pkg/common"
 	"github-mcp-server/pkg/log"
 	"github-mcp-server/pkg/translations"
+
+	"github.com/mark3labs/mcp-go/mcp"
 
 	"encoding/base64"
 
@@ -1266,4 +1269,27 @@ func NewClient(token string, logger *log.Logger) *Client {
 		panic(fmt.Sprintf("failed to create GitHub client: %v", err))
 	}
 	return client
+}
+
+// Updated parameter extraction to use shared utilities
+func extractParams(request mcp.CallToolRequest) (string, string, error) {
+	owner, err := common.RequiredParam[string](request, "owner")
+	if err != nil {
+		return "", "", err
+	}
+	repo, err := common.RequiredParam[string](request, "repo")
+	if err != nil {
+		return "", "", err
+	}
+	return owner, repo, nil
+}
+
+// Example usage in a function
+func GetRepositoryDetails(request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+	owner, repo, err := extractParams(request)
+	if err != nil {
+		return mcp.NewToolResultError(err.Error()), nil
+	}
+	// ...existing logic...
+	return mcp.NewToolResultText(fmt.Sprintf("Owner: %s, Repo: %s", owner, repo)), nil
 }

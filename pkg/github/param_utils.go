@@ -11,7 +11,7 @@
 package github
 
 import (
-	"github-mcp-server/pkg/common"
+	"github.com/jubicudis/github-mcp-server/pkg/common"
 
 	"github.com/mark3labs/mcp-go/mcp"
 )
