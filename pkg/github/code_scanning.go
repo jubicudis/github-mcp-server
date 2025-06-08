@@ -12,7 +12,6 @@ package github
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"github-mcp-server/pkg/translations"
 	"io"
@@ -69,11 +68,19 @@ func extractAlertParams(request mcp.CallToolRequest) (owner, repo string, alertN
 	return owner, repo, alertNumberInt, nil
 }
 
-// fetchCodeScanningAlert fetches a specific alert from GitHub API
-func fetchCodeScanningAlert(ctx context.Context, client *github.Client, owner, repo string, alertNumber int64) ([]byte, error) {
-	alert, resp, err := client.CodeScanning.GetAlert(ctx, owner, repo, alertNumber)
+// Refactor common logic for parameter extraction
+func extractRequiredStringParam(request mcp.CallToolRequest, paramName string) (string, error) {
+	return RequiredParam[string](request, paramName)
+}
+
+func extractOptionalStringParam(request mcp.CallToolRequest, paramName string) (string, error) {
+	return OptionalParam[string](request, paramName)
+}
+
+// Refactor common logic for API response handling
+func handleAPIResponse(resp *github.Response, err error) ([]byte, error) {
 	if err != nil {
-		return nil, fmt.Errorf("failed to get alert: %w", err)
+		return nil, fmt.Errorf("API call failed: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
@@ -82,10 +89,20 @@ func fetchCodeScanningAlert(ctx context.Context, client *github.Client, owner, r
 		if err != nil {
 			return nil, fmt.Errorf("failed to read response body: %w", err)
 		}
-		return nil, fmt.Errorf("failed to get alert: %s", string(body))
+		return nil, fmt.Errorf("API call failed: %s", string(body))
 	}
 
-	return json.Marshal(alert)
+	return io.ReadAll(resp.Body)
+}
+
+// fetchCodeScanningAlert fetches a specific alert from GitHub API
+func fetchCodeScanningAlert(ctx context.Context, client *github.Client, owner, repo string, alertNumber int64) ([]byte, error) {
+	_, resp, err := client.CodeScanning.GetAlert(ctx, owner, repo, alertNumber)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get alert: %w", err)
+	}
+
+	return handleAPIResponse(resp, err)
 }
 
 // handleGetCodeScanningAlert implements the handler logic for getting a code scanning alert
@@ -148,28 +165,26 @@ func ListCodeScanningAlerts(getClient GetClientFn, t translations.TranslationHel
 
 // extractCodeScanningParams extracts parameters for code scanning API
 func extractCodeScanningParams(request mcp.CallToolRequest) (owner, repo, ref, state string, err error) {
-	owner, err = RequiredParam[string](request, "owner")
+	owner, err = extractRequiredStringParam(request, "owner")
 	if err != nil {
 		return
 	}
 
-	repo, err = RequiredParam[string](request, "repo")
+	repo, err = extractRequiredStringParam(request, "repo")
 	if err != nil {
 		return
 	}
 
-	ref, err = OptionalParam[string](request, "ref")
+	ref, err = extractOptionalStringParam(request, "ref")
 	if err != nil {
 		return
 	}
 
-	state, err = OptionalParam[string](request, "state")
+	state, err = extractOptionalStringParam(request, "state")
 	if err != nil {
 		return
 	}
 
-	// Note: Severity field not supported in this version of the GitHub API
-	_, err = OptionalParam[string](request, "severity")
 	return
 }
 
@@ -180,21 +195,12 @@ func fetchCodeScanningAlerts(ctx context.Context, client *github.Client, owner, 
 		State: state,
 	}
 
-	alerts, resp, err := client.CodeScanning.ListAlertsForRepo(ctx, owner, repo, opts)
+	_, resp, err := client.CodeScanning.ListAlertsForRepo(ctx, owner, repo, opts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list alerts: %w", err)
 	}
-	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode != http.StatusOK {
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read response body: %w", err)
-		}
-		return nil, fmt.Errorf("failed to list alerts: %s", string(body))
-	}
-
-	return json.Marshal(alerts)
+	return handleAPIResponse(resp, err)
 }
 
 // handleListCodeScanningAlerts implements the handler logic for listing code scanning alerts

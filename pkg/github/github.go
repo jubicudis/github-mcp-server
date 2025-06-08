@@ -12,16 +12,18 @@ package github
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-	"strconv"
-	"strings"
+	"io"
+	"net/http"
 	"time"
 
 	"github-mcp-server/pkg/bridge"
+	"github-mcp-server/pkg/common"
 	"github-mcp-server/pkg/log"
 	"github-mcp-server/pkg/translations"
 
-	"github.com/google/go-github/v71/github"
+	"github.com/google/go-github/v53/github"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
@@ -58,10 +60,23 @@ func InitializeMCPBridge(enableCompression bool) error {
 	}
 	ctx := context.Background()
 	operationName := "InitializeMCPBridge"
+
+	// Convert translations.ContextVector7D to map[string]interface{}
+	contextData := map[string]interface{}{
+		"Who":    context7d.Who,
+		"What":   context7d.What,
+		"When":   context7d.When,
+		"Where":  context7d.Where,
+		"Why":    context7d.Why,
+		"How":    context7d.How,
+		"Extent": context7d.Extent,
+	}
+
+	// Replace FallbackRouteWithVector with FallbackRoute
 	_, err := bridge.FallbackRoute(
-		ctx,
-		operationName,
-		context7d,
+		context.Background(),
+		"BridgeInit",
+		contextData,
 		func() (interface{}, error) {
 			fmt.Println("Initializing MCP Bridge between GitHub and TNOS")
 			return nil, nil
@@ -130,7 +145,7 @@ func (t *GitHubContextTranslator) TranslateToTNOS(githubContext map[string]inter
 	}
 	ctx := context.Background()
 	operationName := "TranslateToTNOS"
-	_, _ = bridge.FallbackRoute(
+	_, _ = bridge.FallbackRouteWithVector(
 		ctx,
 		operationName,
 		context7d,
@@ -182,7 +197,7 @@ func (t *GitHubContextTranslator) TranslateFromTNOS(tnosContext map[string]inter
 	}
 	ctx := context.Background()
 	operationName := "TranslateFromTNOS"
-	_, _ = bridge.FallbackRoute(
+	_, _ = bridge.FallbackRouteWithVector(
 		ctx,
 		operationName,
 		context7d,
@@ -283,9 +298,6 @@ func StartMCPEventMonitor(logger *log.Logger) error {
 	return nil
 }
 
-// GetClientFn is a function type for getting GitHub clients
-type GetClientFn func(ctx context.Context) (*github.Client, error)
-
 // WHO: ContextTranslatorTypeDefinition
 // WHAT: Define context translator function type
 // WHEN: During type declarations
@@ -318,199 +330,180 @@ func ExtractRequiredParam[T any](request mcp.CallToolRequest, name string) (T, e
 	return result, nil
 }
 
-// WHO: OptionalParameterExtractor
-// WHAT: Extract optional parameters from MCP requests
-// WHEN: During API request handling
-// WHERE: System Layer 6 (Integration)
-// WHY: To validate and extract optional parameters
-// HOW: Using type assertion with defaults
-// EXTENT: MCP request optional parameter handling
-func OptionalParam[T any](request mcp.CallToolRequest, name string) (T, error) {
-	var zero T
-	value, ok := request.Params.Arguments[name]
-	if !ok {
-		return zero, nil // Return zero value if parameter is missing
-	}
+// Deprecated: use common.RequiredIntParam, common.OptionalIntParam, common.OptionalIntParamWithDefault
+// func RequiredInt(request mcp.CallToolRequest, name string) (int, error) {
+//	value, ok := request.Params.Arguments[name]
+//	if !ok {
+//		return 0, fmt.Errorf("missing required parameter: %s", name)
+//	}
+//
+//	// Handle different number types
+//	switch v := value.(type) {
+//	case int:
+//		return v, nil
+//	case int64:
+//		return int(v), nil
+//	case float64:
+//		return int(v), nil
+//	case string:
+//		i, err := strconv.Atoi(v)
+//		if err != nil {
+//			return 0, fmt.Errorf("invalid integer for %s: %s", name, err)
+//		}
+//		return i, nil
+//	default:
+//		return 0, fmt.Errorf("expected integer for %s, got %T", name, value)
+//	}
+// }
 
-	result, ok := value.(T)
-	if !ok {
-		return zero, fmt.Errorf("invalid type for parameter %s", name)
-	}
+// Deprecated: use common.OptionalIntParam
+// func OptionalInt(request mcp.CallToolRequest, name string) (int, bool, error) {
+//	value, ok := request.Params.Arguments[name]
+//	if !ok {
+//		return 0, false, nil // Parameter not provided
+//	}
+//
+//	// Handle different number types
+//	switch v := value.(type) {
+//	case int:
+//		return v, true, nil
+//	case int64:
+//		return int(v), true, nil
+//	case float64:
+//		return int(v), true, nil
+//	case string:
+//		i, err := strconv.Atoi(v)
+//		if err != nil {
+//			return 0, false, fmt.Errorf("invalid integer for %s: %s", name, err)
+//		}
+//		return i, true, nil
+//	default:
+//		return 0, false, fmt.Errorf("expected integer for %s, got %T", name, value)
+//	}
+// }
 
-	return result, nil
-}
+// Deprecated: use common.OptionalBoolParam
+// func OptionalBool(request mcp.CallToolRequest, name string) (bool, bool, error) {
+//	value, ok := request.Params.Arguments[name]
+//	if !ok {
+//		return false, false, nil // Parameter not provided
+//	}
+//
+//	// Handle different boolean types
+//	switch v := value.(type) {
+//	case bool:
+//		return v, true, nil
+//	case string:
+//		switch strings.ToLower(v) {
+//		case "true", "yes", "1":
+//			return true, true, nil
+//		case "false", "no", "0":
+//			return false, true, nil
+//		default:
+//			return false, false, fmt.Errorf("invalid boolean for %s: %s", name, v)
+//		}
+//	case float64:
+//		if v == 1 {
+//			return true, true, nil
+//		} else if v == 0 {
+//			return false, true, nil
+//		}
+//		return false, false, fmt.Errorf("invalid boolean for %s: %f", name, v)
+//	case int:
+//		if v == 1 {
+//			return true, true, nil
+//		} else if v == 0 {
+//			return false, true, nil
+//		}
+//		return false, false, fmt.Errorf("invalid boolean for %s: %d", name, v)
+//	default:
+//		return false, false, fmt.Errorf("expected boolean for %s, got %T", name, value)
+//	}
+// }
 
-// WHO: IntegerParameterExtractor
-// WHAT: Extract integer parameters from MCP requests
-// WHEN: During API request handling
-// WHERE: System Layer 6 (Integration)
-// WHY: To convert and validate integer parameters
-// HOW: Using type conversion with validation
-// EXTENT: MCP request integer parameter handling
-func RequiredInt(request mcp.CallToolRequest, name string) (int, error) {
-	value, ok := request.Params.Arguments[name]
-	if !ok {
-		return 0, fmt.Errorf("missing required parameter: %s", name)
-	}
+// Deprecated: use common.StringListParam
+// func StringList(request mcp.CallToolRequest, name string) ([]string, error) {
+//	value, ok := request.Params.Arguments[name]
+//	if !ok {
+//		return nil, nil // Parameter not provided
+//	}
+//
+//	// Check if it's already a string slice
+//	if strSlice, ok := value.([]string); ok {
+//		return strSlice, nil
+//	}
+//
+//	// Check if it's an interface slice
+//	if interfaceSlice, ok := value.([]interface{}); ok {
+//		result := make([]string, 0, len(interfaceSlice))
+//		for _, item := range interfaceSlice {
+//			if str, ok := item.(string); ok {
+//				result = append(result, str)
+//			} else {
+//				return nil, fmt.Errorf("expected string list for %s, contains non-string value", name)
+//			}
+//		}
+//		return result, nil
+//	}
+//
+//	// Check if it's a comma-separated string
+//	if str, ok := value.(string); ok {
+//		if str == "" {
+//			return []string{}, nil
+//		}
+//		return strings.Split(str, ","), nil
+//	}
+//
+//	return nil, fmt.Errorf("expected string list for %s, got %T", name, value)
+// }
 
-	// Handle different number types
-	switch v := value.(type) {
-	case int:
-		return v, nil
-	case int64:
-		return int(v), nil
-	case float64:
-		return int(v), nil
-	case string:
-		i, err := strconv.Atoi(v)
-		if err != nil {
-			return 0, fmt.Errorf("invalid integer for %s: %s", name, err)
-		}
-		return i, nil
-	default:
-		return 0, fmt.Errorf("expected integer for %s, got %T", name, value)
-	}
-}
+// Deprecated: use common.MapParam
+// func MapParam(request mcp.CallToolRequest, name string) (map[string]interface{}, error) {
+//	value, ok := request.Params.Arguments[name]
+//	if !ok {
+//		return nil, nil // Parameter not provided
+//	}
+//
+//	result, ok := value.(map[string]interface{})
+//	if !ok {
+//		return nil, fmt.Errorf("expected object for %s, got %T", name, value)
+//	}
+//
+//	return result, nil
+// }
 
-// WHO: OptionalIntegerExtractor
-// WHAT: Extract optional integer parameters
-// WHEN: During API request handling
-// WHERE: System Layer 6 (Integration)
-// WHY: To convert and validate optional integers
-// HOW: Using type conversion with validation
-// EXTENT: MCP request optional integer handling
-func OptionalInt(request mcp.CallToolRequest, name string) (int, bool, error) {
-	value, ok := request.Params.Arguments[name]
-	if !ok {
-		return 0, false, nil // Parameter not provided
-	}
-
-	// Handle different number types
-	switch v := value.(type) {
-	case int:
-		return v, true, nil
-	case int64:
-		return int(v), true, nil
-	case float64:
-		return int(v), true, nil
-	case string:
-		i, err := strconv.Atoi(v)
-		if err != nil {
-			return 0, false, fmt.Errorf("invalid integer for %s: %s", name, err)
-		}
-		return i, true, nil
-	default:
-		return 0, false, fmt.Errorf("expected integer for %s, got %T", name, value)
-	}
-}
-
-// WHO: BooleanParameterExtractor
-// WHAT: Extract boolean parameters from MCP requests
-// WHEN: During API request handling
-// WHERE: System Layer 6 (Integration)
-// WHY: To convert and validate boolean parameters
-// HOW: Using type conversion with validation
-// EXTENT: MCP request boolean parameter handling
-func OptionalBool(request mcp.CallToolRequest, name string) (bool, bool, error) {
-	value, ok := request.Params.Arguments[name]
-	if !ok {
-		return false, false, nil // Parameter not provided
-	}
-
-	// Handle different boolean types
-	switch v := value.(type) {
-	case bool:
-		return v, true, nil
-	case string:
-		switch strings.ToLower(v) {
-		case "true", "yes", "1":
-			return true, true, nil
-		case "false", "no", "0":
-			return false, true, nil
-		default:
-			return false, false, fmt.Errorf("invalid boolean for %s: %s", name, v)
-		}
-	case float64:
-		if v == 1 {
-			return true, true, nil
-		} else if v == 0 {
-			return false, true, nil
-		}
-		return false, false, fmt.Errorf("invalid boolean for %s: %f", name, v)
-	case int:
-		if v == 1 {
-			return true, true, nil
-		} else if v == 0 {
-			return false, true, nil
-		}
-		return false, false, fmt.Errorf("invalid boolean for %s: %d", name, v)
-	default:
-		return false, false, fmt.Errorf("expected boolean for %s, got %T", name, value)
-	}
-}
-
-// WHO: StringListExtractor
-// WHAT: Extract string list parameters
-// WHEN: During API request handling
-// WHERE: System Layer 6 (Integration)
-// WHY: To convert and validate string lists
-// HOW: Using type conversion with validation
-// EXTENT: MCP request string list handling
-func StringList(request mcp.CallToolRequest, name string) ([]string, error) {
-	value, ok := request.Params.Arguments[name]
-	if !ok {
-		return nil, nil // Parameter not provided
-	}
-
-	// Check if it's already a string slice
-	if strSlice, ok := value.([]string); ok {
-		return strSlice, nil
-	}
-
-	// Check if it's an interface slice
-	if interfaceSlice, ok := value.([]interface{}); ok {
-		result := make([]string, 0, len(interfaceSlice))
-		for _, item := range interfaceSlice {
-			if str, ok := item.(string); ok {
-				result = append(result, str)
-			} else {
-				return nil, fmt.Errorf("expected string list for %s, contains non-string value", name)
-			}
-		}
-		return result, nil
-	}
-
-	// Check if it's a comma-separated string
-	if str, ok := value.(string); ok {
-		if str == "" {
-			return []string{}, nil
-		}
-		return strings.Split(str, ","), nil
-	}
-
-	return nil, fmt.Errorf("expected string list for %s, got %T", name, value)
-}
-
-// WHO: MapParameterExtractor
-// WHAT: Extract map parameters from MCP requests
-// WHEN: During API request handling
-// WHERE: System Layer 6 (Integration)
-// WHY: To convert and validate map parameters
-// HOW: Using type assertion with validation
-// EXTENT: MCP request map parameter handling
-func MapParam(request mcp.CallToolRequest, name string) (map[string]interface{}, error) {
-	value, ok := request.Params.Arguments[name]
-	if !ok {
-		return nil, nil // Parameter not provided
-	}
-
-	result, ok := value.(map[string]interface{})
-	if !ok {
-		return nil, fmt.Errorf("expected object for %s, got %T", name, value)
-	}
-
-	return result, nil
-}
+// Deprecated: use common.OptionalPaginationParams
+// func OptionalPaginationParams(request mcp.CallToolRequest) (PaginationParams, error) {
+//	var params PaginationParams
+//
+//	// Extract common pagination parameters
+//	limit, err := common.OptionalIntParam(request, "limit")
+//	if err != nil {
+//		return params, err
+//	}
+//	params.Limit = limit
+//
+//	offset, err := common.OptionalIntParam(request, "offset")
+//	if err != nil {
+//		return params, err
+//	}
+//	params.Offset = offset
+//
+//	// Extract sort parameters
+//	sortBy, err := common.StringListParam(request, "sortBy")
+//	if err != nil {
+//		return params, err
+//	}
+//	params.SortBy = sortBy
+//
+//	sortOrder, err := common.StringListParam(request, "sortOrder")
+//	if err != nil {
+//		return params, err
+//	}
+//	params.SortOrder = sortOrder
+//
+//	return params, nil
+// }
 
 // WHO: RegisteredToolsProvider
 // WHAT: Provide MCP tools registration
@@ -534,7 +527,7 @@ func RegisterTools(server MCPServer, getClient GetClientFn, t translations.Trans
 	// EXTENT: All GitHub MCP tools
 
 	// Register repository tools directly using translation helper
-	repoTool, repoHandler := GetRepository(getClient, t)
+	repoTool, repoHandler := GetRepositoryResourceContent(getClient, t)
 	server.RegisterTool(repoTool, repoHandler)
 
 	listReposTool, listReposHandler := ListRepositories(getClient, t)
@@ -593,4 +586,72 @@ func createContextTranslationAdapter(t translations.TranslationHelperFunc) Conte
 		// doesn't actually modify context in this implementation
 		return contextData, nil
 	}
+}
+
+// AdaptResourceTemplate converts a ResourceTemplate and ResourceTemplateHandlerFunc
+// to a Tool and ToolHandlerFunc for registration.
+func AdaptResourceTemplate(
+	template mcp.ResourceTemplate,
+	handler server.ResourceTemplateHandlerFunc,
+) (mcp.Tool, server.ToolHandlerFunc) {
+	// Conversion logic here (mock implementation for now)
+	return mcp.Tool{}, func(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+		return nil, nil
+	}
+}
+
+// ListRepositories creates a tool to list repositories for a user or organization.
+func ListRepositories(getClient GetClientFn, t translations.TranslationHelperFunc) (mcp.Tool, server.ToolHandlerFunc) {
+	return mcp.NewTool("list_repositories",
+			mcp.WithDescription(t("TOOL_LIST_REPOSITORIES_DESCRIPTION", "List repositories for a user or organization")),
+			mcp.WithString("owner",
+				mcp.Required(),
+				mcp.Description("Owner of the repositories (user or organization)"),
+			),
+			WithPagination(),
+		),
+		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+			owner, err := common.RequiredParam[string](request, "owner")
+			if err != nil {
+				return mcp.NewToolResultError(err.Error()), nil
+			}
+
+			pagination, err := common.OptionalPaginationParams(request)
+			if err != nil {
+				return mcp.NewToolResultError(err.Error()), nil
+			}
+
+			opts := &github.RepositoryListOptions{
+				ListOptions: github.ListOptions{
+					Page:    pagination.Page,
+					PerPage: pagination.PerPage,
+				},
+			}
+
+			client, err := getClient(ctx)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get GitHub client: %w", err)
+			}
+
+			repos, resp, err := client.Repositories.List(ctx, owner, opts)
+			if err != nil {
+				return nil, fmt.Errorf("failed to list repositories: %w", err)
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode != http.StatusOK {
+				body, err := io.ReadAll(resp.Body)
+				if err != nil {
+					return nil, fmt.Errorf("failed to read response body: %w", err)
+				}
+				return mcp.NewToolResultError(fmt.Sprintf("failed to list repositories: %s", string(body))), nil
+			}
+
+			r, err := json.Marshal(repos)
+			if err != nil {
+				return nil, fmt.Errorf("failed to marshal response: %w", err)
+			}
+
+			return mcp.NewToolResultText(string(r)), nil
+		}
 }

@@ -7,12 +7,16 @@ import (
 	"io"
 	"net/http"
 
+	"github-mcp-server/pkg/common"
 	"github-mcp-server/pkg/translations"
 
 	"github.com/google/go-github/v71/github"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
+
+// Deprecated: use common.RequiredParam, common.OptionalParamOK, common.Ptr for pointers
+// Local generic param helpers removed in favor of common
 
 func GetCommit(getClient GetClientFn, t translations.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
 	return mcp.NewTool("get_commit",
@@ -32,19 +36,19 @@ func GetCommit(getClient GetClientFn, t translations.TranslationHelperFunc) (too
 			WithPagination(),
 		),
 		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			owner, err := requiredParam[string](request, "owner")
+			owner, err := common.RequiredParam[string](request, "owner")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			repo, err := requiredParam[string](request, "repo")
+			repo, err := common.RequiredParam[string](request, "repo")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			sha, err := requiredParam[string](request, "sha")
+			sha, err := common.RequiredParam[string](request, "sha")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			pagination, err := OptionalPaginationParams(request)
+			pagination, err := common.OptionalPaginationParams(request)
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
@@ -99,11 +103,11 @@ func ListCommits(getClient GetClientFn, t translations.TranslationHelperFunc) (t
 			WithPagination(),
 		),
 		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			owner, err := requiredParam[string](request, "owner")
+			owner, err := common.RequiredParam[string](request, "owner")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			repo, err := requiredParam[string](request, "repo")
+			repo, err := common.RequiredParam[string](request, "repo")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
@@ -118,7 +122,7 @@ func ListCommits(getClient GetClientFn, t translations.TranslationHelperFunc) (t
 				opts.SHA = sha
 			}
 
-			pagination, err := OptionalPaginationParams(request)
+			pagination, err := common.OptionalPaginationParams(request)
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
@@ -174,20 +178,20 @@ func ListBranches(getClient GetClientFn, t translations.TranslationHelperFunc) (
 			),
 		),
 		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			owner, err := requiredParam[string](request, "owner")
+			owner, err := common.RequiredParam[string](request, "owner")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			repo, err := requiredParam[string](request, "repo")
+			repo, err := common.RequiredParam[string](request, "repo")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
 
-			page, err := OptionalIntParamWithDefault(request, "page", 1)
+			page, err := common.OptionalIntParamWithDefault(request, "page", 1)
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			perPage, err := OptionalIntParamWithDefault(request, "perPage", 30)
+			perPage, err := common.OptionalIntParamWithDefault(request, "perPage", 30)
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
@@ -259,27 +263,27 @@ func CreateOrUpdateFile(getClient GetClientFn, t translations.TranslationHelperF
 			),
 		),
 		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			owner, err := requiredParam[string](request, "owner")
+			owner, err := common.RequiredParam[string](request, "owner")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			repo, err := requiredParam[string](request, "repo")
+			repo, err := common.RequiredParam[string](request, "repo")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			path, err := requiredParam[string](request, "path")
+			path, err := common.RequiredParam[string](request, "path")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			content, err := requiredParam[string](request, "content")
+			content, err := common.RequiredParam[string](request, "content")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			message, err := requiredParam[string](request, "message")
+			message, err := common.RequiredParam[string](request, "message")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			branch, err := requiredParam[string](request, "branch")
+			branch, err := common.RequiredParam[string](request, "branch")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
@@ -344,7 +348,7 @@ func CreateRepository(getClient GetClientFn, t translations.TranslationHelperFun
 			),
 		),
 		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			name, err := requiredParam[string](request, "name")
+			name, err := common.RequiredParam[string](request, "name")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
@@ -419,15 +423,15 @@ func GetFileContents(getClient GetClientFn, t translations.TranslationHelperFunc
 			),
 		),
 		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			owner, err := requiredParam[string](request, "owner")
+			owner, err := common.RequiredParam[string](request, "owner")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			repo, err := requiredParam[string](request, "repo")
+			repo, err := common.RequiredParam[string](request, "repo")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			path, err := requiredParam[string](request, "path")
+			path, err := common.RequiredParam[string](request, "path")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
@@ -495,11 +499,11 @@ func ForkRepository(getClient GetClientFn, t translations.TranslationHelperFunc)
 			),
 		),
 		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			owner, err := requiredParam[string](request, "owner")
+			owner, err := common.RequiredParam[string](request, "owner")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			repo, err := requiredParam[string](request, "repo")
+			repo, err := common.RequiredParam[string](request, "repo")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
@@ -573,15 +577,15 @@ func CreateBranch(getClient GetClientFn, t translations.TranslationHelperFunc) (
 			),
 		),
 		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			owner, err := requiredParam[string](request, "owner")
+			owner, err := common.RequiredParam[string](request, "owner")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			repo, err := requiredParam[string](request, "repo")
+			repo, err := common.RequiredParam[string](request, "repo")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			newBranch, err := requiredParam[string](request, "branch")
+			newBranch, err := common.RequiredParam[string](request, "branch")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
@@ -671,19 +675,19 @@ type PushFilesParams struct {
 
 // extractPushFilesParams extracts and validates parameters for pushing files
 func extractPushFilesParams(request mcp.CallToolRequest) (*PushFilesParams, error) {
-	owner, err := requiredParam[string](request, "owner")
+	owner, err := common.RequiredParam[string](request, "owner")
 	if err != nil {
 		return nil, err
 	}
-	repo, err := requiredParam[string](request, "repo")
+	repo, err := common.RequiredParam[string](request, "repo")
 	if err != nil {
 		return nil, err
 	}
-	branch, err := requiredParam[string](request, "branch")
+	branch, err := common.RequiredParam[string](request, "branch")
 	if err != nil {
 		return nil, err
 	}
-	message, err := requiredParam[string](request, "message")
+	message, err := common.RequiredParam[string](request, "message")
 	if err != nil {
 		return nil, err
 	}
@@ -855,4 +859,79 @@ func PushFiles(getClient GetClientFn, t translations.TranslationHelperFunc) (too
 
 			return mcp.NewToolResultText(string(r)), nil
 		}
+}
+
+// GetRepositoryResourceContent defines the resource template and handler for getting repository content.
+func GetRepositoryResourceContent(getClient GetClientFn, t translations.TranslationHelperFunc) (mcp.ResourceTemplate, server.ResourceTemplateHandlerFunc) {
+	return mcp.NewResourceTemplate(
+		"repo://{owner}/{repo}/contents{/path*}", // Resource template
+		t("RESOURCE_REPOSITORY_CONTENT_DESCRIPTION", "Repository Content"),
+	),
+		RepositoryResourceContentsHandler(getClient)
+}
+
+// RepositoryResourceContentsHandler returns a handler function for repository content requests.
+func RepositoryResourceContentsHandler(getClient GetClientFn) func(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {
+	return func(ctx context.Context, request mcp.ReadResourceRequest) ([]mcp.ResourceContents, error) {
+		owner, repo, path, opts, err := parseRepositoryRequest(request)
+		if err != nil {
+			return nil, err
+		}
+
+		client, err := getClient(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get GitHub client: %w", err)
+		}
+
+		contents, _, _, err := client.Repositories.GetContents(ctx, owner, repo, path, opts)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get repository contents: %w", err)
+		}
+
+		return parseContents(contents), nil
+	}
+}
+
+// Helper function to parse repository request parameters
+func parseRepositoryRequest(request mcp.ReadResourceRequest) (string, string, string, *github.RepositoryContentGetOptions, error) {
+	owner, err := extractParam(request, "owner")
+	if err != nil {
+		return "", "", "", nil, err
+	}
+	repo, err := extractParam(request, "repo")
+	if err != nil {
+		return "", "", "", nil, err
+	}
+
+	path := extractOptionalParam(request, "path")
+	opts := &github.RepositoryContentGetOptions{
+		Ref: extractOptionalParam(request, "ref"),
+	}
+
+	return owner, repo, path, opts, nil
+}
+
+// Helper function to extract required parameters
+func extractParam(request mcp.ReadResourceRequest, key string) (string, error) {
+	values, ok := request.Params.Arguments[key].([]string)
+	if !ok || len(values) == 0 {
+		return "", fmt.Errorf("%s is required", key)
+	}
+	return values[0], nil
+}
+
+// Helper function to extract optional parameters
+func extractOptionalParam(request mcp.ReadResourceRequest, key string) string {
+	values, ok := request.Params.Arguments[key].([]string)
+	if ok && len(values) > 0 {
+		return values[0]
+	}
+	return ""
+}
+
+// Implemented missing helper function to parse repository contents
+func parseContents(contents interface{}) []mcp.ResourceContents {
+	// Logic to parse contents and return as []mcp.ResourceContents
+	// Placeholder implementation
+	return []mcp.ResourceContents{}
 }

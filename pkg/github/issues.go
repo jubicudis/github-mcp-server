@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"time"
 
+	"github-mcp-server/pkg/common"
 	"github-mcp-server/pkg/translations"
 
 	"github.com/google/go-github/v71/github"
@@ -69,15 +70,15 @@ func GetIssue(getClient GetClientFn, t translations.TranslationHelperFunc) (tool
 			// HOW: Using GitHub API client
 			// EXTENT: Single issue data retrieval
 
-			owner, err := RequiredParam[string](request, "owner")
+			owner, err := common.RequiredParam(request, "owner")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			repo, err := RequiredParam[string](request, "repo")
+			repo, err := common.RequiredParam(request, "repo")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			issueNumber, err := RequiredIntParam(request, "issue_number")
+			issueNumber, err := common.RequiredInt(request, "issue_number")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
@@ -131,20 +132,20 @@ func AddIssueComment(getClient GetClientFn, t translations.TranslationHelperFunc
 			),
 		),
 		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			owner, err := RequiredParam[string](request, "owner")
+			owner, err := common.RequiredParam(request, "owner")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			repo, err := RequiredParam[string](request, "repo")
+			repo, err := common.RequiredParam(request, "repo")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			issueNumber, err := RequiredIntParam(request, "issue_number")
+			issueNumber, err := common.RequiredInt(request, "issue_number")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
 
-			body, err := RequiredParam[string](request, "body")
+			body, err := common.RequiredParam(request, "body")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
@@ -211,7 +212,7 @@ func SearchIssues(getClient GetClientFn, t translations.TranslationHelperFunc) (
 			WithPagination(),
 		),
 		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			query, err := RequiredParam[string](request, "q")
+			query, err := common.RequiredParam(request, "q")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
@@ -223,7 +224,7 @@ func SearchIssues(getClient GetClientFn, t translations.TranslationHelperFunc) (
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			pagination, err := OptionalPaginationParams(request)
+			pagination, err := common.OptionalPaginationParams(request)
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
@@ -304,15 +305,15 @@ func CreateIssue(getClient GetClientFn, t translations.TranslationHelperFunc) (t
 			),
 		),
 		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			owner, err := RequiredParam[string](request, "owner")
+			owner, err := common.RequiredParam(request, "owner")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			repo, err := RequiredParam[string](request, "repo")
+			repo, err := common.RequiredParam(request, "repo")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			title, err := RequiredParam[string](request, "title")
+			title, err := common.RequiredParam(request, "title")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
@@ -415,11 +416,11 @@ func ListIssues(getClient GetClientFn, t translations.TranslationHelperFunc) (to
 			WithPagination(),
 		),
 		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			owner, err := RequiredParam[string](request, "owner")
+			owner, err := common.RequiredParam(request, "owner")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			repo, err := RequiredParam[string](request, "repo")
+			repo, err := common.RequiredParam(request, "repo")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
@@ -542,15 +543,15 @@ func UpdateIssue(getClient GetClientFn, t translations.TranslationHelperFunc) (t
 			),
 		),
 		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			owner, err := RequiredParam[string](request, "owner")
+			owner, err := common.RequiredParam(request, "owner")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			repo, err := RequiredParam[string](request, "repo")
+			repo, err := common.RequiredParam(request, "repo")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			issueNumber, err := RequiredIntParam(request, "issue_number")
+			issueNumber, err := common.RequiredInt(request, "issue_number")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
@@ -657,15 +658,15 @@ func GetIssueComments(getClient GetClientFn, t translations.TranslationHelperFun
 			),
 		),
 		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			owner, err := RequiredParam[string](request, "owner")
+			owner, err := common.RequiredParam(request, "owner")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			repo, err := RequiredParam[string](request, "repo")
+			repo, err := common.RequiredParam(request, "repo")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			issueNumber, err := RequiredIntParam(request, "issue_number")
+			issueNumber, err := common.RequiredInt(request, "issue_number")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
@@ -1020,17 +1021,17 @@ func CreateIssueEnhanced(getClient GetClientFn, t translations.TranslationHelper
 		// Debug logs would go here if we had a logger
 
 		// Extract parameters
-		owner, err := RequiredParam[string](request, "owner")
+		owner, err := common.RequiredParam(request, "owner")
 		if err != nil {
 			return mcp.NewToolResultError(err.Error()), nil
 		}
 
-		repo, err := RequiredParam[string](request, "repo")
+		repo, err := common.RequiredParam(request, "repo")
 		if err != nil {
 			return mcp.NewToolResultError(err.Error()), nil
 		}
 
-		title, err := RequiredParam[string](request, "title")
+		title, err := common.RequiredParam(request, "title")
 		if err != nil {
 			return mcp.NewToolResultError(err.Error()), nil
 		}
@@ -1169,17 +1170,17 @@ func UpdateIssueEnhanced(getClient GetClientFn, t translations.TranslationHelper
 	// Handler function
 	handler = func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		// Extract parameters
-		owner, err := RequiredParam[string](request, "owner")
+		owner, err := common.RequiredParam(request, "owner")
 		if err != nil {
 			return mcp.NewToolResultError(err.Error()), nil
 		}
 
-		repo, err := RequiredParam[string](request, "repo")
+		repo, err := common.RequiredParam(request, "repo")
 		if err != nil {
 			return mcp.NewToolResultError(err.Error()), nil
 		}
 
-		number, err := RequiredIntParam(request, "number")
+		number, err := common.RequiredInt(request, "number")
 		if err != nil {
 			return mcp.NewToolResultError(err.Error()), nil
 		}
@@ -1245,22 +1246,22 @@ func UpdateIssueEnhanced(getClient GetClientFn, t translations.TranslationHelper
 		if err != nil {
 			return nil, fmt.Errorf("failed to update issue: %w", err)
 		}
+		defer func() { _ = resp.Body.Close() }()
 
-		// Transform to response format
-		response := map[string]interface{}{
-			"number":     issue.GetNumber(),
-			"title":      issue.GetTitle(),
-			"state":      issue.GetState(),
-			"html_url":   issue.GetHTMLURL(),
-			"updated_at": issue.GetUpdatedAt().Format(time.RFC3339),
+		if resp.StatusCode != http.StatusOK {
+			body, err := io.ReadAll(resp.Body)
+			if err != nil {
+				return nil, fmt.Errorf("failed to read response body: %w", err)
+			}
+			return mcp.NewToolResultError(fmt.Sprintf("failed to update issue: %s", string(body))), nil
 		}
 
-		responseJSON, err := json.Marshal(response)
+		r, err := json.Marshal(issue)
 		if err != nil {
 			return nil, fmt.Errorf("failed to marshal response: %w", err)
 		}
 
-		return mcp.NewToolResultText(string(responseJSON)), nil
+		return mcp.NewToolResultText(string(r)), nil
 	}
 
 	return tool, handler
@@ -1284,3 +1285,8 @@ func CreateContextAdapter(t translations.TranslationHelperFunc) ContextTranslati
 
 // Use GetClientFn from the top of the file
 // GetClientFn is already defined at the top of this file and in github.go
+
+// Deprecated: use common.RequiredParam, common.OptionalParamOK, common.OptionalIntParamWithDefault, etc.
+// func OptionalIntParam(request mcp.CallToolRequest, name string) (int, error) { ... }
+// func RequiredIntParam(request mcp.CallToolRequest, name string) (int, error) { ... }
+// func OptionalBoolParam(request mcp.CallToolRequest, name string) (bool, bool, error) { ... }

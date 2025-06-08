@@ -1,4 +1,4 @@
-package github
+package github_test
 
 import (
 	"context"
@@ -1115,7 +1115,7 @@ func TestCreateRepository(t *testing.T) {
 	}
 }
 
-func TestPushFiles(t *testing.T) {
+func TestPushFiles(t *testing.t) {
 	logger := log.NewLogger().WithLevel(log.LevelDebug)
 	mockClient := NewClient("", logger)
 	tool, _ := PushFiles(testutil.StubGetClientFnWithClient(mockClient), testutil.NullTranslationHelperFunc)

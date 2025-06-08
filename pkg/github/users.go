@@ -14,6 +14,8 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+
+	"github.com/jubicudis/github-mcp-server/pkg/common"
 )
 
 // UserService provides methods for working with GitHub users
@@ -54,7 +56,7 @@ func (s *UserService) GetAuthenticated() (*User, error) {
 	// EXTENT: Current user data
 
 	user := new(User)
-	err := s.client.Request(context.Background(), http.MethodGet, UserEndpoint, nil, user)
+	err := s.client.Request(context.Background(), http.MethodGet, common.UserEndpoint, nil, user)
 	return user, err
 }
 
@@ -67,7 +69,7 @@ func (s *UserService) Get(username string) (*User, error) {
 	// HOW: Using GitHub API
 	// EXTENT: Single user data
 
-	path := fmt.Sprintf("%s/%s", UserEndpoint, username)
+	path := fmt.Sprintf("%s/%s", common.UserEndpoint, username)
 	user := new(User)
 	err := s.client.Request(context.Background(), http.MethodGet, path, nil, user)
 	return user, err
@@ -81,7 +83,7 @@ func (s *UserService) ListFollowers(username string) ([]User, error) {
 	// HOW: Using GitHub API
 	// EXTENT: Multiple user data
 
-	path := fmt.Sprintf("%s/%s/followers", UserEndpoint, username)
+	path := fmt.Sprintf("%s/%s/followers", common.UserEndpoint, username)
 	var followers []User
 	err := s.client.Request(context.Background(), http.MethodGet, path, nil, &followers)
 	return followers, err
@@ -98,7 +100,7 @@ func (s *UserService) ListFollowing(username string) ([]User, error) {
 	// HOW: Using GitHub API
 	// EXTENT: Multiple user data
 
-	path := fmt.Sprintf("%s/%s/following", UserEndpoint, username)
+	path := fmt.Sprintf("%s/%s/following", common.UserEndpoint, username)
 	var following []User
 	err := s.client.Request(context.Background(), http.MethodGet, path, nil, &following)
 	return following, err

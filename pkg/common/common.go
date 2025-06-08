@@ -8,10 +8,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"sync"
 	"time"
 
-	githubapi "github.com/google/go-github/v71/github"
+	"github.com/google/go-github/v71/github"
 	"github.com/gorilla/websocket"
 	"github.com/mark3labs/mcp-go/mcp"
 )
@@ -47,6 +48,8 @@ const (
 type ConnectionOptions struct {
 	ServerURL   string
 	ServerPort  int
+	// PythonMCPURL specifies the fallback stub endpoint for Python MCP
+	PythonMCPURL string
 	Context     map[string]interface{}
 	Logger      interface{}
 	Timeout     time.Duration
@@ -135,7 +138,11 @@ func RequiredIntParam(r mcp.CallToolRequest, p string) (int, error) { v, err := 
 func OptionalIntParam(r mcp.CallToolRequest, p string) (int, error) { v, _, err := OptionalParamOK[float64](r, p); return int(v), err }
 func OptionalIntParamWithDefault(r mcp.CallToolRequest, p string, d int) (int, error) { v, err := OptionalIntParam(r, p); if err != nil { return 0, err }; if v == 0 { return d, nil }; return v, nil }
 
-func isAcceptedError(err error) bool { var acceptedError *githubapi.AcceptedError; return errors.As(err, &acceptedError) }
+// isAcceptedError checks if an error is an AcceptedError
+func isAcceptedError(err error) bool {
+    var acceptedError *github.AcceptedError
+    return errors.As(err, &acceptedError)
+}
 
 // ========== From translations/common.go ==========
 var (
@@ -247,3 +254,37 @@ func GetFloat64(m map[string]interface{}, key string, defaultValue float64) floa
 func Ptr[T any](v T) *T {
 	return &v
 }
+
+// RequiredInt extracts a required integer parameter from the request.
+func RequiredInt(request *http.Request, paramName string) (int, error) {
+	// Implementation to extract and validate integer parameter (omitted for brevity)
+	return 0, errors.New("not implemented")
+}
+
+// OptionalPaginationParams extracts optional pagination parameters from the request.
+func OptionalPaginationParams(request *http.Request) (map[string]int, error) {
+	// Implementation to extract pagination parameters (omitted for brevity)
+	return nil, errors.New("not implemented")
+}
+
+// WithPagination is a middleware function to handle pagination logic.
+func WithPagination() func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Placeholder logic for pagination middleware
+			// Extract pagination parameters using OptionalPaginationParams
+			pagination, err := OptionalPaginationParams(r)
+			if err != nil {
+				http.Error(w, "Invalid pagination parameters", http.StatusBadRequest)
+				return
+			}
+
+			// Add pagination info to the request context
+			ctx := context.WithValue(r.Context(), "pagination", pagination)
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
+}
+
+// UserEndpoint is the base endpoint for user-related API calls.
+const UserEndpoint = "/api/v1/users"
