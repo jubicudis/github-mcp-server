@@ -8,7 +8,7 @@
  * EXTENT: All GitHub API operations
  */
 
-package github
+package common
 
 import (
 	"context"

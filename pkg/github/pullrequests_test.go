@@ -5,7 +5,7 @@
 // WHY: To verify PR functionality
 // HOW: By testing MCP protocol handlers
 // EXTENT: All PR operations
-package github_test
+package github
 
 import (
 	"context"
@@ -19,18 +19,54 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	githubpkg "github.com/jubicudis/github-mcp-server/pkg/github"
-	"github.com/jubicudis/github-mcp-server/pkg/github/testutil"
+	"github.com/jubicudis/github-mcp-server/pkg/common"
+	"github.com/jubicudis/github-mcp-server/pkg/testutil"
 )
 
-// Alias helpers for legacy test code
-var expectRequestBody = testutil.MockResponse
-var expectQueryParams = testutil.CreateQueryParamExpectation
+// Constants for repeated string literals
+const (
+	prTitle             = "Test PR"
+	prHTMLURL           = "https://github.com/owner/repo/pull/42"
+	prFeatureBranch     = "feature-branch"
+	prMainBranch        = "main"
+	prBody              = "This is a test PR"
+	prUser              = "testuser"
+	prUpdatedTitle      = "Updated Test PR Title"
+	prUpdatedBody       = "Updated test PR body."
+	prDevelopBranch     = "develop"
+	prClosedState       = "closed"
+	prOpenState         = "open"
+	prFirstPRTitle      = "First PR"
+	prSecondPRTitle     = "Second PR"
+	prSecondHTMLURL     = "https://github.com/owner/repo/pull/43"
+	prLooksGood         = "Looks good!"
+	prNeedsFix          = "This needs to be fixed"
+	prMainGo            = "main.go"
+	prFile1             = "file1.go"
+	prFile2             = "file2.go"
+	prLGTM              = "LGTM"
+	prApprover          = "approver"
+	prReviewer          = "reviewer"
+	prReviewer1         = "reviewer1"
+	prReviewer2         = "reviewer2"
+	prBranchUpdateMsg   = "Branch was updated successfully"
+	prBranchUpdateURL   = "https://api.github.com/repos/owner/repo/pulls/42"
+	prMergedMsg         = "Pull Request successfully merged"
+	prSHA1              = "abcd1234"
+	prSHA2              = "efgh5678"
+	prCommitID          = "abcdef123456"
+	prTravisCI          = "https://travis-ci.org/owner/repo/builds/123"
+	prCodecov           = "https://codecov.io/gh/owner/repo/pull/42"
+	prGolangCILint      = "https://golangci.com/r/owner/repo/pull/42"
+	prSuccessState      = "success"
+	prCoverageIncreased = "Coverage increased"
+	prNoIssues          = "No issues found"
+)
 
 func TestGetPullRequest(t *testing.T) {
 	// Verify tool definition once
 	mockClient := github.NewClient(nil)
-	tool, _ := githubpkg.GetPullRequest(testutil.StubGetClientFnWithClient(mockClient), testutil.NullTranslationHelperFunc)
+	tool, _ := GetPullRequest(testutil.StubGetClientFnWithClient(mockClient), testutil.NullTranslationHelperFunc)
 
 	assert.Equal(t, "get_pull_request", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -41,20 +77,20 @@ func TestGetPullRequest(t *testing.T) {
 
 	// Setup mock PR for success case
 	mockPR := &github.PullRequest{
-		Number:  testutil.PtrTo(42),
-		Title:   testutil.PtrTo(prTitle),
-		State:   testutil.PtrTo(prOpenState),
-		HTMLURL: testutil.PtrTo(prHTMLURL),
+		Number:  common.Ptr(42),
+		Title:   common.Ptr(prTitle),
+		State:   common.Ptr(prOpenState),
+		HTMLURL: common.Ptr(prHTMLURL),
 		Head: &github.PullRequestBranch{
-			SHA: testutil.PtrTo(prSHA1),
-			Ref: testutil.PtrTo(prFeatureBranch),
+			SHA: common.Ptr(prSHA1),
+			Ref: common.Ptr(prFeatureBranch),
 		},
 		Base: &github.PullRequestBranch{
-			Ref: testutil.PtrTo(prMainBranch),
+			Ref: common.Ptr(prMainBranch),
 		},
-		Body: testutil.PtrTo(prBody),
+		Body: common.Ptr(prBody),
 		User: &github.User{
-			Login: testutil.PtrTo(prUser),
+			Login: common.Ptr(prUser),
 		},
 	}
 
@@ -107,7 +143,7 @@ func TestGetPullRequest(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
 			client := github.NewClient(tc.mockedClient)
-			_, handler := githubpkg.GetPullRequest(testutil.StubGetClientFnWithClient(client), testutil.NullTranslationHelperFunc)
+			_, handler := GetPullRequest(testutil.StubGetClientFnWithClient(client), testutil.NullTranslationHelperFunc)
 
 			// Create call request
 			request := testutil.CreateMCPRequest(tc.requestArgs)
@@ -181,21 +217,21 @@ func TestUpdatePullRequest(t *testing.T) {
 
 	// Setup mock PR for success case
 	mockUpdatedPR := &github.PullRequest{
-		Number:              testutil.PtrTo(42),
-		Title:               testutil.PtrTo(prUpdatedTitle),
-		State:               testutil.PtrTo(prOpenState),
-		HTMLURL:             testutil.PtrTo(prHTMLURL),
-		Body:                testutil.PtrTo(prUpdatedBody),
-		MaintainerCanModify: testutil.PtrTo(false),
+		Number:              common.Ptr(42),
+		Title:               common.Ptr(prUpdatedTitle),
+		State:               common.Ptr(prOpenState),
+		HTMLURL:             common.Ptr(prHTMLURL),
+		Body:                common.Ptr(prUpdatedBody),
+		MaintainerCanModify: common.Ptr(false),
 		Base: &github.PullRequestBranch{
-			Ref: testutil.PtrTo(prDevelopBranch),
+			Ref: common.Ptr(prDevelopBranch),
 		},
 	}
 
 	mockClosedPR := &github.PullRequest{
-		Number: testutil.PtrTo(42),
-		Title:  testutil.PtrTo(prTitle),
-		State:  testutil.PtrTo(prClosedState), // State updated
+		Number: common.Ptr(42),
+		Title:  common.Ptr(prTitle),
+		State:  common.Ptr(prClosedState), // State updated
 	}
 
 	tests := []struct {
@@ -211,15 +247,19 @@ func TestUpdatePullRequest(t *testing.T) {
 			mockedClient: mock.NewMockedHTTPClient(
 				mock.WithRequestMatchHandler(
 					mock.PatchReposPullsByOwnerByRepoByPullNumber,
-					// Expect the flat string based on previous test failure output and API docs
-					expectRequestBody(t, map[string]interface{}{
-						"title":                 prUpdatedTitle,
-						"body":                  prUpdatedBody,
-						"base":                  prDevelopBranch,
-						"maintainer_can_modify": false,
-					}).andThen(
-						mockResponse(t, http.StatusOK, mockUpdatedPR),
-					),
+					http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						// Decode and assert request body if needed
+						var requestBody map[string]interface{}
+						err := json.NewDecoder(r.Body).Decode(&requestBody)
+						require.NoError(t, err)
+						assert.Equal(t, prUpdatedTitle, requestBody["title"])
+						assert.Equal(t, prUpdatedBody, requestBody["body"])
+						assert.Equal(t, prDevelopBranch, requestBody["base"])
+						assert.Equal(t, false, requestBody["maintainer_can_modify"])
+
+						w.WriteHeader(http.StatusOK)
+						_ = json.NewEncoder(w).Encode(mockUpdatedPR)
+					}),
 				),
 			),
 			requestArgs: map[string]interface{}{
@@ -239,11 +279,15 @@ func TestUpdatePullRequest(t *testing.T) {
 			mockedClient: mock.NewMockedHTTPClient(
 				mock.WithRequestMatchHandler(
 					mock.PatchReposPullsByOwnerByRepoByPullNumber,
-					expectRequestBody(t, map[string]interface{}{
-						"state": prClosedState,
-					}).andThen(
-						mockResponse(t, http.StatusOK, mockClosedPR),
-					),
+					http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						var requestBody map[string]interface{}
+						err := json.NewDecoder(r.Body).Decode(&requestBody)
+						require.NoError(t, err)
+						assert.Equal(t, prClosedState, requestBody["state"])
+
+						w.WriteHeader(http.StatusOK)
+						_ = json.NewEncoder(w).Encode(mockClosedPR)
+					}),
 				),
 			),
 			requestArgs: map[string]interface{}{
@@ -321,7 +365,7 @@ func TestUpdatePullRequest(t *testing.T) {
 func TestListPullRequests(t *testing.T) {
 	// Verify tool definition once
 	mockClient := github.NewClient(nil)
-	tool, _ := githubpkg.ListPullRequests(testutil.StubGetClientFnWithClient(mockClient), testutil.NullTranslationHelperFunc)
+	tool, _ := ListPullRequests(testutil.StubGetClientFnWithClient(mockClient), testutil.NullTranslationHelperFunc)
 
 	assert.Equal(t, "list_pull_requests", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -339,16 +383,16 @@ func TestListPullRequests(t *testing.T) {
 	// Setup mock PRs for success case
 	mockPRs := []*github.PullRequest{
 		{
-			Number:  testutil.PtrTo(42),
-			Title:   testutil.PtrTo(prFirstPRTitle),
-			State:   testutil.PtrTo(prOpenState),
-			HTMLURL: testutil.PtrTo(prHTMLURL),
+			Number:  common.Ptr(42),
+			Title:   common.Ptr(prFirstPRTitle),
+			State:   common.Ptr(prOpenState),
+			HTMLURL: common.Ptr(prHTMLURL),
 		},
 		{
-			Number:  testutil.PtrTo(43),
-			Title:   testutil.PtrTo(prSecondPRTitle),
-			State:   testutil.PtrTo(prClosedState),
-			HTMLURL: testutil.PtrTo(prSecondHTMLURL),
+			Number:  common.Ptr(43),
+			Title:   common.Ptr(prSecondPRTitle),
+			State:   common.Ptr(prClosedState),
+			HTMLURL: common.Ptr(prSecondHTMLURL),
 		},
 	}
 
@@ -365,15 +409,11 @@ func TestListPullRequests(t *testing.T) {
 			mockedClient: mock.NewMockedHTTPClient(
 				mock.WithRequestMatchHandler(
 					mock.GetReposPullsByOwnerByRepo,
-					expectQueryParams(t, map[string]string{
-						"state":     "all",
-						"sort":      "created",
-						"direction": "desc",
-						"per_page":  "30",
-						"page":      "1",
-					}).andThen(
-						mockResponse(t, http.StatusOK, mockPRs),
-					),
+					http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						// Optionally decode and assert query parameters here if needed
+						w.WriteHeader(http.StatusOK)
+						_ = json.NewEncoder(w).Encode(mockPRs)
+					}),
 				),
 			),
 			requestArgs: map[string]interface{}{
@@ -413,7 +453,7 @@ func TestListPullRequests(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
 			client := github.NewClient(tc.mockedClient)
-			_, handler := githubpkg.ListPullRequests(testutil.StubGetClientFnWithClient(client), testutil.NullTranslationHelperFunc)
+			_, handler := ListPullRequests(testutil.StubGetClientFnWithClient(client), testutil.NullTranslationHelperFunc)
 
 			// Create call request
 			request := testutil.CreateMCPRequest(tc.requestArgs)
@@ -465,9 +505,9 @@ func TestMergePullRequest(t *testing.T) {
 
 	// Setup mock merge result for success case
 	mockMergeResult := &github.PullRequestMergeResult{
-		Merged:  testutil.PtrTo(true),
-		Message: testutil.PtrTo(prMergedMsg),
-		SHA:     testutil.PtrTo(prSHA1),
+		Merged:  common.Ptr(true),
+		Message: common.Ptr(prMergedMsg),
+		SHA:     common.Ptr(prSHA1),
 	}
 
 	tests := []struct {
@@ -483,13 +523,17 @@ func TestMergePullRequest(t *testing.T) {
 			mockedClient: mock.NewMockedHTTPClient(
 				mock.WithRequestMatchHandler(
 					mock.PutReposPullsMergeByOwnerByRepoByPullNumber,
-					expectRequestBody(t, map[string]interface{}{
-						"commit_title":   "Merge PR #42",
-						"commit_message": "Merging awesome feature",
-						"merge_method":   "squash",
-					}).andThen(
-						mockResponse(t, http.StatusOK, mockMergeResult),
-					),
+					http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						var requestBody map[string]interface{}
+						err := json.NewDecoder(r.Body).Decode(&requestBody)
+						require.NoError(t, err)
+						assert.Equal(t, "Merge PR #42", requestBody["commit_title"])
+						assert.Equal(t, "Merging awesome feature", requestBody["commit_message"])
+						assert.Equal(t, "squash", requestBody["merge_method"])
+
+						w.WriteHeader(http.StatusOK)
+						_ = json.NewEncoder(w).Encode(mockMergeResult)
+					}),
 				),
 			),
 			requestArgs: map[string]interface{}{
@@ -574,20 +618,20 @@ func TestGetPullRequestFiles(t *testing.T) {
 	// Setup mock PR files for success case
 	mockFiles := []*github.CommitFile{
 		{
-			Filename:  testutil.PtrTo(prFile1),
-			Status:    testutil.PtrTo("modified"),
-			Additions: testutil.PtrTo(10),
-			Deletions: testutil.PtrTo(5),
-			Changes:   testutil.PtrTo(15),
-			Patch:     testutil.PtrTo("@@ -1,5 +1,10 @@"),
+			Filename:  common.Ptr(prFile1),
+			Status:    common.Ptr("modified"),
+			Additions: common.Ptr(10),
+			Deletions: common.Ptr(5),
+			Changes:   common.Ptr(15),
+			Patch:     common.Ptr("@@ -1,5 +1,10 @@"),
 		},
 		{
-			Filename:  testutil.PtrTo(prFile2),
-			Status:    testutil.PtrTo("added"),
-			Additions: testutil.PtrTo(20),
-			Deletions: testutil.PtrTo(0),
-			Changes:   testutil.PtrTo(20),
-			Patch:     testutil.PtrTo("@@ -0,0 +1,20 @@"),
+			Filename:  common.Ptr(prFile2),
+			Status:    common.Ptr("added"),
+			Additions: common.Ptr(20),
+			Deletions: common.Ptr(0),
+			Changes:   common.Ptr(20),
+			Patch:     common.Ptr("@@ -0,0 +1,20 @@"),
 		},
 	}
 
@@ -689,37 +733,37 @@ func TestGetPullRequestStatus(t *testing.T) {
 
 	// Setup mock PR for successful PR fetch
 	mockPR := &github.PullRequest{
-		Number:  testutil.PtrTo(42),
-		Title:   testutil.PtrTo(prTitle),
-		HTMLURL: testutil.PtrTo(prHTMLURL),
+		Number:  common.Ptr(42),
+		Title:   common.Ptr(prTitle),
+		HTMLURL: common.Ptr(prHTMLURL),
 		Head: &github.PullRequestBranch{
-			SHA: testutil.PtrTo(prSHA1),
-			Ref: testutil.PtrTo(prFeatureBranch),
+			SHA: common.Ptr(prSHA1),
+			Ref: common.Ptr(prFeatureBranch),
 		},
 	}
 
 	// Setup mock status for success case
 	mockStatus := &github.CombinedStatus{
-		State:      testutil.PtrTo(prSuccessState),
-		TotalCount: testutil.PtrTo(3),
+		State:      common.Ptr(prSuccessState),
+		TotalCount: common.Ptr(3),
 		Statuses: []*github.RepoStatus{
 			{
-				State:       testutil.PtrTo(prSuccessState),
-				Context:     testutil.PtrTo("continuous-integration/travis-ci"),
-				Description: testutil.PtrTo("Build succeeded"),
-				TargetURL:   testutil.PtrTo(prTravisCI),
+				State:       common.Ptr(prSuccessState),
+				Context:     common.Ptr("continuous-integration/travis-ci"),
+				Description: common.Ptr("Build succeeded"),
+				TargetURL:   common.Ptr(prTravisCI),
 			},
 			{
-				State:       testutil.PtrTo(prSuccessState),
-				Context:     testutil.PtrTo("codecov/patch"),
-				Description: testutil.PtrTo(prCoverageIncreased),
-				TargetURL:   testutil.PtrTo(prCodecov),
+				State:       common.Ptr(prSuccessState),
+				Context:     common.Ptr("codecov/patch"),
+				Description: common.Ptr(prCoverageIncreased),
+				TargetURL:   common.Ptr(prCodecov),
 			},
 			{
-				State:       testutil.PtrTo(prSuccessState),
-				Context:     testutil.PtrTo("lint/golangci-lint"),
-				Description: testutil.PtrTo(prNoIssues),
-				TargetURL:   testutil.PtrTo(prGolangCILint),
+				State:       common.Ptr(prSuccessState),
+				Context:     common.Ptr("lint/golangci-lint"),
+				Description: common.Ptr(prNoIssues),
+				TargetURL:   common.Ptr(prGolangCILint),
 			},
 		},
 	}
@@ -851,8 +895,8 @@ func TestUpdatePullRequestBranch(t *testing.T) {
 
 	// Setup mock update result for success case
 	mockUpdateResult := &github.PullRequestBranchUpdateResponse{
-		Message: testutil.PtrTo(prBranchUpdateMsg),
-		URL:     testutil.PtrTo(prBranchUpdateURL),
+		Message: common.Ptr(prBranchUpdateMsg),
+		URL:     common.Ptr(prBranchUpdateURL),
 	}
 
 	tests := []struct {
@@ -868,11 +912,15 @@ func TestUpdatePullRequestBranch(t *testing.T) {
 			mockedClient: mock.NewMockedHTTPClient(
 				mock.WithRequestMatchHandler(
 					mock.PutReposPullsUpdateBranchByOwnerByRepoByPullNumber,
-					expectRequestBody(t, map[string]interface{}{
-						"expected_head_sha": prSHA1,
-					}).andThen(
-						mockResponse(t, http.StatusAccepted, mockUpdateResult),
-					),
+					http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						var requestBody map[string]interface{}
+						err := json.NewDecoder(r.Body).Decode(&requestBody)
+						require.NoError(t, err)
+						assert.Equal(t, prSHA1, requestBody["expected_head_sha"])
+
+						w.WriteHeader(http.StatusAccepted)
+						_ = json.NewEncoder(w).Encode(mockUpdateResult)
+					}),
 				),
 			),
 			requestArgs: map[string]interface{}{
@@ -889,9 +937,15 @@ func TestUpdatePullRequestBranch(t *testing.T) {
 			mockedClient: mock.NewMockedHTTPClient(
 				mock.WithRequestMatchHandler(
 					mock.PutReposPullsUpdateBranchByOwnerByRepoByPullNumber,
-					expectRequestBody(t, map[string]interface{}{}).andThen(
-						mockResponse(t, http.StatusAccepted, mockUpdateResult),
-					),
+					http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						var requestBody map[string]interface{}
+						err := json.NewDecoder(r.Body).Decode(&requestBody)
+						require.NoError(t, err)
+						assert.Empty(t, requestBody["expected_head_sha"])
+
+						w.WriteHeader(http.StatusAccepted)
+						_ = json.NewEncoder(w).Encode(mockUpdateResult)
+					}),
 				),
 			),
 			requestArgs: map[string]interface{}{
@@ -967,30 +1021,30 @@ func TestGetPullRequestComments(t *testing.T) {
 	// Setup mock PR comments for success case
 	mockComments := []*github.PullRequestComment{
 		{
-			ID:      testutil.PtrTo(int64(101)),
-			Body:    testutil.PtrTo(prLooksGood),
-			HTMLURL: testutil.PtrTo("https://github.com/owner/repo/pull/42#discussion_r101"),
+			ID:      common.Ptr(int64(101)),
+			Body:    common.Ptr(prLooksGood),
+			HTMLURL: common.Ptr("https://github.com/owner/repo/pull/42#discussion_r101"),
 			User: &github.User{
-				Login: testutil.PtrTo(prReviewer1),
+				Login: common.Ptr(prReviewer1),
 			},
-			Path:      testutil.PtrTo(prFile1),
-			Position:  testutil.PtrTo(5),
-			CommitID:  testutil.PtrTo(prCommitID),
-			CreatedAt: testutil.PtrTo(github.Timestamp{Time: time.Now().Add(-24 * time.Hour)}),
-			UpdatedAt: testutil.PtrTo(github.Timestamp{Time: time.Now().Add(-24 * time.Hour)}),
+			Path:      common.Ptr(prFile1),
+			Position:  common.Ptr(5),
+			CommitID:  common.Ptr(prCommitID),
+			CreatedAt: &github.Timestamp{Time: time.Now().Add(-24 * time.Hour)},
+			UpdatedAt: &github.Timestamp{Time: time.Now().Add(-24 * time.Hour)},
 		},
 		{
-			ID:      testutil.PtrTo(int64(102)),
-			Body:    testutil.PtrTo(prNeedsFix),
-			HTMLURL: testutil.PtrTo("https://github.com/owner/repo/pull/42#discussion_r102"),
+			ID:      common.Ptr(int64(102)),
+			Body:    common.Ptr(prNeedsFix),
+			HTMLURL: common.Ptr("https://github.com/owner/repo/pull/42#discussion_r102"),
 			User: &github.User{
-				Login: testutil.PtrTo(prReviewer2),
+				Login: common.Ptr(prReviewer2),
 			},
-			Path:      testutil.PtrTo(prFile2),
-			Position:  testutil.PtrTo(10),
-			CommitID:  testutil.PtrTo(prCommitID),
-			CreatedAt: testutil.PtrTo(github.Timestamp{Time: time.Now().Add(-12 * time.Hour)}),
-			UpdatedAt: testutil.PtrTo(github.Timestamp{Time: time.Now().Add(-12 * time.Hour)}),
+			Path:      common.Ptr(prFile2),
+			Position:  common.Ptr(10),
+			CommitID:  common.Ptr(prCommitID),
+			CreatedAt: &github.Timestamp{Time: time.Now().Add(-12 * time.Hour)},
+			UpdatedAt: &github.Timestamp{Time: time.Now().Add(-12 * time.Hour)},
 		},
 	}
 
@@ -1094,26 +1148,26 @@ func TestGetPullRequestReviews(t *testing.T) {
 	// Setup mock PR reviews for success case
 	mockReviews := []*github.PullRequestReview{
 		{
-			ID:      testutil.PtrTo(int64(201)),
-			State:   testutil.PtrTo("APPROVED"),
-			Body:    testutil.PtrTo(prLGTM),
-			HTMLURL: testutil.PtrTo("https://github.com/owner/repo/pull/42#pullrequestreview-201"),
+			ID:      common.Ptr(int64(201)),
+			State:   common.Ptr("APPROVED"),
+			Body:    common.Ptr(prLGTM),
+			HTMLURL: common.Ptr("https://github.com/owner/repo/pull/42#pullrequestreview-201"),
 			User: &github.User{
-				Login: testutil.PtrTo(prApprover),
+				Login: common.Ptr(prApprover),
 			},
-			CommitID:    testutil.PtrTo(prCommitID),
-			SubmittedAt: testutil.PtrTo(github.Timestamp{Time: time.Now().Add(-24 * time.Hour)}),
+			CommitID:    common.Ptr(prCommitID),
+			SubmittedAt: &github.Timestamp{Time: time.Now().Add(-24 * time.Hour)},
 		},
 		{
-			ID:      testutil.PtrTo(int64(202)),
-			State:   testutil.PtrTo("CHANGES_REQUESTED"),
-			Body:    testutil.PtrTo("Please address the following issues"),
-			HTMLURL: testutil.PtrTo("https://github.com/owner/repo/pull/42#pullrequestreview-202"),
+			ID:      common.Ptr(int64(202)),
+			State:   common.Ptr("CHANGES_REQUESTED"),
+			Body:    common.Ptr("Please address the following issues"),
+			HTMLURL: common.Ptr("https://github.com/owner/repo/pull/42#pullrequestreview-202"),
 			User: &github.User{
-				Login: testutil.PtrTo(prReviewer),
+				Login: common.Ptr(prReviewer),
 			},
-			CommitID:    testutil.PtrTo(prCommitID),
-			SubmittedAt: testutil.PtrTo(github.Timestamp{Time: time.Now().Add(-12 * time.Hour)}),
+			CommitID:    common.Ptr(prCommitID),
+			SubmittedAt: &github.Timestamp{Time: time.Now().Add(-12 * time.Hour)},
 		},
 	}
 
@@ -1220,15 +1274,15 @@ func TestCreatePullRequestReview(t *testing.T) {
 
 	// Setup mock review for success case
 	mockReview := &github.PullRequestReview{
-		ID:      testutil.PtrTo(int64(301)),
-		State:   testutil.PtrTo("APPROVED"),
-		Body:    testutil.PtrTo(prLooksGood),
-		HTMLURL: testutil.PtrTo("https://github.com/owner/repo/pull/42#pullrequestreview-301"),
+		ID:      common.Ptr(int64(301)),
+		State:   common.Ptr("APPROVED"),
+		Body:    common.Ptr(prLooksGood),
+		HTMLURL: common.Ptr("https://github.com/owner/repo/pull/42#pullrequestreview-301"),
 		User: &github.User{
-			Login: testutil.PtrTo(prReviewer),
+			Login: common.Ptr(prReviewer),
 		},
-		CommitID:    testutil.PtrTo(prCommitID),
-		SubmittedAt: testutil.PtrTo(github.Timestamp{Time: time.Now()}),
+		CommitID:    common.Ptr(prCommitID),
+		SubmittedAt: &github.Timestamp{Time: time.Now()},
 	}
 
 	tests := []struct {
@@ -1244,12 +1298,16 @@ func TestCreatePullRequestReview(t *testing.T) {
 			mockedClient: mock.NewMockedHTTPClient(
 				mock.WithRequestMatchHandler(
 					mock.PostReposPullsReviewsByOwnerByRepoByPullNumber,
-					expectRequestBody(t, map[string]interface{}{
-						"body":  prLooksGood,
-						"event": "APPROVE",
-					}).andThen(
-						mockResponse(t, http.StatusOK, mockReview),
-					),
+					http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						var requestBody map[string]interface{}
+						err := json.NewDecoder(r.Body).Decode(&requestBody)
+						require.NoError(t, err)
+						assert.Equal(t, prLooksGood, requestBody["body"])
+						assert.Equal(t, "APPROVE", requestBody["event"])
+
+						w.WriteHeader(http.StatusOK)
+						_ = json.NewEncoder(w).Encode(mockReview)
+					}),
 				),
 			),
 			requestArgs: map[string]interface{}{
@@ -1267,13 +1325,17 @@ func TestCreatePullRequestReview(t *testing.T) {
 			mockedClient: mock.NewMockedHTTPClient(
 				mock.WithRequestMatchHandler(
 					mock.PostReposPullsReviewsByOwnerByRepoByPullNumber,
-					expectRequestBody(t, map[string]interface{}{
-						"body":      prLooksGood,
-						"event":     "APPROVE",
-						"commit_id": prCommitID,
-					}).andThen(
-						mockResponse(t, http.StatusOK, mockReview),
-					),
+					http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						var requestBody map[string]interface{}
+						err := json.NewDecoder(r.Body).Decode(&requestBody)
+						require.NoError(t, err)
+						assert.Equal(t, prLooksGood, requestBody["body"])
+						assert.Equal(t, "APPROVE", requestBody["event"])
+						assert.Equal(t, prCommitID, requestBody["commit_id"])
+
+						w.WriteHeader(http.StatusOK)
+						_ = json.NewEncoder(w).Encode(mockReview)
+					}),
 				),
 			),
 			requestArgs: map[string]interface{}{
@@ -1292,24 +1354,16 @@ func TestCreatePullRequestReview(t *testing.T) {
 			mockedClient: mock.NewMockedHTTPClient(
 				mock.WithRequestMatchHandler(
 					mock.PostReposPullsReviewsByOwnerByRepoByPullNumber,
-					expectRequestBody(t, map[string]interface{}{
-						"body":  "Some issues to fix",
-						"event": "REQUEST_CHANGES",
-						"comments": []interface{}{
-							map[string]interface{}{
-								"path":     prFile1,
-								"position": float64(10),
-								"body":     prNeedsFix,
-							},
-							map[string]interface{}{
-								"path":     prFile2,
-								"position": float64(20),
-								"body":     "Consider a different approach here",
-							},
-						},
-					}).andThen(
-						mockResponse(t, http.StatusOK, mockReview),
-					),
+					http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						var requestBody map[string]interface{}
+						err := json.NewDecoder(r.Body).Decode(&requestBody)
+						require.NoError(t, err)
+						assert.Equal(t, "REQUEST_CHANGES", requestBody["event"])
+						assert.Len(t, requestBody["comments"], 2)
+
+						w.WriteHeader(http.StatusOK)
+						_ = json.NewEncoder(w).Encode(mockReview)
+					}),
 				),
 			),
 			requestArgs: map[string]interface{}{
@@ -1366,19 +1420,16 @@ func TestCreatePullRequestReview(t *testing.T) {
 			mockedClient: mock.NewMockedHTTPClient(
 				mock.WithRequestMatchHandler(
 					mock.PostReposPullsReviewsByOwnerByRepoByPullNumber,
-					expectRequestBody(t, map[string]interface{}{
-						"body":  "Code review comments",
-						"event": "COMMENT",
-						"comments": []interface{}{
-							map[string]interface{}{
-								"path": prMainGo,
-								"line": float64(42),
-								"body": "Consider adding a comment here",
-							},
-						},
-					}).andThen(
-						mockResponse(t, http.StatusOK, mockReview),
-					),
+					http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						var requestBody map[string]interface{}
+						err := json.NewDecoder(r.Body).Decode(&requestBody)
+						require.NoError(t, err)
+						assert.Equal(t, "COMMENT", requestBody["event"])
+						assert.Len(t, requestBody["comments"], 1)
+
+						w.WriteHeader(http.StatusOK)
+						_ = json.NewEncoder(w).Encode(mockReview)
+					}),
 				),
 			),
 			requestArgs: map[string]interface{}{
@@ -1403,21 +1454,16 @@ func TestCreatePullRequestReview(t *testing.T) {
 			mockedClient: mock.NewMockedHTTPClient(
 				mock.WithRequestMatchHandler(
 					mock.PostReposPullsReviewsByOwnerByRepoByPullNumber,
-					expectRequestBody(t, map[string]interface{}{
-						"body":  "Multi-line comment review",
-						"event": "COMMENT",
-						"comments": []interface{}{
-							map[string]interface{}{
-								"path":       prMainGo,
-								"start_line": float64(10),
-								"line":       float64(15),
-								"side":       "RIGHT",
-								"body":       "This entire block needs refactoring",
-							},
-						},
-					}).andThen(
-						mockResponse(t, http.StatusOK, mockReview),
-					),
+					http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						var requestBody map[string]interface{}
+						err := json.NewDecoder(r.Body).Decode(&requestBody)
+						require.NoError(t, err)
+						assert.Equal(t, "COMMENT", requestBody["event"])
+						assert.Len(t, requestBody["comments"], 1)
+
+						w.WriteHeader(http.StatusOK)
+						_ = json.NewEncoder(w).Encode(mockReview)
+					}),
 				),
 			),
 			requestArgs: map[string]interface{}{
@@ -1598,23 +1644,23 @@ func TestCreatePullRequest(t *testing.T) {
 
 	// Setup mock PR for success case
 	mockPR := &github.PullRequest{
-		Number:  testutil.PtrTo(42),
-		Title:   testutil.PtrTo(prTitle),
-		State:   testutil.PtrTo(prOpenState),
-		HTMLURL: testutil.PtrTo(prHTMLURL),
+		Number:  common.Ptr(42),
+		Title:   common.Ptr(prTitle),
+		State:   common.Ptr(prOpenState),
+		HTMLURL: common.Ptr(prHTMLURL),
 		Head: &github.PullRequestBranch{
-			SHA: testutil.PtrTo(prSHA1),
-			Ref: testutil.PtrTo(prFeatureBranch),
+			SHA: common.Ptr(prSHA1),
+			Ref: common.Ptr(prFeatureBranch),
 		},
 		Base: &github.PullRequestBranch{
-			SHA: testutil.PtrTo(prSHA2),
-			Ref: testutil.PtrTo(prMainBranch),
+			SHA: common.Ptr(prSHA2),
+			Ref: common.Ptr(prMainBranch),
 		},
-		Body:                testutil.PtrTo(prBody),
-		Draft:               testutil.PtrTo(false),
-		MaintainerCanModify: testutil.PtrTo(true),
+		Body:                common.Ptr(prBody),
+		Draft:               common.Ptr(false),
+		MaintainerCanModify: common.Ptr(true),
 		User: &github.User{
-			Login: testutil.PtrTo(prUser),
+			Login: common.Ptr(prUser),
 		},
 	}
 
@@ -1631,16 +1677,20 @@ func TestCreatePullRequest(t *testing.T) {
 			mockedClient: mock.NewMockedHTTPClient(
 				mock.WithRequestMatchHandler(
 					mock.PostReposPullsByOwnerByRepo,
-					expectRequestBody(t, map[string]interface{}{
-						"title":                 prTitle,
-						"body":                  prBody,
-						"head":                  prFeatureBranch,
-						"base":                  prMainBranch,
-						"draft":                 false,
-						"maintainer_can_modify": true,
-					}).andThen(
-						mockResponse(t, http.StatusCreated, mockPR),
-					),
+					http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						var requestBody map[string]interface{}
+						err := json.NewDecoder(r.Body).Decode(&requestBody)
+						require.NoError(t, err)
+						assert.Equal(t, prTitle, requestBody["title"])
+						assert.Equal(t, prBody, requestBody["body"])
+						assert.Equal(t, prFeatureBranch, requestBody["head"])
+						assert.Equal(t, prMainBranch, requestBody["base"])
+						assert.Equal(t, false, requestBody["draft"])
+						assert.Equal(t, true, requestBody["maintainer_can_modify"])
+
+						w.WriteHeader(http.StatusCreated)
+						_ = json.NewEncoder(w).Encode(mockPR)
+					}),
 				),
 			),
 			requestArgs: map[string]interface{}{

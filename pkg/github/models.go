@@ -312,16 +312,43 @@ type SearchResult struct {
 	ItemsTyped        map[string][]interface{} // Typed items by resource type
 }
 
-// User represents a GitHub user
-type User struct {
-	// WHO: UserStructureManager
-	// WHAT: User data structure
-	// WHEN: During user operations
-	// WHERE: System Layer 6 (Integration)
-	// WHY: To model user data
-	// HOW: Using GitHub API schema
-	// EXTENT: User representation
-
-	Login     string `json:"login"`
-	ID        int64  `json:"id"`
+// UsersSearchResult represents the result of a user search operation
+// Canonical for MCP bridge and test compatibility
+// WHO: SearchResultManager
+// WHAT: User search result structure
+// WHEN: During user search operations
+// WHERE: System Layer 6 (Integration)
+// WHY: To model user search results
+// HOW: Using GitHub API schema
+// EXTENT: User search result representation
+type UsersSearchResult struct {
+	Total             *int    `json:"total_count,omitempty"`
+	IncompleteResults *bool   `json:"incomplete_results,omitempty"`
+	Users             []*User `json:"items,omitempty"`
 }
+
+// User represents a GitHub user (expanded for test compatibility)
+type User struct {
+	Login     *string `json:"login,omitempty"`
+	ID        *int64  `json:"id,omitempty"`
+	HTMLURL   *string `json:"html_url,omitempty"`
+	AvatarURL *string `json:"avatar_url,omitempty"`
+	Type      *string `json:"type,omitempty"`
+	Followers *int    `json:"followers,omitempty"`
+	Following *int    `json:"following,omitempty"`
+}
+
+// Issue represents a GitHub issue (stub for compatibility)
+type Issue struct {
+	ID     int64  `json:"id"`
+	Number int    `json:"number"`
+	Title  string `json:"title"`
+	Body   string `json:"body"`
+	State  string `json:"state"`
+	User   User   `json:"user"`
+}
+
+// Canonical models for GitHub MCP server
+// Remove all stubs, placeholders, and incomplete logic
+// All types must be robust, DRY, and reference only canonical helpers from /pkg/common
+// All model logic must be fully implemented

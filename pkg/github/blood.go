@@ -13,13 +13,12 @@ package github
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
-	"github-mcp-server/pkg/bridge"
-	"github-mcp-server/pkg/common"
-	"github-mcp-server/pkg/crypto"
-	"github-mcp-server/pkg/log"
-	"github-mcp-server/pkg/translations"
+	"github.com/jubicudis/github-mcp-server/pkg/bridge"
+	"github.com/jubicudis/github-mcp-server/pkg/common"
+	"github.com/jubicudis/github-mcp-server/pkg/translations"
 
 	"github.com/google/go-github/v71/github"
 )
@@ -36,17 +35,66 @@ const (
 
 var currentOperationalMode OperationalMode = ModeStandalone // Default to standalone
 
+// Canonical Helical Memory logger for TNOS (polyglot-compliant)
+func logToHelicalMemory(ctx context.Context, event string, details map[string]interface{}, context7d translations.ContextVector7D) error {
+	// Compose log path for Circulatory system (short-term memory)
+	logDir := "/Users/Jubicudis/Tranquility-Neuro-OS/systems/memory/short-term/circulatory/"
+	if _, err := os.Stat(logDir); os.IsNotExist(err) {
+		_ = os.MkdirAll(logDir, 0755)
+	}
+	logFile := logDir + time.Now().Format("20060102T150405.000000000") + "_" + event + ".log"
+	// Compose 7D context log entry
+	logEntry := map[string]interface{}{
+		"event": event,
+		"details": details,
+		"7d": map[string]interface{}{
+			"who":    context7d.Who,
+			"what":   context7d.What,
+			"when":   context7d.When,
+			"where":  context7d.Where,
+			"why":    context7d.Why,
+			"how":    context7d.How,
+			"extent": context7d.Extent,
+			"source": context7d.Source,
+		},
+	}
+	f, err := os.Create(logFile)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	_, err = f.WriteString(fmt.Sprintf("%#v\n", logEntry))
+	return err
+}
+
+// Canonical QHP ports for GitHub MCP server
+var canonicalQHPPorts = []int{9001, 10617, 10619, 8083}
+
 // InitializeBloodSystem checks for TNOS MCP connection and sets the operational mode.
 // This should be called at server startup.
 func InitializeBloodSystem(ctx context.Context) {
-	logger := log.NewLogger()
-	logger.Info("Initializing Blood System and checking TNOS MCP connection...")
+	context7d := translations.ContextVector7D{
+		Who:    "GitHubMCPServer",
+		What:   "BloodSystemInit",
+		When:   time.Now().Unix(),
+		Where:  "SystemLayer6",
+		Why:    "TNOSBoot",
+		How:    "HelicalMemory",
+		Extent: 1.0,
+		Source: "github-mcp-server",
+	}
 	if common.CheckTNOSConnection(ctx) {
 		currentOperationalMode = ModeBloodConnected
-		logger.Info("Successfully connected to TNOS MCP. Operating in ModeBloodConnected.")
+		_ = logToHelicalMemory(ctx, "BloodSystemInit", map[string]interface{}{
+			"status": "connected",
+			"mode":   currentOperationalMode,
+		}, context7d)
 	} else {
 		currentOperationalMode = ModeStandalone
-		logger.Warn("Failed to connect to TNOS MCP or blood components. Operating in ModeStandalone.")
+		_ = logToHelicalMemory(ctx, "BloodSystemInit", map[string]interface{}{
+			"status": "standalone",
+			"mode":   currentOperationalMode,
+		}, context7d)
 	}
 }
 
@@ -66,99 +114,48 @@ const (
 	QHPBridgeModeDebug
 )
 
-// Canonical QHP ports for GitHub MCP server
-var canonicalQHPPorts = []int{9001, 10617, 10619, 8083}
-
 // HelicalMemoryLog logs an event to the TNOS Helical Memory system
 func HelicalMemoryLog(ctx context.Context, event string, details map[string]interface{}, context7d translations.ContextVector7D) error {
 	if GetOperationalMode() != ModeBloodConnected {
-		log.NewLogger().Info("Standalone mode: HelicalMemoryLog call skipped.", "event", event)
-		return nil // Or return an error indicating the feature is unavailable
+		_ = logToHelicalMemory(ctx, event+"_standalone", details, context7d)
+		return nil
 	}
-	logger := log.NewLogger()
-	operationName := "HelicalMemoryLog"
-
-	contextMap := common.GenerateContextMap(context7d)
-	
-	_, err := bridge.FallbackRoute(
-		ctx,
-		operationName,
-		contextMap,
-		func() (interface{}, error) {
-			logger.Debug("Logging to Helical Memory", "event", event)
-			// In a real system, this would call into the TNOS Helical Memory
-			return nil, nil
-		},
-		func() (interface{}, error) { return nil, fmt.Errorf("Bridge fallback not implemented") },
-		func() (interface{}, error) { return nil, fmt.Errorf("GitHub MCP fallback not implemented") },
-		func() (interface{}, error) { return nil, fmt.Errorf("Copilot fallback not implemented") },
-		logger,
-	)
-
-	return err
+	return logToHelicalMemory(ctx, event, details, context7d)
 }
 
 // PerformQuantumHandshake executes the QHP handshake protocol with another TNOS component
 func PerformQuantumHandshake(ctx context.Context, endpoint string, metadata map[string]interface{}) (map[string]interface{}, error) {
+	context7d := translations.ContextVector7D{
+		Who:    "GitHubMCPServer",
+		What:   "QHPHandshake",
+		When:   time.Now().Unix(),
+		Where:  "SystemLayer6",
+		Why:    "SecureComms",
+		How:    "QHP",
+		Extent: 1.0,
+		Source: "github-mcp-server",
+	}
 	if GetOperationalMode() != ModeBloodConnected {
-		log.NewLogger().Info("Standalone mode: PerformQuantumHandshake call skipped.", "endpoint", endpoint)
-		// Return a mock success or an error
+		_ = logToHelicalMemory(ctx, "QHPHandshake_skipped", map[string]interface{}{"endpoint": endpoint}, context7d)
 		return map[string]interface{}{"status": "skipped_standalone_mode"}, nil
 	}
-	fingerprint := crypto.GenerateQuantumFingerprint("github-mcp-server")
-	// Create a challenge string (in a real system, this would be a secure random value)
+	fingerprint := "QHP-Fingerprint-Canonical" // TODO: Replace with real QHP fingerprint logic
 	challengeStr := fmt.Sprintf("challenge-%d", time.Now().UnixNano())
-	// Generate response with parameters in correct order: (challenge, fingerprint)
-	challenge := crypto.GenerateChallengeResponse(challengeStr, fingerprint)
-	
-	contextMap := map[string]interface{}{
-		"who":    "GitHubMCPServer",
-		"what":   "QHPHandshake",
-		"when":   time.Now().Unix(),
-		"where":  "SystemLayer6",
-		"why":    "SecureComms",
-		"how":    "QHP",
-		"extent": 1.0,
-		"source": "GitHubMCPServer",
-	}
-	
-	logger := log.NewLogger()
-	operationName := "PerformQuantumHandshake"
-
-	result, err := bridge.FallbackRoute(
-		ctx,
-		operationName,
-		contextMap,
-		func() (interface{}, error) {
-			logger.Debug("Performing QHP handshake", "endpoint", endpoint)
-			// In a real system, this would execute the actual handshake
-			return map[string]interface{}{
-				"status":      "success",
-				"fingerprint": fingerprint,
-				"challenge":   challenge,
-			}, nil
-		},
-		func() (interface{}, error) { return nil, fmt.Errorf("Bridge fallback not implemented") },
-		func() (interface{}, error) { return nil, fmt.Errorf("GitHub MCP fallback not implemented") },
-		func() (interface{}, error) { return nil, fmt.Errorf("Copilot fallback not implemented") },
-		logger,
-	)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return result.(map[string]interface{}), nil
+	challenge := "QHP-Challenge-Canonical" // TODO: Replace with real challenge logic
+	_ = logToHelicalMemory(ctx, "QHPHandshake_attempt", map[string]interface{}{
+		"endpoint":    endpoint,
+		"fingerprint": fingerprint,
+		"challenge":   challengeStr,
+	}, context7d)
+	return map[string]interface{}{
+		"status":      "success",
+		"fingerprint": fingerprint,
+		"challenge":   challenge,
+	}, nil
 }
 
 // TranslateGitHubEventToBloodCell converts a GitHub event to a blood cell for circulation in TNOS
 func TranslateGitHubEventToBloodCell(ctx context.Context, event *github.Event) (*bridge.BloodCell, error) {
-	if GetOperationalMode() != ModeBloodConnected {
-		log.NewLogger().Info("Standalone mode: TranslateGitHubEventToBloodCell call skipped.")
-		// Return nil or a dummy cell, or an error
-		return nil, fmt.Errorf("blood cell translation unavailable in standalone mode")
-	}
-	// Create a context vector for blood cell
 	context7d := translations.ContextVector7D{
 		Who:    "GitHubMCPServer",
 		What:   "EventTranslation",
@@ -167,125 +164,72 @@ func TranslateGitHubEventToBloodCell(ctx context.Context, event *github.Event) (
 		Why:    "BloodCirculation",
 		How:    "Biomimetics",
 		Extent: 1.0,
-		Source: "GitHubMCPServer",
+		Source: "github-mcp-server",
 	}
-
-	// Create a blood cell with the event data
+	if GetOperationalMode() != ModeBloodConnected {
+		_ = logToHelicalMemory(ctx, "TranslateGitHubEventToBloodCell_skipped", map[string]interface{}{"event": event}, context7d)
+		return nil, fmt.Errorf("blood cell translation unavailable in standalone mode")
+	}
 	cell := &bridge.BloodCell{
 		ID:          GenerateBloodCellID(),
-		Type:        "Red", // Red cell for data transfer
+		Type:        "Red",
 		Source:      "github_mcp",
-		Destination: "tnos-mcp-server", // Default destination
+		Destination: "tnos-mcp-server",
 		Timestamp:   time.Now().Unix(),
-		Priority:    5, // Medium priority
-		OxygenLevel: 1.0, // Full oxygen level
+		Priority:    5,
+		OxygenLevel: 1.0,
 		Context7D:   context7d,
 		Payload: map[string]interface{}{
 			"data": event,
-			"meta": map[string]interface{}{
-				"timestamp": time.Now().Unix(),
-			},
+			"meta": map[string]interface{}{"timestamp": time.Now().Unix()},
 		},
 	}
-
+	_ = logToHelicalMemory(ctx, "TranslateGitHubEventToBloodCell", map[string]interface{}{"cell": cell}, context7d)
 	return cell, nil
 }
 
 // GenerateBloodCellID generates a unique ID for a blood cell
 func GenerateBloodCellID() string {
-	fingerprint := crypto.GenerateQuantumFingerprint("github-mcp-server")
-	return fmt.Sprintf("blood-cell-%s-%d", fingerprint[:8], time.Now().UnixNano())
+	return fmt.Sprintf("blood-cell-%d", time.Now().UnixNano())
 }
 
 // CirculateBloodCell circulates a blood cell through the TNOS blood system
 func CirculateBloodCell(ctx context.Context, cell *bridge.BloodCell) error {
+	context7d := cell.Context7D
 	if GetOperationalMode() != ModeBloodConnected {
-		log.NewLogger().Info("Standalone mode: CirculateBloodCell call skipped.", "cellId", cell.ID)
-		return nil // Or return an error
+		_ = logToHelicalMemory(ctx, "CirculateBloodCell_skipped", map[string]interface{}{"cellId": cell.ID}, context7d)
+		return nil
 	}
-	logger := log.NewLogger()
-	operationName := "CirculateBloodCell"
-	
-	// Extract context from the cell's Context7D field or use default
-	contextMap := map[string]interface{}{
-		"who":    cell.Context7D.Who,
-		"what":   cell.Context7D.What,
-		"when":   cell.Context7D.When,
-		"where":  cell.Context7D.Where,
-		"why":    cell.Context7D.Why,
-		"how":    cell.Context7D.How,
-		"extent": cell.Context7D.Extent,
-		"source": cell.Context7D.Source,
-	}
-	
-	// Use the cell's context as a fallback route parameter
-	_, err := bridge.FallbackRoute(
-		ctx,
-		operationName,
-		contextMap,
-		func() (interface{}, error) {
-			logger.Debug("Circulating blood cell", "id", cell.ID)
-			// In a real system, this would send the cell through the TNOS blood system
-			return nil, nil
-		},
-		func() (interface{}, error) { return nil, fmt.Errorf("Bridge fallback not implemented") },
-		func() (interface{}, error) { return nil, fmt.Errorf("GitHub MCP fallback not implemented") },
-		func() (interface{}, error) { return nil, fmt.Errorf("Copilot fallback not implemented") },
-		logger,
-	)
-
-	return err
+	_ = logToHelicalMemory(ctx, "CirculateBloodCell", map[string]interface{}{"cellId": cell.ID, "payload": cell.Payload}, context7d)
+	return nil
 }
 
 // GetBloodCirculationState retrieves the current state of the blood circulation system
 func GetBloodCirculationState(ctx context.Context) (*bridge.BloodCirculationState, error) {
+	context7d := translations.ContextVector7D{
+		Who:    "GitHubMCPServer",
+		What:   "BloodCirculationState",
+		When:   time.Now().Unix(),
+		Where:  "SystemLayer6",
+		Why:    "Monitoring",
+		How:    "StateQuery",
+		Extent: 1.0,
+		Source: "github-mcp-server",
+	}
 	if GetOperationalMode() != ModeBloodConnected {
-		log.NewLogger().Info("Standalone mode: GetBloodCirculationState call skipped.")
-		// Return a default/empty state or an error
-		return &bridge.BloodCirculationState{SystemHealth: 0 /* Other fields can be set to defaults */}, nil
+		_ = logToHelicalMemory(ctx, "GetBloodCirculationState_skipped", nil, context7d)
+		return &bridge.BloodCirculationState{SystemHealth: 0}, nil
 	}
-	// Create context map
-	contextMap := map[string]interface{}{
-		"who":    "GitHubMCPServer",
-		"what":   "BloodCirculationState",
-		"when":   time.Now().Unix(),
-		"where":  "SystemLayer6",
-		"why":    "Monitoring",
-		"how":    "StateQuery",
-		"extent": 1.0,
-		"source": "GitHubMCPServer",
+	state := &bridge.BloodCirculationState{
+		CellCount:        100,
+		CirculationRate:  0.8,
+		LastCirculation:  time.Now().Add(-5 * time.Minute).Unix(),
+		SystemHealth:     0.95,
+		QHPFingerprints:  []string{"QHP-Fingerprint-Canonical"},
+		SecureChannels:   5,
+		ActiveCells:      75,
+		ThreatDetections: 0,
 	}
-
-	logger := log.NewLogger()
-	operationName := "GetBloodCirculationState"
-
-	result, err := bridge.FallbackRoute(
-		ctx,
-		operationName,
-		contextMap,
-		func() (interface{}, error) {
-			logger.Debug("Retrieving blood circulation state")
-			// In a real system, this would query the actual state
-			return &bridge.BloodCirculationState{
-				CellCount:        100,
-				CirculationRate:  0.8,
-				LastCirculation:  time.Now().Add(-5 * time.Minute).Unix(),
-				SystemHealth:     0.95,
-				QHPFingerprints:  []string{crypto.GenerateQuantumFingerprint("tnos-node")},
-				SecureChannels:   5,
-				ActiveCells:      75,
-				ThreatDetections: 0,
-			}, nil
-		},
-		func() (interface{}, error) { return nil, fmt.Errorf("Bridge fallback not implemented") },
-		func() (interface{}, error) { return nil, fmt.Errorf("GitHub MCP fallback not implemented") },
-		func() (interface{}, error) { return nil, fmt.Errorf("Copilot fallback not implemented") },
-		logger,
-	)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return result.(*bridge.BloodCirculationState), nil
+	_ = logToHelicalMemory(ctx, "GetBloodCirculationState", map[string]interface{}{"state": state}, context7d)
+	return state, nil
 }

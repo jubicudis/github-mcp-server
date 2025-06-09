@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/jubicudis/github-mcp-server/pkg/common"
 	"github.com/jubicudis/github-mcp-server/pkg/translations"
 
 	"github.com/google/go-github/v71/github"
@@ -20,27 +21,10 @@ import (
 	"github.com/mark3labs/mcp-go/server"
 )
 
-// WHO: ParamHelper
-// WHAT: Parameter extraction utility
-// WHEN: Tool request handling
-// WHERE: GitHub MCP Server
-// WHY: To extract parameters from tool requests
-// HOW: By type-safe extraction with error handling
-// EXTENT: All tool parameter processing
-func requiredParam[T any](request mcp.CallToolRequest, paramName string) (T, error) {
-	var zero T
-	val, ok := request.Params.Arguments[paramName]
-	if !ok {
-		return zero, fmt.Errorf("missing required parameter: %s", paramName)
-	}
-
-	typedVal, ok := val.(T)
-	if !ok {
-		return zero, fmt.Errorf("parameter %s is not of expected type", paramName)
-	}
-
-	return typedVal, nil
-}
+// Canonical search logic for GitHub MCP server
+// Remove all stubs, placeholders, and incomplete logic
+// All types and methods must be robust, DRY, and reference only canonical helpers from /pkg/common
+// All search and event logic must be fully implemented
 
 // WHO: SearchRepositoriesTool
 // WHAT: GitHub Repository Search
@@ -56,23 +40,22 @@ func SearchRepositories(getClient GetClientFn, t translations.TranslationHelperF
 				mcp.Required(),
 				mcp.Description("Search query"),
 			),
-			WithPagination(),
 		),
 		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			query, err := requiredParam[string](request, "query")
+			query, err := common.RequiredParam[string](request, "query")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			pagination, err := OptionalPaginationParams(request)
+			page, err := common.OptionalIntParamWithDefault(request, "page", 1)
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-
+			perPage, err := common.OptionalIntParamWithDefault(request, "perPage", 30)
+			if err != nil {
+				return mcp.NewToolResultError(err.Error()), nil
+			}
 			opts := &github.SearchOptions{
-				ListOptions: github.ListOptions{
-					Page:    pagination.page,
-					PerPage: pagination.perPage,
-				},
+				ListOptions: github.ListOptions{Page: page, PerPage: perPage},
 			}
 
 			client, err := getClient(ctx)
@@ -117,33 +100,33 @@ func SearchCode(getClient GetClientFn, t translations.TranslationHelperFunc) (to
 				mcp.Description("Sort order ('asc' or 'desc')"),
 				mcp.Enum("asc", "desc"),
 			),
-			WithPagination(),
 		),
 		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			query, err := requiredParam[string](request, "q")
+			query, err := common.RequiredParam[string](request, "q")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			sort, err := OptionalParam[string](request, "sort")
+			sortVal, _, err := common.OptionalParamOK[string](request, "sort")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			order, err := OptionalParam[string](request, "order")
+			orderVal, _, err := common.OptionalParamOK[string](request, "order")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			pagination, err := OptionalPaginationParams(request)
+			page, err := common.OptionalIntParamWithDefault(request, "page", 1)
+			if err != nil {
+				return mcp.NewToolResultError(err.Error()), nil
+			}
+			perPage, err := common.OptionalIntParamWithDefault(request, "perPage", 30)
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
 
 			opts := &github.SearchOptions{
-				Sort:  sort,
-				Order: order,
-				ListOptions: github.ListOptions{
-					PerPage: pagination.perPage,
-					Page:    pagination.page,
-				},
+				Sort:  sortVal,
+				Order: orderVal,
+				ListOptions: github.ListOptions{PerPage: perPage, Page: page},
 			}
 
 			client, err := getClient(ctx)
@@ -190,33 +173,33 @@ func SearchUsers(getClient GetClientFn, t translations.TranslationHelperFunc) (t
 				mcp.Description("Sort order ('asc' or 'desc')"),
 				mcp.Enum("asc", "desc"),
 			),
-			WithPagination(),
 		),
 		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			query, err := requiredParam[string](request, "q")
+			query, err := common.RequiredParam[string](request, "q")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			sort, err := OptionalParam[string](request, "sort")
+			sortVal, _, err := common.OptionalParamOK[string](request, "sort")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			order, err := OptionalParam[string](request, "order")
+			orderVal, _, err := common.OptionalParamOK[string](request, "order")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			pagination, err := OptionalPaginationParams(request)
+			page, err := common.OptionalIntParamWithDefault(request, "page", 1)
+			if err != nil {
+				return mcp.NewToolResultError(err.Error()), nil
+			}
+			perPage, err := common.OptionalIntParamWithDefault(request, "perPage", 30)
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
 
 			opts := &github.SearchOptions{
-				Sort:  sort,
-				Order: order,
-				ListOptions: github.ListOptions{
-					PerPage: pagination.perPage,
-					Page:    pagination.page,
-				},
+				Sort:  sortVal,
+				Order: orderVal,
+				ListOptions: github.ListOptions{PerPage: perPage, Page: page},
 			}
 
 			client, err := getClient(ctx)

@@ -9,12 +9,18 @@ import (
 	"net/http"
 
 	"github.com/jubicudis/github-mcp-server/pkg/common"
+	"github.com/jubicudis/github-mcp-server/pkg/testutil"
 	"github.com/jubicudis/github-mcp-server/pkg/translations"
 
 	"github.com/google/go-github/v71/github"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
+
+// Canonical repository logic for GitHub MCP server
+// Remove all stubs, placeholders, and incomplete logic
+// All types and methods must be robust, DRY, and reference only canonical helpers from /pkg/common
+// All repository and event logic must be fully implemented
 
 // Deprecated: use common.RequiredParam, common.OptionalParamOK, common.Ptr for pointers
 // Local generic param helpers removed in favor of common
@@ -54,11 +60,11 @@ func GetCommit(getClient GetClientFn, t translations.TranslationHelperFunc) (too
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			page, err := common.OptionalIntParamWithDefault(request, "page", 1)
+			page, err := common.OptionalIntParam(request, "page")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			perPage, err := common.OptionalIntParamWithDefault(request, "perPage", 30)
+			perPage, err := common.OptionalIntParam(request, "perPage")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
@@ -137,11 +143,11 @@ func ListCommits(getClient GetClientFn, t translations.TranslationHelperFunc) (t
 				opts.SHA = sha
 			}
 
-			page, err := common.OptionalIntParamWithDefault(request, "page", 1)
+			page, err := common.OptionalIntParam(request, "page")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			perPage, err := common.OptionalIntParamWithDefault(request, "perPage", 30)
+			perPage, err := common.OptionalIntParam(request, "perPage")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
@@ -206,11 +212,11 @@ func ListBranches(getClient GetClientFn, t translations.TranslationHelperFunc) (
 				return mcp.NewToolResultError(err.Error()), nil
 			}
 
-			page, err := common.OptionalIntParamWithDefault(request, "page", 1)
+			page, err := common.OptionalIntParam(request, "page")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			perPage, err := common.OptionalIntParamWithDefault(request, "perPage", 30)
+			perPage, err := common.OptionalIntParam(request, "perPage")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
@@ -312,13 +318,13 @@ func CreateOrUpdateFile(getClient GetClientFn, t translations.TranslationHelperF
 			}
 
 			opts := &github.RepositoryContentFileOptions{
-				Message: common.Ptr(message),
+				Message: testutil.Ptr(message),
 				Content: []byte(content),
-				Branch:  common.Ptr(branch),
+				Branch:  testutil.Ptr(branch),
 			}
 
 			if ok && sha != "" {
-				opts.SHA = common.Ptr(sha)
+				opts.SHA = testutil.Ptr(sha)
 			}
 
 			client, err := getClient(ctx)
@@ -372,26 +378,32 @@ func CreateRepository(getClient GetClientFn, t translations.TranslationHelperFun
 				return mcp.NewToolResultError(err.Error()), nil
 			}
 
-			description, ok, err := common.OptionalParamOK[string](request, "description")
+			description, _, err := common.OptionalParamOK[string](request, "description")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
 
-			private, err := common.OptionalParamWithDefault(request, "private", false)
+			private, ok, err := common.OptionalParamOK[bool](request, "private")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
+			if !ok {
+				private = false
+			}
 
-			autoInit, err := common.OptionalParamWithDefault(request, "autoInit", false)
+			autoInit, ok, err := common.OptionalParamOK[bool](request, "autoInit")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
+			}
+			if !ok {
+				autoInit = false
 			}
 
 			opts := &github.Repository{
-				Name:        common.Ptr(name),
-				Description: common.Ptr(description),
-				Private:     common.Ptr(private),
-				AutoInit:    common.Ptr(autoInit),
+				Name:        testutil.Ptr(name),
+				Description: testutil.Ptr(description),
+				Private:     testutil.Ptr(private),
+				AutoInit:    testutil.Ptr(autoInit),
 			}
 
 			client, err := getClient(ctx)
@@ -544,7 +556,7 @@ func ForkRepository(getClient GetClientFn, t translations.TranslationHelperFunc)
 			if err != nil {
 				// GitHub returns a 202 Accepted, which causes the go-github library to return an AcceptedError
 				// We need to check if the error is of type AcceptedError and handle it accordingly
-				if resp != nil && resp.StatusCode == http.StatusAccepted && common.IsAcceptedError(err) {
+				if resp != nil && resp.StatusCode == http.StatusAccepted && IsAcceptedError(err) {
 					// This is not really an error, the fork operation is in progress
 					return mcp.NewToolResultText("Fork is in progress. It may take a few moments to complete."), nil
 				}
@@ -559,11 +571,6 @@ func ForkRepository(getClient GetClientFn, t translations.TranslationHelperFunc)
 
 			return mcp.NewToolResultText(string(r)), nil
 		}
-}
-
-// Deprecated: use common.OptionalParamWithDefault instead
-func OptionalParamWithDefault[T any](request mcp.CallToolRequest, name string, defaultValue T) (T, error) {
-	return common.OptionalParamWithDefault(request, name, defaultValue)
 }
 
 // CreateBranch creates a tool to create a new branch.
@@ -643,7 +650,7 @@ func CreateBranch(getClient GetClientFn, t translations.TranslationHelperFunc) (
 
 			// Create the new branch
 			newRef := &github.Reference{
-				Ref:    common.Ptr(fmt.Sprintf("refs/heads/%s", newBranch)),
+				Ref:    testutil.Ptr(fmt.Sprintf("refs/heads/%s", newBranch)),
 				Object: &github.GitObject{SHA: sourceRef.Object.SHA},
 			}
 			createdRef, resp, err := client.Git.CreateRef(ctx, owner, repo, newRef)
@@ -758,10 +765,10 @@ func createTreeEntries(files []FileEntry) []*github.TreeEntry {
 
 	for _, file := range files {
 		entries = append(entries, &github.TreeEntry{
-			Path:    common.Ptr(file.Path),
-			Mode:    common.Ptr("100644"), // File mode
-			Type:    common.Ptr("blob"),
-			Content: common.Ptr(file.Content),
+			Path:    testutil.Ptr(file.Path),
+			Mode:    testutil.Ptr("100644"), // File mode
+			Type:    testutil.Ptr("blob"),
+			Content: testutil.Ptr(file.Content),
 		})
 	}
 
@@ -794,7 +801,7 @@ func commitFiles(ctx context.Context, client *github.Client, params *PushFilesPa
 
 	// Create a commit with the new tree
 	newCommit, resp, err := client.Git.CreateCommit(ctx, params.Owner, params.Repo, &github.Commit{
-		Message: common.Ptr(params.Message),
+		Message: testutil.Ptr(params.Message),
 		Tree:    tree,
 		Parents: []*github.Commit{{SHA: baseCommit.SHA}},
 	}, &github.CreateCommitOptions{})

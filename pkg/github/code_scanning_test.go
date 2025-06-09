@@ -14,16 +14,23 @@ import (
 	"encoding/json"
 	"net/http"
 	"testing"
-
-	"github.com/jubicudis/github-mcp-server/pkg/common"
-	githubpkg "github.com/jubicudis/github-mcp-server/pkg/github"
-	"github.com/jubicudis/github-mcp-server/pkg/github/testutil"
+	"time"
 
 	"github.com/google/go-github/v71/github"
+	"github.com/jubicudis/github-mcp-server/pkg/testutil"
 	"github.com/migueleliasweb/go-github-mock/src/mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	githubpkg "github.com/jubicudis/github-mcp-server/pkg/github"
 )
+
+// Ptr is a generic pointer helper for tests
+func Ptr[T any](v T) *T { return &v }
+
+// Canonical test file for code_scanning.go
+// Remove all duplicate imports, fix import cycles, and ensure all tests reference only canonical helpers from /pkg/common and /pkg/testutil
+// All test cases must be robust, DRY, and match the implementation in code_scanning.go
 
 // Using functions from the github package
 
@@ -43,10 +50,10 @@ func TestGetCodeScanningAlert(t *testing.T) {
 
 	// Setup mock alert for success case
 	mockAlert := &github.Alert{
-		Number:  common.Ptr(42),
-		State:   common.Ptr("open"),
-		Rule:    &github.Rule{ID: common.Ptr("test-rule"), Description: common.Ptr("Test Rule Description")},
-		HTMLURL: common.Ptr("https://github.com/owner/repo/security/code-scanning/42"),
+		Number:  testutil.Ptr(42),
+		State:   testutil.Ptr("open"),
+		Rule:    &github.Rule{ID: testutil.Ptr("test-rule"), Description: testutil.Ptr("Test Rule Description")},
+		HTMLURL: testutil.Ptr("https://github.com/owner/repo/security/code-scanning/42"),
 	}
 
 	tests := []struct {
@@ -118,7 +125,7 @@ func TestGetCodeScanningAlert(t *testing.T) {
 			require.NoError(t, err)
 
 			// Parse the result and get the text content if no error
-			text := GetTextContent(t, result)
+			text := testutil.GetTextResult(t, result)
 
 			// Unmarshal and verify the result
 			var returnedAlert github.Alert
@@ -150,16 +157,16 @@ func TestListCodeScanningAlerts(t *testing.T) {
 	// Setup mock alerts for success case
 	mockAlerts := []*github.Alert{
 		{
-			Number:  common.Ptr(42),
-			State:   common.Ptr("open"),
-			Rule:    &github.Rule{ID: common.Ptr("test-rule-1"), Description: common.Ptr("Test Rule 1")},
-			HTMLURL: common.Ptr("https://github.com/owner/repo/security/code-scanning/42"),
+			Number:  testutil.Ptr(42),
+			State:   testutil.Ptr("open"),
+			Rule:    &github.Rule{ID: testutil.Ptr("test-rule-1"), Description: testutil.Ptr("Test Rule 1")},
+			HTMLURL: testutil.Ptr("https://github.com/owner/repo/security/code-scanning/42"),
 		},
 		{
-			Number:  common.Ptr(43),
-			State:   common.Ptr("fixed"),
-			Rule:    &github.Rule{ID: common.Ptr("test-rule-2"), Description: common.Ptr("Test Rule 2")},
-			HTMLURL: common.Ptr("https://github.com/owner/repo/security/code-scanning/43"),
+			Number:  testutil.Ptr(43),
+			State:   testutil.Ptr("fixed"),
+			Rule:    &github.Rule{ID: testutil.Ptr("test-rule-2"), Description: testutil.Ptr("Test Rule 2")},
+			HTMLURL: testutil.Ptr("https://github.com/owner/repo/security/code-scanning/43"),
 		},
 	}
 
@@ -176,7 +183,7 @@ func TestListCodeScanningAlerts(t *testing.T) {
 			mockedClient: mock.NewMockedHTTPClient(
 				mock.WithRequestMatchHandler(
 					mock.GetReposCodeScanningAlertsByOwnerByRepo,
-					testutil.ExpectQueryParams(t, map[string]string{
+					testutil.CreateQueryParamMatcher(t, map[string]string{
 						"ref":      "main",
 						"state":    "open",
 						"severity": "high",
@@ -235,7 +242,7 @@ func TestListCodeScanningAlerts(t *testing.T) {
 			require.NoError(t, err)
 
 			// Parse the result and get the text content if no error
-			text := getTextResult(t, result)
+			text := testutil.GetTextResult(t, result)
 
 			// Unmarshal and verify the result
 			var returnedAlerts []*github.Alert

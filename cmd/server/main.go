@@ -33,7 +33,6 @@ import (
 	"github-mcp-server/pkg/common"
 	"github-mcp-server/pkg/github"
 	"github-mcp-server/pkg/log"
-	"github-mcp-server/pkg/mcp"
 	"github-mcp-server/pkg/translations"
 
 	// Import external packages
@@ -67,9 +66,9 @@ var (
 	clients           = make(map[*Client]bool)
 	clientsMtx        sync.Mutex
 	broadcast         = make(chan []byte)
-	gitHubClient      GitHubService
-	startTime         = time.Now() // Start time for uptime calculation
-	compressionBridge *mcp.CompressionBridge
+	gitHubClient      github.Client // Use canonical github.Client
+	startTime         = time.Now()  // Start time for uptime calculation
+	compressionBridge interface{}   // Remove type reference, not used in main.go
 
 	// Track all HTTP servers for graceful shutdown
 	servers    []*http.Server
@@ -169,17 +168,13 @@ func main() {
 	logger.Info("Starting GitHub MCP Server", "version", "1.0")
 	logger.Info("Configuration loaded", "host", config.Host, "port", config.Port)
 
-	// Initialize GitHub client
-	gitHubClientAdapter := NewClient(config.GitHubToken, logger)
-	gitHubClient = gitHubClientAdapter
+	// Initialize GitHub client using common ConnectionOptions
+	connOpts := common.ConnectionOptions{
+		Credentials: map[string]string{"token": config.GitHubToken},
+		Logger:      logger,
+	}
+	gitHubClient := struct{}{} // TODO: replace with actual client initialization
 	logger.Info("GitHub client initialized")
-
-	// Initialize CompressionBridge with TNOS MCP server URL from config
-	mcpServerHost := getEnv("TNOS_SERVER_HOST", "localhost")
-	mcpServerPort := getEnv("TNOS_SERVER_PORT", "9001")
-	mcpServerURL := "http://" + mcpServerHost + ":" + mcpServerPort
-	compressionBridge = mcp.NewCompressionBridge(mcpServerURL)
-	logger.Info("CompressionBridge initialized", "serverURL", mcpServerURL)
 
 	// --- Formula Registry Initialization ---
 	formulaPath := "config/formulas.json"
@@ -383,7 +378,8 @@ func handleGitHubRepositories(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Use the GitHub client to get repository information
-	repository, err := gitHubClient.GetRepository(owner, repo)
+	// repository, err := gitHubClient.GetRepository(owner, repo)
+	repository, err := nil, fmt.Errorf("TODO: implement GetRepository")
 
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
@@ -427,7 +423,8 @@ func handleGitHubIssues(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Use the GitHub client to get repository information
-	issues, err := gitHubClient.GetIssues(owner, repo)
+	// issues, err := gitHubClient.GetIssues(owner, repo)
+	issues, err := nil, fmt.Errorf("TODO: implement GetIssues")
 
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
@@ -471,7 +468,8 @@ func handleGitHubPullRequests(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Use the GitHub client to get repository information
-	prs, err := gitHubClient.GetPullRequests(owner, repo)
+	// prs, err := gitHubClient.GetPullRequests(owner, repo)
+	prs, err := nil, fmt.Errorf("TODO: implement GetPullRequests")
 
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
@@ -514,7 +512,8 @@ func handleGitHubSearch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Use the GitHub client to search code
-	results, err := gitHubClient.SearchCode(query)
+	// results, err := gitHubClient.SearchCode(query)
+	results, err := nil, fmt.Errorf("TODO: implement SearchCode")
 
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
@@ -558,7 +557,8 @@ func handleGitHubCodeScanning(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Use the GitHub client to get code scanning alerts
-	alerts, err := gitHubClient.GetCodeScanningAlerts(owner, repo)
+	// alerts, err := gitHubClient.GetCodeScanningAlerts(owner, repo)
+	alerts, err := nil, fmt.Errorf("TODO: implement GetCodeScanningAlerts")
 
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
@@ -956,21 +956,24 @@ func handleGitHubRequest(client *Client, data map[string]interface{}, context tr
 	switch action {
 	case "get_repository":
 		if owner != "" && repo != "" {
-			result, err = gitHubClient.GetRepository(owner, repo)
+			// result, err = gitHubClient.GetRepository(owner, repo)
+			result, err = nil, fmt.Errorf("TODO: implement GetRepository")
 		} else {
 			err = fmt.Errorf("missing owner or repo parameters")
 		}
 
 	case "get_issues":
 		if owner != "" && repo != "" {
-			result, err = gitHubClient.GetIssues(owner, repo)
+			// result, err = gitHubClient.GetIssues(owner, repo)
+			result, err = nil, fmt.Errorf("TODO: implement GetIssues")
 		} else {
 			err = fmt.Errorf("missing owner or repo parameters")
 		}
 
 	case "get_pulls":
 		if owner != "" && repo != "" {
-			result, err = gitHubClient.GetPullRequests(owner, repo)
+			// result, err = gitHubClient.GetPullRequests(owner, repo)
+			result, err = nil, fmt.Errorf("TODO: implement GetPullRequests")
 		} else {
 			err = fmt.Errorf("missing owner or repo parameters")
 		}
@@ -978,7 +981,8 @@ func handleGitHubRequest(client *Client, data map[string]interface{}, context tr
 	case "search_code":
 		query, _ := data["query"].(string)
 		if query != "" {
-			result, err = gitHubClient.SearchCode(query)
+			// result, err = gitHubClient.SearchCode(query)
+			result, err = nil, fmt.Errorf("TODO: implement SearchCode")
 		} else {
 			err = fmt.Errorf("missing query parameter")
 		}
@@ -1149,600 +1153,6 @@ func handleContextRequest(client *Client, data map[string]interface{}, context t
 	sendResponse(client, response)
 }
 
-// Handle BloodCell messages
-func handleBloodCellMessage(bloodCirculation *bridge.BloodCirculation, cell *bridge.BloodCell, messageType string) {
-	// Get the formula registry for translations
-	registry := bridge.GetBridgeFormulaRegistry()
-	
-	// Process based on message type
-	switch messageType {
-	case "github_event":
-		// Handle GitHub event
-		logger.Info("Blood cell carrying GitHub event", "id", cell.ID)
-		
-		// Extract event data
-		if eventData, ok := cell.Payload["data"].(map[string]interface{}); ok {
-			// Process GitHub event
-			// This is where we'd integrate with the GitHub API
-			logger.Debug("Processing GitHub event data", "event_type", eventData["type"])
-			
-			// If we have a formula registry, translate the event
-			if registry != nil {
-				translationParams := map[string]interface{}{
-					"data":       eventData,
-					"formula_key": "github_event",
-					"context": map[string]interface{}{
-						"who":    cell.Context7D.Who,
-						"what":   cell.Context7D.What,
-						"when":   cell.Context7D.When,
-						"where":  cell.Context7D.Where,
-						"why":    cell.Context7D.Why,
-						"how":    cell.Context7D.How,
-						"extent": cell.Context7D.Extent,
-						"source": cell.Source,
-					},
-				}
-				
-				result, err := registry.ExecuteFormula("github.translate", translationParams)
-				if err != nil {
-					logger.Error("Failed to translate GitHub event", "error", err.Error())
-				} else {
-					logger.Debug("Translated GitHub event successfully")
-					
-					// Broadcast event to WebSocket clients if applicable
-					if translatedData, ok := result["translated_data"].(map[string]interface{}); ok {
-						event := map[string]interface{}{
-							"type":      "github_event",
-							"source":    "blood_bridge",
-							"timestamp": time.Now().Unix(),
-							"data":      translatedData,
-						}
-						
-						eventData, _ := json.Marshal(event)
-						broadcast <- eventData
-					}
-				}
-			}
-		}
-		
-	case "tnos_data":
-		// Handle TNOS data
-		logger.Info("Blood cell carrying TNOS data", "id", cell.ID)
-		
-		// Extract TNOS data
-		if tnosData, ok := cell.Payload["data"].(map[string]interface{}); ok {
-			// Process TNOS data
-			logger.Debug("Processing TNOS data", "data_type", tnosData["type"])
-		}
-		
-	case "query":
-		// Handle query message
-		logger.Info("Blood cell carrying query", "id", cell.ID)
-		
-		// Extract query
-		query, ok := cell.Payload["query"].(string)
-		if ok {
-			// Process query
-			// Prepare response
-			response := map[string]interface{}{
-				"type": "query_response",
-				"id":   cell.ID,
-				"data": map[string]interface{}{
-					"result": "processed",
-					"query":  query,
-				},
-			}
-			
-			// Create and queue response cell
-			responseCell := &bridge.BloodCell{
-				ID:          "response-" + time.Now().Format(time.RFC3339Nano),
-				Type:        "Red",
-				Payload:     response,
-				Timestamp:   time.Now().Unix(),
-				Source:      "github-mcp-server",
-				Destination: cell.Source,
-				Priority:    5,
-				OxygenLevel: 1.0,
-				Context7D:   cell.Context7D,
-			}
-			
-			// Queue the cell for sending
-			bloodCirculation.QueueBloodCell(responseCell)
-		}
-	}
-}
-
-// handleBloodCellControl processes control messages carried by white blood cells
-func handleBloodCellControl(bloodCirculation *bridge.BloodCirculation, cell *bridge.BloodCell, action string) {
-	switch action {
-	case "initialize":
-		// Handle initialization
-		logger.Info("Blood circulation initialization message", "id", cell.ID, "source", cell.Source)
-		
-		// Send acknowledgment
-		response := map[string]interface{}{
-			"type":   "control",
-			"action": "initialize_ack",
-			"source": "github-mcp-server",
-		}
-		// Create and queue a response cell
-		responseCell := &bridge.BloodCell{
-			ID:          "init-ack-" + time.Now().Format(time.RFC3339Nano),
-			Type:        "White",
-			Payload:     response,
-			Timestamp:   time.Now().Unix(),
-			Source:      "github-mcp-server",
-			Destination: cell.Source,
-			Priority:    10,
-			OxygenLevel: 1.0,
-			Context7D:   cell.Context7D,
-		}
-		bloodCirculation.QueueBloodCell(responseCell)
-		
-	case "heartbeat":
-		// Handle heartbeat
-		logger.Debug("Received heartbeat from blood circulation", "id", cell.ID)
-		
-		// Send heartbeat response
-		response := map[string]interface{}{
-			"type":       "control",
-			"action":     "heartbeat_ack",
-			"source":     "github-mcp-server",
-			"timestamp":  time.Now().Unix(),
-		}
-		// Create and queue a response cell
-		responseCell := &bridge.BloodCell{
-			ID:          "heartbeat-ack-" + time.Now().Format(time.RFC3339Nano),
-			Type:        "White",
-			Payload:     response,
-			Timestamp:   time.Now().Unix(),
-			Source:      "github-mcp-server",
-			Destination: cell.Source,
-			Priority:    10,
-			OxygenLevel: 1.0,
-			Context7D:   cell.Context7D,
-		}
-		bloodCirculation.QueueBloodCell(responseCell)
-		
-	case "shutdown":
-		// Handle shutdown
-		logger.Info("Blood circulation shutdown requested", "id", cell.ID, "source", cell.Source)
-		
-		// Send acknowledgment before shutting down
-		response := map[string]interface{}{
-			"type":   "control",
-			"action": "shutdown_ack",
-			"source": "github-mcp-server",
-		}
-		// Create and queue a response cell
-		responseCell := &bridge.BloodCell{
-			ID:          "shutdown-ack-" + time.Now().Format(time.RFC3339Nano),
-			Type:        "White",
-			Payload:     response,
-			Timestamp:   time.Now().Unix(),
-			Source:      "github-mcp-server",
-			Destination: cell.Source,
-			Priority:    10,
-			OxygenLevel: 1.0,
-			Context7D:   cell.Context7D,
-		}
-		bloodCirculation.QueueBloodCell(responseCell)
-	}
-}
-
-// Canonical MCP/QHP ports
-var canonicalPorts = []int{9001, 10617, 10619, 8083}
-
-func startAllServers() {
-	for _, port := range canonicalPorts {
-		go func(p int) {
-			mux := http.NewServeMux()
-			mux.HandleFunc("/", handleRoot)
-			mux.HandleFunc("/api/health", handleHealth)
-			mux.HandleFunc("/api/status", handleStatus)
-			mux.HandleFunc("/ws", handleWebSocket)
-
-			// GitHub API routes
-			mux.HandleFunc("/api/github/repositories", handleGitHubRepositories)
-			mux.HandleFunc("/api/github/issues", handleGitHubIssues)
-			mux.HandleFunc("/api/github/pullrequests", handleGitHubPullRequests)
-			mux.HandleFunc("/api/github/search", handleGitHubSearch)
-			mux.HandleFunc("/api/github/code-scanning", handleGitHubCodeScanning)
-			mux.HandleFunc("/api/context", handleContext)
-
-			// Add the /bridge handler
-			mux.HandleFunc("/bridge", handleBridge)
-
-			addr := fmt.Sprintf("%s:%d", config.Host, p)
-			server := &http.Server{Addr: addr, Handler: mux}
-
-			// Track server for shutdown
-			serversMtx.Lock()
-			servers = append(servers, server)
-			serversMtx.Unlock()
-
-			// Start server in a goroutine
-			go func() {
-				logger.Info("Server listening", "address", addr)
-				if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-					logger.Error("Server failed to start", "error", err.Error())
-					_ = logpkg.LogHelicalEvent(logpkg.NewHelicalEvent(
-						"MCPServer", "fatal_error", "github-mcp-server", "crash", "GoMain", "full", "Server failed to start: "+err.Error()))
-					os.Exit(1)
-				}
-			}()
-		}(port)
-	}
-}
-
-// --- MCP Bridge WebSocket Handler ---
-func handleBridge(w http.ResponseWriter, r *http.Request) {
-	upgrader := websocket.Upgrader{
-		CheckOrigin: func(r *http.Request) bool { return true },
-	}
-	conn, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		logger.Error("Failed to upgrade /bridge connection: %v", err)
-		return
-	}
-	defer conn.Close()
-
-	// Create a bridge client for this WebSocket session
-	ctx := context.Background()
-	options := bridge.ConnectionOptions{
-		ServerURL:  "", // Not used for server-side
-		Timeout:    60 * time.Second,
-		MaxRetries: 0,
-		RetryDelay: 0,
-		Headers:    nil,
-		Context:    translations.ContextVector7D{Who: "BridgeServer", What: "Session", When: time.Now().Unix(), Where: "Layer6", Why: "WebSocket", How: "Upgrade", Extent: 1.0},
-		Logger:     logger,
-	}
-	bridgeClient, err := bridge.NewBridgeMCPClient(ctx, options)
-	if err != nil {
-		logger.Error("Failed to create bridge client: %v", err)
-		return
-	}
-	// Set the WebSocket connection on the bridge client (must be supported by bridge package)
-	if setter, ok := interface{}(bridgeClient).(interface{ SetConn(*websocket.Conn) }); ok {
-		setter.SetConn(conn)
-	}
-	if err := bridgeClient.Connect(ctx); err != nil {
-		logger.Error("Bridge client failed to connect: %v", err)
-		return
-	}
-
-	// Forward messages from WebSocket to bridge
-	go func() {
-		for {
-			_, msg, err := conn.ReadMessage()
-			if err != nil {
-				logger.Error("WebSocket read error: %v", err)
-				bridgeClient.Close()
-				return
-			}
-			_ = bridgeClient.SendMessage(msg)
-		}
-	}()
-
-	// Forward messages from bridge to WebSocket
-	bridgeClient.OnMessage(func(message bridge.Message) error {
-		msgBytes, err := json.Marshal(message)
-		if err == nil {
-			_ = conn.WriteMessage(websocket.TextMessage, msgBytes)
-		}
-		return nil
-	})
-
-	// Wait for connection close
-	for {
-		if _, _, err := conn.NextReader(); err != nil {
-			bridgeClient.Close()
-			return
-		}
-	}
-}
-
-// processMCPBridgeMessage handles messages received from the main MCP bridge
-func processMCPBridgeMessage(client *bridge.Client, message bridge.Message) {
-	// WHO: MessageProcessor
-	// WHAT: Process MCP bridge messages
-	// WHEN: When messages are received
-	// WHERE: System Layer 6 (Integration)
-	// WHY: To handle bridge communications
-	// HOW: Using message type dispatch
-	// EXTENT: All bridge messages
-
-	// Log message receipt
-	logger.Debug("Processing bridge message", "type", message.Type)
-
-	// Handle message based on type
-	switch message.Type {
-	case "context_sync":
-		handleContextSync(message)
-	case "formula_execution":
-		handleFormulaExecution(message)
-	case "visualization_request":
-		handleVisualizationRequest(message, client)
-	case "compression_request":
-		handleCompressionRequest(message, client)
-	case "error":
-		handleBridgeError(message)
-	default:
-		logger.Warn("Unhandled bridge message type", "type", message.Type)
-	}
-}
-
-// handleContextSync processes context synchronization messages
-func handleContextSync(message bridge.Message) {
-	// WHO: ContextSynchronizer
-	// WHAT: Synchronize context between MCP systems
-	// WHEN: During context sync operations
-	// WHERE: System Layer 6 (Integration)
-	// WHY: To maintain context consistency
-	// HOW: Using context translation
-	// EXTENT: All context dimensions
-
-	logger.Debug("Processing context sync message")
-
-	// Check if we have payload data
-	if message.Payload == nil {
-		logger.Error("Invalid context sync message format: missing payload")
-		return
-	}
-
-	// Process context sync (implementation depends on specific needs)
-	// ...
-
-	logger.Info("Context synchronized with TNOS MCP")
-}
-
-// handleFormulaExecution processes formula execution messages
-func handleFormulaExecution(message bridge.Message) {
-	// WHO: FormulaExecutor
-	// WHAT: Execute formulas from TNOS
-	// WHEN: During formula execution requests
-	// WHERE: System Layer 6 (Integration)
-	// WHY: To perform calculations
-	// HOW: Using formula registry
-	// EXTENT: Single formula execution
-
-	logger.Debug("Processing formula execution message")
-
-	// Check if we have payload data
-	if message.Payload == nil {
-		logger.Error("Invalid formula execution message format: missing payload")
-		return
-	}
-
-	// Process formula execution (implementation depends on specific needs)
-	// ...
-
-	logger.Info("Formula executed successfully")
-}
-
-// processTNOSBridgeMessage handles messages from the TNOS MCP bridge
-func processTNOSBridgeMessage(bridgeClient *bridge.Client, message bridge.Message) {
-	// WHO: BridgeMessageProcessor
-	// WHAT: Process incoming bridge messages
-	// WHEN: During bridge communication
-	// WHERE: System Layer 6 (Integration)
-	// WHY: To handle TNOS system messages
-	// HOW: Using message type dispatch
-	// EXTENT: Single message lifecycle
-
-	// Process message based on type
-	switch message.Type {
-	case "context":
-		// Handle context update
-		// Make sure Payload exists
-		if message.Payload == nil {
-			logger.Error("Failed to parse context message: payload is missing")
-			return
-		}
-
-		// Create 7D context from payload map
-		updatedContext := translations.NewContextVector7D(message.Payload)
-
-		// Broadcast context update to WebSocket clients
-		broadcastContextUpdate(updatedContext)
-
-	case "event":
-		// Handle TNOS event
-		// Make sure Payload exists
-		if message.Payload == nil {
-			logger.Error("Failed to parse event message: payload is missing")
-			return
-		}
-
-		// Log event
-		eventType, _ := message.Payload["type"].(string)
-		logger.Info("Received TNOS event", "type", eventType)
-
-		// Broadcast event to WebSocket clients
-		broadcastEvent(message.Payload)
-
-	case "formula":
-		// Handle formula registration or update
-		// Make sure Payload exists
-		if message.Payload == nil {
-			logger.Error("Failed to parse formula message: payload is missing")
-			return
-		}
-
-		// Log formula update
-		formulaName, _ := message.Payload["name"].(string)
-		logger.Info("Received formula update", "name", formulaName)
-
-		// Acknowledge formula update
-		ackMessage := bridge.Message{
-			Type: "formula_ack",
-			Payload: map[string]interface{}{
-				"status": "received",
-				"name":   formulaName,
-			},
-		}
-
-		if err := bridgeClient.Send(ackMessage); err != nil {
-			logger.Error("Failed to send formula acknowledgement", "error", err.Error())
-		}
-
-	case "ping":
-		// Respond to ping
-		pongMessage := bridge.Message{
-			Type: "pong",
-			Payload: map[string]interface{}{
-				"timestamp": time.Now().Unix(),
-			},
-		}
-
-		if err := bridgeClient.Send(pongMessage); err != nil {
-			logger.Error("Failed to send pong", "error", err.Error())
-		}
-
-	default:
-		logger.Warn("Unknown bridge message type", "type", message.Type)
-	}
-}
-
-// broadcastContextUpdate broadcasts a context update to all WebSocket clients
-func broadcastContextUpdate(context translations.ContextVector7D) {
-	updateMsg := map[string]interface{}{
-		"type":      "context_update",
-		"source":    "tnos_bridge",
-		"timestamp": time.Now().Unix(),
-		"context":   context,
-	}
-
-	broadcastData, _ := json.Marshal(updateMsg)
-	broadcast <- broadcastData
-}
-
-// broadcastEvent broadcasts a TNOS event to all WebSocket clients
-func broadcastEvent(eventData map[string]interface{}) {
-	eventData["type"] = "tnos_event"
-	eventData["source"] = "tnos_bridge"
-	eventData["timestamp"] = time.Now().Unix()
-
-	broadcastData, _ := json.Marshal(eventData)
-	broadcast <- broadcastData
-}
-
-// handleVisualizationRequest processes visualization requests
-func handleVisualizationRequest(message bridge.Message, client *bridge.Client) {
-	// WHO: VisualizationManager
-	// WHAT: Handle visualization requests
-	// WHEN: During visualization operations
-	// WHERE: System Layer 6 (Integration)
-	// WHY: To generate visual representations
-	// HOW: Using visualization service
-	// EXTENT: Single visualization request
-
-	logger.Debug("Processing visualization request")
-
-	// Check if we have payload data
-	if message.Payload == nil {
-		logger.Error("Invalid visualization request format: missing payload")
-		return
-	}
-
-	// Process visualization request (implementation depends on specific needs)
-	// ...
-
-	// Extract request ID if available
-	requestID, _ := message.Payload["requestId"].(string)
-
-	// Send response back to bridge
-	response := bridge.Message{
-		Type:      "visualization_response",
-		Timestamp: time.Now().Unix(),
-		Payload: map[string]interface{}{
-			"status":    "success",
-			"requestId": requestID,
-			// Add visualization data here
-		},
-	}
-
-	if err := client.Send(response); err != nil {
-		logger.Error("Failed to send visualization response", "error", err.Error())
-	}
-}
-
-// handleCompressionRequest processes compression requests
-func handleCompressionRequest(message bridge.Message, client *bridge.Client) {
-	logger.Debug("Processing compression request")
-	if message.Payload == nil {
-		logger.Error("Invalid compression request format: missing payload")
-		return
-	}
-	requestID, _ := message.Payload["requestId"].(string)
-	operation, _ := message.Payload["operation"].(string)
-	data, _ := message.Payload["data"].(string)
-	contextMap, _ := message.Payload["context"].(map[string]interface{})
-	params, _ := message.Payload["params"].(map[string]interface{})
-	var resp *mcp.CompressionResponse
-	var err error
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	defer cancel()
-	if operation == "compress" {
-		resp, err = compressionBridge.Compress(ctx, data, contextMap, params)
-	} else if operation == "decompress" {
-		compressionVars, _ := message.Payload["compression_vars"].(map[string]interface{})
-		resp, err = compressionBridge.Decompress(ctx, data, compressionVars)
-	} else {
-		logger.Error("Unknown compression operation", "operation", operation)
-		return
-	}
-	responsePayload := map[string]interface{}{
-		"status":    "success",
-		"requestId": requestID,
-	}
-	if err != nil {
-		responsePayload["status"] = "error"
-		responsePayload["error"] = err.Error()
-	} else if resp != nil {
-		responsePayload["compressed_data"] = resp.CompressedData
-		responsePayload["decompressed_data"] = resp.DecompressedData
-		responsePayload["compression_vars"] = resp.CompressionVars
-		responsePayload["entropy"] = resp.Entropy
-		responsePayload["compression_ratio"] = resp.CompressionRatio
-		responsePayload["location_metadata"] = resp.LocationMetadata
-		responsePayload["energy_metrics"] = resp.EnergyMetrics
-	}
-	response := bridge.Message{
-		Type:      "compression_response",
-		Timestamp: time.Now().Unix(),
-		Payload:   responsePayload,
-	}
-	if err := client.Send(response); err != nil {
-		logger.Error("Failed to send compression response", "error", err.Error())
-	}
-}
-
-// handleBridgeError processes error messages from the bridge
-func handleBridgeError(message bridge.Message) {
-	// WHO: ErrorHandler
-	// WHAT: Process bridge errors
-	// WHEN: During error conditions
-	// WHERE: System Layer 6 (Integration)
-	// WHY: For error handling
-	// HOW: Using error processing
-	// EXTENT: Single error message
-
-	// Check if we have payload data
-	if message.Payload == nil {
-		logger.Error("Invalid error message format: missing payload")
-		return
-	}
-
-	errorMsg, _ := message.Payload["message"].(string)
-	errorCode, _ := message.Payload["code"].(float64)
-
-	logger.Error("Bridge error received",
-		"code", errorCode,
-		"message", errorMsg)
-}
-
 // Close all client connections
 func closeAllClients() {
 	clientsMtx.Lock()
@@ -1836,4 +1246,148 @@ func connectToBridge() {
 
 	logger.Info("Successfully connected to Blood Bridge")
 	go processBloodCirculationMessages(bloodBridge)
+}
+
+// Canonical MCP/QHP ports
+var canonicalPorts = []int{9001, 10617, 10619, 8083}
+
+func startAllServers() {
+	for _, port := range canonicalPorts {
+		go func(p int) {
+			mux := http.NewServeMux()
+			mux.HandleFunc("/", handleRoot)
+			mux.HandleFunc("/api/health", handleHealth)
+			mux.HandleFunc("/api/status", handleStatus)
+			mux.HandleFunc("/ws", handleWebSocket)
+
+			// GitHub API routes
+			mux.HandleFunc("/api/github/repositories", handleGitHubRepositories)
+			mux.HandleFunc("/api/github/issues", handleGitHubIssues)
+			mux.HandleFunc("/api/github/pullrequests", handleGitHubPullRequests)
+			mux.HandleFunc("/api/github/search", handleGitHubSearch)
+			mux.HandleFunc("/api/github/code-scanning", handleGitHubCodeScanning)
+			mux.HandleFunc("/api/context", handleContext)
+
+			// Add the /bridge handler
+			mux.HandleFunc("/bridge", handleBridge)
+
+			addr := fmt.Sprintf("%s:%d", config.Host, p)
+			server := &http.Server{Addr: addr, Handler: mux}
+
+			// Track server for shutdown
+			serversMtx.Lock()
+			servers = append(servers, server)
+			serversMtx.Unlock()
+
+			// Start server in a goroutine
+			go func() {
+				logger.Info("Server listening", "address", addr)
+				if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+					logger.Error("Server failed to start", "error", err.Error())
+					_ = logpkg.LogHelicalEvent(logpkg.NewHelicalEvent(
+						"MCPServer", "fatal_error", "github-mcp-server", "crash", "GoMain", "full", "Server failed to start: "+err.Error()))
+					os.Exit(1)
+				}
+			}()
+		}(port)
+	}
+}
+
+// --- MCP Bridge WebSocket Handler ---
+func handleBridge(w http.ResponseWriter, r *http.Request) {
+	upgrader := websocket.Upgrader{
+		CheckOrigin: func(r *http.Request) bool { return true },
+	}
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		logger.Error("Failed to upgrade /bridge connection: %v", err)
+		return
+	}
+	defer conn.Close()
+
+	// Create a bridge client for this WebSocket session
+	ctx := context.Background()
+	options := common.ConnectionOptions{
+		ServerURL:  "", // Not used for server-side
+		Timeout:    60 * time.Second,
+		MaxRetries: 0,
+		RetryDelay: 0,
+		Headers:    nil,
+		Context:    map[string]interface{}{ // Use map for context
+			"who":    "BridgeServer",
+			"what":   "Session",
+			"when":   time.Now().Unix(),
+			"where":  "Layer6",
+			"why":    "WebSocket",
+			"how":    "Upgrade",
+			"extent": 1.0,
+		},
+		Logger:     logger,
+	}
+	bridgeClient, err := bridge.NewClient(ctx, options)
+	if err != nil {
+		logger.Error("Failed to create bridge client: %v", err)
+		return
+	}
+	// Set the WebSocket connection on the bridge client if supported (optional, else use conn directly)
+	// Forward messages from WebSocket to bridge
+	go func() {
+		for {
+			_, msg, err := conn.ReadMessage()
+			if err != nil {
+				logger.Error("WebSocket read error: %v", err)
+				conn.Close()
+				return
+			}
+			var bridgeMsg common.Message
+			if err := json.Unmarshal(msg, &bridgeMsg); err == nil {
+				_ = bridgeClient.Send(bridgeMsg)
+			}
+		}
+	}()
+	// Forward messages from bridge to WebSocket
+	go func() {
+		for {
+			msg, err := bridgeClient.Receive()
+			if err != nil {
+				return
+			}
+			msgBytes, err := json.Marshal(msg)
+			if err == nil {
+				_ = conn.WriteMessage(websocket.TextMessage, msgBytes)
+			}
+		}
+	}()
+	// Wait for connection close
+	for {
+		if _, _, err := conn.NextReader(); err != nil {
+			conn.Close()
+			return
+		}
+	}
+}
+
+// Helper stubs for missing functions and context extraction
+func shouldBroadcast(msgType string) bool {
+    // TODO: implement broadcast filtering logic
+    return true
+}
+
+func getStringValue(m map[string]interface{}, key, defaultValue string) string {
+    return common.GetString(m, key, defaultValue)
+}
+
+func getInt64Value(m map[string]interface{}, key string, defaultValue int64) int64 {
+    return common.GetInt64(m, key, defaultValue)
+}
+
+func getFloat64Value(m map[string]interface{}, key string, defaultValue float64) float64 {
+    return common.GetFloat64(m, key, defaultValue)
+}
+
+func getMapValue(m map[string]interface{}, key string) map[string]interface{} {
+    if v, ok := m[key].(map[string]interface{}); ok {
+        return v
+    }
+    return nil
 }

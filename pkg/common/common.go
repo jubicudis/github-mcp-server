@@ -8,11 +8,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
-	"sync"
 	"time"
 
-	"github.com/google/go-github/v71/github"
 	"github.com/gorilla/websocket"
 	"github.com/mark3labs/mcp-go/mcp"
 )
@@ -86,8 +83,6 @@ type Client struct {
 	conn    *websocket.Conn
 	options ConnectionOptions
 	state   ConnectionState
-	mutex   sync.RWMutex
-	mu      sync.Mutex
 	messageHandler    MessageHandler
 	disconnectHandler DisconnectHandler
 	stats BridgeStats
@@ -113,36 +108,7 @@ type PaginationParams struct { page, perPage int }
 
 type prParams struct { owner, repo string; number int }
 
-func OptionalParamOK[T any](r mcp.CallToolRequest, p string) (value T, ok bool, err error) {
-    val, exists := r.Params.Arguments[p]
-    if !exists { return }
-    value, ok = val.(T)
-    if !ok { err = fmt.Errorf("parameter %s is not of type %T, is %T", p, value, val); ok = true }
-    return
-}
-
-func RequiredParam[T comparable](r mcp.CallToolRequest, p string) (T, error) { 
-    var zero T
-    v, ok := r.Params.Arguments[p]
-    if !ok {
-        return zero, fmt.Errorf("missing required parameter: %s", p)
-    }
-    value, ok2 := v.(T)
-    if !ok2 || value == zero {
-        return zero, fmt.Errorf("invalid parameter: %s", p)
-    }
-    return value, nil
-}
-
-func RequiredIntParam(r mcp.CallToolRequest, p string) (int, error) { v, err := RequiredParam[float64](r, p); if err != nil { return 0, err }; return int(v), nil }
-func OptionalIntParam(r mcp.CallToolRequest, p string) (int, error) { v, _, err := OptionalParamOK[float64](r, p); return int(v), err }
-func OptionalIntParamWithDefault(r mcp.CallToolRequest, p string, d int) (int, error) { v, err := OptionalIntParam(r, p); if err != nil { return 0, err }; if v == 0 { return d, nil }; return v, nil }
-
-// isAcceptedError checks if an error is an AcceptedError
-func IsAcceptedError(err error) bool {
-    var acceptedError *github.AcceptedError
-    return errors.As(err, &acceptedError)
-}
+// ===== REMOVED: Duplicate parameter extraction helpers below this point =====
 
 // ========== From translations/common.go ==========
 var (
@@ -255,82 +221,81 @@ func Ptr[T any](v T) *T {
 	return &v
 }
 
-// RequiredInt extracts a required integer parameter from the request.
-func RequiredInt(request *http.Request, paramName string) (int, error) {
-	// Implementation to extract and validate integer parameter (omitted for brevity)
-	return 0, errors.New("not implemented")
+// ===== MCP CallToolRequest Parameter Extraction Helpers =====
+// These helpers are the only supported parameter extraction utilities for MCP tools.
+// All parameter extraction should use these, operating on request.Params.Arguments.
+
+func OptionalParamOK[T any](r mcp.CallToolRequest, p string) (value T, ok bool, err error) {
+	val, exists := r.Params.Arguments[p]
+	if !exists { return }
+	value, ok = val.(T)
+	if !ok { err = fmt.Errorf("parameter %s is not of type %T, is %T", p, value, val); ok = true }
+	return
 }
 
-// OptionalPaginationParams extracts optional pagination parameters from the request.
-func OptionalPaginationParams(request *http.Request) (map[string]int, error) {
-	// Implementation to extract pagination parameters (omitted for brevity)
-	return nil, errors.New("not implemented")
-}
-
-// WithPagination is a middleware function to handle pagination logic.
-func WithPagination() func(http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// Placeholder logic for pagination middleware
-			// Extract pagination parameters using OptionalPaginationParams
-			pagination, err := OptionalPaginationParams(r)
-			if err != nil {
-				http.Error(w, "Invalid pagination parameters", http.StatusBadRequest)
-				return
-			}
-
-			// Add pagination info to the request context
-			ctx := context.WithValue(r.Context(), "pagination", pagination)
-			next.ServeHTTP(w, r.WithContext(ctx))
-		})
+func RequiredParam[T comparable](r mcp.CallToolRequest, p string) (T, error) {
+	var zero T
+	v, ok := r.Params.Arguments[p]
+	if !ok {
+		return zero, fmt.Errorf("missing required parameter: %s", p)
 	}
+	value, ok2 := v.(T)
+	if !ok2 || value == zero {
+		return zero, fmt.Errorf("invalid parameter: %s", p)
+	}
+	return value, nil
 }
 
-// UserEndpoint is the base endpoint for user-related API calls.
-const UserEndpoint = "/api/v1/users"
+func RequiredIntParam(r mcp.CallToolRequest, p string) (int, error) {
+	v, err := RequiredParam[float64](r, p)
+	if err != nil { return 0, err }
+	return int(v), nil
+}
 
-// OptionalStringArrayParam extracts an optional string array parameter from the request.
+func OptionalIntParam(r mcp.CallToolRequest, p string) (int, error) {
+	v, _, err := OptionalParamOK[float64](r, p)
+	return int(v), err
+}
+
+func OptionalIntParamWithDefault(r mcp.CallToolRequest, p string, d int) (int, error) {
+	v, err := OptionalIntParam(r, p)
+	if err != nil { return 0, err }
+	if v == 0 { return d, nil }
+	return v, nil
+}
+
 func OptionalStringArrayParam(request mcp.CallToolRequest, key string) ([]string, error) {
-	if value, ok := request.Params[key]; ok {
-		if array, ok := value.([]string); ok {
-			return array, nil
+	val, ok := request.Params.Arguments[key]
+	if !ok {
+		return []string{}, nil
+	}
+	switch arr := val.(type) {
+	case []string:
+		return arr, nil
+	case []interface{}:
+		result := make([]string, len(arr))
+		for i, v := range arr {
+			s, ok := v.(string)
+			if !ok {
+				return nil, fmt.Errorf("parameter '%s' contains non-string element", key)
+			}
+			result[i] = s
 		}
+		return result, nil
+	default:
 		return nil, fmt.Errorf("parameter '%s' is not a string array", key)
 	}
-	return nil, nil
 }
 
-// OptionalIntParam extracts an optional integer parameter from the request.
-func OptionalIntParam(request mcp.CallToolRequest, key string) (*int, error) {
-	if value, ok := request.Params[key]; ok {
-		if number, ok := value.(int); ok {
-			return &number, nil
-		}
-		return nil, fmt.Errorf("parameter '%s' is not an integer", key)
-	}
-	return nil, nil
-}
-
-// OptionalIntParamWithDefault extracts an optional integer parameter with a default value.
-func OptionalIntParamWithDefault(request mcp.CallToolRequest, key string, defaultValue int) (int, error) {
-	if value, ok := request.Params[key]; ok {
-		if number, ok := value.(int); ok {
-			return number, nil
-		}
-		return 0, fmt.Errorf("parameter '%s' is not an integer", key)
-	}
-	return defaultValue, nil
-}
-
-// WithPagination adds pagination parameters to a request.
 func WithPagination(request mcp.CallToolRequest) (page, perPage int, err error) {
 	page, err = OptionalIntParamWithDefault(request, "page", 1)
 	if err != nil {
 		return 0, 0, err
 	}
-	perPage, err = OptionalIntParamWithDefault(request, "per_page", 30)
+	perPage, err = OptionalIntParamWithDefault(request, "perPage", 30)
 	if err != nil {
 		return 0, 0, err
 	}
 	return page, perPage, nil
 }
+// ===== End MCP Parameter Helpers =====

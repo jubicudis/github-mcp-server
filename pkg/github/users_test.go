@@ -5,17 +5,8 @@
 // WHY: To verify user functionality
 // HOW: By testing MCP protocol handlers
 // EXTENT: All user operations
-package github_test
+package github
 
-import (
-	"github.com/jubicudis/github-mcp-server/pkg/github/testutil"
-
-	githubpkg "github.com/jubicudis/github-mcp-server/pkg/github")
-
-// Helper aliases for legacy test expectations
-var expectRequestBody = testutil.MockResponse
-var expectQueryParams = testutil.CreateQueryParamExpectation
-
-// Prefix tool calls:
-// tool, _ := SearchUsers -> tool, _ := githubpkg.SearchUsers
-// client := NewClient -> client := githubpkg.NewClient
+// Canonical test file for users.go
+// Remove all duplicate imports, fix import cycles, and ensure all tests reference only canonical helpers from /pkg/common and /pkg/testutil
+// All test cases must be robust, DRY, and match the implementation in users.go

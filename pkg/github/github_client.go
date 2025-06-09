@@ -24,9 +24,9 @@ import (
 	"sync"
 	"time"
 
-	"github-mcp-server/pkg/common"
-	"github-mcp-server/pkg/log"
-	"github-mcp-server/pkg/translations"
+	"github.com/jubicudis/github-mcp-server/pkg/common"
+	"github.com/jubicudis/github-mcp-server/pkg/log"
+	"github.com/jubicudis/github-mcp-server/pkg/translations"
 
 	"github.com/mark3labs/mcp-go/mcp"
 
@@ -673,6 +673,11 @@ func (c *Client) GetCodeScanningAlerts(ctx context.Context, owner, repo string) 
 
 	return result, nil
 }
+
+// Canonical GitHub client logic for GitHub MCP server
+// Remove all stubs, placeholders, and incomplete logic
+// All types and methods must be robust, DRY, and reference only canonical helpers from /pkg/common
+// All client and API logic must be fully implemented
 
 // Helper functions
 

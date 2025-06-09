@@ -1,3 +1,8 @@
+// Canonical pull request logic for GitHub MCP server
+// Remove all stubs, placeholders, and incomplete logic
+// All types and methods must be robust, DRY, and reference only canonical helpers from /pkg/common
+// All pull request and event logic must be fully implemented
+
 // Updated to use common.OptionalParamOK and common.WithPagination
 package github
 
@@ -56,7 +61,7 @@ func GetPullRequest(getClient GetClientFn, t translations.TranslationHelperFunc)
 			}
 			pr, resp, err := client.PullRequests.Get(ctx, owner, repo, pullNumber)
 			if err != nil {
-				if common.IsAcceptedError(err) {
+				if IsAcceptedError(err) {
 					return mcp.NewToolResultText("Pull request branch update is in progress"), nil
 				}
 				return nil, fmt.Errorf("failed to get pull request: %w", err)
@@ -135,15 +140,15 @@ func UpdatePullRequest(getClient GetClientFn, t translations.TranslationHelperFu
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			} else if ok {
-				update.Title = Ptr(title)
+				update.Title = common.Ptr(title)
 				updateNeeded = true
 			}
 
-			body, ok, err := common.OptionalParamOK[string](request, "body")
+			body, _, err := common.OptionalParamOK[string](request, "body")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			} else if ok {
-				update.Body = Ptr(body)
+				update.Body = common.Ptr(body)
 				updateNeeded = true
 			}
 
@@ -151,7 +156,7 @@ func UpdatePullRequest(getClient GetClientFn, t translations.TranslationHelperFu
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			} else if ok {
-				update.State = Ptr(state)
+				update.State = common.Ptr(state)
 				updateNeeded = true
 			}
 
@@ -159,7 +164,7 @@ func UpdatePullRequest(getClient GetClientFn, t translations.TranslationHelperFu
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			} else if ok {
-				update.Base = &github.PullRequestBranch{Ref: Ptr(base)}
+				update.Base = &github.PullRequestBranch{Ref: common.Ptr(base)}
 				updateNeeded = true
 			}
 
@@ -167,7 +172,7 @@ func UpdatePullRequest(getClient GetClientFn, t translations.TranslationHelperFu
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			} else if ok {
-				update.MaintainerCanModify = Ptr(maintainerCanModify)
+				update.MaintainerCanModify = common.Ptr(maintainerCanModify)
 				updateNeeded = true
 			}
 
@@ -229,7 +234,8 @@ func ListPullRequests(getClient GetClientFn, t translations.TranslationHelperFun
 			mcp.WithString("direction",
 				mcp.Description("Sort direction ('asc', 'desc')"),
 			),
-			common.WithPagination(),
+			mcp.WithNumber("page", mcp.Description("Page number")),
+			mcp.WithNumber("perPage", mcp.Description("Number of results per page")),
 		),
 		func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 			owner, err := common.RequiredParam[string](request, "owner")
@@ -240,27 +246,42 @@ func ListPullRequests(getClient GetClientFn, t translations.TranslationHelperFun
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			state, err := OptionalParam[string](request, "state")
+			state, ok, err := common.OptionalParamOK[string](request, "state")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			head, err := OptionalParam[string](request, "head")
+			if !ok {
+				state = ""
+			}
+			head, ok, err := common.OptionalParamOK[string](request, "head")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			base, err := OptionalParam[string](request, "base")
+			if !ok {
+				head = ""
+			}
+			base, ok, err := common.OptionalParamOK[string](request, "base")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			sort, err := OptionalParam[string](request, "sort")
+			if !ok {
+				base = ""
+			}
+			sort, ok, err := common.OptionalParamOK[string](request, "sort")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			direction, err := OptionalParam[string](request, "direction")
+			if !ok {
+				sort = ""
+			}
+			direction, ok, err := common.OptionalParamOK[string](request, "direction")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			pagination, err := common.OptionalPaginationParams(request)
+			if !ok {
+				direction = ""
+			}
+			page, perPage, err := common.WithPagination(request)
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
@@ -272,8 +293,8 @@ func ListPullRequests(getClient GetClientFn, t translations.TranslationHelperFun
 				Sort:      sort,
 				Direction: direction,
 				ListOptions: github.ListOptions{
-					PerPage: pagination.perPage,
-					Page:    pagination.page,
+					PerPage: perPage,
+					Page:    page,
 				},
 			}
 
@@ -343,17 +364,26 @@ func MergePullRequest(getClient GetClientFn, t translations.TranslationHelperFun
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			commitTitle, err := OptionalParam[string](request, "commit_title")
+			commitTitle, ok, err := common.OptionalParamOK[string](request, "commit_title")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			commitMessage, err := OptionalParam[string](request, "commit_message")
+			if !ok {
+				commitTitle = ""
+			}
+			commitMessage, ok, err := common.OptionalParamOK[string](request, "commit_message")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			mergeMethod, err := OptionalParam[string](request, "merge_method")
+			if !ok {
+				commitMessage = ""
+			}
+			mergeMethod, ok, err := common.OptionalParamOK[string](request, "merge_method")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
+			}
+			if !ok {
+				mergeMethod = ""
 			}
 
 			options := &github.PullRequestOptions{
@@ -553,13 +583,16 @@ func UpdatePullRequestBranch(getClient GetClientFn, t translations.TranslationHe
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			expectedHeadSHA, err := OptionalParam[string](request, "expectedHeadSha")
+			expectedHeadSHA, ok, err := common.OptionalParamOK[string](request, "expectedHeadSha")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
+			if !ok {
+				expectedHeadSHA = ""
+			}
 			opts := &github.PullRequestBranchUpdateOptions{}
 			if expectedHeadSHA != "" {
-				opts.ExpectedHeadSHA = Ptr(expectedHeadSHA)
+				opts.ExpectedHeadSHA = common.Ptr(expectedHeadSHA)
 			}
 
 			client, err := getClient(ctx)
@@ -570,7 +603,7 @@ func UpdatePullRequestBranch(getClient GetClientFn, t translations.TranslationHe
 			if err != nil {
 				// Check if it's an acceptedError. An acceptedError indicates that the update is in progress,
 				// and it's not a real error.
-				if resp != nil && resp.StatusCode == http.StatusAccepted && isAcceptedError(err) {
+				if resp != nil && resp.StatusCode == http.StatusAccepted && IsAcceptedError(err) {
 					return mcp.NewToolResultText("Pull request branch update is in progress"), nil
 				}
 				return nil, fmt.Errorf("failed to update pull request branch: %w", err)
@@ -796,32 +829,32 @@ func CreatePullRequestReview(getClient GetClientFn, t translations.TranslationHe
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-			event, err := requiredParam[string](request, "event")
+			event, err := common.RequiredParam[string](request, "event")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
 
 			// Create review request
 			reviewRequest := &github.PullRequestReviewRequest{
-				Event: Ptr(event),
+				Event: common.Ptr(event),
 			}
 
 			// Add body if provided
-			body, err := OptionalParam[string](request, "body")
+			body, _, err := common.OptionalParamOK[string](request, "body")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
 			if body != "" {
-				reviewRequest.Body = Ptr(body)
+				reviewRequest.Body = common.Ptr(body)
 			}
 
 			// Add commit ID if provided
-			commitID, err := OptionalParam[string](request, "commitId")
+			commitID, _, err := common.OptionalParamOK[string](request, "commitId")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
 			if commitID != "" {
-				reviewRequest.CommitID = Ptr(commitID)
+				reviewRequest.CommitID = common.Ptr(commitID)
 			}
 
 			// Add comments if provided
@@ -860,23 +893,23 @@ func CreatePullRequestReview(getClient GetClientFn, t translations.TranslationHe
 					}
 
 					comment := &github.DraftReviewComment{
-						Path: Ptr(path),
-						Body: Ptr(body),
+						Path: common.Ptr(path),
+						Body: common.Ptr(body),
 					}
 
 					if positionFloat, ok := commentMap["position"].(float64); ok {
-						comment.Position = Ptr(int(positionFloat))
+						comment.Position = common.Ptr(int(positionFloat))
 					} else if lineFloat, ok := commentMap["line"].(float64); ok {
-						comment.Line = Ptr(int(lineFloat))
+						comment.Line = common.Ptr(int(lineFloat))
 					}
 					if side, ok := commentMap["side"].(string); ok {
-						comment.Side = Ptr(side)
+						comment.Side = common.Ptr(side)
 					}
 					if startLineFloat, ok := commentMap["start_line"].(float64); ok {
-						comment.StartLine = Ptr(int(startLineFloat))
+						comment.StartLine = common.Ptr(int(startLineFloat))
 					}
 					if startSide, ok := commentMap["start_side"].(string); ok {
-						comment.StartSide = Ptr(startSide)
+						comment.StartSide = common.Ptr(startSide)
 					}
 
 					comments = append(comments, comment)
@@ -968,33 +1001,42 @@ func CreatePullRequest(getClient GetClientFn, t translations.TranslationHelperFu
 				return mcp.NewToolResultError(err.Error()), nil
 			}
 
-			body, err := OptionalParam[string](request, "body")
+			body, ok, err := common.OptionalParamOK[string](request, "body")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
-
-			draft, err := OptionalParam[bool](request, "draft")
-		 if err != nil {
-				return mcp.NewToolResultError(err.Error()), nil
+			if !ok {
+				body = ""
 			}
 
-			maintainerCanModify, err := OptionalParam[bool](request, "maintainer_can_modify")
+			draft, ok, err := common.OptionalParamOK[bool](request, "draft")
 			if err != nil {
 				return mcp.NewToolResultError(err.Error()), nil
+			}
+			if !ok {
+				draft = false
+			}
+
+			maintainerCanModify, ok, err := common.OptionalParamOK[bool](request, "maintainer_can_modify")
+			if err != nil {
+				return mcp.NewToolResultError(err.Error()), nil
+			}
+			if !ok {
+				maintainerCanModify = false
 			}
 
 			newPR := &github.NewPullRequest{
-				Title: Ptr(title),
-				Head:  Ptr(head),
-				Base:  Ptr(base),
+				Title: common.Ptr(title),
+				Head:  common.Ptr(head),
+				Base:  common.Ptr(base),
 			}
 
 			if body != "" {
-				newPR.Body = Ptr(body)
+				newPR.Body = common.Ptr(body)
 			}
 
-			newPR.Draft = Ptr(draft)
-			newPR.MaintainerCanModify = Ptr(maintainerCanModify)
+			newPR.Draft = common.Ptr(draft)
+			newPR.MaintainerCanModify = common.Ptr(maintainerCanModify)
 
 			client, err := getClient(ctx)
 			if err != nil {

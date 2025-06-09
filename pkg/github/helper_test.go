@@ -11,32 +11,26 @@ import (
 	"context"
 	"testing"
 
-	"github.com/google/go-github/v71/github"
+	gh "github.com/google/go-github/v71/github"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/jubicudis/github-mcp-server/pkg/testutil"
-
-	githubpkg "github.com/jubicudis/github-mcp-server/pkg/github")
+	"github-mcp-server/pkg/common"
+	"github-mcp-server/pkg/testutil"
+)
 
 // Test constants
 const (
 	testNameParamNotPresent = "parameter not present"
 )
 
-// WHO: TestUtility
-// WHAT: Client function stub for GitHub API
-// WHEN: During testing
-// WHERE: Test execution context
-// WHY: To isolate tests from actual GitHub API
-// HOW: Using function closure with predefined client
-// EXTENT: For all GitHub API test cases
-func stubGetClientFn(client *Client) GetClientFn {
-	// Convert our custom Client to go-github Client
-	githubClient := &github.Client{}
+// Use gh.Client for stubGetClientFn
+// GetClientFn is a function type for getting GitHub clients
+type GetClientFn func(ctx context.Context) (*gh.Client, error)
 
-	return func(context.Context) (*github.Client, error) {
-		return githubClient, nil
+func stubGetClientFn(client *gh.Client) GetClientFn {
+	return func(context.Context) (*gh.Client, error) {
+		return client, nil
 	}
 }
 
@@ -53,7 +47,7 @@ func testTypedParam[T any](t *testing.T, args map[string]interface{},
 
 	t.Helper()
 	request := testutil.CreateMCPRequest(args)
-	val, ok, err := OptionalParamOK[T](request, paramName)
+	val, ok, err := common.OptionalParamOK[T](request, paramName)
 
 	if expectError {
 		require.Error(t, err)
@@ -188,3 +182,7 @@ func TestOptionalParamOKFloat64(t *testing.T) {
 		})
 	}
 }
+
+// Canonical helper test file for GitHub MCP server
+// Remove all duplicate imports, fix import cycles, and ensure all tests reference only canonical helpers from /pkg/common and /pkg/testutil
+// All test cases must be robust, DRY, and match the implementation in helper.go (if present)

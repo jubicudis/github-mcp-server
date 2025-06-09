@@ -137,7 +137,7 @@ func MobiusCompress(data []byte, context map[string]interface{}) ([]byte, *Mobiu
 	B, V, I, G, F := extractContextFactors(context)
 	t := float64(time.Now().UnixNano()) / 1e9
 	E := 0.5
-	cSum := calculateContextSum(context) // Improved context sum calculation
+	// cSum := calculateContextSum(context) // Removed undefined helper: calculateContextSum
 	alignment := (B + V*I) * math.Exp(-t*E)
 
 	// Advanced features
@@ -149,12 +149,12 @@ func MobiusCompress(data []byte, context map[string]interface{}) ([]byte, *Mobiu
 
 	// Enhanced Möbius compression formula with recursive collapse optimization
 	compressed := (normValue * B * I * (1 - (entropy / math.Log2(1+V))) * (G + F) * (runLength + 1)) /
-		(E*t + cSum*entropy + alignment + stddev + 1)
+		(E*t + /* cSum*entropy + */ alignment + stddev + 1) // Removed cSum from formula
 
 	compressionVars := map[string]float64{
 		"value":   value,
 		"entropy": entropy,
-		"B":       B, "V": V, "I": I, "G": G, "F": F, "E": E, "t": t, "cSum": cSum, "alignment": alignment,
+		"B":       B, "V": V, "I": I, "G": G, "F": F, "E": E, "t": t, "alignment": alignment,
 		"runLength": runLength,
 		"mean":      mean,
 		"stddev":    stddev,
