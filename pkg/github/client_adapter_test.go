@@ -8,12 +8,14 @@
  * EXTENT: All client adapter operations
  */
 
+// Change test package to 'github_test' to avoid import cycle
 package github_test
 
 import (
 	"testing"
 
-	githubpkg "github.com/jubicudis/github-mcp-server/pkg/github"
+	"github.com/jubicudis/github-mcp-server/pkg/common"
+	"github.com/jubicudis/github-mcp-server/pkg/github"
 )
 
 // TestClientAdapter verifies that the adapter pattern works correctly
@@ -29,8 +31,10 @@ func TestClientAdapter(t *testing.T) {
 	// GitHub token from environment or use a placeholder for test
 	token := "test_token"
 
-	// Create legacy client via adapter
-	legacyClient := githubpkg.NewClientCompatibilityAdapter(token, nil)
+	// Canonical: Use ConnectionOptions struct from pkg/common
+	opts := common.ConnectionOptions{Credentials: map[string]string{"token": token}}
+	// Create legacy client via canonical adapter
+	legacyClient := github.NewClientCompatibilityAdapter(opts)
 
 	if legacyClient == nil {
 		t.Fatal("Failed to create legacy client adapter")
@@ -70,8 +74,8 @@ func TestClientAdapter(t *testing.T) {
 	}
 	if user == nil {
 		t.Error("Expected user object, got nil")
-	} else if user.Login != "testuser" {
-		t.Errorf("Expected username 'testuser', got '%s'", user.Login)
+	} else if user.Login == nil || *user.Login != "testuser" {
+		t.Errorf("Expected username 'testuser', got '%v'", user.Login)
 	}
 
 	// Test getting a repository
@@ -81,8 +85,8 @@ func TestClientAdapter(t *testing.T) {
 	}
 	if repo == nil {
 		t.Error("Expected repository object, got nil")
-	} else if repo.Name != "testrepo" {
-		t.Errorf("Expected repository name 'testrepo', got '%s'", repo.Name)
+	} else if repo.Name == nil || *repo.Name != "testrepo" {
+		t.Errorf("Expected repository name 'testrepo', got '%v'", repo.Name)
 	}
 
 	// Test parsing a resource URI
@@ -144,3 +148,7 @@ func TestClientAdapter(t *testing.T) {
 		t.Errorf("Context was not properly updated: expected What='TestOperation', got '%s'", updatedContext.What)
 	}
 }
+
+// Canonical test file for ClientCompatibilityAdapter
+// Remove all duplicate imports, fix import cycles, and ensure all tests reference only canonical helpers from /pkg/common and /pkg/testutil
+// All test cases must be robust, DRY, and match the implementation in client_adapter.go

@@ -579,21 +579,13 @@ func (bc *BloodCirculation) compressCell(cell *BloodCell) error {
 		return fmt.Errorf("formula registry not initialized")
 	}
 	
-	// Prepare the Hemoflux compression context
-	context := map[string]interface{}{
-		"who":     cell.Context7D.Who,
-		"what":    cell.Context7D.What,
-		"when":    cell.Context7D.When,
-		"where":   cell.Context7D.Where,
-		"why":     cell.Context7D.Why,
-		"how":     cell.Context7D.How,
-		"extent":  cell.Context7D.Extent,
-		"source":  cell.Source,
-		"destination": cell.Destination,
-		"timestamp":   cell.Timestamp,
-		"cell_type":   cell.Type,
-		"priority":    cell.Priority,
-	}
+	// Prepare the Hemoflux compression context using shared utility
+	context := common.GenerateContextMap(cell.Context7D)
+	// Add extra fields for compression context
+	context["destination"] = cell.Destination
+	context["timestamp"] = cell.Timestamp
+	context["cell_type"] = cell.Type
+	context["priority"] = cell.Priority
 	
 	// Prepare cell payload for compression
 	payloadData, err := json.Marshal(cell.Payload)
@@ -656,15 +648,7 @@ func (bc *BloodCirculation) decompressCell(cell *BloodCell) error {
 	decompressionParams := map[string]interface{}{
 		"compressed_payload": cell.Payload,
 		"compression_id":     cell.CompressionID,
-		"context": map[string]interface{}{
-			"who":     cell.Context7D.Who,
-			"what":    cell.Context7D.What,
-			"when":    cell.Context7D.When,
-			"where":   cell.Context7D.Where,
-			"why":     cell.Context7D.Why,
-			"how":     cell.Context7D.How,
-			"extent":  cell.Context7D.Extent,
-		},
+		"context":            common.GenerateContextMap(cell.Context7D),
 	}
 	
 	result, err := registry.ExecuteFormula("hemoflux.decompress", decompressionParams)

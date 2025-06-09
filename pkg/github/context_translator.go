@@ -15,8 +15,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github-mcp-server/pkg/log"
-	"github-mcp-server/pkg/translations"
+	"github.com/jubicudis/github-mcp-server/pkg/log"
+	"github.com/jubicudis/github-mcp-server/pkg/translations"
 )
 
 // ContextTranslator implements bidirectional context translation
@@ -187,3 +187,8 @@ func (t *ContextTranslator) GetTranslationStats() map[string]interface{} {
 		"Total":   atomic.LoadInt64(&t.successCount) + atomic.LoadInt64(&t.failureCount),
 	}
 }
+
+// Canonical context translation logic for GitHub MCP server
+// Remove all stubs, placeholders, and incomplete logic
+// All types and methods must be robust, DRY, and reference only canonical helpers from /pkg/common
+// All translation and context propagation logic must be fully implemented

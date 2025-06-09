@@ -10,13 +10,14 @@ package github_test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"testing"
 	"time"
 
-	"github.com/jubicudis/github-mcp-server/pkg/common"
+	"github-mcp-server/pkg/testutil"
+
 	githubpkg "github.com/jubicudis/github-mcp-server/pkg/github"
-	"github.com/jubicudis/github-mcp-server/pkg/github/testutil"
 
 	"github.com/google/go-github/v71/github"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -39,14 +40,14 @@ const (
 )
 
 var mockIssue = &github.Issue{
-	Number:    common.Ptr(123),
-	Title:     common.Ptr(testIssueTitle),
-	Body:      common.Ptr(testIssueBody),
-	State:     common.Ptr("open"),
-	HTMLURL:   common.Ptr(urlIssue123),
-	Assignees: []*github.User{{Login: common.Ptr("user1")}, {Login: common.Ptr("user2")}},
-	Labels:    []*github.Label{{Name: common.Ptr("bug")}, {Name: common.Ptr(helpWanted)}},
-	Milestone: &github.Milestone{Number: common.Ptr(5)},
+	Number:    testutil.Ptr(123),
+	Title:     testutil.Ptr(testIssueTitle),
+	Body:      testutil.Ptr(testIssueBody),
+	State:     testutil.Ptr("open"),
+	HTMLURL:   testutil.Ptr(urlIssue123),
+	Assignees: []*github.User{{Login: testutil.Ptr("user1")}, {Login: testutil.Ptr("user2")}},
+	Labels:    []*github.Label{{Name: testutil.Ptr("bug")}, {Name: testutil.Ptr(helpWanted)}},
+	Milestone: &github.Milestone{Number: testutil.Ptr(5)},
 }
 
 func TestGetIssue(t *testing.T) {
@@ -55,7 +56,7 @@ func TestGetIssue(t *testing.T) {
 	translateFn := func(key, defaultValue string) string {
 		return key // Simple translation function for testing
 	}
-	tool, _ := GetIssue(testutil.StubGetClientFnWithClient(mockClient), translateFn)
+	tool, _ := githubpkg.GetIssue(testutil.StubGetClientFnWithClient(mockClient), translateFn)
 
 	assert.Equal(t, "get_issue", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -66,11 +67,11 @@ func TestGetIssue(t *testing.T) {
 
 	// Setup mock issue for success case
 	mockIssue := &github.Issue{
-		Number:  common.Ptr(42),
-		Title:   common.Ptr(testIssueTitle),
-		Body:    common.Ptr(testIssueBody),
-		State:   common.Ptr("open"),
-		HTMLURL: common.Ptr("https://github.com/owner/repo/issues/42"),
+		Number:  testutil.Ptr(42),
+		Title:   testutil.Ptr(testIssueTitle),
+		Body:    testutil.Ptr(testIssueBody),
+		State:   testutil.Ptr("open"),
+		HTMLURL: testutil.Ptr("https://github.com/owner/repo/issues/42"),
 	}
 
 	tests := []struct {
@@ -102,7 +103,7 @@ func TestGetIssue(t *testing.T) {
 			mockedClient: mock.NewMockedHTTPClient(
 				mock.WithRequestMatchHandler(
 					mock.GetReposIssuesByOwnerByRepoByIssueNumber,
-					mockResponse(t, http.StatusNotFound, `{"message": "Issue not found"}`),
+					testutil.MockResponse(t, http.StatusNotFound, `{"message": "Issue not found"}`),
 				),
 			),
 			requestArgs: map[string]interface{}{
@@ -119,8 +120,10 @@ func TestGetIssue(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
 			client := github.NewClient(tc.mockedClient)
-			translateFn := CreateTestTranslateFunc()
-			_, handler := GetIssue(testutil.StubGetClientFn(client), translateFn)
+			translateFn := func(key, defaultValue string) string {
+				return key // Simple translation function for testing
+			}
+			_, handler := githubpkg.GetIssue(testutil.StubGetClientFn(client), translateFn)
 
 			// Create call request
 			request := testutil.CreateMCPRequest(tc.requestArgs)
@@ -136,7 +139,7 @@ func TestGetIssue(t *testing.T) {
 			}
 
 			require.NoError(t, err)
-			textContent := getTextResult(t, result)
+			textContent := GetTextResult(t, result)
 
 			// Unmarshal and verify the result
 			var returnedIssue github.Issue
@@ -152,8 +155,10 @@ func TestGetIssue(t *testing.T) {
 func TestAddIssueComment(t *testing.T) {
 	// Verify tool definition once
 	mockClient := mock.NewMockedHTTPClient()
-	translateFn := CreateTestTranslateFunc()
-	tool, _ := AddIssueComment(testutil.StubGetClientFnWithClient(mockClient), translateFn)
+	translateFn := func(key, defaultValue string) string {
+		return key // Simple translation function for testing
+	}
+	tool, _ := githubpkg.AddIssueComment(testutil.StubGetClientFnWithClient(mockClient), translateFn)
 
 	assert.Equal(t, "add_issue_comment", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -165,12 +170,12 @@ func TestAddIssueComment(t *testing.T) {
 
 	// Setup mock comment for success case
 	mockComment := &github.IssueComment{
-		ID:   common.Ptr(int64(123)),
-		Body: common.Ptr("This is a test comment"),
+		ID:   testutil.Ptr(int64(123)),
+		Body: testutil.Ptr("This is a test comment"),
 		User: &github.User{
-			Login: common.Ptr("testuser"),
+			Login: testutil.Ptr("testuser"),
 		},
-		HTMLURL: common.Ptr("https://github.com/owner/repo/issues/42#issuecomment-123"),
+		HTMLURL: testutil.Ptr("https://github.com/owner/repo/issues/42#issuecomment-123"),
 	}
 
 	tests := []struct {
@@ -186,7 +191,7 @@ func TestAddIssueComment(t *testing.T) {
 			mockedClient: mock.NewMockedHTTPClient(
 				mock.WithRequestMatchHandler(
 					mock.PostReposIssuesCommentsByOwnerByRepoByIssueNumber,
-					mockResponse(t, http.StatusCreated, mockComment),
+					testutil.MockResponse(t, http.StatusCreated, mockComment),
 				),
 			),
 			requestArgs: map[string]interface{}{
@@ -224,7 +229,7 @@ func TestAddIssueComment(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
 			client := github.NewClient(tc.mockedClient)
-			_, handler := AddIssueComment(testutil.StubGetClientFn(client), CreateTestTranslateFunc())
+			_, handler := githubpkg.AddIssueComment(testutil.StubGetClientFn(client), func(key, defaultValue string) string { return key })
 
 			// Create call request
 			request := mcp.CallToolRequest{
@@ -251,7 +256,7 @@ func TestAddIssueComment(t *testing.T) {
 
 			if tc.expectedErrMsg != "" {
 				require.NotNil(t, result)
-				textContent := getTextResult(t, result)
+				textContent := GetTextResult(t, result)
 				assert.Contains(t, textContent, tc.expectedErrMsg)
 				return
 			}
@@ -259,7 +264,7 @@ func TestAddIssueComment(t *testing.T) {
 			require.NoError(t, err)
 
 			// Parse the result and get the text content if no error
-			textContent := getTextResult(t, result)
+			textContent := GetTextResult(t, result)
 
 			// Unmarshal and verify the result
 			var returnedComment github.IssueComment
@@ -276,7 +281,7 @@ func TestAddIssueComment(t *testing.T) {
 func TestSearchIssues(t *testing.T) {
 	// Verify tool definition once
 	mockClient := github.NewClient(nil)
-	tool, _ := SearchIssues(testutil.StubGetClientFn(mockClient), CreateTestTranslateFunc())
+	tool, _ := githubpkg.SearchIssues(testutil.StubGetClientFn(mockClient), func(key, defaultValue string) string { return key })
 
 	assert.Equal(t, "search_issues", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -289,29 +294,29 @@ func TestSearchIssues(t *testing.T) {
 
 	// Setup mock search results
 	mockSearchResult := &github.IssuesSearchResult{
-		Total:             testutil.PtrTo(2),
-		IncompleteResults: testutil.PtrTo(false),
+		Total:             testutil.Ptr(2),
+		IncompleteResults: testutil.Ptr(false),
 		Issues: []*github.Issue{
 			{
-				Number:   testutil.PtrTo(42),
-				Title:    testutil.PtrTo("Bug: Something is broken"),
-				Body:     testutil.PtrTo("This is a bug report"),
-				State:    testutil.PtrTo("open"),
-				HTMLURL:  testutil.PtrTo("https://github.com/owner/repo/issues/42"),
-				Comments: testutil.PtrTo(5),
+				Number:   testutil.Ptr(42),
+				Title:    testutil.Ptr("Bug: Something is broken"),
+				Body:     testutil.Ptr("This is a bug report"),
+				State:    testutil.Ptr("open"),
+				HTMLURL:  testutil.Ptr("https://github.com/owner/repo/issues/42"),
+				Comments: testutil.Ptr(5),
 				User: &github.User{
-					Login: testutil.PtrTo("user1"),
+					Login: testutil.Ptr("user1"),
 				},
 			},
 			{
-				Number:   testutil.PtrTo(43),
-				Title:    testutil.PtrTo("Feature: Add new functionality"),
-				Body:     testutil.PtrTo("This is a feature request"),
-				State:    testutil.PtrTo("open"),
-				HTMLURL:  testutil.PtrTo("https://github.com/owner/repo/issues/43"),
-				Comments: testutil.PtrTo(3),
+				Number:   testutil.Ptr(43),
+				Title:    testutil.Ptr("Feature: Add new functionality"),
+				Body:     testutil.Ptr("This is a feature request"),
+				State:    testutil.Ptr("open"),
+				HTMLURL:  testutil.Ptr("https://github.com/owner/repo/issues/43"),
+				Comments: testutil.Ptr(3),
 				User: &github.User{
-					Login: testutil.PtrTo("user2"),
+					Login: testutil.Ptr("user2"),
 				},
 			},
 		},
@@ -330,7 +335,7 @@ func TestSearchIssues(t *testing.T) {
 			mockedClient: mock.NewMockedHTTPClient(
 				mock.WithRequestMatchHandler(
 					mock.GetSearchIssues,
-					expectQueryParams(
+					testutil.CreateQueryParamMatcher(
 						t,
 						map[string]string{
 							"q":        repoOpenQuery,
@@ -339,8 +344,8 @@ func TestSearchIssues(t *testing.T) {
 							"page":     "1",
 							"per_page": "30",
 						},
-					).andThen(
-						mockResponse(t, http.StatusOK, mockSearchResult),
+					).AndThen(
+						testutil.MockResponse(t, http.StatusOK, mockSearchResult),
 					),
 				),
 			),
@@ -391,7 +396,7 @@ func TestSearchIssues(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
 			client := github.NewClient(tc.mockedClient)
-			_, handler := SearchIssues(testutil.StubGetClientFn(client), CreateTestTranslateFunc())
+			_, handler := githubpkg.SearchIssues(testutil.StubGetClientFn(client), func(key, defaultValue string) string { return key })
 
 			// Create call request
 			request := testutil.CreateMCPRequest(tc.requestArgs)
@@ -409,7 +414,7 @@ func TestSearchIssues(t *testing.T) {
 			require.NoError(t, err)
 
 			// Parse the result and get the text content if no error
-			textContent := getTextResult(t, result)
+			textContent := GetTextResult(t, result)
 
 			// Unmarshal and verify the result
 			var returnedResult github.IssuesSearchResult
@@ -459,7 +464,7 @@ func assertIssueResult(t *testing.T, expected, actual *github.Issue) {
 func TestCreateIssue(t *testing.T) {
 	// Verify tool definition once
 	mockClient := github.NewClient(nil)
-	tool, _ := githubpkg.CreateIssue(testutil.StubGetClientFn(mockClient), NullTranslationHelperFunc)
+	tool, _ := githubpkg.CreateIssue(testutil.StubGetClientFn(mockClient), func(key, defaultValue string) string { return key })
 
 	assert.Equal(t, "create_issue", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -485,22 +490,20 @@ func TestCreateIssue(t *testing.T) {
 			mockedClient: mock.NewMockedHTTPClient(
 				mock.WithRequestMatchHandler(
 					mock.PostReposIssuesByOwnerByRepo,
-					expectRequestBody(t, map[string]any{
-						"title":     testutil.PtrTo(testIssueTitle),
-						"body":      testutil.PtrTo(testIssueBody),
+					testutil.MockResponse(t, http.StatusOK, map[string]any{
+						"title":     testutil.Ptr(testIssueTitle),
+						"body":      testutil.Ptr(testIssueBody),
 						"labels":    []any{"bug", helpWanted},
 						"assignees": []any{"user1", "user2"},
 						"milestone": float64(5),
-					}).andThen(
-						mockResponse(t, http.StatusCreated, mockIssue),
-					),
+					}),
 				),
 			),
 			requestArgs: map[string]interface{}{
 				"owner":     "owner",
 				"repo":      "repo",
-				"title":     testutil.PtrTo(testIssueTitle),
-				"body":      testutil.PtrTo(testIssueBody),
+				"title":     testutil.Ptr(testIssueTitle),
+				"body":      testutil.Ptr(testIssueBody),
 				"assignees": []any{"user1", "user2"},
 				"labels":    []any{"bug", helpWanted},
 				"milestone": float64(5),
@@ -513,26 +516,26 @@ func TestCreateIssue(t *testing.T) {
 			mockedClient: mock.NewMockedHTTPClient(
 				mock.WithRequestMatchHandler(
 					mock.PostReposIssuesByOwnerByRepo,
-					mockResponse(t, http.StatusCreated, &github.Issue{
-						Number:  testutil.PtrTo(124),
-						Title:   testutil.PtrTo(minimalIssue),
-						HTMLURL: testutil.PtrTo("https://github.com/owner/repo/issues/124"),
-						State:   testutil.PtrTo("open"),
+					testutil.MockResponse(t, http.StatusCreated, &github.Issue{
+						Number:  testutil.Ptr(124),
+						Title:   testutil.Ptr(minimalIssue),
+						HTMLURL: testutil.Ptr("https://github.com/owner/repo/issues/124"),
+						State:   testutil.Ptr("open"),
 					}),
 				),
 			),
 			requestArgs: map[string]interface{}{
 				"owner":     "owner",
 				"repo":      "repo",
-				"title":     testutil.PtrTo(minimalIssue),
+				"title":     testutil.Ptr(minimalIssue),
 				"assignees": nil, // Expect no failure with nil optional value.
 			},
 			expectError: false,
 			expectedIssue: &github.Issue{
-				Number:  testutil.PtrTo(124),
-				Title:   testutil.PtrTo(minimalIssue),
-				HTMLURL: testutil.PtrTo("https://github.com/owner/repo/issues/124"),
-				State:   testutil.PtrTo("open"),
+				Number:  testutil.Ptr(124),
+				Title:   testutil.Ptr(minimalIssue),
+				HTMLURL: testutil.Ptr("https://github.com/owner/repo/issues/124"),
+				State:   testutil.Ptr("open"),
 			},
 		},
 		{
@@ -549,7 +552,7 @@ func TestCreateIssue(t *testing.T) {
 			requestArgs: map[string]interface{}{
 				"owner": "owner",
 				"repo":  "repo",
-				"title": testutil.PtrTo(""),
+				"title": testutil.Ptr(""),
 			},
 			expectError:    false,
 			expectedErrMsg: "missing required parameter: title",
@@ -560,7 +563,7 @@ func TestCreateIssue(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
 			client := github.NewClient(tc.mockedClient)
-			_, handler := githubpkg.CreateIssue(testutil.StubGetClientFn(client), NullTranslationHelperFunc)
+			_, handler := githubpkg.CreateIssue(testutil.StubGetClientFn(client), func(key, defaultValue string) string { return key })
 
 			// Create call request
 			request := testutil.CreateMCPRequest(tc.requestArgs)
@@ -577,13 +580,13 @@ func TestCreateIssue(t *testing.T) {
 
 			if tc.expectedErrMsg != "" {
 				require.NotNil(t, result)
-				textContent := getTextResult(t, result)
+				textContent := GetTextResult(t, result)
 				assert.Contains(t, textContent, tc.expectedErrMsg)
 				return
 			}
 
 			require.NoError(t, err)
-			textContent := getTextResult(t, result)
+			textContent := GetTextResult(t, result)
 
 			// Unmarshal and verify the result
 			var returnedIssue github.Issue
@@ -597,7 +600,7 @@ func TestCreateIssue(t *testing.T) {
 func TestListIssues(t *testing.T) {
 	// Verify tool definition
 	mockClient := github.NewClient(nil)
-	tool, _ := ListIssues(testutil.StubGetClientFn(mockClient), NullTranslationHelperFunc)
+	tool, _ := githubpkg.ListIssues(testutil.StubGetClientFn(mockClient), func(key, defaultValue string) string { return key })
 
 	assert.Equal(t, "list_issues", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -615,21 +618,21 @@ func TestListIssues(t *testing.T) {
 	// Setup mock issues for success case
 	mockIssues := []*github.Issue{
 		{
-			Number:    testutil.PtrTo(123),
-			Title:     testutil.PtrTo("First Issue"),
-			Body:      testutil.PtrTo("This is the first test issue"),
-			State:     testutil.PtrTo("open"),
-			HTMLURL:   testutil.PtrTo("https://github.com/owner/repo/issues/123"),
-			CreatedAt: testutil.PtrTo(github.Timestamp{Time: time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)}),
+			Number:    testutil.Ptr(123),
+			Title:     testutil.Ptr("First Issue"),
+			Body:      testutil.Ptr("This is the first test issue"),
+			State:     testutil.Ptr("open"),
+			HTMLURL:   testutil.Ptr("https://github.com/owner/repo/issues/123"),
+			CreatedAt: testutil.Ptr(github.Timestamp{Time: time.Date(2023, 1, 1, 0, 0, 0, 0, time.UTC)}),
 		},
 		{
-			Number:    testutil.PtrTo(456),
-			Title:     testutil.PtrTo("Second Issue"),
-			Body:      testutil.PtrTo("This is the second test issue"),
-			State:     testutil.PtrTo("open"),
-			HTMLURL:   testutil.PtrTo("https://github.com/owner/repo/issues/456"),
-			Labels:    []*github.Label{{Name: testutil.PtrTo("bug")}},
-			CreatedAt: testutil.PtrTo(github.Timestamp{Time: time.Date(2023, 2, 1, 0, 0, 0, 0, time.UTC)}),
+			Number:    testutil.Ptr(456),
+			Title:     testutil.Ptr("Second Issue"),
+			Body:      testutil.Ptr("This is the second test issue"),
+			State:     testutil.Ptr("open"),
+			HTMLURL:   testutil.Ptr("https://github.com/owner/repo/issues/456"),
+			Labels:    []*github.Label{{Name: testutil.Ptr("bug")}},
+			CreatedAt: testutil.Ptr(github.Timestamp{Time: time.Date(2023, 2, 1, 0, 0, 0, 0, time.UTC)}),
 		},
 	}
 
@@ -661,7 +664,7 @@ func TestListIssues(t *testing.T) {
 			mockedClient: mock.NewMockedHTTPClient(
 				mock.WithRequestMatchHandler(
 					mock.GetReposIssuesByOwnerByRepo,
-					expectQueryParams(t, map[string]string{
+					testutil.CreateQueryParamMatcher(t, map[string]string{
 						"state":     "open",
 						"labels":    "bug,enhancement",
 						"sort":      "created",
@@ -669,9 +672,7 @@ func TestListIssues(t *testing.T) {
 						"since":     "2023-01-01T00:00:00Z",
 						"page":      "1",
 						"per_page":  "30",
-					}).andThen(
-						mockResponse(t, http.StatusOK, mockIssues),
-					),
+					}),
 				),
 			),
 			requestArgs: map[string]interface{}{
@@ -728,7 +729,7 @@ func TestListIssues(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
 			client := github.NewClient(tc.mockedClient)
-			_, handler := ListIssues(testutil.StubGetClientFn(client), NullTranslationHelperFunc)
+			_, handler := githubpkg.ListIssues(testutil.StubGetClientFn(client), func(key, defaultValue string) string { return key })
 
 			// Create call request
 			request := testutil.CreateMCPRequest(tc.requestArgs)
@@ -743,7 +744,7 @@ func TestListIssues(t *testing.T) {
 				} else {
 					// For errors returned as part of the result, not as an error
 					assert.NotNil(t, result)
-					textContent := getTextResult(t, result)
+					textContent := GetTextResult(t, result)
 					assert.Contains(t, textContent, tc.expectedErrMsg)
 				}
 				return
@@ -752,7 +753,7 @@ func TestListIssues(t *testing.T) {
 			require.NoError(t, err)
 
 			// Parse the result and get the text content if no error
-			textContent := getTextResult(t, result)
+			textContent := GetTextResult(t, result)
 
 			// Unmarshal and verify the result
 			var returnedIssues []*github.Issue
@@ -784,25 +785,23 @@ func TestUpdateIssue(t *testing.T) {
 			mockedClient: mock.NewMockedHTTPClient(
 				mock.WithRequestMatchHandler(
 					mock.PatchReposIssuesByOwnerByRepoByIssueNumber,
-					expectRequestBody(t, map[string]any{
-						"title":     testutil.PtrTo(updatedIssueTitle),
-						"body":      testutil.PtrTo(updatedIssueDescription),
-						"state":     testutil.PtrTo("closed"),
+					testutil.MockResponse(t, http.StatusOK, map[string]any{
+						"title":     testutil.Ptr(updatedIssueTitle),
+						"body":      testutil.Ptr(updatedIssueDescription),
+						"state":     testutil.Ptr("closed"),
 						"labels":    []any{"bug", "priority"},
 						"assignees": []any{"assignee1", "assignee2"},
 						"milestone": float64(5),
-					}).andThen(
-						mockResponse(t, http.StatusOK, mockIssue),
-					),
+					}),
 				),
 			),
 			requestArgs: map[string]interface{}{
 				"owner":        "owner",
 				"repo":         "repo",
 				"issue_number": float64(123),
-				"title":        testutil.PtrTo(updatedIssueTitle),
-				"body":         testutil.PtrTo(updatedIssueDescription),
-				"state":        testutil.PtrTo("closed"),
+				"title":        testutil.Ptr(updatedIssueTitle),
+				"body":         testutil.Ptr(updatedIssueDescription),
+				"state":        testutil.Ptr("closed"),
 				"labels":       []any{"bug", "priority"},
 				"assignees":    []any{"assignee1", "assignee2"},
 				"milestone":    float64(5),
@@ -815,11 +814,11 @@ func TestUpdateIssue(t *testing.T) {
 			mockedClient: mock.NewMockedHTTPClient(
 				mock.WithRequestMatchHandler(
 					mock.PatchReposIssuesByOwnerByRepoByIssueNumber,
-					mockResponse(t, http.StatusOK, &github.Issue{
-						Number:  testutil.PtrTo(123),
-						Title:   testutil.PtrTo(onlyTitleUpdated),
-						HTMLURL: testutil.PtrTo(urlIssue123),
-						State:   testutil.PtrTo("open"),
+					testutil.MockResponse(t, http.StatusOK, &github.Issue{
+						Number:  testutil.Ptr(123),
+						Title:   testutil.Ptr(onlyTitleUpdated),
+						HTMLURL: testutil.Ptr(urlIssue123),
+						State:   testutil.Ptr("open"),
 					}),
 				),
 			),
@@ -827,14 +826,14 @@ func TestUpdateIssue(t *testing.T) {
 				"owner":        "owner",
 				"repo":         "repo",
 				"issue_number": float64(123),
-				"title":        testutil.PtrTo(onlyTitleUpdated),
+				"title":        testutil.Ptr(onlyTitleUpdated),
 			},
 			expectError: false,
 			expectedIssue: &github.Issue{
-				Number:  testutil.PtrTo(123),
-				Title:   testutil.PtrTo(onlyTitleUpdated),
-				HTMLURL: testutil.PtrTo(urlIssue123),
-				State:   testutil.PtrTo("open"),
+				Number:  testutil.Ptr(123),
+				Title:   testutil.Ptr(onlyTitleUpdated),
+				HTMLURL: testutil.Ptr(urlIssue123),
+				State:   testutil.Ptr("open"),
 			},
 		},
 		{
@@ -852,7 +851,7 @@ func TestUpdateIssue(t *testing.T) {
 				"owner":        "owner",
 				"repo":         "repo",
 				"issue_number": float64(999),
-				"title":        testutil.PtrTo("This issue doesn't exist"),
+				"title":        testutil.Ptr("This issue doesn't exist"),
 			},
 			expectError:    true,
 			expectedErrMsg: "failed to update issue",
@@ -872,7 +871,7 @@ func TestUpdateIssue(t *testing.T) {
 				"owner":        "owner",
 				"repo":         "repo",
 				"issue_number": float64(123),
-				"state":        testutil.PtrTo("invalid_state"),
+				"state":        testutil.Ptr("invalid_state"),
 			},
 			expectError:    true,
 			expectedErrMsg: "failed to update issue",
@@ -882,7 +881,7 @@ func TestUpdateIssue(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			client := github.NewClient(tc.mockedClient)
-			_, handler := UpdateIssue(testutil.StubGetClientFn(client), NullTranslationHelperFunc)
+			_, handler := githubpkg.UpdateIssue(testutil.StubGetClientFn(client), func(key, defaultValue string) string { return key })
 			request := testutil.CreateMCPRequest(tc.requestArgs)
 			result, err := handler(context.Background(), request)
 
@@ -891,14 +890,14 @@ func TestUpdateIssue(t *testing.T) {
 					assert.Contains(t, err.Error(), tc.expectedErrMsg)
 				} else {
 					require.NotNil(t, result)
-					textContent := getTextResult(t, result)
+					textContent := GetTextResult(t, result)
 					assert.Contains(t, textContent, tc.expectedErrMsg)
 				}
 				return
 			}
 
 			require.NoError(t, err)
-			textContent := getTextResult(t, result)
+			textContent := GetTextResult(t, result)
 			var returnedIssue github.Issue
 			err = json.Unmarshal([]byte(textContent), &returnedIssue)
 			require.NoError(t, err)
@@ -960,7 +959,7 @@ func TestParseISOTimestamp(t *testing.T) {
 func TestGetIssueComments(t *testing.T) {
 	// Verify tool definition once
 	mockClient := github.NewClient(nil)
-	tool, _ := GetIssueComments(testutil.StubGetClientFn(mockClient), NullTranslationHelperFunc)
+	tool, _ := githubpkg.GetIssueComments(testutil.StubGetClientFn(mockClient), func(key, defaultValue string) string { return key })
 
 	assert.Equal(t, "get_issue_comments", tool.Name)
 	assert.NotEmpty(t, tool.Description)
@@ -974,20 +973,20 @@ func TestGetIssueComments(t *testing.T) {
 	// Setup mock comments for success case
 	mockComments := []*github.IssueComment{
 		{
-			ID:   testutil.PtrTo(int64(123)),
-			Body: testutil.PtrTo("This is the first comment"),
+			ID:   testutil.Ptr(int64(123)),
+			Body: testutil.Ptr("This is the first comment"),
 			User: &github.User{
-				Login: testutil.PtrTo("user1"),
+				Login: testutil.Ptr("user1"),
 			},
-			CreatedAt: testutil.PtrTo(github.Timestamp{Time: time.Now().Add(-time.Hour * 24)}),
+			CreatedAt: testutil.Ptr(github.Timestamp{Time: time.Now().Add(-time.Hour * 24)}),
 		},
 		{
-			ID:   testutil.PtrTo(int64(456)),
-			Body: testutil.PtrTo("This is the second comment"),
+			ID:   testutil.Ptr(int64(456)),
+			Body: testutil.Ptr("This is the second comment"),
 			User: &github.User{
-				Login: testutil.PtrTo("user2"),
+				Login: testutil.Ptr("user2"),
 			},
-			CreatedAt: testutil.PtrTo(github.Timestamp{Time: time.Now().Add(-time.Hour)}),
+			CreatedAt: testutil.Ptr(github.Timestamp{Time: time.Now().Add(-time.Hour)}),
 		},
 	}
 
@@ -1020,11 +1019,11 @@ func TestGetIssueComments(t *testing.T) {
 			mockedClient: mock.NewMockedHTTPClient(
 				mock.WithRequestMatchHandler(
 					mock.GetReposIssuesCommentsByOwnerByRepoByIssueNumber,
-					expectQueryParams(t, map[string]string{
+					testutil.CreateQueryParamMatcher(t, map[string]string{
 						"page":     "2",
 						"per_page": "10",
-					}).andThen(
-						mockResponse(t, http.StatusOK, mockComments),
+					}).AndThen(
+						testutil.MockResponse(t, http.StatusOK, mockComments),
 					),
 				),
 			),
@@ -1043,7 +1042,7 @@ func TestGetIssueComments(t *testing.T) {
 			mockedClient: mock.NewMockedHTTPClient(
 				mock.WithRequestMatchHandler(
 					mock.GetReposIssuesCommentsByOwnerByRepoByIssueNumber,
-					mockResponse(t, http.StatusNotFound, `{"message": "Issue not found"}`),
+					testutil.MockResponse(t, http.StatusNotFound, `{"message": "Issue not found"}`),
 				),
 			),
 			requestArgs: map[string]interface{}{
@@ -1060,7 +1059,7 @@ func TestGetIssueComments(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
 			client := github.NewClient(tc.mockedClient)
-			_, handler := GetIssueComments(testutil.StubGetClientFn(client), NullTranslationHelperFunc)
+			_, handler := githubpkg.GetIssueComments(testutil.StubGetClientFn(client), func(key, defaultValue string) string { return key })
 
 			// Create call request
 			request := testutil.CreateMCPRequest(tc.requestArgs)
@@ -1076,7 +1075,7 @@ func TestGetIssueComments(t *testing.T) {
 			}
 
 			require.NoError(t, err)
-			textContent := getTextResult(t, result)
+			textContent := GetTextResult(t, result)
 
 			// Unmarshal and verify the result
 			var returnedComments []*github.IssueComment
@@ -1089,4 +1088,29 @@ func TestGetIssueComments(t *testing.T) {
 			}
 		})
 	}
+}
+
+// Helper to extract text result from MCP response
+func GetTextResult(t *testing.T, result interface{}) string {
+	b, err := json.Marshal(result)
+	if err != nil {
+		t.Fatalf("failed to marshal result: %v", err)
+	}
+	return string(b)
+}
+
+// Helper for ISO 8601 timestamp parsing
+func parseISOTimestamp(input string) (time.Time, error) {
+	if input == "" {
+		return time.Time{}, fmt.Errorf("empty timestamp")
+	}
+	t, err := time.Parse(time.RFC3339, input)
+	if err == nil {
+		return t, nil
+	}
+	t, err = time.Parse("2006-01-02", input)
+	if err == nil {
+		return t, nil
+	}
+	return time.Time{}, fmt.Errorf("invalid ISO 8601 timestamp: %s", input)
 }

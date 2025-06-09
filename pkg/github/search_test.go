@@ -20,12 +20,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	githubpkg "github.com/jubicudis/github-mcp-server/pkg/github"
-	"github.com/jubicudis/github-mcp-server/pkg/github/testutil"
+	"github.com/jubicudis/github-mcp-server/pkg/testutil"
 )
-
-// Helper aliases for legacy test expectations
-var expectRequestBody = testutil.MockResponse
-var expectQueryParams = testutil.CreateQueryParamExpectation
 
 // Test constants for repeated literals
 const (
@@ -58,24 +54,24 @@ func TestSearchRepositories(t *testing.T) {
 
 	// Setup mock search results
 	mockSearchResult := &github.RepositoriesSearchResult{
-		Total:             testutil.PtrTo(2),
-		IncompleteResults: testutil.PtrTo(false),
+		Total:             testutil.Ptr(2),
+		IncompleteResults: testutil.Ptr(false),
 		Repositories: []*github.Repository{
 			{
-				ID:              testutil.PtrTo(int64(12345)),
-				Name:            testutil.PtrTo("repo-1"),
-				FullName:        testutil.PtrTo("owner/repo-1"),
-				HTMLURL:         testutil.PtrTo("https://github.com/owner/repo-1"),
-				Description:     testutil.PtrTo("Test repository 1"),
-				StargazersCount: testutil.PtrTo(100),
+				ID:              testutil.Ptr(int64(12345)),
+				Name:            testutil.Ptr("repo-1"),
+				FullName:        testutil.Ptr("owner/repo-1"),
+				HTMLURL:         testutil.Ptr("https://github.com/owner/repo-1"),
+				Description:     testutil.Ptr("Test repository 1"),
+				StargazersCount: testutil.Ptr(100),
 			},
 			{
-				ID:              testutil.PtrTo(int64(67890)),
-				Name:            testutil.PtrTo("repo-2"),
-				FullName:        testutil.PtrTo("owner/repo-2"),
-				HTMLURL:         testutil.PtrTo("https://github.com/owner/repo-2"),
-				Description:     testutil.PtrTo("Test repository 2"),
-				StargazersCount: testutil.PtrTo(50),
+				ID:              testutil.Ptr(int64(67890)),
+				Name:            testutil.Ptr("repo-2"),
+				FullName:        testutil.Ptr("owner/repo-2"),
+				HTMLURL:         testutil.Ptr("https://github.com/owner/repo-2"),
+				Description:     testutil.Ptr("Test repository 2"),
+				StargazersCount: testutil.Ptr(200),
 			},
 		},
 	}
@@ -86,7 +82,7 @@ func TestSearchRepositories(t *testing.T) {
 			mockedClient: mock.NewMockedHTTPClient(
 				mock.WithRequestMatchHandler(
 					mock.GetSearchRepositories,
-					testutil.ExpectQueryParams(t, map[string]string{
+					testutil.CreateQueryParamMatcher(t, map[string]string{
 						"q":        repoSearchQuery,
 						"page":     "2",
 						"per_page": "10",
@@ -108,12 +104,12 @@ func TestSearchRepositories(t *testing.T) {
 			mockedClient: mock.NewMockedHTTPClient(
 				mock.WithRequestMatchHandler(
 					mock.GetSearchRepositories,
-					expectQueryParams(t, map[string]string{
+					testutil.CreateQueryParamMatcher(t, map[string]string{
 						"q":        repoSearchQuery,
 						"page":     "1",
 						"per_page": "30",
-					}).andThen(
-						mockResponse(t, http.StatusOK, mockSearchResult),
+					}).AndThen(
+						testutil.MockResponse(t, http.StatusOK, mockSearchResult),
 					),
 				),
 			),
@@ -195,7 +191,7 @@ type codeTestCase struct {
 
 func TestSearchCode(t *testing.T) {
 	logger := log.NewLogger()
-	mockClient := NewClient("", logger)
+	mockClient := githubpkg.NewClient("", logger)
 	tool, _ := githubpkg.SearchCode(testutil.StubGetClientFnForCustomClient(mockClient), testutil.NullTranslationHelperFunc)
 
 	assert.Equal(t, "search_code", tool.Name)
@@ -209,22 +205,22 @@ func TestSearchCode(t *testing.T) {
 
 	// Setup mock search results
 	mockSearchResult := &github.CodeSearchResult{
-		Total:             testutil.PtrTo(2),
-		IncompleteResults: testutil.PtrTo(false),
+		Total:             testutil.Ptr(2),
+		IncompleteResults: testutil.Ptr(false),
 		CodeResults: []*github.CodeResult{
 			{
-				Name:       testutil.PtrTo("file1.go"),
-				Path:       testutil.PtrTo("path/to/file1.go"),
-				SHA:        testutil.PtrTo("abc123def456"),
-				HTMLURL:    testutil.PtrTo("https://github.com/owner/repo/blob/main/path/to/file1.go"),
-				Repository: &github.Repository{Name: testutil.PtrTo("repo"), FullName: testutil.PtrTo("owner/repo")},
+				Name:       testutil.Ptr("file1.go"),
+				Path:       testutil.Ptr("path/to/file1.go"),
+				SHA:        testutil.Ptr("abc123def456"),
+				HTMLURL:    testutil.Ptr("https://github.com/owner/repo/blob/main/path/to/file1.go"),
+				Repository: &github.Repository{Name: testutil.Ptr("repo"), FullName: testutil.Ptr("owner/repo")},
 			},
 			{
-				Name:       testutil.PtrTo("file2.go"),
-				Path:       testutil.PtrTo("path/to/file2.go"),
-				SHA:        testutil.PtrTo("def456abc123"),
-				HTMLURL:    testutil.PtrTo("https://github.com/owner/repo/blob/main/path/to/file2.go"),
-				Repository: &github.Repository{Name: testutil.PtrTo("repo"), FullName: testutil.PtrTo("owner/repo")},
+				Name:       testutil.Ptr("file2.go"),
+				Path:       testutil.Ptr("path/to/file2.go"),
+				SHA:        testutil.Ptr("def456abc123"),
+				HTMLURL:    testutil.Ptr("https://github.com/owner/repo/blob/main/path/to/file2.go"),
+				Repository: &github.Repository{Name: testutil.Ptr("repo"), FullName: testutil.Ptr("owner/repo")},
 			},
 		},
 	}
@@ -235,14 +231,14 @@ func TestSearchCode(t *testing.T) {
 			mockedClient: mock.NewMockedHTTPClient(
 				mock.WithRequestMatchHandler(
 					mock.GetSearchCode,
-					expectQueryParams(t, map[string]string{
+					testutil.CreateQueryParamMatcher(t, map[string]string{
 						"q":        codeSearchQuery,
 						"sort":     "indexed",
 						"order":    "desc",
 						"page":     "1",
 						"per_page": "30",
-					}).andThen(
-						mockResponse(t, http.StatusOK, mockSearchResult),
+					}).AndThen(
+						testutil.MockResponse(t, http.StatusOK, mockSearchResult),
 					),
 				),
 			),
@@ -261,12 +257,12 @@ func TestSearchCode(t *testing.T) {
 			mockedClient: mock.NewMockedHTTPClient(
 				mock.WithRequestMatchHandler(
 					mock.GetSearchCode,
-					expectQueryParams(t, map[string]string{
+					testutil.CreateQueryParamMatcher(t, map[string]string{
 						"q":        codeSearchQuery,
 						"page":     "1",
 						"per_page": "30",
-					}).andThen(
-						mockResponse(t, http.StatusOK, mockSearchResult),
+					}).AndThen(
+						testutil.MockResponse(t, http.StatusOK, mockSearchResult),
 					),
 				),
 			),
@@ -298,7 +294,7 @@ func TestSearchCode(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
-			client := NewClient("", logger)
+			client := githubpkg.NewClient("", logger)
 			_, handler := githubpkg.SearchCode(testutil.StubGetClientFnForCustomClient(client), testutil.NullTranslationHelperFunc)
 
 			// Create call request
@@ -348,7 +344,7 @@ type userTestCase struct {
 
 func TestSearchUsers(t *testing.T) {
 	logger := log.NewLogger()
-	mockClient := NewClient("", logger)
+	mockClient := githubpkg.NewClient("", logger)
 	tool, _ := githubpkg.SearchUsers(testutil.StubGetClientFnForCustomClient(mockClient), testutil.NullTranslationHelperFunc)
 
 	assert.Equal(t, "search_users", tool.Name)
@@ -362,26 +358,26 @@ func TestSearchUsers(t *testing.T) {
 
 	// Setup mock search results
 	mockSearchResult := &github.UsersSearchResult{
-		Total:             testutil.PtrTo(2),
-		IncompleteResults: testutil.PtrTo(false),
+		Total:             testutil.Ptr(2),
+		IncompleteResults: testutil.Ptr(false),
 		Users: []*github.User{
 			{
-				Login:     testutil.PtrTo("user1"),
-				ID:        testutil.PtrTo(int64(1001)),
-				HTMLURL:   testutil.PtrTo("https://github.com/user1"),
-				AvatarURL: testutil.PtrTo("https://avatars.githubusercontent.com/u/1001"),
-				Type:      testutil.PtrTo("User"),
-				Followers: testutil.PtrTo(100),
-				Following: testutil.PtrTo(50),
+				Login:     testutil.Ptr("user1"),
+				ID:        testutil.Ptr(int64(1001)),
+				HTMLURL:   testutil.Ptr("https://github.com/user1"),
+				AvatarURL: testutil.Ptr("https://avatars.githubusercontent.com/u/1001"),
+				Type:      testutil.Ptr("User"),
+				Followers: testutil.Ptr(100),
+				Following: testutil.Ptr(50),
 			},
 			{
-				Login:     testutil.PtrTo("user2"),
-				ID:        testutil.PtrTo(int64(1002)),
-				HTMLURL:   testutil.PtrTo("https://github.com/user2"),
-				AvatarURL: testutil.PtrTo("https://avatars.githubusercontent.com/u/1002"),
-				Type:      testutil.PtrTo("User"),
-				Followers: testutil.PtrTo(200),
-				Following: testutil.PtrTo(75),
+				Login:     testutil.Ptr("user2"),
+				ID:        testutil.Ptr(int64(1002)),
+				HTMLURL:   testutil.Ptr("https://github.com/user2"),
+				AvatarURL: testutil.Ptr("https://avatars.githubusercontent.com/u/1002"),
+				Type:      testutil.Ptr("User"),
+				Followers: testutil.Ptr(200),
+				Following: testutil.Ptr(75),
 			},
 		},
 	}
@@ -392,14 +388,14 @@ func TestSearchUsers(t *testing.T) {
 			mockedClient: mock.NewMockedHTTPClient(
 				mock.WithRequestMatchHandler(
 					mock.GetSearchUsers,
-					expectQueryParams(t, map[string]string{
+					testutil.CreateQueryParamMatcher(t, map[string]string{
 						"q":        userSearchQuery,
 						"sort":     "followers",
 						"order":    "desc",
 						"page":     "1",
 						"per_page": "30",
-					}).andThen(
-						mockResponse(t, http.StatusOK, mockSearchResult),
+					}).AndThen(
+						testutil.MockResponse(t, http.StatusOK, mockSearchResult),
 					),
 				),
 			),
@@ -418,12 +414,12 @@ func TestSearchUsers(t *testing.T) {
 			mockedClient: mock.NewMockedHTTPClient(
 				mock.WithRequestMatchHandler(
 					mock.GetSearchUsers,
-					expectQueryParams(t, map[string]string{
+					testutil.CreateQueryParamMatcher(t, map[string]string{
 						"q":        userSearchQuery,
 						"page":     "1",
 						"per_page": "30",
-					}).andThen(
-						mockResponse(t, http.StatusOK, mockSearchResult),
+					}).AndThen(
+						testutil.MockResponse(t, http.StatusOK, mockSearchResult),
 					),
 				),
 			),
@@ -455,7 +451,7 @@ func TestSearchUsers(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			// Setup client with mock
-			client := NewClient("", logger)
+			client := githubpkg.NewClient("", logger)
 			_, handler := githubpkg.SearchUsers(testutil.StubGetClientFnForCustomClient(client), testutil.NullTranslationHelperFunc)
 
 			// Create call request
@@ -496,3 +492,7 @@ func TestSearchUsers(t *testing.T) {
 		})
 	}
 }
+
+// Canonical test file for search.go
+// Remove all duplicate imports, fix import cycles, and ensure all tests reference only canonical helpers from /pkg/common and /pkg/testutil
+// All test cases must be robust, DRY, and match the implementation in search.go

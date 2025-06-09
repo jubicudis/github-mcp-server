@@ -13,15 +13,21 @@ package github
 import (
 	"context"
 	"fmt"
-	"github-mcp-server/pkg/common"
-	"github-mcp-server/pkg/translations"
 	"io"
 	"net/http"
+
+	"github.com/jubicudis/github-mcp-server/pkg/common"
+	"github.com/jubicudis/github-mcp-server/pkg/translations"
 
 	"github.com/google/go-github/v71/github"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
+
+// Canonical code scanning logic for GitHub MCP server
+// Remove all stubs, placeholders, and incomplete logic
+// All types and methods must be robust, DRY, and reference only canonical helpers from /pkg/common
+// All bridge and event logic must be fully implemented
 
 // WHO: SecurityAlertRetriever
 // WHAT: Get code scanning alert details
@@ -71,11 +77,12 @@ func extractAlertParams(request mcp.CallToolRequest) (owner, repo string, alertN
 
 // Refactor common logic for parameter extraction
 func extractRequiredStringParam(request mcp.CallToolRequest, paramName string) (string, error) {
-	return RequiredParam[string](request, paramName)
+	return common.RequiredParam[string](request, paramName)
 }
 
 func extractOptionalStringParam(request mcp.CallToolRequest, paramName string) (string, error) {
-	return OptionalParam[string](request, paramName)
+	val, _, err := common.OptionalParamOK[string](request, paramName)
+	return val, err
 }
 
 // Refactor common logic for API response handling

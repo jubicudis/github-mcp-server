@@ -149,3 +149,8 @@ func (s *UserService) GetContext() map[string]interface{} {
 		},
 	}
 }
+
+// Canonical user logic for GitHub MCP server
+// Remove all stubs, placeholders, and incomplete logic
+// All types and methods must be robust, DRY, and reference only canonical helpers from /pkg/common
+// All user and event logic must be fully implemented

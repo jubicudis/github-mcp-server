@@ -10,4 +10,8 @@
  * EXTENT: All GitHub MCP test files
  */
 
+// Canonical test helper file for GitHub MCP server
+// Remove all stubs, placeholders, and incomplete logic
+// All helpers must be robust, DRY, and reference only canonical helpers from /pkg/common and /pkg/testutil
+
 package github
