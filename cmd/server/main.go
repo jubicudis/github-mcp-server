@@ -161,7 +161,7 @@ func main() {
 	logger = initLogger(config)
 	// Log server startup to helical memory
 	_ = logpkg.LogHelicalEvent(logpkg.NewHelicalEvent(
-		"MCPServer", "startup", "github-mcp-server", "init", "GoMain", "full", "GitHub MCP Server starting up"))
+		"MCPServer", "startup", "github-mcp-server", "init", "GoMain", "full", "GitHub MCP Server starting up"), logger)
 	logger.Info("Starting GitHub MCP Server", "version", "1.0")
 	logger.Info("Configuration loaded", "host", config.Host, "port", config.Port)
 
@@ -188,7 +188,7 @@ func main() {
 
 	// Initialize Blood System
 	ctx := context.Background()
-	ghmcp.InitializeBloodSystem(ctx)
+	ghmcp.InitializeBloodSystem(ctx, logger)
 
 	// Start HTTP servers on all canonical ports
 	startAllServers()
@@ -213,7 +213,7 @@ func main() {
 	sig := <-quit
 	logger.Info("Received termination signal", "signal", sig.String())
 	_ = logpkg.LogHelicalEvent(logpkg.NewHelicalEvent(
-		"MCPServer", "shutdown", "github-mcp-server", "signal", "GoMain", "full", "Received termination signal: "+sig.String()))
+		"MCPServer", "shutdown", "github-mcp-server", "signal", "GoMain", "full", "Received termination signal: "+sig.String()), logger)
 
 	// Create context with timeout for graceful shutdown
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second) // Increased timeout for proper shutdown
@@ -228,24 +228,19 @@ func main() {
 		if err := srv.Shutdown(ctx); err != nil {
 			logger.Error("Server shutdown failed", "address", srv.Addr, "error", err.Error())
 			_ = logpkg.LogHelicalEvent(logpkg.NewHelicalEvent(
-				"MCPServer", "shutdown_error", "github-mcp-server", "shutdown", "GoMain", "full", "Server shutdown failed: "+err.Error()))
+				"MCPServer", "shutdown_error", "github-mcp-server", "shutdown", "GoMain", "full", "Server shutdown failed: "+err.Error()), logger)
 		}
 	}
 	serversMtx.Unlock()
 
 	logger.Info("Server shutdown complete")
 	_ = logpkg.LogHelicalEvent(logpkg.NewHelicalEvent(
-		"MCPServer", "shutdown_complete", "github-mcp-server", "shutdown", "GoMain", "full", "Server shutdown complete"))
+		"MCPServer", "shutdown_complete", "github-mcp-server", "shutdown", "GoMain", "full", "Server shutdown complete"), logger)
 }
 
 // Initialize logger
 func initLogger(config Config) *log.Logger {
-	// Use canonical log directory from pkg/log
-	logFilePath := "pkg/log/github-mcp-server.log"
-	if err := os.MkdirAll("pkg/log", 0755); err != nil {
-		logger.Error("Failed to create log directory: %v", err)
-	}
-
+	logFilePath := "/Users/Jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log/github-mcp-server.log"
 	logger := log.NewLogger()
 
 	// Configure the logger based on the config
@@ -264,6 +259,8 @@ func initLogger(config Config) *log.Logger {
 	logFile, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err == nil {
 		logger = logger.WithOutput(logFile)
+	} else {
+		fmt.Printf("Failed to open log file %s: %v\n", logFilePath, err)
 	}
 
 	return logger
@@ -1269,7 +1266,7 @@ func startAllServers() {
 				if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 					logger.Error("Server failed to start", "error", err.Error())
 					_ = logpkg.LogHelicalEvent(logpkg.NewHelicalEvent(
-						"MCPServer", "fatal_error", "github-mcp-server", "crash", "GoMain", "full", "Server failed to start: "+err.Error()))
+						"MCPServer", "fatal_error", "github-mcp-server", "crash", "GoMain", "full", "Server failed to start: "+err.Error()), logger)
 					os.Exit(1)
 				}
 			}()

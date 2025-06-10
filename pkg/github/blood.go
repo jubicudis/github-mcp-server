@@ -18,6 +18,7 @@ import (
 
 	"github.com/jubicudis/github-mcp-server/pkg/bridge"
 	"github.com/jubicudis/github-mcp-server/pkg/common"
+	"github.com/jubicudis/github-mcp-server/pkg/log"
 	"github.com/jubicudis/github-mcp-server/pkg/translations"
 
 	"github.com/google/go-github/v71/github"
@@ -39,11 +40,9 @@ var currentOperationalMode OperationalMode = ModeStandalone // Default to standa
 func logToHelicalMemory(ctx context.Context, event string, details map[string]interface{}, context7d translations.ContextVector7D) error {
 	// Only perform helical memory logging if currentOperationalMode == ModeBloodConnected
 	if currentOperationalMode != ModeBloodConnected {
-		// In standalone mode, log a warning to github-mcp-server/logs/ instead
 		logWarningToFile(ctx, fmt.Sprintf("Attempted to log event '%s' in standalone mode, skipping Helical Memory logging.", event))
 		return nil
 	}
-
 	// Compose log path for Circulatory system (short-term memory)
 	logDir := "/Users/Jubicudis/Tranquility-Neuro-OS/systems/memory/short-term/circulatory/"
 	if _, err := os.Stat(logDir); os.IsNotExist(err) {
@@ -85,7 +84,7 @@ var canonicalQHPPorts = []int{9001, 10617, 10619, 8083}
 
 // InitializeBloodSystem checks for TNOS MCP connection and sets the operational mode.
 // This should be called at server startup.
-func InitializeBloodSystem(ctx context.Context) {
+func InitializeBloodSystem(ctx context.Context, logger log.LoggerInterface) {
 	context7d := translations.ContextVector7D{
 		Who:    "GitHubMCPServer",
 		What:   "BloodSystemInit",
@@ -128,7 +127,7 @@ const (
 )
 
 // HelicalMemoryLog logs an event to the TNOS Helical Memory system
-func HelicalMemoryLog(ctx context.Context, event string, details map[string]interface{}, context7d translations.ContextVector7D) error {
+func HelicalMemoryLog(ctx context.Context, event string, details map[string]interface{}, context7d translations.ContextVector7D, logger log.LoggerInterface) error {
 	if GetOperationalMode() != ModeBloodConnected {
 		_ = logToHelicalMemory(ctx, event+"_standalone", details, context7d)
 		return nil

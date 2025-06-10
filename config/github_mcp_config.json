@@ -165,13 +165,13 @@
     }
   },
   "logging": {
-    "file": "./logs/github_mcp.log",
+    "file": "/Users/Jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log/github-mcp-server.log",
     "enableCommandLogging": true,
     "logFormat": "json",
-    "auditLog": "./logs/mcp_audit.log"
+    "auditLog": "/Users/Jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log/github-mcp-server.log"
   },
   "security": {
-    "auditLog": "/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/logs/mcp_audit.log",
+    "auditLog": "/Users/Jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log/github-mcp-server.log",
     "requireConfirmationForSystemCommands": true,
     "encryptSensitiveData": true
   }

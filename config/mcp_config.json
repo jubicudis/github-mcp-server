@@ -7,7 +7,7 @@
         "debug_mode": true
     },
     "logging": {
-        "file_path": "./logs/tnos_mcp_server_detailed.log"
+        "file_path": "/Users/Jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log/github-mcp-server.log"
     }
 }
 
