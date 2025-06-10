@@ -27,18 +27,14 @@ import (
 	"syscall"
 	"time"
 
-	// Import internal packages with proper module paths
-
-	"github-mcp-server/pkg/bridge"
-	"github-mcp-server/pkg/common"
-	"github-mcp-server/pkg/github"
-	"github-mcp-server/pkg/log"
-	"github-mcp-server/pkg/translations"
-
-	// Import external packages
-	logpkg "github-mcp-server/pkg/log"
+	"github.com/jubicudis/github-mcp-server/pkg/bridge"
+	"github.com/jubicudis/github-mcp-server/pkg/common"
+	ghmcp "github.com/jubicudis/github-mcp-server/pkg/github"
+	"github.com/jubicudis/github-mcp-server/pkg/log"
+	"github.com/jubicudis/github-mcp-server/pkg/translations"
 
 	"github.com/gorilla/websocket"
+	logpkg "github.com/jubicudis/github-mcp-server/pkg/log"
 )
 
 // Server configuration
@@ -57,6 +53,7 @@ type Config struct {
 	BridgeEnabled bool   `json:"bridgeEnabled"`
 	BridgePort    int    `json:"bridgePort"`
 	GitHubToken   string `json:"githubToken"`
+	StandaloneMode bool   `json:"standaloneMode"` // Add StandaloneMode to config
 }
 
 // Global variables
@@ -66,11 +63,10 @@ var (
 	clients           = make(map[*Client]bool)
 	clientsMtx        sync.Mutex
 	broadcast         = make(chan []byte)
-	gitHubClient      github.Client // Use canonical github.Client
+	gitHubClient      *ghmcp.ClientCompatibilityAdapter // Use canonical github client adapter
 	startTime         = time.Now()  // Start time for uptime calculation
 	compressionBridge interface{}   // Remove type reference, not used in main.go
 
-	// Track all HTTP servers for graceful shutdown
 	servers    []*http.Server
 	serversMtx sync.Mutex
 )
@@ -115,6 +111,7 @@ func initConfig() Config {
 		BridgeEnabled: getEnvBool("MCP_BRIDGE_ENABLED", true),
 		BridgePort:    bridgePort,
 		GitHubToken:   getEnv("GITHUB_TOKEN", ""),
+		StandaloneMode: getEnvBool("MCP_STANDALONE_MODE", false), // In initConfig, add StandaloneMode from env
 	}
 }
 
@@ -173,7 +170,7 @@ func main() {
 		Credentials: map[string]string{"token": config.GitHubToken},
 		Logger:      logger,
 	}
-	gitHubClient := struct{}{} // TODO: replace with actual client initialization
+	gitHubClient = ghmcp.NewClientCompatibilityAdapter(connOpts)
 	logger.Info("GitHub client initialized")
 
 	// --- Formula Registry Initialization ---
@@ -191,7 +188,7 @@ func main() {
 
 	// Initialize Blood System
 	ctx := context.Background()
-	github.InitializeBloodSystem(ctx)
+	ghmcp.InitializeBloodSystem(ctx)
 
 	// Start HTTP servers on all canonical ports
 	startAllServers()
@@ -199,9 +196,15 @@ func main() {
 	// Start WebSocket broadcaster
 	go handleBroadcasts()
 
-	// Connect to bridge if enabled
-	if config.BridgeEnabled {
-		go connectToBridge()
+	// Skip bridge/TNOS MCP connection if StandaloneMode is true
+	if config.StandaloneMode {
+		logger.Info("Standalone mode enabled: skipping Blood Bridge and TNOS MCP connections")
+		// Do not start bridge or MCP connections
+	} else {
+		// Connect to bridge if enabled
+		if config.BridgeEnabled {
+			go connectToBridge()
+		}
 	}
 
 	// Wait for termination signal
@@ -237,10 +240,10 @@ func main() {
 
 // Initialize logger
 func initLogger(config Config) *log.Logger {
-	// Use TNOS-compliant log path
-	logFilePath := "/systems/memory/github/short_term.log"
-	if err := os.MkdirAll("/systems/memory/github", 0755); err != nil {
-		fmt.Printf("Failed to create log directory: %v\n", err)
+	// Use canonical log directory from pkg/log
+	logFilePath := "pkg/log/github-mcp-server.log"
+	if err := os.MkdirAll("pkg/log", 0755); err != nil {
+		logger.Error("Failed to create log directory: %v", err)
 	}
 
 	logger := log.NewLogger()
@@ -377,10 +380,7 @@ func handleGitHubRepositories(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Use the GitHub client to get repository information
-	// repository, err := gitHubClient.GetRepository(owner, repo)
-	repository, err := nil, fmt.Errorf("TODO: implement GetRepository")
-
+	repository, err := gitHubClient.GetRepository(owner, repo)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
@@ -422,10 +422,7 @@ func handleGitHubIssues(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Use the GitHub client to get repository information
-	// issues, err := gitHubClient.GetIssues(owner, repo)
-	issues, err := nil, fmt.Errorf("TODO: implement GetIssues")
-
+	issues, err := gitHubClient.GetIssuesForRepo(owner, repo)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
@@ -467,10 +464,7 @@ func handleGitHubPullRequests(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Use the GitHub client to get repository information
-	// prs, err := gitHubClient.GetPullRequests(owner, repo)
-	prs, err := nil, fmt.Errorf("TODO: implement GetPullRequests")
-
+	prs, err := gitHubClient.GetPullRequestsForRepo(owner, repo)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
@@ -511,10 +505,7 @@ func handleGitHubSearch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Use the GitHub client to search code
-	// results, err := gitHubClient.SearchCode(query)
-	results, err := nil, fmt.Errorf("TODO: implement SearchCode")
-
+	results, err := gitHubClient.SearchCode(query)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
@@ -556,10 +547,7 @@ func handleGitHubCodeScanning(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Use the GitHub client to get code scanning alerts
-	// alerts, err := gitHubClient.GetCodeScanningAlerts(owner, repo)
-	alerts, err := nil, fmt.Errorf("TODO: implement GetCodeScanningAlerts")
-
+	alerts, err := gitHubClient.GetCodeScanningAlerts(owner, repo)
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
@@ -956,24 +944,21 @@ func handleGitHubRequest(client *Client, data map[string]interface{}, context tr
 	switch action {
 	case "get_repository":
 		if owner != "" && repo != "" {
-			// result, err = gitHubClient.GetRepository(owner, repo)
-			result, err = nil, fmt.Errorf("TODO: implement GetRepository")
+			result, err = gitHubClient.GetRepository(owner, repo)
 		} else {
 			err = fmt.Errorf("missing owner or repo parameters")
 		}
 
 	case "get_issues":
 		if owner != "" && repo != "" {
-			// result, err = gitHubClient.GetIssues(owner, repo)
-			result, err = nil, fmt.Errorf("TODO: implement GetIssues")
+			result, err = gitHubClient.GetIssuesForRepo(owner, repo)
 		} else {
 			err = fmt.Errorf("missing owner or repo parameters")
 		}
 
 	case "get_pulls":
 		if owner != "" && repo != "" {
-			// result, err = gitHubClient.GetPullRequests(owner, repo)
-			result, err = nil, fmt.Errorf("TODO: implement GetPullRequests")
+			result, err = gitHubClient.GetPullRequestsForRepo(owner, repo)
 		} else {
 			err = fmt.Errorf("missing owner or repo parameters")
 		}
@@ -981,8 +966,7 @@ func handleGitHubRequest(client *Client, data map[string]interface{}, context tr
 	case "search_code":
 		query, _ := data["query"].(string)
 		if query != "" {
-			// result, err = gitHubClient.SearchCode(query)
-			result, err = nil, fmt.Errorf("TODO: implement SearchCode")
+			result, err = gitHubClient.SearchCode(query)
 		} else {
 			err = fmt.Errorf("missing query parameter")
 		}

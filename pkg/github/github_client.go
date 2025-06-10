@@ -8,7 +8,7 @@
  * EXTENT: All GitHub interactions
  */
 
-package github
+package ghmcp
 
 import (
 	"bytes"
@@ -24,6 +24,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/go-github/v71/github"
 	"github.com/jubicudis/github-mcp-server/pkg/common"
 	"github.com/jubicudis/github-mcp-server/pkg/log"
 	"github.com/jubicudis/github-mcp-server/pkg/translations"
@@ -138,6 +139,9 @@ type Client struct {
 	rateLimitMutex  sync.RWMutex
 	rateLimitReset  time.Time
 	rateLimitRemain int
+
+	// You must have a go-github client instance somewhere, e.g., c.ghClient
+	ghClient interface{}
 }
 
 // cacheItem represents a cached API response
@@ -329,7 +333,7 @@ func (c *Client) GetFileContent(ctx context.Context, owner, repo, path, ref stri
 
 	// Make API request
 	data, err := c.doRequest(ctx, http.MethodGet, apiPath+"?"+query.Encode(), nil)
-	if err != nil {
+		if err != nil {
 		return nil, nil, fmt.Errorf("failed to fetch file content: %w", err)
 	}
 
@@ -672,6 +676,24 @@ func (c *Client) GetCodeScanningAlerts(ctx context.Context, owner, repo string) 
 	}
 
 	return result, nil
+}
+
+// ListIssues wraps the GitHub Issues.ListByRepo API
+func (c *Client) ListIssues(ctx context.Context, owner, repo string, opts *github.IssueListByRepoOptions) ([]*github.Issue, *github.Response, error) {
+	client, ok := c.ghClient.(*github.Client)
+	if !ok || client == nil {
+		return nil, nil, fmt.Errorf("go-github client not initialized")
+	}
+	return client.Issues.ListByRepo(ctx, owner, repo, opts)
+}
+
+// ListPullRequests wraps the GitHub PullRequests.List API
+func (c *Client) ListPullRequests(ctx context.Context, owner, repo string, opts *github.PullRequestListOptions) ([]*github.PullRequest, *github.Response, error) {
+	client, ok := c.ghClient.(*github.Client)
+	if !ok || client == nil {
+		return nil, nil, fmt.Errorf("go-github client not initialized")
+	}
+	return client.PullRequests.List(ctx, owner, repo, opts)
 }
 
 // Canonical GitHub client logic for GitHub MCP server
@@ -1298,3 +1320,10 @@ func GetRepositoryDetails(request mcp.CallToolRequest) (*mcp.CallToolResult, err
 	// ...existing logic...
 	return mcp.NewToolResultText(fmt.Sprintf("Owner: %s, Repo: %s", owner, repo)), nil
 }
+
+// Canonical test file for github_client.go
+// All tests must directly and robustly test the canonical logic in github_client.go
+// Remove all legacy, duplicate, or non-canonical tests
+// Reference only helpers from /pkg/common and /pkg/testutil
+// No import cycles, duplicate imports, or undefined helpers
+// All test cases must match the actual signatures and logic of github_client.go

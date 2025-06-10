@@ -11,9 +11,9 @@ package bridge
 import (
 	"time"
 
-	"github-mcp-server/pkg/common"
-	"github-mcp-server/pkg/log"
-	"github-mcp-server/pkg/translations"
+	"github.com/jubicudis/github-mcp-server/pkg/common"
+	"github.com/jubicudis/github-mcp-server/pkg/log"
+	"github.com/jubicudis/github-mcp-server/pkg/translations"
 )
 
 // Constants from common.go made accessible in the bridge package

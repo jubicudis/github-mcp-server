@@ -8,7 +8,7 @@
  * EXTENT: All code scanning alerts and operations
  */
 
-package github
+package ghmcp
 
 import (
 	"context"
@@ -36,23 +36,24 @@ import (
 // WHY: To provide vulnerability information
 // HOW: Using GitHub Code Scanning API
 // EXTENT: Single alert retrieval
-func GetCodeScanningAlert(getClient GetClientFn, t translations.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
-	return mcp.NewTool("get_code_scanning_alert",
-			mcp.WithDescription("Get details of a specific code scanning alert in a GitHub repository"),
-			mcp.WithString("owner",
-				mcp.Required(),
-				mcp.Description("The owner of the repository."),
-			),
-			mcp.WithString("repo",
-				mcp.Required(),
-				mcp.Description("The name of the repository."),
-			),
-			mcp.WithNumber("alertNumber",
-				mcp.Required(),
-				mcp.Description("The number of the alert."),
-			),
+func GetCodeScanningAlert(getClient common.GetClientFn, t translations.TranslationHelperFunc) (mcp.Tool, server.ToolHandlerFunc) {
+	tool := mcp.NewTool("get_code_scanning_alert",
+		mcp.WithDescription(t("tool.get_code_scanning_alert.description", "Get details of a specific code scanning alert in a GitHub repository")),
+		mcp.WithString("owner",
+			mcp.Required(),
+			mcp.Description(t("tool.get_code_scanning_alert.input.owner.description", "The owner of the repository.")),
 		),
-		handleGetCodeScanningAlert(getClient)
+		mcp.WithString("repo",
+			mcp.Required(),
+			mcp.Description(t("tool.get_code_scanning_alert.input.repo.description", "The name of the repository.")),
+		),
+		mcp.WithNumber("alertNumber",
+			mcp.Required(),
+			mcp.Description(t("tool.get_code_scanning_alert.input.alertNumber.description", "The number of the alert.")),
+		),
+	)
+	handler := handleGetCodeScanningAlert(getClient, t) // Pass 't' to the handler
+	return tool, handler
 }
 
 // extractAlertParams extracts parameters for getting a specific code scanning alert
@@ -114,28 +115,28 @@ func fetchCodeScanningAlert(ctx context.Context, client *github.Client, owner, r
 }
 
 // handleGetCodeScanningAlert implements the handler logic for getting a code scanning alert
-func handleGetCodeScanningAlert(getClient GetClientFn) server.ToolHandlerFunc {
+func handleGetCodeScanningAlert(getClient common.GetClientFn, t translations.TranslationHelperFunc) server.ToolHandlerFunc { // Add 't' parameter
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		owner, repo, alertNumber, err := extractAlertParams(request)
 		if err != nil {
-			return mcp.NewToolResultError(err.Error()), nil
+			// Use common.CreateErrorResponse for consistent error handling
+			return common.CreateErrorResponse(t, "error.invalid_input", "Invalid input: %v", err)
 		}
 
 		client, err := getClient(ctx)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get GitHub client: %w", err)
+			// Use common.CreateErrorResponse for consistent error handling
+			return common.CreateErrorResponse(t, "error.client_initialization_failed", "Failed to initialize GitHub client: %v", err)
 		}
 
 		alertJSON, err := fetchCodeScanningAlert(ctx, client, owner, repo, int64(alertNumber))
 		if err != nil {
-			// Check if this is already a formatted error
-			if e, ok := err.(interface{ Error() string }); ok {
-				return mcp.NewToolResultError(e.Error()), nil
-			}
-			return nil, err
+			// Use common.CreateErrorResponse for consistent error handling
+			return common.CreateErrorResponse(t, "error.fetch_alert_failed", "Failed to fetch code scanning alert: %v", err)
 		}
 
-		return mcp.NewToolResultText(string(alertJSON)), nil
+		result := mcp.NewToolResultText(string(alertJSON))
+		return result, nil // Return the result directly
 	}
 }
 
@@ -146,29 +147,30 @@ func handleGetCodeScanningAlert(getClient GetClientFn) server.ToolHandlerFunc {
 // WHY: To enumerate security vulnerabilities
 // HOW: Using GitHub Code Scanning API
 // EXTENT: Repository-wide alert enumeration
-func ListCodeScanningAlerts(getClient GetClientFn, t translations.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
-	return mcp.NewTool("list_code_scanning_alerts",
-			mcp.WithDescription("List code scanning alerts in a GitHub repository"),
-			mcp.WithString("owner",
-				mcp.Required(),
-				mcp.Description("The owner of the repository."),
-			),
-			mcp.WithString("repo",
-				mcp.Required(),
-				mcp.Description("The name of the repository."),
-			),
-			mcp.WithString("ref",
-				mcp.Description("The Git reference for the results you want to list."),
-			),
-			mcp.WithString("state",
-				mcp.Description("State of the code scanning alerts to list. Set to closed to list only closed code scanning alerts. Default: open"),
-				mcp.DefaultString("open"),
-			),
-			mcp.WithString("severity",
-				mcp.Description("Only code scanning alerts with this severity will be returned. Possible values are: critical, high, medium, low, warning, note, error."),
-			),
+func ListCodeScanningAlerts(getClient common.GetClientFn, t translations.TranslationHelperFunc) (mcp.Tool, server.ToolHandlerFunc) {
+	tool := mcp.NewTool("list_code_scanning_alerts",
+		mcp.WithDescription(t("tool.list_code_scanning_alerts.description", "List code scanning alerts in a GitHub repository")),
+		mcp.WithString("owner",
+			mcp.Required(),
+			mcp.Description(t("tool.list_code_scanning_alerts.input.owner.description", "The owner of the repository.")),
 		),
-		handleListCodeScanningAlerts(getClient)
+		mcp.WithString("repo",
+			mcp.Required(),
+			mcp.Description(t("tool.list_code_scanning_alerts.input.repo.description", "The name of the repository.")),
+		),
+		mcp.WithString("ref",
+			mcp.Description(t("tool.list_code_scanning_alerts.input.ref.description", "The Git reference for the results you want to list.")),
+		),
+		mcp.WithString("state",
+			mcp.Description(t("tool.list_code_scanning_alerts.input.state.description", "State of the code scanning alerts to list. Set to closed to list only closed code scanning alerts. Default: open")),
+			mcp.DefaultString("open"),
+		),
+		mcp.WithString("severity",
+			mcp.Description(t("tool.list_code_scanning_alerts.input.severity.description", "Only code scanning alerts with this severity will be returned. Possible values are: critical, high, medium, low, warning, note, error.")),
+		),
+	)
+	handler := handleListCodeScanningAlerts(getClient, t) // Pass 't' to the handler
+	return tool, handler
 }
 
 // extractCodeScanningParams extracts parameters for code scanning API
@@ -212,27 +214,27 @@ func fetchCodeScanningAlerts(ctx context.Context, client *github.Client, owner, 
 }
 
 // handleListCodeScanningAlerts implements the handler logic for listing code scanning alerts
-func handleListCodeScanningAlerts(getClient GetClientFn) server.ToolHandlerFunc {
+func handleListCodeScanningAlerts(getClient common.GetClientFn, t translations.TranslationHelperFunc) server.ToolHandlerFunc { // Add 't' parameter
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		owner, repo, ref, state, err := extractCodeScanningParams(request)
 		if err != nil {
-			return mcp.NewToolResultError(err.Error()), nil
+			// Use common.CreateErrorResponse for consistent error handling
+			return common.CreateErrorResponse(t, "error.invalid_input", "Invalid input: %v", err)
 		}
 
 		client, err := getClient(ctx)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get GitHub client: %w", err)
+			// Use common.CreateErrorResponse for consistent error handling
+			return common.CreateErrorResponse(t, "error.client_initialization_failed", "Failed to initialize GitHub client: %v", err)
 		}
 
 		alertsJSON, err := fetchCodeScanningAlerts(ctx, client, owner, repo, ref, state)
 		if err != nil {
-			// Check if this is already a formatted error message
-			if e, ok := err.(interface{ Error() string }); ok {
-				return mcp.NewToolResultError(e.Error()), nil
-			}
-			return nil, err
+			// Use common.CreateErrorResponse for consistent error handling
+			return common.CreateErrorResponse(t, "error.fetch_alerts_failed", "Failed to fetch code scanning alerts: %v", err)
 		}
 
-		return mcp.NewToolResultText(string(alertsJSON)), nil
+		result := mcp.NewToolResultText(string(alertsJSON))
+		return result, nil // Return the result directly
 	}
 }

@@ -8,7 +8,7 @@
  * EXTENT: All blood-related operations
  */
 
-package github
+package ghmcp
 
 import (
 	"context"
@@ -37,6 +37,13 @@ var currentOperationalMode OperationalMode = ModeStandalone // Default to standa
 
 // Canonical Helical Memory logger for TNOS (polyglot-compliant)
 func logToHelicalMemory(ctx context.Context, event string, details map[string]interface{}, context7d translations.ContextVector7D) error {
+	// Only perform helical memory logging if currentOperationalMode == ModeBloodConnected
+	if currentOperationalMode != ModeBloodConnected {
+		// In standalone mode, log a warning to github-mcp-server/logs/ instead
+		logWarningToFile(ctx, fmt.Sprintf("Attempted to log event '%s' in standalone mode, skipping Helical Memory logging.", event))
+		return nil
+	}
+
 	// Compose log path for Circulatory system (short-term memory)
 	logDir := "/Users/Jubicudis/Tranquility-Neuro-OS/systems/memory/short-term/circulatory/"
 	if _, err := os.Stat(logDir); os.IsNotExist(err) {
@@ -65,6 +72,12 @@ func logToHelicalMemory(ctx context.Context, event string, details map[string]in
 	defer f.Close()
 	_, err = f.WriteString(fmt.Sprintf("%#v\n", logEntry))
 	return err
+}
+
+// logWarningToFile logs a warning message to the GitHub MCP server logs
+func logWarningToFile(ctx context.Context, message string) {
+	// TODO: Implement logging to github-mcp-server/logs/
+	fmt.Fprintf(os.Stderr, "WARNING: %s\n", message)
 }
 
 // Canonical QHP ports for GitHub MCP server
@@ -233,3 +246,10 @@ func GetBloodCirculationState(ctx context.Context) (*bridge.BloodCirculationStat
 	_ = logToHelicalMemory(ctx, "GetBloodCirculationState", map[string]interface{}{"state": state}, context7d)
 	return state, nil
 }
+
+// Canonical test file for blood.go
+// All tests must directly and robustly test the canonical logic in blood.go
+// Remove all legacy, duplicate, or non-canonical tests
+// Reference only helpers from /pkg/common and /pkg/testutil
+// No import cycles, duplicate imports, or undefined helpers
+// All test cases must match the actual signatures and logic of blood.go

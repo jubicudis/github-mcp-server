@@ -165,10 +165,10 @@
     }
   },
   "logging": {
-    "level": "info",
-    "file": "/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/logs/github_mcp.log",
+    "file": "./logs/github_mcp.log",
     "enableCommandLogging": true,
-    "logFormat": "json"
+    "logFormat": "json",
+    "auditLog": "./logs/mcp_audit.log"
   },
   "security": {
     "auditLog": "/Users/Jubicudis/TNOS1/Tranquility-Neuro-OS/logs/mcp_audit.log",

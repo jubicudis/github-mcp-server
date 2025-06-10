@@ -8,12 +8,16 @@
  * EXTENT: All GitHub operations
  */
 
-package github
+package ghmcp
 
 import (
+	"context"
 	"fmt"
 	"net/http"
+	"time"
 
+	"github.com/jubicudis/github-mcp-server/pkg/bridge"
+	"github.com/jubicudis/github-mcp-server/pkg/common"
 	"github.com/jubicudis/github-mcp-server/pkg/log"
 	"github.com/jubicudis/github-mcp-server/pkg/translations"
 
@@ -62,11 +66,11 @@ func InitializeMCPBridge(enableCompression bool) error {
 		"Extent": context7d.Extent,
 	}
 
-	// Replace FallbackRouteWithVector with FallbackRoute
+	// Corrected to use bridge.FallbackRoute and contextData
 	_, err := bridge.FallbackRoute(
 		context.Background(),
 		"BridgeInit",
-		contextData,
+		contextData, // Pass the converted map
 		func() (interface{}, error) {
 			fmt.Println("Initializing MCP Bridge between GitHub and TNOS")
 			return nil, nil
@@ -134,10 +138,20 @@ func (t *GitHubContextTranslator) TranslateToTNOS(githubContext map[string]inter
 		Source: "GitHubMCPServer",
 	}
 	ctx := context.Background()
-	_, _ = bridge.FallbackRouteWithVector(
+	// Convert translations.ContextVector7D to map[string]interface{}
+	contextData := map[string]interface{}{
+		"Who":    context7d.Who,
+		"What":   context7d.What,
+		"When":   context7d.When,
+		"Where":  context7d.Where,
+		"Why":    context7d.Why,
+		"How":    context7d.How,
+		"Extent": context7d.Extent,
+	}
+	_, _ = bridge.FallbackRoute(
 		ctx,
 		"TranslateToTNOS",
-		context7d,
+		contextData, // Pass the converted map
 		func() (interface{}, error) {
 			if t.EnableLogging && t.Logger != nil {
 				t.Logger.Debug("Translating context from GitHub to TNOS")
@@ -185,10 +199,20 @@ func (t *GitHubContextTranslator) TranslateFromTNOS(tnosContext map[string]inter
 		Source: "GitHubMCPServer",
 	}
 	ctx := context.Background()
-	_, _ = bridge.FallbackRouteWithVector(
+	// Convert translations.ContextVector7D to map[string]interface{}
+	contextData := map[string]interface{}{
+		"Who":    context7d.Who,
+		"What":   context7d.What,
+		"When":   context7d.When,
+		"Where":  context7d.Where,
+		"Why":    context7d.Why,
+		"How":    context7d.How,
+		"Extent": context7d.Extent,
+	}
+	_, _ = bridge.FallbackRoute(
 		ctx,
 		"TranslateFromTNOS",
-		context7d,
+		contextData, // Pass the converted map
 		func() (interface{}, error) {
 			if t.EnableLogging && t.Logger != nil {
 				t.Logger.Debug("Translating context from TNOS to GitHub")
@@ -234,10 +258,20 @@ func BridgeHealthCheck() (bool, error) {
 	}
 	ctx := context.Background()
 	healthy := false
+	// Convert translations.ContextVector7D to map[string]interface{}
+	contextData := map[string]interface{}{
+		"Who":    context7d.Who,
+		"What":   context7d.What,
+		"When":   context7d.When,
+		"Where":  context7d.Where,
+		"Why":    context7d.Why,
+		"How":    context7d.How,
+		"Extent": context7d.Extent,
+	}
 	_, err := bridge.FallbackRoute(
 		ctx,
 		"BridgeHealthCheck",
-		context7d,
+		contextData, // Pass the converted map
 		func() (interface{}, error) { healthy = true; return nil, nil },
 		func() (interface{}, error) { return nil, fmt.Errorf("Bridge fallback not implemented") },
 		func() (interface{}, error) { return nil, fmt.Errorf("GitHub MCP fallback not implemented") },
@@ -297,7 +331,7 @@ type MCPServer interface {
 	RegisterTool(tool mcp.Tool, handler server.ToolHandlerFunc)
 }
 
-func RegisterTools(server MCPServer, getClient GetClientFn, t translations.TranslationHelperFunc) {
+func RegisterTools(server MCPServer, getClient common.GetClientFn, t translations.TranslationHelperFunc) {
 	// WHO: ToolRegistrar
 	// WHAT: Register GitHub tools
 	// WHEN: During server initialization
@@ -357,3 +391,10 @@ func IsAcceptedError(err error) bool {
 	}
 	return false
 }
+
+// Canonical test file for github.go
+// All tests must directly and robustly test the canonical logic in github.go
+// Remove all legacy, duplicate, or non-canonical tests
+// Reference only helpers from /pkg/common and /pkg/testutil
+// No import cycles, duplicate imports, or undefined helpers
+// All test cases must match the actual signatures and logic of github.go

@@ -2,6 +2,7 @@ package common
 
 import (
 	"context"
+
 	"github.com/jubicudis/github-mcp-server/pkg/log"
 	"github.com/jubicudis/github-mcp-server/pkg/translations"
 )
@@ -9,8 +10,8 @@ import (
 // CheckTNOSConnection attempts to connect to the TNOS MCP server.
 func CheckTNOSConnection(ctx context.Context) bool {
 	logger := log.NewLogger()
-	logger.Info("Attempting to connect to TNOS MCP Server...")
-	logger.Warn("Simulated TNOS MCP connection check: FAILED (running in Standalone Mode)")
+	// TODO: Implement actual TNOS MCP server connection logic here.
+	logger.Error("TNOS MCP connection logic not implemented: real connection required, no simulation allowed")
 	return false
 }
 

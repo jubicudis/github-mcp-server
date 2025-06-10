@@ -17,7 +17,7 @@ import (
 	"sync"
 	"time"
 
-	"github-mcp-server/pkg/translations"
+	"github.com/jubicudis/github-mcp-server/pkg/translations"
 )
 
 // ContextStats tracks statistics for context persistence and access

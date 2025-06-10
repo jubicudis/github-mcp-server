@@ -8,7 +8,7 @@
  * EXTENT: All user operations
  */
 
-package github
+package ghmcp
 
 import (
 	"context"
