@@ -14,16 +14,15 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sync"
 	"time"
 )
 
 var (
+	helicalMode = "blood-connected" // default mode
+
 	helicalMemoryDir = "/systems/memory/github" // TNOS-compliant log directory
 	helicalShortTerm = "short_term.log"
 	helicalLongTerm  = "long_term.log"
-	helicalOnce      sync.Once
-	helicalMode      = "blood-connected" // default mode
 )
 
 // HelicalEvent represents a 7D context event for helical memory
@@ -45,36 +44,16 @@ type HelicalEvent struct {
 	Meta   map[string]interface{} `json:"meta,omitempty"`
 }
 
-// SetHelicalMemoryMode sets the operational mode for helical memory logging
-func SetHelicalMemoryMode(mode string) {
-	if mode == "standalone" {
-		helicalMemoryDir = "/systems/memory/github/standalone"
-		helicalMode = "standalone"
-	} else if mode == "blood-connected" {
-		helicalMemoryDir = "/systems/memory/github/blood-connected"
-		helicalMode = "blood-connected"
-	}
-	ensureHelicalMemoryDir()
-}
-
-// ensureHelicalMemoryDir ensures the memory/ directory exists (only in blood-connected mode)
-func ensureHelicalMemoryDir() {
-	if helicalMode == "blood-connected" {
-		helicalOnce.Do(func() {
-			_ = os.MkdirAll(helicalMemoryDir, 0755)
-		})
-	}
-}
-
 // LogHelicalEvent logs a 7D context event to both short_term.log and long_term.log (only in blood-connected mode)
-func LogHelicalEvent(event HelicalEvent) error {
+func LogHelicalEvent(event HelicalEvent, logger LoggerInterface) error {
 	if helicalMode == "standalone" {
-		return logToStandaloneWarning(event)
+		return logToStandaloneWarning(event, logger)
 	}
 
 	ensureHelicalMemoryDir()
 	b, err := json.Marshal(event)
 	if err != nil {
+		logger.Info("Failed to marshal helical event: %v", err)
 		return err
 	}
 	line := string(b) + "\n"
@@ -82,10 +61,12 @@ func LogHelicalEvent(event HelicalEvent) error {
 		fpath := filepath.Join(helicalMemoryDir, fname)
 		f, err := os.OpenFile(fpath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 		if err != nil {
+			logger.Info("helical memory open %s: %v", fname, err)
 			return fmt.Errorf("helical memory open %s: %w", fname, err)
 		}
 		if _, err := f.WriteString(line); err != nil {
 			f.Close()
+			logger.Info("helical memory write %s: %v", fname, err)
 			return fmt.Errorf("helical memory write %s: %w", fname, err)
 		}
 		f.Close()
@@ -93,10 +74,10 @@ func LogHelicalEvent(event HelicalEvent) error {
 	return nil
 }
 
-// logToStandaloneWarning logs a warning to github-mcp-server/logs/ in standalone mode
-func logToStandaloneWarning(event HelicalEvent) error {
+// logToStandaloneWarning logs a warning to the logger in standalone mode
+func logToStandaloneWarning(event HelicalEvent, logger LoggerInterface) error {
 	warningMsg := fmt.Sprintf("Standalone mode: event not logged - %+v", event)
-	fmt.Fprintln(os.Stderr, warningMsg) // log to stderr or implement a proper logging mechanism
+	logger.Info(warningMsg)
 	return nil
 }
 
@@ -114,4 +95,13 @@ func NewHelicalEvent(who, what, where, why, how, extent, msg string) HelicalEven
 		TS:     ts,
 		Msg:    msg,
 	}
+}
+
+func ensureHelicalMemoryDir() {
+	_ = os.MkdirAll(helicalMemoryDir, 0755)
+}
+
+// SetHelicalMemoryMode sets the operational mode for helical memory logging
+func SetHelicalMemoryMode(mode string) {
+	helicalMode = mode
 }
