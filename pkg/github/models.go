@@ -8,7 +8,30 @@
  * EXTENT: All GitHub API data models
  */
 
-package github
+package ghmcp
+
+// User represents a GitHub user (canonical, shared across models and services)
+type User struct {
+	Login     string `json:"login"`
+	ID        int64  `json:"id"`
+	NodeID    string `json:"node_id"`
+	AvatarURL string `json:"avatar_url"`
+	HTMLURL   string `json:"html_url"`
+	Type      string `json:"type"`
+	SiteAdmin bool   `json:"site_admin"`
+	Name      string `json:"name,omitempty"`
+	Company   string `json:"company,omitempty"`
+	Blog      string `json:"blog,omitempty"`
+	Location  string `json:"location,omitempty"`
+	Email     string `json:"email,omitempty"`
+	Bio       string `json:"bio,omitempty"`
+	Twitter   string `json:"twitter_username,omitempty"`
+	PublicRepos int  `json:"public_repos,omitempty"`
+	Followers   int  `json:"followers,omitempty"`
+	Following   int  `json:"following,omitempty"`
+	CreatedAt   string `json:"created_at,omitempty"`
+	UpdatedAt   string `json:"updated_at,omitempty"`
+}
 
 // Repository represents a GitHub repository
 type Repository struct {
@@ -327,28 +350,14 @@ type UsersSearchResult struct {
 	Users             []*User `json:"items,omitempty"`
 }
 
-// User represents a GitHub user (expanded for test compatibility)
-type User struct {
-	Login     *string `json:"login,omitempty"`
-	ID        *int64  `json:"id,omitempty"`
-	HTMLURL   *string `json:"html_url,omitempty"`
-	AvatarURL *string `json:"avatar_url,omitempty"`
-	Type      *string `json:"type,omitempty"`
-	Followers *int    `json:"followers,omitempty"`
-	Following *int    `json:"following,omitempty"`
-}
-
-// Issue represents a GitHub issue (stub for compatibility)
-type Issue struct {
-	ID     int64  `json:"id"`
-	Number int    `json:"number"`
-	Title  string `json:"title"`
-	Body   string `json:"body"`
-	State  string `json:"state"`
-	User   User   `json:"user"`
-}
-
 // Canonical models for GitHub MCP server
 // Remove all stubs, placeholders, and incomplete logic
 // All types must be robust, DRY, and reference only canonical helpers from /pkg/common
 // All model logic must be fully implemented
+
+// Canonical test file for models.go
+// All tests must directly and robustly test the canonical logic in models.go
+// Remove all legacy, duplicate, or non-canonical tests
+// Reference only helpers from /pkg/common and /pkg/testutil
+// No import cycles, duplicate imports, or undefined helpers
+// All test cases must match the actual signatures and logic of models.go

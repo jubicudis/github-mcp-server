@@ -1,6 +1,5 @@
 // Package common provides shared utilities consolidated from various subpackages.
-// Merged content from pkg/bridge/common.go, pkg/github/common.go,
-// pkg/translations/common.go, and pkg/testhelper/common.go.
+// Merged content from pkg/bridge/common.go, pkg/github/common.go, pkg/translations/common.go.
 package common
 
 import (
@@ -150,18 +149,6 @@ func Extract7DContext(ctx map[string]interface{}) map[string]string {
 	return result
 }
 
-// ========== From testhelper/common.go ==========
-const (
-	TestTimeout       = 5 * time.Second
-	TestServerAddress = "localhost:8080"
-	TestBridgeAddress = "localhost:9000"
-)
-
-func ToJSONTest(v interface{}) (string, error) { b, err := json.Marshal(v); return string(b), err }
-func FromJSONTest(data string, v interface{}) error { return json.Unmarshal([]byte(data), v) }
-func NewTestContext() (context.Context, context.CancelFunc) { return context.WithTimeout(context.Background(), TestTimeout) }
-func ErrorsEqual(err1, err2 error) bool { if err1 == nil && err2 == nil { return true }; if err1 == nil || err2 == nil { return false }; return err1.Error() == err2.Error() }
-
 // ========== Generic Map Helper Functions ==========
 
 // GetString retrieves a string value from a map with a default fallback
@@ -298,4 +285,29 @@ func WithPagination(request mcp.CallToolRequest) (page, perPage int, err error) 
 	}
 	return page, perPage, nil
 }
+
+// CreateErrorResponse creates a standardized MCP error response.
+// It uses the translation function t to provide localized error messages.
+func CreateErrorResponse(t func(key, defaultValue string) string, errorKey, defaultFormat string, args ...interface{}) (*mcp.CallToolResult, error) {
+	errMsg := t(errorKey, fmt.Sprintf(defaultFormat, args...))
+	result := mcp.NewToolResultError(errMsg)
+	return result, nil // Return the result directly
+}
+
 // ===== End MCP Parameter Helpers =====
+
+// LogHelicalMemory logs an event to the Helical Memory system with 7D context.
+// WHO: Who is performing the action
+// WHAT: What is being done
+// WHEN: When the action occurs
+// WHERE: Where in the system
+// WHY: Why the action is performed
+// HOW: How the action is performed
+// EXTENT: To what extent (scope, impact)
+func LogHelicalMemory(who, what, when, where, why, how, extent, message string) {
+	// Only write to /systems/memory if TNOS MCP server is connected (blood-connected mode)
+	// In standalone mode, do nothing or log a warning to github-mcp-server/logs/
+	// TODO: Implement file write to /Users/Jubicudis/Tranquility-Neuro-OS/systems/memory/short_term/go/ and long_term/go/ with biosystem subfolders
+	// For now, print to stdout as a stub
+	fmt.Printf("[HELICAL MEMORY LOG] WHO:%s WHAT:%s WHEN:%s WHERE:%s WHY:%s HOW:%s EXTENT:%s MSG:%s\n", who, what, when, where, why, how, extent, message)
+}

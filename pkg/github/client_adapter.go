@@ -8,9 +8,10 @@
  * EXTENT: All client operations requiring backward compatibility
  */
 
-package github
+package ghmcp
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -19,6 +20,7 @@ import (
 	"strings"
 	"time"
 
+	gh "github.com/google/go-github/v71/github"
 	"github.com/jubicudis/github-mcp-server/pkg/common"
 	"github.com/jubicudis/github-mcp-server/pkg/models"
 	"github.com/jubicudis/github-mcp-server/pkg/translations"
@@ -154,7 +156,7 @@ func NewClientCompatibilityAdapter(opts common.ConnectionOptions) *ClientCompati
 }
 
 // GetUser returns information about a GitHub user
-func (a *ClientCompatibilityAdapter) GetUser(username string) (*github.User, error) {
+func (a *ClientCompatibilityAdapter) GetUser(username string) (*gh.User, error) {
 	// WHO: UserRetriever
 	// WHAT: Get user information
 	// WHEN: During user operations
@@ -178,12 +180,12 @@ func (a *ClientCompatibilityAdapter) GetUser(username string) (*github.User, err
 
 	// If advanced client is available, delegate to it
 	if a.advancedClient != nil {
-		return &github.User{
+		return &gh.User{
 			Login: common.Ptr(username),
 			ID:   common.Ptr(int64(123456)),
 		}, nil
 	}
-	user := &github.User{
+	user := &gh.User{
 		Login: common.Ptr(username),
 		ID:   common.Ptr(int64(123456)),
 	}
@@ -191,7 +193,7 @@ func (a *ClientCompatibilityAdapter) GetUser(username string) (*github.User, err
 }
 
 // GetRepository returns information about a GitHub repository
-func (a *ClientCompatibilityAdapter) GetRepository(owner, repo string) (*github.Repository, error) {
+func (a *ClientCompatibilityAdapter) GetRepository(owner, repo string) (*gh.Repository, error) {
 	// WHO: RepositoryRetriever
 	// WHAT: Get repository information
 	// WHEN: During repository operations
@@ -216,19 +218,19 @@ func (a *ClientCompatibilityAdapter) GetRepository(owner, repo string) (*github.
 
 	// If advanced client is available, delegate to it
 	if a.advancedClient != nil {
-		return &github.Repository{
+		return &gh.Repository{
 			ID:       common.Ptr(int64(123456)),
 			Name:     common.Ptr(repo),
 			FullName: common.Ptr(fmt.Sprintf("%s/%s", owner, repo)),
-			Owner:    github.User{Login: common.Ptr(owner)},
+			Owner:    &gh.User{Login: common.Ptr(owner)},
 			HTMLURL:  common.Ptr(fmt.Sprintf("https://github.com/%s/%s", owner, repo)),
 		}, nil
 	}
-	repository := &github.Repository{
+	repository := &gh.Repository{
 		ID:       common.Ptr(int64(123456)),
 		Name:     common.Ptr(repo),
 		FullName: common.Ptr(fmt.Sprintf("%s/%s", owner, repo)),
-		Owner:    github.User{Login: common.Ptr(owner)},
+		Owner:    &gh.User{Login: common.Ptr(owner)},
 		HTMLURL:  common.Ptr(fmt.Sprintf("https://github.com/%s/%s", owner, repo)),
 	}
 	return repository, nil
@@ -367,7 +369,7 @@ func (a *ClientCompatibilityAdapter) ListRepositoryContents(owner, repo, path, r
 }
 
 // CreateIssue creates a new issue in a GitHub repository
-func (a *ClientCompatibilityAdapter) CreateIssue(owner, repo, title, body string, assignees []string) (*github.Issue, error) {
+func (a *ClientCompatibilityAdapter) CreateIssue(owner, repo, title, body string, assignees []string) (*gh.Issue, error) {
 	// WHO: IssueCreator
 	// WHAT: Create issue
 	// WHEN: During issue operations
@@ -393,22 +395,22 @@ func (a *ClientCompatibilityAdapter) CreateIssue(owner, repo, title, body string
 
 	// If advanced client is available, delegate to it
 	if a.advancedClient != nil {
-		return &github.Issue{
-			ID:     123456,
-			Number: 1,
-			Title:  title,
-			Body:   body,
-			State:  "open",
-			User:   github.User{Login: common.Ptr("system")},
+		return &gh.Issue{
+			ID:     common.Ptr(int64(123456)),
+			Number: common.Ptr(1),
+			Title:  common.Ptr(title),
+			Body:   common.Ptr(body),
+			State:  common.Ptr("open"),
+			User:   &gh.User{Login: common.Ptr("system")},
 		}, nil
 	}
-	issue := &github.Issue{
-		ID:     123456,
-		Number: 1,
-		Title:  title,
-		Body:   body,
-		State:  "open",
-		User:   github.User{Login: common.Ptr("system")},
+	issue := &gh.Issue{
+		ID:     common.Ptr(int64(123456)),
+		Number: common.Ptr(1),
+		Title:  common.Ptr(title),
+		Body:   common.Ptr(body),
+		State:  common.Ptr("open"),
+		User:   &gh.User{Login: common.Ptr("system")},
 	}
 	return issue, nil
 }
@@ -663,6 +665,46 @@ func (a *ClientCompatibilityAdapter) CreateContext(what, why string, extent floa
 			"F": 0.6, // Flexibility factor
 		},
 	}
+}
+
+// GetIssuesForRepo returns a list of issues for a repository
+func (a *ClientCompatibilityAdapter) GetIssuesForRepo(owner, repo string) ([]*gh.Issue, error) {
+	if a.advancedClient != nil {
+		ctx := context.Background()
+		opts := &gh.IssueListByRepoOptions{State: "all"}
+		issues, _, err := a.advancedClient.ListIssues(ctx, owner, repo, opts)
+		return issues, err
+	}
+	return nil, fmt.Errorf("advanced client not available")
+}
+
+// GetPullRequestsForRepo returns a list of pull requests for a repository
+func (a *ClientCompatibilityAdapter) GetPullRequestsForRepo(owner, repo string) ([]*gh.PullRequest, error) {
+	if a.advancedClient != nil {
+		ctx := context.Background()
+		opts := &gh.PullRequestListOptions{State: "all"}
+		prs, _, err := a.advancedClient.ListPullRequests(ctx, owner, repo, opts)
+		return prs, err
+	}
+	return nil, fmt.Errorf("advanced client not available")
+}
+
+// SearchCode performs a code search in GitHub repositories
+func (a *ClientCompatibilityAdapter) SearchCode(query string) (map[string]interface{}, error) {
+	if a.advancedClient != nil {
+		ctx := context.Background()
+		return a.advancedClient.SearchCode(ctx, query, nil)
+	}
+	return nil, fmt.Errorf("advanced client not available")
+}
+
+// GetCodeScanningAlerts returns code scanning alerts for a repository
+func (a *ClientCompatibilityAdapter) GetCodeScanningAlerts(owner, repo string) ([]map[string]interface{}, error) {
+	if a.advancedClient != nil {
+		ctx := context.Background()
+		return a.advancedClient.GetCodeScanningAlerts(ctx, owner, repo)
+	}
+	return nil, fmt.Errorf("advanced client not available")
 }
 
 // Canonical ClientCompatibilityAdapter for GitHub MCP server

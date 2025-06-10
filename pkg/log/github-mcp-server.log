@@ -1,0 +1,10 @@
+[2025-06-09T23:08:49-05:00] [INFO] [what:Log,where:TNOS_MCP_Bridge,why:SystemMonitoring,how:LoggerComponent,extent:SystemWide,who:System] Starting GitHub MCP Server%!(EXTRA string=version, string=1.0)
+[2025-06-09T23:08:49-05:00] [INFO] [what:Log,where:TNOS_MCP_Bridge,why:SystemMonitoring,how:LoggerComponent,extent:SystemWide,who:System] Configuration loaded%!(EXTRA string=host, string=localhost, string=port, int=10617)
+[2025-06-09T23:08:49-05:00] [INFO] [extent:SystemWide,who:System,what:Log,where:TNOS_MCP_Bridge,why:SystemMonitoring,how:LoggerComponent] [COMPRESSED:132->103] Created legacy client adapter%!(EXTRA string=who, ..., string=APIClient, string=when, int64=1749528529)
+[2025-06-09T23:08:49-05:00] [INFO] [why:SystemMonitoring,how:LoggerComponent,extent:SystemWide,who:System,what:Log,where:TNOS_MCP_Bridge] GitHub client initialized
+[2025-06-09T23:08:49-05:00] [ERROR] [why:SystemMonitoring,how:LoggerComponent,extent:SystemWide,who:System,what:Log,where:TNOS_MCP_Bridge] [COMPRESSED:189->103] Failed to load formula registry%!(EXTRA string=err...rectory, string=path, string=config/formulas.json)
+[2025-06-09T23:08:49-05:00] [INFO] [extent:SystemWide,who:System,what:Log,where:TNOS_MCP_Bridge,why:SystemMonitoring,how:LoggerComponent] Standalone mode enabled: skipping Blood Bridge and TNOS MCP connections
+[2025-06-09T23:08:49-05:00] [INFO] [extent:SystemWide,who:System,what:Log,where:TNOS_MCP_Bridge,why:SystemMonitoring,how:LoggerComponent] Server listening%!(EXTRA string=address, string=localhost:10619)
+[2025-06-09T23:08:49-05:00] [INFO] [why:SystemMonitoring,how:LoggerComponent,extent:SystemWide,who:System,what:Log,where:TNOS_MCP_Bridge] Server listening%!(EXTRA string=address, string=localhost:10617)
+[2025-06-09T23:08:49-05:00] [INFO] [who:System,what:Log,where:TNOS_MCP_Bridge,why:SystemMonitoring,how:LoggerComponent,extent:SystemWide] Server listening%!(EXTRA string=address, string=localhost:9001)
+[2025-06-09T23:08:49-05:00] [INFO] [who:System,what:Log,where:TNOS_MCP_Bridge,why:SystemMonitoring,how:LoggerComponent,extent:SystemWide] Server listening%!(EXTRA string=address, string=localhost:8083)

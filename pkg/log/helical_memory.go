@@ -23,6 +23,7 @@ var (
 	helicalShortTerm = "short_term.log"
 	helicalLongTerm  = "long_term.log"
 	helicalOnce      sync.Once
+	helicalMode      = "blood-connected" // default mode
 )
 
 // HelicalEvent represents a 7D context event for helical memory
@@ -44,15 +45,33 @@ type HelicalEvent struct {
 	Meta   map[string]interface{} `json:"meta,omitempty"`
 }
 
-// ensureHelicalMemoryDir ensures the memory/ directory exists
-func ensureHelicalMemoryDir() {
-	helicalOnce.Do(func() {
-		_ = os.MkdirAll(helicalMemoryDir, 0755)
-	})
+// SetHelicalMemoryMode sets the operational mode for helical memory logging
+func SetHelicalMemoryMode(mode string) {
+	if mode == "standalone" {
+		helicalMemoryDir = "/systems/memory/github/standalone"
+		helicalMode = "standalone"
+	} else if mode == "blood-connected" {
+		helicalMemoryDir = "/systems/memory/github/blood-connected"
+		helicalMode = "blood-connected"
+	}
+	ensureHelicalMemoryDir()
 }
 
-// LogHelicalEvent logs a 7D context event to both short_term.log and long_term.log
+// ensureHelicalMemoryDir ensures the memory/ directory exists (only in blood-connected mode)
+func ensureHelicalMemoryDir() {
+	if helicalMode == "blood-connected" {
+		helicalOnce.Do(func() {
+			_ = os.MkdirAll(helicalMemoryDir, 0755)
+		})
+	}
+}
+
+// LogHelicalEvent logs a 7D context event to both short_term.log and long_term.log (only in blood-connected mode)
 func LogHelicalEvent(event HelicalEvent) error {
+	if helicalMode == "standalone" {
+		return logToStandaloneWarning(event)
+	}
+
 	ensureHelicalMemoryDir()
 	b, err := json.Marshal(event)
 	if err != nil {
@@ -74,6 +93,13 @@ func LogHelicalEvent(event HelicalEvent) error {
 	return nil
 }
 
+// logToStandaloneWarning logs a warning to github-mcp-server/logs/ in standalone mode
+func logToStandaloneWarning(event HelicalEvent) error {
+	warningMsg := fmt.Sprintf("Standalone mode: event not logged - %+v", event)
+	fmt.Fprintln(os.Stderr, warningMsg) // log to stderr or implement a proper logging mechanism
+	return nil
+}
+
 // NewHelicalEvent creates a HelicalEvent from 7D context fields
 func NewHelicalEvent(who, what, where, why, how, extent, msg string) HelicalEvent {
 	ts := time.Now().Unix()
@@ -88,14 +114,4 @@ func NewHelicalEvent(who, what, where, why, how, extent, msg string) HelicalEven
 		TS:     ts,
 		Msg:    msg,
 	}
-}
-
-// Transition logic for standalone and blood-connected modes
-func SetHelicalMemoryMode(mode string) {
-	if mode == "standalone" {
-		helicalMemoryDir = "/systems/memory/github/standalone"
-	} else if mode == "blood-connected" {
-		helicalMemoryDir = "/systems/memory/github/blood-connected"
-	}
-	ensureHelicalMemoryDir()
 }

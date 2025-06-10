@@ -5,7 +5,7 @@
 // WHY: To provide API access to GitHub
 // HOW: By implementing MCP protocol handlers
 // EXTENT: All GitHub API operations
-package github
+package ghmcp
 
 import (
 	"context"
@@ -33,7 +33,7 @@ import (
 // WHY: To find repositories matching search criteria
 // HOW: By querying GitHub Search API
 // EXTENT: All public and authorized GitHub repositories
-func SearchRepositories(getClient GetClientFn, t translations.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
+func SearchRepositories(getClient common.GetClientFn, t translations.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
 	return mcp.NewTool("search_repositories",
 			mcp.WithDescription(t("TOOL_SEARCH_REPOSITORIES_DESCRIPTION", "Search for GitHub repositories")),
 			mcp.WithString("query",
@@ -86,7 +86,7 @@ func SearchRepositories(getClient GetClientFn, t translations.TranslationHelperF
 }
 
 // SearchCode creates a tool to search for code across GitHub repositories.
-func SearchCode(getClient GetClientFn, t translations.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
+func SearchCode(getClient common.GetClientFn, t translations.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
 	return mcp.NewTool("search_code",
 			mcp.WithDescription(t("TOOL_SEARCH_CODE_DESCRIPTION", "Search for code across GitHub repositories")),
 			mcp.WithString("q",
@@ -158,7 +158,7 @@ func SearchCode(getClient GetClientFn, t translations.TranslationHelperFunc) (to
 }
 
 // SearchUsers creates a tool to search for GitHub users.
-func SearchUsers(getClient GetClientFn, t translations.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
+func SearchUsers(getClient common.GetClientFn, t translations.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
 	return mcp.NewTool("search_users",
 			mcp.WithDescription(t("TOOL_SEARCH_USERS_DESCRIPTION", "Search for GitHub users")),
 			mcp.WithString("q",

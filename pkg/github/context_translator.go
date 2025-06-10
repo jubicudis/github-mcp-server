@@ -8,7 +8,7 @@
  * EXTENT: All context translations between GitHub and TNOS
  */
 
-package github
+package ghmcp
 
 import (
 	"fmt"
@@ -188,7 +188,9 @@ func (t *ContextTranslator) GetTranslationStats() map[string]interface{} {
 	}
 }
 
-// Canonical context translation logic for GitHub MCP server
-// Remove all stubs, placeholders, and incomplete logic
-// All types and methods must be robust, DRY, and reference only canonical helpers from /pkg/common
-// All translation and context propagation logic must be fully implemented
+// Canonical test file for context_translator.go
+// All tests must directly and robustly test the canonical logic in context_translator.go
+// Remove all legacy, duplicate, or non-canonical tests
+// Reference only helpers from /pkg/common and /pkg/testutil
+// No import cycles, duplicate imports, or undefined helpers
+// All test cases must match the actual signatures and logic of context_translator.go

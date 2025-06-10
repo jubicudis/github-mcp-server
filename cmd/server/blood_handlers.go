@@ -15,8 +15,8 @@ import (
 	"fmt"
 	"time"
 
-	"github-mcp-server/pkg/bridge"
-	"github-mcp-server/pkg/translations"
+	"github.com/jubicudis/github-mcp-server/pkg/bridge"
+	"github.com/jubicudis/github-mcp-server/pkg/translations"
 )
 
 // processBloodCirculationMessages sets up handlers for blood circulation messages
@@ -38,7 +38,7 @@ func processBloodCirculationMessages(bloodCirculation *bridge.BloodCirculation) 
 		case "Red":
 			// Red blood cells carry data (payload)
 			logger.Debug("Received red blood cell", "id", cell.ID, "source", cell.Source)
-			
+
 			// Extract message type from payload
 			var messageType string
 			if typeVal, ok := cell.Payload["type"].(string); ok {
@@ -47,14 +47,14 @@ func processBloodCirculationMessages(bloodCirculation *bridge.BloodCirculation) 
 				logger.Warn("Red blood cell missing message type", "id", cell.ID)
 				return true // Continue processing other cells
 			}
-			
+
 			// Process based on message type
 			handleBloodCellMessage(bloodCirculation, cell, messageType)
-			
+
 		case "White":
 			// White blood cells handle control messages
 			logger.Debug("Received white blood cell", "id", cell.ID, "source", cell.Source)
-			
+
 			// Extract action from payload
 			var action string
 			if actionVal, ok := cell.Payload["action"].(string); ok {
@@ -63,22 +63,22 @@ func processBloodCirculationMessages(bloodCirculation *bridge.BloodCirculation) 
 				logger.Warn("White blood cell missing action type", "id", cell.ID)
 				return true // Continue processing other cells
 			}
-			
+
 			// Process based on action
 			handleBloodCellControl(bloodCirculation, cell, action)
-			
+
 		case "Platelet":
 			// Platelets handle system health and recovery
 			logger.Debug("Received platelet", "id", cell.ID, "source", cell.Source)
-			
+
 			// For heartbeats, just respond to keep the connection alive
 			if action, ok := cell.Payload["action"].(string); ok && action == "pulse" {
 				// Send heartbeat response
 				response := map[string]interface{}{
-					"type":       "control",
-					"action":     "pulse_ack",
-					"source":     "github-mcp-server",
-					"timestamp":  time.Now().Unix(),
+					"type":      "control",
+					"action":    "pulse_ack",
+					"source":    "github-mcp-server",
+					"timestamp": time.Now().Unix(),
 				}
 				// Create and queue a response cell
 				responseCell := &bridge.BloodCell{
@@ -95,11 +95,11 @@ func processBloodCirculationMessages(bloodCirculation *bridge.BloodCirculation) 
 				bloodCirculation.QueueBloodCell(responseCell)
 			}
 		}
-		
+
 		// Return true to continue processing other cells
 		return true
 	})
-	
+
 	// Send an initialization message to the TNOS MCP server
 	initContext := translations.ContextVector7D{
 		Who:    "GitHubMCPServer",
@@ -111,7 +111,7 @@ func processBloodCirculationMessages(bloodCirculation *bridge.BloodCirculation) 
 		Extent: 1.0,
 		Source: "github-mcp-server",
 	}
-	
+
 	initCell := &bridge.BloodCell{
 		ID:          "init-" + time.Now().Format(time.RFC3339Nano),
 		Type:        "White",
@@ -133,17 +133,17 @@ func processBloodCirculationMessages(bloodCirculation *bridge.BloodCirculation) 
 		OxygenLevel: 1.0,
 		Context7D:   initContext,
 	}
-	
+
 	// Queue the initialization cell
 	bloodCirculation.QueueBloodCell(initCell)
-	
+
 	logger.Info("Blood circulation message processing initialized")
-	
+
 	// Start a goroutine to periodically send system metrics
 	go func() {
 		ticker := time.NewTicker(5 * time.Minute)
 		defer ticker.Stop()
-		
+
 		for {
 			select {
 			case <-ticker.C:
@@ -156,7 +156,7 @@ func processBloodCirculationMessages(bloodCirculation *bridge.BloodCirculation) 
 					"github_errors": 0,     // TODO: track GitHub API errors
 					"timestamp":     time.Now().Unix(),
 				}
-				
+
 				// Create and queue a metrics cell
 				metricsCell := &bridge.BloodCell{
 					ID:          "metrics-" + time.Now().Format(time.RFC3339Nano),
@@ -182,7 +182,7 @@ func processBloodCirculationMessages(bloodCirculation *bridge.BloodCirculation) 
 						Source: "github-mcp-server",
 					},
 				}
-				
+
 				bloodCirculation.QueueBloodCell(metricsCell)
 			}
 		}
@@ -193,7 +193,7 @@ func processBloodCirculationMessages(bloodCirculation *bridge.BloodCirculation) 
 func handleBloodCellMessage(bloodCirculation *bridge.BloodCirculation, cell *bridge.BloodCell, messageType string) {
 	// Get the formula registry for translations
 	registry := bridge.GetBridgeFormulaRegistry()
-	
+
 	// Create context map for compression/decompression operations
 	contextMap := map[string]interface{}{
 		"who":    cell.Context7D.Who,
@@ -205,12 +205,12 @@ func handleBloodCellMessage(bloodCirculation *bridge.BloodCirculation, cell *bri
 		"extent": cell.Context7D.Extent,
 		"source": cell.Source,
 	}
-	
+
 	// Check if payload is compressed and decompress if needed
 	decompressed := false
 	if compressed, ok := cell.Payload["_compressed"].(bool); ok && compressed {
 		logger.Debug("Received compressed blood cell", "id", cell.ID, "algorithm", cell.Payload["_compression_algorithm"])
-		
+
 		// Attempt decompression
 		if registry != nil {
 			decompressedPayload, err := decompressPayload(cell.Payload, registry, contextMap)
@@ -223,19 +223,19 @@ func handleBloodCellMessage(bloodCirculation *bridge.BloodCirculation, cell *bri
 			}
 		}
 	}
-	
+
 	// Process based on message type
 	switch messageType {
 	case "github_event":
 		// Handle GitHub event
 		logger.Info("Blood cell carrying GitHub event", "id", cell.ID, "compressed", !decompressed && cell.Payload["_compressed"] == true)
-		
+
 		// Extract event data
 		if eventData, ok := cell.Payload["data"].(map[string]interface{}); ok {
 			// Process GitHub event
 			// This is where we'd integrate with the GitHub API
 			logger.Debug("Processing GitHub event data", "event_type", eventData["type"])
-			
+
 			// If we have a formula registry, translate the event
 			if registry != nil {
 				translationParams := map[string]interface{}{
@@ -243,13 +243,13 @@ func handleBloodCellMessage(bloodCirculation *bridge.BloodCirculation, cell *bri
 					"formula_key": "github_event",
 					"context":     contextMap,
 				}
-				
+
 				result, err := registry.ExecuteFormula("github.translate", translationParams)
 				if err != nil {
 					logger.Error("Failed to translate GitHub event", "error", err.Error())
 				} else {
 					logger.Debug("Translated GitHub event successfully")
-					
+
 					// Broadcast event to WebSocket clients if applicable
 					if translatedData, ok := result["translated_data"].(map[string]interface{}); ok {
 						event := map[string]interface{}{
@@ -258,35 +258,35 @@ func handleBloodCellMessage(bloodCirculation *bridge.BloodCirculation, cell *bri
 							"timestamp": time.Now().Unix(),
 							"data":      translatedData,
 						}
-						
+
 						eventData, _ := json.Marshal(event)
 						broadcast <- eventData
 					}
 				}
 			}
 		}
-		
+
 	case "query":
 		// Handle query message
 		logger.Info("Blood cell carrying query", "id", cell.ID)
-		
+
 		// Extract query
 		query, ok := cell.Payload["query"].(string)
 		if !ok {
 			logger.Warn("Query cell missing query string", "id", cell.ID)
 			return
 		}
-		
+
 		// Process query based on type
 		queryType, _ := cell.Payload["query_type"].(string)
 		var responseData map[string]interface{}
-		
+
 		switch queryType {
 		case "github_repo":
 			// Query for GitHub repository info
 			owner, _ := cell.Payload["owner"].(string)
 			repo, _ := cell.Payload["repo"].(string)
-			
+
 			if owner != "" && repo != "" && gitHubClient != nil {
 				// Call GitHub API
 				repoInfo, err := gitHubClient.GetRepository(owner, repo)
@@ -307,7 +307,7 @@ func handleBloodCellMessage(bloodCirculation *bridge.BloodCirculation, cell *bri
 					"error":  "Missing owner or repo parameters",
 				}
 			}
-			
+
 		case "system_status":
 			// Return system status information
 			responseData = map[string]interface{}{
@@ -317,7 +317,7 @@ func handleBloodCellMessage(bloodCirculation *bridge.BloodCirculation, cell *bri
 				"capabilities":  []string{"github_api", "code_completion", "repo_management"},
 				"timestamp":     time.Now().Unix(),
 			}
-			
+
 		default:
 			// Unknown query type
 			responseData = map[string]interface{}{
@@ -325,7 +325,7 @@ func handleBloodCellMessage(bloodCirculation *bridge.BloodCirculation, cell *bri
 				"error":  "Unknown query type: " + queryType,
 			}
 		}
-		
+
 		// Prepare response payload
 		response := map[string]interface{}{
 			"type":      "query_response",
@@ -334,7 +334,7 @@ func handleBloodCellMessage(bloodCirculation *bridge.BloodCirculation, cell *bri
 			"timestamp": time.Now().Unix(),
 			"response":  responseData,
 		}
-		
+
 		// Check if we should compress large responses
 		var payload map[string]interface{} = response
 		if registry != nil && bloodCirculation.HasCompressionEnabled() {
@@ -346,17 +346,17 @@ func handleBloodCellMessage(bloodCirculation *bridge.BloodCirculation, cell *bri
 				bloodCirculation.GetCompressionThreshold(),
 				[]string{"type", "query_id"},
 			)
-			
+
 			if err != nil {
 				logger.Warn("Failed to compress response payload", "error", err.Error())
 			} else if compressedPayload["_compressed"] == true {
 				payload = compressedPayload
-				logger.Debug("Response payload compressed successfully", 
+				logger.Debug("Response payload compressed successfully",
 					"original_size", compressedPayload["_original_size"],
 					"compression_ratio", compressedPayload["_compression_ratio"])
 			}
 		}
-		
+
 		// Create and queue response cell
 		responseCell := &bridge.BloodCell{
 			ID:          "response-" + time.Now().Format(time.RFC3339Nano),
@@ -369,18 +369,18 @@ func handleBloodCellMessage(bloodCirculation *bridge.BloodCirculation, cell *bri
 			OxygenLevel: 1.0,
 			Context7D:   cell.Context7D,
 		}
-		
+
 		bloodCirculation.QueueBloodCell(responseCell)
-		
+
 	case "tnos_data":
 		// Handle TNOS data
 		logger.Info("Blood cell carrying TNOS data", "id", cell.ID)
-		
+
 		// Extract TNOS data
 		if tnosData, ok := cell.Payload["data"].(map[string]interface{}); ok {
 			// Process TNOS data
 			logger.Debug("Processing TNOS data", "data_type", tnosData["type"])
-			
+
 			// Add specialized processing for different TNOS data types here
 		}
 	}
@@ -388,7 +388,7 @@ func handleBloodCellMessage(bloodCirculation *bridge.BloodCirculation, cell *bri
 
 // handleBloodCellControl processes control messages in blood cells
 func handleBloodCellControl(bloodCirculation *bridge.BloodCirculation, cell *bridge.BloodCell, action string) {
-	// WHO: BloodControlHandler 
+	// WHO: BloodControlHandler
 	// WHAT: Process blood cell control messages
 	// WHEN: During blood bridge operation
 	// WHERE: System Layer 6 (Integration)
@@ -397,7 +397,7 @@ func handleBloodCellControl(bloodCirculation *bridge.BloodCirculation, cell *bri
 	// EXTENT: All control messages
 
 	registry := bridge.GetBridgeFormulaRegistry()
-	
+
 	// Create context map for operations
 	contextMap := map[string]interface{}{
 		"who":    cell.Context7D.Who,
@@ -409,13 +409,13 @@ func handleBloodCellControl(bloodCirculation *bridge.BloodCirculation, cell *bri
 		"extent": cell.Context7D.Extent,
 		"source": cell.Source,
 	}
-	
+
 	// Process based on action type
 	switch action {
 	case "initialize":
 		// Handle initialization
 		logger.Info("Blood circulation initialization message", "id", cell.ID, "source", cell.Source)
-		
+
 		// Send acknowledgment
 		response := map[string]interface{}{
 			"type":   "control",
@@ -435,11 +435,11 @@ func handleBloodCellControl(bloodCirculation *bridge.BloodCirculation, cell *bri
 			Context7D:   cell.Context7D,
 		}
 		bloodCirculation.QueueBloodCell(responseCell)
-		
+
 	case "heartbeat":
 		// Handle heartbeat
 		logger.Debug("Received heartbeat from blood circulation", "id", cell.ID)
-		
+
 		// Send heartbeat response
 		response := map[string]interface{}{
 			"type":       "control",
@@ -460,11 +460,11 @@ func handleBloodCellControl(bloodCirculation *bridge.BloodCirculation, cell *bri
 			Context7D:   cell.Context7D,
 		}
 		bloodCirculation.QueueBloodCell(responseCell)
-		
+
 	case "shutdown":
 		// Handle shutdown
 		logger.Info("Blood circulation shutdown requested", "id", cell.ID, "source", cell.Source)
-		
+
 		// Send acknowledgment before shutting down
 		response := map[string]interface{}{
 			"type":   "control",
@@ -487,7 +487,7 @@ func handleBloodCellControl(bloodCirculation *bridge.BloodCirculation, cell *bri
 	case "ping":
 		// Respond to ping with pong
 		logger.Debug("Received ping", "id", cell.ID, "source", cell.Source)
-		
+
 		// Create and send pong response
 		responseCell := &bridge.BloodCell{
 			ID:          "pong-" + time.Now().Format(time.RFC3339Nano),
@@ -505,13 +505,13 @@ func handleBloodCellControl(bloodCirculation *bridge.BloodCirculation, cell *bri
 			OxygenLevel: 1.0,
 			Context7D:   cell.Context7D,
 		}
-		
+
 		bloodCirculation.QueueBloodCell(responseCell)
-		
+
 	case "config_update":
 		// Handle configuration update request
 		logger.Info("Received configuration update request", "id", cell.ID, "source", cell.Source)
-		
+
 		// Extract configuration settings
 		if config, ok := cell.Payload["config"].(map[string]interface{}); ok {
 			// Update compression settings if provided
@@ -522,7 +522,7 @@ func handleBloodCellControl(bloodCirculation *bridge.BloodCirculation, cell *bri
 					logger.Info("Updated compression settings", "config", compressionConfig)
 				}
 			}
-			
+
 			// Send acknowledgement
 			responseCell := &bridge.BloodCell{
 				ID:          "config-ack-" + time.Now().Format(time.RFC3339Nano),
@@ -541,20 +541,20 @@ func handleBloodCellControl(bloodCirculation *bridge.BloodCirculation, cell *bri
 				OxygenLevel: 1.0,
 				Context7D:   cell.Context7D,
 			}
-			
+
 			bloodCirculation.QueueBloodCell(responseCell)
 		}
-		
+
 	case "formula_request":
 		// Handle formula execution request
 		logger.Debug("Received formula execution request", "id", cell.ID, "source", cell.Source)
-		
+
 		formulaID, _ := cell.Payload["formula_id"].(string)
 		params, _ := cell.Payload["parameters"].(map[string]interface{})
-		
+
 		if registry == nil {
 			logger.Error("Formula registry not available", "formula", formulaID)
-			
+
 			// Send error response
 			responseCell := &bridge.BloodCell{
 				ID:          "formula-error-" + time.Now().Format(time.RFC3339Nano),
@@ -572,16 +572,16 @@ func handleBloodCellControl(bloodCirculation *bridge.BloodCirculation, cell *bri
 				OxygenLevel: 1.0,
 				Context7D:   cell.Context7D,
 			}
-			
+
 			bloodCirculation.QueueBloodCell(responseCell)
 			return
 		}
-		
+
 		// Execute the formula
 		result, err := registry.ExecuteFormula(formulaID, params)
 		if err != nil {
 			logger.Error("Formula execution failed", "formula", formulaID, "error", err.Error())
-			
+
 			// Send error response
 			responseCell := &bridge.BloodCell{
 				ID:          "formula-error-" + time.Now().Format(time.RFC3339Nano),
@@ -599,11 +599,11 @@ func handleBloodCellControl(bloodCirculation *bridge.BloodCirculation, cell *bri
 				OxygenLevel: 1.0,
 				Context7D:   cell.Context7D,
 			}
-			
+
 			bloodCirculation.QueueBloodCell(responseCell)
 		} else {
 			logger.Debug("Formula executed successfully", "formula", formulaID)
-			
+
 			// Check if result needs compression
 			resultPayload := map[string]interface{}{
 				"action": "formula_result",
@@ -612,7 +612,7 @@ func handleBloodCellControl(bloodCirculation *bridge.BloodCirculation, cell *bri
 				"result": result,
 				"timestamp": time.Now().Unix(),
 			}
-			
+
 			// Compress if needed
 			var payload map[string]interface{}
 			if bloodCirculation.HasCompressionEnabled() {
@@ -623,7 +623,7 @@ func handleBloodCellControl(bloodCirculation *bridge.BloodCirculation, cell *bri
 					bloodCirculation.GetCompressionThreshold(),
 					[]string{"action", "reference_id", "formula_id"},
 				)
-				
+
 				if err != nil {
 					logger.Warn("Failed to compress formula result", "error", err.Error())
 					payload = resultPayload
@@ -633,7 +633,7 @@ func handleBloodCellControl(bloodCirculation *bridge.BloodCirculation, cell *bri
 			} else {
 				payload = resultPayload
 			}
-			
+
 			// Send result response
 			responseCell := &bridge.BloodCell{
 				ID:          "formula-result-" + time.Now().Format(time.RFC3339Nano),
@@ -646,14 +646,14 @@ func handleBloodCellControl(bloodCirculation *bridge.BloodCirculation, cell *bri
 				OxygenLevel: 1.0,
 				Context7D:   cell.Context7D,
 			}
-			
+
 			bloodCirculation.QueueBloodCell(responseCell)
 		}
-		
+
 	case "status_request":
 		// Handle status request
 		logger.Debug("Received status request", "id", cell.ID, "source", cell.Source)
-		
+
 		// Collect system status information
 		status := map[string]interface{}{
 			"uptime":         time.Since(startTime).String(),
@@ -663,12 +663,12 @@ func handleBloodCellControl(bloodCirculation *bridge.BloodCirculation, cell *bri
 			"compression":    bloodCirculation.GetCompressionOptions(),
 			"formula_count": 0,
 		}
-		
+
 		// Add formula count if registry available
 		if registry != nil {
 			status["formula_count"] = len(registry.ListFormulas())
 		}
-		
+
 		// Send status response
 		responseCell := &bridge.BloodCell{
 			ID:          "status-" + time.Now().Format(time.RFC3339Nano),
@@ -685,9 +685,9 @@ func handleBloodCellControl(bloodCirculation *bridge.BloodCirculation, cell *bri
 			OxygenLevel: 1.0,
 			Context7D:   cell.Context7D,
 		}
-		
+
 		bloodCirculation.QueueBloodCell(responseCell)
-		
+
 	default:
 		// Unknown action
 		logger.Warn("Unknown blood cell action", "action", action, "id", cell.ID)
@@ -757,12 +757,12 @@ func compressPayload(payload map[string]interface{}, registry *bridge.BridgeForm
 		compressedData["_compressed"] = true
 		compressedData["_compression_algorithm"] = "hemoflux.mobius"
 		compressedData["_original_size"] = len(jsonData)
-		
+
 		// Restore preserved keys
 		for k, v := range preservedValues {
 			compressedData[k] = v
 		}
-		
+
 		return compressedData, nil
 	}
 

@@ -14,7 +14,6 @@ PATH: /usr/local/go/bin:/usr/local/bin:/opt/homebrew/bin:/Users/Jubicudis/go/bin
 	go:	/usr/local/go/bin/go: go version go1.24.3 darwin/amd64
 
 	gopls:	/Users/Jubicudis/go/bin/gopls	(version: v0.18.1 built with go: go1.24.3)
-	gotests:	/Users/Jubicudis/go/bin/gotests	(version: v1.6.0 built with go: go1.24.3)
 	gomodifytags:	/Users/Jubicudis/go/bin/gomodifytags	(version: v1.17.0 built with go: go1.24.3)
 	impl:	/Users/Jubicudis/go/bin/impl	(version: v1.4.0 built with go: go1.24.3)
 	goplay:	/Users/Jubicudis/go/bin/goplay	(version: v1.0.0 built with go: go1.24.3)
@@ -71,4 +70,3 @@ Workspace Folder (Tranquility-Neuro-OS): /Users/Jubicudis/Tranquility-Neuro-OS
 	GOVERSION='go1.24.4'
 	GOWORK='/Users/Jubicudis/Tranquility-Neuro-OS/go.work'
 	PKG_CONFIG='pkg-config'
-	
