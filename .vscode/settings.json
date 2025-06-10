@@ -18,6 +18,18 @@
 		"MCP_DEVELOPMENT": "true",
 		"MOBIUS_SYMMETRY_ENABLED": "true"
 	},
+	// Fixed duplicate hints configuration
+	"go.diagnosticsOptions": {
+		"vetTool": "vet",
+		"hints": {
+			"assignmentToReceiver": false,
+			"compositeLiteral": true,
+			"constantCond": true,
+			"rangeClause": true,
+			"unusedParameter": true,
+			"unusedVariable": true
+		}
+	},
 	
 	// Enhanced AI settings for GitHub MCP
 	"github.copilot": {
