@@ -23,25 +23,6 @@
             "program": "cmd/github-mcp-server/main.go",
             "args": ["stdio", "--read-only"],
             "console": "integratedTerminal",
-        },
-        {
-            "type": "java",
-            "name": "Debug Java MCP Server",
-            "request": "launch",
-            "mainClass": "mcp.server.Main",
-            "projectName": "github-mcp-server",
-            "cwd": "${workspaceFolder}/../src"
-        },
-        {
-            "type": "node",
-            "request": "launch",
-            "name": "Debug Node Bridge",
-            "program": "${workspaceFolder}/../src/bridge/mcp_bridge.js",
-            "cwd": "${workspaceFolder}/../src/bridge",
-            "runtimeArgs": ["--nolazy"],
-            "env": {
-                "NODE_ENV": "development"
-            }
         }
     ]
 }
