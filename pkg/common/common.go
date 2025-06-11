@@ -1,5 +1,6 @@
 // Package common provides shared utilities consolidated from various subpackages.
-// Merged content from pkg/bridge/common.go, pkg/github/common.go, pkg/translations/common.go.
+// Merged content from pkg/bridge/common.go, pkg/github/common.go,
+// pkg/translations/common.go, and pkg/testhelper/common.go.
 package common
 
 import (
@@ -7,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -29,6 +31,16 @@ const (
 	PingInterval          = 30 * time.Second
 	MaxMessageSize        = 10485760
 	DefaultProtocolVersion= "3.0"
+
+	// Canonical QHP port assignments for TNOS (see memory refresh)
+	// TNOS MCP server: 9001
+	// MCP Bridge: 10619
+	// GitHub MCP server: 10617
+	// Copilot LLM server: 8083
+	DefaultTNOSMCPPort    = 9001
+	DefaultMCPBridgePort  = 10619
+	DefaultGithubMCPPort  = 10617
+	DefaultCopilotLLMPort = 8083
 )
 
 type ConnectionState string
@@ -148,6 +160,18 @@ func Extract7DContext(ctx map[string]interface{}) map[string]string {
 	// extraction logic ...
 	return result
 }
+
+// ========== From testhelper/common.go ==========
+const (
+	TestTimeout       = 5 * time.Second
+	TestServerAddress = "localhost:8080"
+	TestBridgeAddress = "localhost:9000"
+)
+
+func ToJSONTest(v interface{}) (string, error) { b, err := json.Marshal(v); return string(b), err }
+func FromJSONTest(data string, v interface{}) error { return json.Unmarshal([]byte(data), v) }
+func NewTestContext() (context.Context, context.CancelFunc) { return context.WithTimeout(context.Background(), TestTimeout) }
+func ErrorsEqual(err1, err2 error) bool { if err1 == nil && err2 == nil { return true }; if err1 == nil || err2 == nil { return false }; return err1.Error() == err2.Error() }
 
 // ========== Generic Map Helper Functions ==========
 
@@ -285,15 +309,6 @@ func WithPagination(request mcp.CallToolRequest) (page, perPage int, err error) 
 	}
 	return page, perPage, nil
 }
-
-// CreateErrorResponse creates a standardized MCP error response.
-// It uses the translation function t to provide localized error messages.
-func CreateErrorResponse(t func(key, defaultValue string) string, errorKey, defaultFormat string, args ...interface{}) (*mcp.CallToolResult, error) {
-	errMsg := t(errorKey, fmt.Sprintf(defaultFormat, args...))
-	result := mcp.NewToolResultError(errMsg)
-	return result, nil // Return the result directly
-}
-
 // ===== End MCP Parameter Helpers =====
 
 // LogHelicalMemory logs an event to the Helical Memory system with 7D context.
@@ -305,9 +320,66 @@ func CreateErrorResponse(t func(key, defaultValue string) string, errorKey, defa
 // HOW: How the action is performed
 // EXTENT: To what extent (scope, impact)
 func LogHelicalMemory(who, what, when, where, why, how, extent, message string) {
-	// Only write to /systems/memory if TNOS MCP server is connected (blood-connected mode)
-	// In standalone mode, do nothing or log a warning to github-mcp-server/logs/
-	// TODO: Implement file write to /Users/Jubicudis/Tranquility-Neuro-OS/systems/memory/short_term/go/ and long_term/go/ with biosystem subfolders
-	// For now, print to stdout as a stub
-	fmt.Printf("[HELICAL MEMORY LOG] WHO:%s WHAT:%s WHEN:%s WHERE:%s WHY:%s HOW:%s EXTENT:%s MSG:%s\n", who, what, when, where, why, how, extent, message)
+	// Canonical Mobius-only, 7D contextual logging for TNOS (see TRANQUILSPEAK_PROTOCOL.md)
+	// Write to both short_term and long_term helical memory, with biosystem subfolders
+	// Path: /Users/Jubicudis/Tranquility-Neuro-OS/systems/memory/short_term/go/ and long_term/go/
+	// File name: YYYYMMDD_HHMMSS_WHO_WHAT.log (TranquilSpeak-compliant)
+	// All writes must be append-only, Mobius-compressed (passthrough, no standard compression)
+	// If file write fails, fallback to stdout
+
+	timestamp := time.Now().UTC().Format("20060102_150405")
+	filename := fmt.Sprintf("%s_%s_%s_%s.log", timestamp, who, what, where)
+	shortTermPath := "/Users/Jubicudis/Tranquility-Neuro-OS/systems/memory/short_term/go/" + filename
+	longTermPath := "/Users/Jubicudis/Tranquility-Neuro-OS/systems/memory/long_term/go/" + filename
+
+	// Compose TranquilSpeak/7D context log line
+	tranquilLine := fmt.Sprintf("[TS7D] WHO:%s | WHAT:%s | WHEN:%s | WHERE:%s | WHY:%s | HOW:%s | EXTENT:%s | MSG:%s\n", who, what, when, where, why, how, extent, message)
+
+	// Mobius passthrough (no-op, enforced)
+	mobiusCompressed := tranquilLine // Mobius compression is a passthrough in C++/Go (see MOBIUS_COMPRESSION_SPEC.md)
+
+	// Write to short_term
+	if err := appendToFile(shortTermPath, mobiusCompressed); err != nil {
+		fmt.Printf("[HELICAL MEMORY LOG][FALLBACK] %s", mobiusCompressed)
+	}
+	// Write to long_term
+	if err := appendToFile(longTermPath, mobiusCompressed); err != nil {
+		fmt.Printf("[HELICAL MEMORY LOG][FALLBACK] %s", mobiusCompressed)
+	}
+}
+
+// appendToFile appends a string to a file, creating it if needed (atomic, append-only)
+func appendToFile(path, data string) error {
+	f, err := openFileAtomicAppend(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	_, err = f.WriteString(data)
+	return err
+}
+
+// openFileAtomicAppend opens a file for atomic append, creating it if needed
+func openFileAtomicAppend(path string) (*os.File, error) {
+	return os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+}
+
+// CreateErrorResponse returns a formatted MCP error response for tool handlers.
+// translateFn: a translation function (may be nil), key: translation key, format: error message format, args: format args
+func CreateErrorResponse(translateFn interface{}, key, format string, args ...interface{}) (*mcp.CallToolResult, error) {
+	var msg string
+	if translateFn != nil {
+		switch fn := translateFn.(type) {
+		case func(string, string) string:
+			msg = fn(key, fmt.Sprintf(format, args...))
+		case func(context.Context, map[string]interface{}) (map[string]interface{}, error):
+			// Not used for error string, fallback below
+			msg = fmt.Sprintf(format, args...)
+		default:
+			msg = fmt.Sprintf(format, args...)
+		}
+	} else {
+		msg = fmt.Sprintf(format, args...)
+	}
+	return mcp.NewToolResultError(msg), nil
 }
