@@ -12,7 +12,7 @@ package ghmcp
 
 import (
 	"fmt"
-	"sync/atomic"
+	"sync"
 	"time"
 
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log"
@@ -37,6 +37,7 @@ type ContextTranslator struct {
 	strictMapping     bool
 
 	// Translation statistics
+	mu           sync.Mutex
 	successCount int64
 	failureCount int64
 }
@@ -107,7 +108,9 @@ func (t *ContextTranslator) TranslateMapToTNOS(
 	metaMap["compressed"] = t.enableCompression
 
 	// Update success count
-	atomic.AddInt64(&t.successCount, 1)
+	t.mu.Lock()
+	t.successCount++
+	t.mu.Unlock()
 
 	return result, nil
 }
@@ -135,7 +138,9 @@ func (t *ContextTranslator) TranslateTNOSToMap(
 	result := translations.TNOSContextToMCP(cv)
 
 	// Update success count
-	atomic.AddInt64(&t.successCount, 1)
+	t.mu.Lock()
+	t.successCount++
+	t.mu.Unlock()
 
 	return result, nil
 }
@@ -152,8 +157,9 @@ func (t *ContextTranslator) TranslateStringToTNOS(jsonStr string) (map[string]in
 	// Parse JSON string to context vector
 	cv, err := translations.FromJSON(jsonStr)
 	if err != nil {
-		// Update failure count
-		atomic.AddInt64(&t.failureCount, 1)
+		t.mu.Lock()
+		t.failureCount++
+		t.mu.Unlock()
 		return nil, fmt.Errorf("failed to parse JSON context: %w", err)
 	}
 
@@ -167,7 +173,9 @@ func (t *ContextTranslator) TranslateStringToTNOS(jsonStr string) (map[string]in
 	result := cv.ToMap()
 
 	// Update success count
-	atomic.AddInt64(&t.successCount, 1)
+	t.mu.Lock()
+	t.successCount++
+	t.mu.Unlock()
 
 	return result, nil
 }
@@ -181,10 +189,12 @@ func (t *ContextTranslator) TranslateStringToTNOS(jsonStr string) (map[string]in
 // HOW: Using atomic counters
 // EXTENT: Translation monitoring
 func (t *ContextTranslator) GetTranslationStats() map[string]interface{} {
+	t.mu.Lock()
+	defer t.mu.Unlock()
 	return map[string]interface{}{
-		"Success": atomic.LoadInt64(&t.successCount),
-		"Failure": atomic.LoadInt64(&t.failureCount),
-		"Total":   atomic.LoadInt64(&t.successCount) + atomic.LoadInt64(&t.failureCount),
+		"Success": t.successCount,
+		"Failure": t.failureCount,
+		"Total":   t.successCount + t.failureCount,
 	}
 }
 

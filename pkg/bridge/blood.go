@@ -351,13 +351,6 @@ func (bc *BloodCirculation) processQueuedCells() {
 	for i := len(bc.cellQueue) - 1; i >= 0; i-- {
 		cell := bc.cellQueue[i]
 		
-		// Apply hemoflux compression if needed
-		if HemofluxCompression && !cell.Compressed {
-			if err := bc.compressCell(cell); err != nil {
-				bc.logger.Error("Failed to compress cell", "id", cell.ID, "error", err)
-			}
-		}
-		
 		// Apply blood filtering if callback is set
 		if bc.filterCallback != nil && !bc.filterCallback(cell) {
 			bc.cellQueue = append(bc.cellQueue[:i], bc.cellQueue[i+1:]...)
@@ -414,14 +407,6 @@ func (bc *BloodCirculation) receiveBloodCells() {
 			
 			bc.metrics.CellsReceived++
 			bc.logger.Debug("Received blood cell", "id", cell.ID, "type", cell.Type)
-			
-			// Decompress if needed
-			if cell.Compressed {
-				if err := bc.decompressCell(cell); err != nil {
-					bc.logger.Error("Failed to decompress cell", "id", cell.ID, "error", err)
-					continue
-				}
-			}
 			
 			// Process the cell
 			go bc.processReceivedCell(cell)
@@ -570,103 +555,6 @@ func (bc *BloodCirculation) executeFormula(formulaID string, params map[string]i
 	// TODO: Implement formula usage tracking
 	
 	return result, nil
-}
-
-// compressCell applies hemoflux compression to a blood cell
-func (bc *BloodCirculation) compressCell(cell *BloodCell) error {
-	// Get the registry for formula execution
-	registry := GetBridgeFormulaRegistry()
-	if registry == nil {
-		return fmt.Errorf("formula registry not initialized")
-	}
-	
-	// Prepare the Hemoflux compression context using shared utility
-	context := common.GenerateContextMap(cell.Context7D)
-	// Add extra fields for compression context
-	context["destination"] = cell.Destination
-	context["timestamp"] = cell.Timestamp
-	context["cell_type"] = cell.Type
-	context["priority"] = cell.Priority
-	
-	// Prepare cell payload for compression
-	payloadData, err := json.Marshal(cell.Payload)
-	if err != nil {
-		return fmt.Errorf("failed to marshal cell payload: %w", err)
-	}
-	
-	// Execute the hemoflux.compress formula (this delegates to the Formula Registry)
-	// Note: Actual compression would be done by HemoFlux which is the sole executor of Mobius Equation
-	compressionParams := map[string]interface{}{
-		"data":         string(payloadData),
-		"context":      context,
-		"formula_key": "tnos_mcp_bridge",
-	}
-	
-	result, err := registry.ExecuteFormula("hemoflux.compress", compressionParams)
-	if err != nil {
-		return fmt.Errorf("hemoflux compression failed: %w", err)
-	}
-	
-	// In production, this compressed data would come from the actual HemoFlux system
-	// For now, we just simulate compression behavior
-	cell.Compressed = true
-	cell.CompressionID = "hemoflux-" + time.Now().Format(time.RFC3339Nano)
-	
-	// Update payload to include compression metadata
-	if compressedPayload, ok := result["compressed_payload"].(map[string]interface{}); ok {
-		cell.Payload = compressedPayload
-	}
-	
-	// Track compression ratio for metrics
-	if ratio, ok := result["compression_ratio"].(float64); ok {
-		bc.mutex.Lock()
-		bc.metrics.CompressionRatio = ratio
-		bc.mutex.Unlock()
-	}
-	
-	bc.logger.Debug("Applied HemoFlux compression to cell", 
-		"id", cell.ID, 
-		"compression_id", cell.CompressionID)
-	
-	return nil
-}
-
-// decompressCell decompresses a blood cell
-func (bc *BloodCirculation) decompressCell(cell *BloodCell) error {
-	// Get the registry for formula execution
-	registry := GetBridgeFormulaRegistry()
-	if registry == nil {
-		return fmt.Errorf("formula registry not initialized")
-	}
-	
-	// Skip if not compressed
-	if !cell.Compressed {
-		return nil
-	}
-	
-	// Execute the hemoflux.decompress formula (this delegates to the Formula Registry)
-	// Note: Actual decompression would be done by HemoFlux which is the sole executor of Mobius Equation
-	decompressionParams := map[string]interface{}{
-		"compressed_payload": cell.Payload,
-		"compression_id":     cell.CompressionID,
-		"context":            common.GenerateContextMap(cell.Context7D),
-	}
-	
-	result, err := registry.ExecuteFormula("hemoflux.decompress", decompressionParams)
-	if err != nil {
-		return fmt.Errorf("hemoflux decompression failed: %w", err)
-	}
-	
-	// Update payload with decompressed data
-	if decompressedPayload, ok := result["decompressed_payload"].(map[string]interface{}); ok {
-		cell.Payload = decompressedPayload
-	}
-	
-	cell.Compressed = false
-	
-	bc.logger.Debug("Applied HemoFlux decompression to cell", "id", cell.ID)
-	
-	return nil
 }
 
 // sendBloodCell sends a blood cell to the TNOS MCP server
