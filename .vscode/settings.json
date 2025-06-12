@@ -23,10 +23,7 @@
 	"github.copilot": {
 		"enable": {
 			"*": true,
-			"go": true,
-			"python": true,
-			"javascript": true,
-			"cpp": true
+			"go": true
 		},
 		"editor": {
 			"enableAutoCompletions": true
@@ -43,29 +40,10 @@
 	// Enhanced IntelliSense for MCP
 	"editor.suggestSelection": "first",
 	
-	// C++ support for GitHub MCP bridge components (DISABLED: no C++ sources in github-mcp-server)
-	// "C_Cpp.intelliSenseEngine": "default",
-	// "C_Cpp.default.cppStandard": "c++20",
-	// "C_Cpp.enhancedColorization": "enabled",
-	// "C_Cpp.default.includePath": [
-	// 	"/Users/Jubicudis/Tranquility-Neuro-OS/github-mcp-server/internal/bridge/cpp",
-	// 	"/Users/Jubicudis/Tranquility-Neuro-OS/include",
-	// 	"/Users/Jubicudis/Tranquility-Neuro-OS/core/compression/cpp"
-	// ],
-	// "C_Cpp.default.defines": [
-	// 	"MCP_SERVER",
-	// 	"QUANTUM_SYMMETRY_ENABLED",
-	// 	"ENABLE_BIDIRECTIONAL_OPERATIONS"
-	// ],
-	
 	// Ensure symmetry between MCP components
 	"files.associations": {
 		"*.go.tmpl": "go",
-		"*.mcpdef": "json",
-		"*.h": "cpp",
-		"*.hpp": "cpp",
-		"*.c": "c",
-		"*.cpp": "cpp"
+		"*.mcpdef": "json"
 	},
 	
 	// MCP-specific search settings
@@ -77,21 +55,6 @@
 		"**/__pycache__": true,
 		"**/.git": true
 	},
-	
-	// WHO: ConfigurationManager
-	// WHAT: Python test framework configuration
-	// WHEN: During Python test discovery and execution
-	// WHERE: System Layer 6 (Integration) / MCP Server
-	// WHY: To ensure pytest is used and VS Code notifications are cleared
-	// HOW: By setting python.testing.pytestEnabled and related keys
-	// EXTENT: All Python test operations
-	"python.testing.pytestEnabled": true,
-	"python.testing.unittestEnabled": false,
-	"python.testing.nosetestsEnabled": false,
-	"python.testing.pytestArgs": [
-		"."
-	],
-	"python.defaultInterpreterPath": "/Users/Jubicudis/Tranquility-Neuro-OS/mcp/venv/bin/python3.11",
 	
 	// MCP canonical port and endpoint settings for QHP
 	"mcp.tnos.port": 9001,
@@ -154,36 +117,16 @@
 		"**/__pycache__": true,
 		"**/.git": true
 	},
-	"[javascript]": {
-		"editor.defaultFormatter": "esbenp.prettier-vscode",
-		"editor.formatOnSave": true
-	},
-	"[typescript]": {
-		"editor.defaultFormatter": "esbenp.prettier-vscode",
-		"editor.formatOnSave": true
-	},
 	"[json]": {
 		"editor.defaultFormatter": "esbenp.prettier-vscode"
 	},
 	"[shellscript]": {
 		"editor.defaultFormatter": "esbenp.prettier-vscode"
 	},
-	"[rust]": {
-		"editor.defaultFormatter": "esbenp.prettier-vscode",
-		"editor.formatOnSave": true
-	},
-	"eslint.enable": true,
-	"eslint.validate": ["javascript", "typescript"],
 	"prettier.requireConfig": false,
 	"prettier.enable": true,
-	"rust-analyzer.cargo.runBuildScripts": true,
-	"rust-analyzer.checkOnSave.command": "clippy",
 	"code-runner.executorMap": {
 		"go": "go run",
-		"python": "python3",
-		"javascript": "node",
-		"typescript": "ts-node",
-		"rust": "cargo run",
 		"shellscript": "bash"
 	}
 	// --- END PERFORMANCE & UI TUNING ---
