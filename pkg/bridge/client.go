@@ -17,9 +17,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jubicudis/github-mcp-server/pkg/common"
-	"github.com/jubicudis/github-mcp-server/pkg/log"
-	"github.com/jubicudis/github-mcp-server/pkg/translations"
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/common"
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log"
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/translations"
 
 	"github.com/gorilla/websocket"
 )

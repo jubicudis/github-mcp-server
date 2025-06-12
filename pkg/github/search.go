@@ -13,8 +13,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/jubicudis/github-mcp-server/pkg/common"
-	"github.com/jubicudis/github-mcp-server/pkg/translations"
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/common"
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/translations"
 
 	"github.com/google/go-github/v71/github"
 	"github.com/mark3labs/mcp-go/mcp"

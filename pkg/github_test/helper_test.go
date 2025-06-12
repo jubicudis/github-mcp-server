@@ -11,8 +11,8 @@ package ghmcp_test
 import (
 	"testing"
 
-	"github.com/jubicudis/github-mcp-server/pkg/common"
-	"github.com/jubicudis/github-mcp-server/pkg/testutil"
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/common"
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

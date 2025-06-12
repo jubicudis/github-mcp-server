@@ -27,14 +27,15 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/jubicudis/github-mcp-server/pkg/bridge"
-	"github.com/jubicudis/github-mcp-server/pkg/common"
-	ghmcp "github.com/jubicudis/github-mcp-server/pkg/github"
-	"github.com/jubicudis/github-mcp-server/pkg/log"
-	"github.com/jubicudis/github-mcp-server/pkg/translations"
+	tnosmcp "github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/internal/tnos-mcp-interface" // Added for canonical ports
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/bridge"
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/common"
+	ghmcp "github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/github"
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log"
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/translations"
 
 	"github.com/gorilla/websocket"
-	logpkg "github.com/jubicudis/github-mcp-server/pkg/log"
+	logpkg "github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log"
 )
 
 // Server configuration
@@ -91,16 +92,16 @@ type Client struct {
 // Initialize server configuration from environment or defaults
 func initConfig() Config {
 	// Get configuration from environment variables with defaults
-	portStr := getEnv("MCP_SERVER_PORT", "10617")
+	portStr := getEnv("MCP_SERVER_PORT", strconv.Itoa(tnosmcp.PortGitHubMCPServer))
 	port, err := strconv.Atoi(portStr)
 	if err != nil {
-		port = 10617 // Default port
+		port = tnosmcp.PortGitHubMCPServer // Default port
 	}
 
-	bridgePortStr := getEnv("MCP_BRIDGE_PORT", "10619")
+	bridgePortStr := getEnv("MCP_BRIDGE_PORT", strconv.Itoa(tnosmcp.PortMCPBridge))
 	bridgePort, err := strconv.Atoi(bridgePortStr)
 	if err != nil {
-		bridgePort = 10619 // Default bridge port
+		bridgePort = tnosmcp.PortMCPBridge // Default bridge port
 	}
 
 	return Config{

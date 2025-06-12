@@ -17,7 +17,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jubicudis/github-mcp-server/pkg/translations"
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/bridge"
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/translations"
 )
 
 // ContextStats tracks statistics for context persistence and access
@@ -201,18 +202,25 @@ func (cp *ContextPersistence) StoreContext(id string, vector *translations.Conte
 
 	// Compress if enabled
 	if cp.config.CompressionEnabled && !entry.Compressed {
-		// Apply compression using Möbius Compression Formula
-		// This would actually call the compression implementation
+		// Perform Möbius compression via HemoFlux bridge
+		registry := bridge.GetBridgeFormulaRegistry()
+		params := map[string]interface{}{
+			"data":    entry,
+			"context": *vector,
+		}
+		resultMap, err := registry.ExecuteFormula("hemoflux.compress", params)
+		if err != nil {
+			return fmt.Errorf("compression error: %w", err)
+		}
 		entry.Compressed = true
-		// Store compression variables for decompression
-		entry.Variables = map[string]float64{
-			"B": 1.5,
-			"I": 0.8,
-			"V": 2.0,
-			"G": 1.0,
-			"F": 0.5,
-			"E": 0.3,
-			"t": 0.1,
+		// Capture returned metadata as variables if present
+		if meta, ok := resultMap["metadata"].(map[string]interface{}); ok {
+			entry.Variables = make(map[string]float64)
+			for k, v := range meta {
+				if f, ok := v.(float64); ok {
+					entry.Variables[k] = f
+				}
+			}
 		}
 	}
 
@@ -252,8 +260,15 @@ func (cp *ContextPersistence) GetContext(id string) (*translations.ContextVector
 
 	// Decompress if necessary
 	if entry.Compressed {
-		// Apply Möbius decompression using stored variables
-		// This would actually call the decompression implementation
+		registry := bridge.GetBridgeFormulaRegistry()
+		params := map[string]interface{}{
+			"metadata": entry.Variables,
+			"context":  entry.Vector,
+		}
+		if _, err := registry.ExecuteFormula("hemoflux.decompress", params); err != nil {
+			return nil, fmt.Errorf("decompression error: %w", err)
+		}
+		entry.Compressed = false
 	}
 
 	// Return a copy to avoid concurrent modification
@@ -271,14 +286,14 @@ func (cp *ContextPersistence) trackDimensionAccess(vector translations.ContextVe
 	// HOW: Using counter increments
 	// EXTENT: Dimension-level tracking
 
-	// Increment counters for each dimension
-	cp.contextStats.DimensionCount["Who"]++
-	cp.contextStats.DimensionCount["What"]++
-	cp.contextStats.DimensionCount["When"]++
-	cp.contextStats.DimensionCount["Where"]++
-	cp.contextStats.DimensionCount["Why"]++
-	cp.contextStats.DimensionCount["How"]++
-	cp.contextStats.DimensionCount["Extent"]++
+	// Increment counters for each 7D dimension (normalized lowercase)
+	cp.contextStats.DimensionCount["who"]++
+	cp.contextStats.DimensionCount["what"]++
+	cp.contextStats.DimensionCount["when"]++
+	cp.contextStats.DimensionCount["where"]++
+	cp.contextStats.DimensionCount["why"]++
+	cp.contextStats.DimensionCount["how"]++
+	cp.contextStats.DimensionCount["extent"]++
 }
 
 // SyncToStorage persists all context entries to storage

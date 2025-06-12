@@ -15,7 +15,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/jubicudis/github-mcp-server/pkg/log"
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log"
 )
 
 // RouteOperation represents a function that can be executed with fallback

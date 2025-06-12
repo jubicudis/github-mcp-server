@@ -11,6 +11,7 @@ type ContextVector7D struct {
 	Why    string  `json:"why"`    // Underlying intent, causality, or purpose
 	How    string  `json:"how"`    // Methodology or mode of transformation
 	Extent float64 `json:"extent"` // Degree of force, resolution, completeness, or priority
+	Source string  `json:"source"` // Origin or context emitter
 }
 
 // Canonical port assignments for Quantum Handshake Protocol (QHP)
@@ -56,6 +57,7 @@ func NewContextVector7D() *ContextVector7D {
 		Why:    "Default_Operation",
 		How:    "Standard_Method",
 		Extent: 1.0,
+		Source: "system",
 	}
 }
 

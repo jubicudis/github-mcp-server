@@ -14,8 +14,8 @@ package ghmcp_test
 import (
 	"testing"
 
-	"github.com/jubicudis/github-mcp-server/pkg/common"
-	ghmcp "github.com/jubicudis/github-mcp-server/pkg/github"
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/common"
+	ghmcp "github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/github"
 )
 
 // TestClientAdapter verifies that the adapter pattern works correctly

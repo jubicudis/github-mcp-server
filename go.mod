@@ -1,11 +1,4 @@
-// WHO: ModuleDefinition
-// WHAT: Go module definition with proper dependencies
-// WHEN: Build and module resolution time
-// WHERE: System Layer 6 (Integration)
-// WHY: Proper dependency resolution with compatible versions
-// HOW: Using Go module system
-// EXTENT: All package imports in GitHub MCP server
-module github.com/jubicudis/github-mcp-server
+module github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server
 
 go 1.24.4
 
@@ -64,25 +57,18 @@ require (
 	github.com/yosida95/uritemplate/v3 v3.0.2 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.54.0 // indirect
-	go.opentelemetry.io/otel v1.35.0 // indirect
-	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.35.0 // indirect
-	go.opentelemetry.io/otel/metric v1.35.0 // indirect
-	go.opentelemetry.io/otel/sdk v1.35.0 // indirect
-	go.opentelemetry.io/otel/trace v1.35.0 // indirect
+	go.opentelemetry.io/otel v1.36.0 // indirect
+	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp v1.36.0 // indirect
+	go.opentelemetry.io/otel/metric v1.36.0 // indirect
+	go.opentelemetry.io/otel/sdk v1.36.0 // indirect
+	go.opentelemetry.io/otel/trace v1.36.0 // indirect
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.9.0 // indirect
-	golang.org/x/sys v0.30.0 // indirect
-	golang.org/x/text v0.22.0 // indirect
+	golang.org/x/sys v0.33.0 // indirect
+	golang.org/x/text v0.25.0 // indirect
 	golang.org/x/time v0.8.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	gotest.tools/v3 v3.5.2 // indirect
 )
 
-// WHO: Dependency Path Resolver
-// WHAT: Map MCP dependency to correct path
-// WHEN: Build time
-// WHERE: System Layer 6 (Integration)
-// WHY: Resolve import path mismatch
-// HOW: Using Go module replace directive
-// EXTENT: All MCP functionality
 replace github.com/tranquility-dev/mcp-go => github.com/mark3labs/mcp-go v0.26.0

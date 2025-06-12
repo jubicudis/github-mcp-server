@@ -21,9 +21,9 @@ import (
 	"time"
 
 	gh "github.com/google/go-github/v71/github"
-	"github.com/jubicudis/github-mcp-server/pkg/common"
-	"github.com/jubicudis/github-mcp-server/pkg/models"
-	"github.com/jubicudis/github-mcp-server/pkg/translations"
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/common"
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/models"
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/translations"
 )
 
 // Logger defines a custom logger interface that supports structured logging

@@ -15,8 +15,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/jubicudis/github-mcp-server/pkg/bridge"
-	"github.com/jubicudis/github-mcp-server/pkg/translations"
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/bridge"
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/translations"
 )
 
 // processBloodCirculationMessages sets up handlers for blood circulation messages
