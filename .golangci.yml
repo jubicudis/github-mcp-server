@@ -25,14 +25,15 @@ linters:
     - bodyclose
     - gocritic
     - gosec
+    - typecheck
+  disable: []
 
 # Run configuration
 run:
   timeout: 5m
   tests: true
   concurrency: 4
-  
-# Issues management
+
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0

@@ -2,17 +2,39 @@ package common
 
 import (
 	"context"
+	"fmt"
+	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log"
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/translations"
 )
 
-// CheckTNOSConnection attempts to connect to the TNOS MCP server.
+// CheckTNOSConnection attempts to connect to the TNOS MCP server using a QHP handshake.
 func CheckTNOSConnection(ctx context.Context) bool {
 	logger := log.NewLogger()
-	// TODO: Implement actual TNOS MCP server connection logic here.
-	logger.Error("TNOS MCP connection logic not implemented: real connection required, no simulation allowed")
-	return false
+	// Build the WebSocket URL using the canonical TNOS MCP port
+	url := fmt.Sprintf("ws://localhost:%d/ws", DefaultTNOSMCPPort)
+
+	// Prepare dialer with handshake timeout
+	dialer := websocket.DefaultDialer
+	dialer.HandshakeTimeout = 5 * time.Second
+
+	// QHP headers for handshake
+	headers := make(map[string][]string)
+	headers["X-QHP-Version"] = []string{MCPVersion30}
+	headers["X-QHP-Source"] = []string{"github-mcp-server"}
+	headers["X-QHP-Intent"] = []string{"TNOS MCP Connection Test"}
+
+	conn, _, err := dialer.Dial(url, headers)
+	if err != nil {
+		logger.Error("TNOS MCP connection failed", "error", err)
+		return false
+	}
+	// Close connection immediately after successful handshake
+	conn.Close()
+	logger.Info("TNOS MCP connection successful", "url", url)
+	return true
 }
 
 // GenerateContextMap creates a context map from a ContextVector7D.

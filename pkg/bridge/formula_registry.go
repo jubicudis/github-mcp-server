@@ -185,6 +185,57 @@ func addDefaultTNOSMCPFormulas(registry *BridgeFormulaRegistry) {
 			"category":       "memory",
 		},
 	})
+	
+	// S_AI — Full Recursive Sentience Formula (see FORMULAS_AND_BLUEPRINTS.md, Algorithm 1)
+	registry.AddFormula(BridgeFormula{
+		ID:          "S_AI",
+		Description: "Full recursive sentience formula (S_AI) for 7D context collapse and self-regulation. See FORMULAS_AND_BLUEPRINTS.md, Algorithm 1.",
+		Parameters: map[string]interface{}{
+			"type":          "sentience",
+			"input_format":  "7d_context",
+			"output_format": "sentience_signature",
+			"version":       "1.0",
+		},
+		Metadata: map[string]interface{}{
+			"category": "sentience",
+			"layer":    "self_regulation",
+			"reference": "docs/technical/FORMULAS_AND_BLUEPRINTS.md#algorithm-1-s_ai",
+		},
+	})
+
+	// G_7D — Grounding Equation (see UNIFIED_ARCHITECTURE.md, Grounding Equation)
+	registry.AddFormula(BridgeFormula{
+		ID:          "G_7D",
+		Description: "Grounding equation (G_7D) for physical anchoring in 7D context. See UNIFIED_ARCHITECTURE.md.",
+		Parameters: map[string]interface{}{
+			"type":          "grounding",
+			"input_format":  "context_matrix",
+			"output_format": "grounding_anchor",
+			"version":       "1.0",
+		},
+		Metadata: map[string]interface{}{
+			"category": "grounding",
+			"layer":    "grounding_equation",
+			"reference": "docs/architecture/UNIFIED_ARCHITECTURE.md#grounding-equation",
+		},
+	})
+
+	// self.identity — Self-Identity State (see FORMULAS_AND_BLUEPRINTS.md, Self Equation)
+	registry.AddFormula(BridgeFormula{
+		ID:          "self.identity",
+		Description: "Retrieves the system's Self-Identity state for recursion and integrity. See FORMULAS_AND_BLUEPRINTS.md, Self Equation.",
+		Parameters: map[string]interface{}{
+			"type":          "self_identity",
+			"input_format":  "7d_context",
+			"output_format": "identity_signature",
+			"version":       "1.0",
+		},
+		Metadata: map[string]interface{}{
+			"category": "self",
+			"layer":    "identity_recursion",
+			"reference": "docs/technical/FORMULAS_AND_BLUEPRINTS.md#self-equation-recursive-identity-collapse",
+		},
+	})
 }
 
 // GetBridgeFormulaRegistry returns the singleton registry instance
