@@ -21,7 +21,17 @@
             "args": ["stdio", "--read-only"],
             "console": "integratedTerminal"
         },
-       
-         
+        {
+            "name": "Debug All Tests (github-mcp-server)",
+            "type": "go",
+            "request": "launch",
+            "mode": "test",
+            "program": "./...",
+            "cwd": "${workspaceFolder}",
+            "env": {},
+            "args": [
+                "-test.v"
+            ]
+        }
     ]
 }
