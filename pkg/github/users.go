@@ -15,7 +15,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/jubicudis/github-mcp-server/pkg/common"
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/common"
 )
 
 // UserService provides methods for working with GitHub users

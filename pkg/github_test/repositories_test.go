@@ -24,8 +24,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	ghmcp "github.com/jubicudis/github-mcp-server/pkg/github"
-	"github.com/jubicudis/github-mcp-server/pkg/testutil"
+	ghmcp "github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/github"
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/testutil"
 )
 
 // Implementation under test: pkg/github/repositories.go defines the canonical functions for repository operations.

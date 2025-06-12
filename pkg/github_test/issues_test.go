@@ -14,8 +14,8 @@ import (
 	"time"
 
 	"github.com/google/go-github/v71/github"
-	ghmcp "github.com/jubicudis/github-mcp-server/pkg/github"
-	"github.com/jubicudis/github-mcp-server/pkg/testutil"
+	ghmcp "github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/github"
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/testutil"
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/migueleliasweb/go-github-mock/src/mock"
 	"github.com/stretchr/testify/assert"

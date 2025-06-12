@@ -18,9 +18,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/jubicudis/github-mcp-server/pkg/common"
-	"github.com/jubicudis/github-mcp-server/pkg/log"
-	"github.com/jubicudis/github-mcp-server/pkg/translations"
+	tnosmcp "github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/internal/tnos-mcp-interface" // Added for canonical ports
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/common"
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log"
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/translations"
 
 	"github.com/gorilla/websocket"
 )
@@ -28,10 +29,10 @@ import (
 // BloodConstants defines the constants specific to the blood bridge
 const (
 	// Ports for various MCP servers, aligned with QHP (Quantum Handshake Protocol)
-	TNOSMCPPort    = 9001
-	BridgePort     = 10619
-	GitHubMCPPort  = 10617
-	CopilotLLMPort = 8083
+	// TNOSMCPPort    = 9001  // Replaced by tnosmcp.PortTNOSMCPServer
+	// BridgePort     = 10619 // Replaced by tnosmcp.PortMCPBridge
+	// GitHubMCPPort  = 10617 // Replaced by tnosmcp.PortGitHubMCPServer
+	// CopilotLLMPort = 8083  // Replaced by tnosmcp.PortCopilotLLM
 
 	// Blood flow parameters
 	MaxCellCapacity      = 1024 * 1024 // Maximum size of a blood cell (1MB)
@@ -103,7 +104,7 @@ func NewBloodCirculation(ctx context.Context, options common.ConnectionOptions) 
 	ctx, cancel := context.WithCancel(ctx)
 	
 	// Default to TNOS MCP server URL if not provided
-	tnosMCPURL := fmt.Sprintf("ws://localhost:%d", TNOSMCPPort)
+	tnosMCPURL := fmt.Sprintf("ws://localhost:%d", tnosmcp.PortTNOSMCPServer)
 	if options.ServerURL != "" && options.ServerPort > 0 {
 		tnosMCPURL = fmt.Sprintf("ws://%s:%d", options.ServerURL, options.ServerPort)
 	}
@@ -193,16 +194,16 @@ func (bc *BloodCirculation) connect() error {
     // Define endpoints in priority order
     type endpoint struct{ name, url string }
     endpoints := []endpoint{
-        {"TNOS MCP", fmt.Sprintf("ws://localhost:%d", TNOSMCPPort)},
-        {"Bridge MCP", fmt.Sprintf("ws://localhost:%d", BridgePort)},
-        {"GitHub MCP", fmt.Sprintf("ws://localhost:%d", GitHubMCPPort)},
-        {"Copilot LLM", fmt.Sprintf("ws://localhost:%d", CopilotLLMPort)},
+        {"TNOS MCP", fmt.Sprintf("ws://localhost:%d", tnosmcp.PortTNOSMCPServer)},
+        {"Bridge MCP", fmt.Sprintf("ws://localhost:%d", tnosmcp.PortMCPBridge)},
+        {"GitHub MCP", fmt.Sprintf("ws://localhost:%d", tnosmcp.PortGitHubMCPServer)},
+        {"Copilot LLM", fmt.Sprintf("ws://localhost:%d", tnosmcp.PortCopilotLLM)},
     }
     // Include Python MCP stub fallback
     if bc.options.PythonMCPURL != "" {
         endpoints = append(endpoints, endpoint{"Python MCP Stub", bc.options.PythonMCPURL})
     } else {
-        endpoints = append(endpoints, endpoint{"Python MCP Stub", fmt.Sprintf("ws://localhost:%d", TNOSMCPPort)})
+        endpoints = append(endpoints, endpoint{"Python MCP Stub", fmt.Sprintf("ws://localhost:%d", tnosmcp.PortTNOSMCPServer)}) // Fallback to TNOS MCP Port
     }
 
     var lastErr error
