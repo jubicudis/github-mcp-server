@@ -16,6 +16,10 @@ import (
 	"time"
 )
 
+var (
+	centralLocation *time.Location
+)
+
 // Compile-time assertion to ensure Logger implements LoggerInterface
 var _ LoggerInterface = (*Logger)(nil)
 
@@ -213,7 +217,7 @@ func (l *Logger) format(level LogLevel, message string) string {
 	// HOW: Using string formatting with 7D context
 	// EXTENT: All log message formatting
 
-	timestamp := time.Now().Format(l.timeFormat)
+	timestamp := time.Now().In(centralLocation).Format(l.timeFormat)
 
 	// Format with 7D context
 	contextStr := make([]string, 0, len(l.context))
@@ -345,9 +349,19 @@ func (l *Logger) GetContext(dimension string) string {
 
 // Update logger configuration based on mode
 func UpdateLoggerMode(mode string) {
+	// Initialize a logger for mode updates
+	logger := NewLogger().WithLevel(LevelInfo)
 	if mode == "standalone" {
-		fmt.Println("Logger set to standalone mode")
+		logger.Info("Logger set to standalone mode")
 	} else if mode == "blood-connected" {
-		fmt.Println("Logger set to blood-connected mode")
+		logger.Info("Logger set to blood-connected mode")
+	}
+}
+
+func init() {
+	var err error
+	centralLocation, err = time.LoadLocation("America/Chicago")
+	if err != nil {
+		centralLocation = time.Local // fallback
 	}
 }

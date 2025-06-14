@@ -278,14 +278,13 @@ func (cp *ContextPersistence) GetContext(id string) (*translations.ContextVector
 
 // trackDimensionAccess updates statistics on which context dimensions are accessed
 func (cp *ContextPersistence) trackDimensionAccess(vector translations.ContextVector7D) {
-	// WHO: Statistics component
-	// WHAT: Dimension access tracking
-	// WHEN: During context retrieval
-	// WHERE: Internal statistics
-	// WHY: To analyze usage patterns
-	// HOW: Using counter increments
-	// EXTENT: Dimension-level tracking
-
+	// Apply TranquilSpeak dimension mapping/validation logic
+	if reg := bridge.GetBridgeFormulaRegistry(); reg != nil {
+		params := map[string]interface{}{"vector": vector}
+		if _, err := reg.ExecuteFormula("tranquilspeak.trackDimensionAccess", params); err != nil {
+			fmt.Printf("Error in TranquilSpeak trackDimensionAccess: %v\n", err)
+		}
+	}
 	// Increment counters for each 7D dimension (normalized lowercase)
 	cp.contextStats.DimensionCount["who"]++
 	cp.contextStats.DimensionCount["what"]++
@@ -438,8 +437,8 @@ func (cp *ContextPersistence) GetStats() ContextStats {
 	// Create a copy of the stats
 	statsCopy := cp.contextStats
 	statsCopy.DimensionCount = make(map[string]int)
-	for k, v := range cp.contextStats.DimensionCount {
-		statsCopy.DimensionCount[k] = v
+	for key, val := range cp.contextStats.DimensionCount {
+		statsCopy.DimensionCount[key] = val
 	}
 
 	return statsCopy

@@ -10,6 +10,9 @@
 
 package bridge
 
+// TRANQUILSPEAK SYMBOL CLUSTER: [𝒯𓇌βℏƒ𓆑#RE1𝑾𝑾𝑯𝑾𝑯𝑬𝑾𝑯𝑬𝑹𝑾𝑯𝒀𝑯𝑶𝑾𝑬𝑿⏳📍𝒮𝓔𝓗]
+// This file is part of the 'respiratory' biosystem. See symbolic_mapping_registry_autogen_20250603.tsq for details.
+
 // Deprecated: This file is retained only for BloodCirculationState. BloodCell definition moved to blood.go
 
 // BloodCirculationState represents the current state of the blood circulation system

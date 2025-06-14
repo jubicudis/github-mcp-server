@@ -22,20 +22,23 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
 
-	tnosmcp "github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/internal/tnos-mcp-interface" // Added for canonical ports
+	// Internal packages
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/bridge"
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/common"
 	ghmcp "github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/github"
-	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log"
+	logpkg "github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log"
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/translations"
 
+	// External packages
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
-	logpkg "github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log"
 )
 
 // Server configuration
@@ -54,22 +57,25 @@ type Config struct {
 	BridgeEnabled bool   `json:"bridgeEnabled"`
 	BridgePort    int    `json:"bridgePort"`
 	GitHubToken   string `json:"githubToken"`
-	StandaloneMode bool   `json:"standaloneMode"` // Add StandaloneMode to config
 }
 
 // Global variables
 var (
-	config            Config
-	logger            *log.Logger
-	clients           = make(map[*Client]bool)
-	clientsMtx        sync.Mutex
-	broadcast         = make(chan []byte)
-	gitHubClient      *ghmcp.ClientCompatibilityAdapter // Use canonical github client adapter
-	startTime         = time.Now()  // Start time for uptime calculation
-	compressionBridge interface{}   // Remove type reference, not used in main.go
+	config     Config
+	logger     logpkg.LoggerInterface
+	clients    = make(map[*Client]bool)
+	clientsMtx sync.Mutex
+	broadcast  = make(chan []byte)
 
+	// Track all HTTP servers for graceful shutdown
 	servers    []*http.Server
 	serversMtx sync.Mutex
+
+	// Add global translator and bridge instance
+	githubTranslator  *ghmcp.GitHubContextTranslator // Corrected alias
+	bloodBridgeInstance *bridge.BloodCirculation
+
+	startTime         time.Time // Added startTime for uptime calculation
 )
 
 // Client represents a connected websocket client
@@ -92,16 +98,16 @@ type Client struct {
 // Initialize server configuration from environment or defaults
 func initConfig() Config {
 	// Get configuration from environment variables with defaults
-	portStr := getEnv("MCP_SERVER_PORT", strconv.Itoa(tnosmcp.PortGitHubMCPServer))
+	portStr := getEnv("MCP_SERVER_PORT", "10617")
 	port, err := strconv.Atoi(portStr)
 	if err != nil {
-		port = tnosmcp.PortGitHubMCPServer // Default port
+		port = 10617 // Default port
 	}
 
-	bridgePortStr := getEnv("MCP_BRIDGE_PORT", strconv.Itoa(tnosmcp.PortMCPBridge))
+	bridgePortStr := getEnv("MCP_BRIDGE_PORT", "10619")
 	bridgePort, err := strconv.Atoi(bridgePortStr)
 	if err != nil {
-		bridgePort = tnosmcp.PortMCPBridge // Default bridge port
+		bridgePort = 10619 // Default bridge port
 	}
 
 	return Config{
@@ -112,7 +118,6 @@ func initConfig() Config {
 		BridgeEnabled: getEnvBool("MCP_BRIDGE_ENABLED", true),
 		BridgePort:    bridgePort,
 		GitHubToken:   getEnv("GITHUB_TOKEN", ""),
-		StandaloneMode: getEnvBool("MCP_STANDALONE_MODE", false), // In initConfig, add StandaloneMode from env
 	}
 }
 
@@ -144,52 +149,81 @@ func main() {
 	flag.StringVar(&configFile, "config", "", "Path to configuration file")
 	flag.Parse()
 
-	// Initialize configuration
+	// Initialize startTime
+	startTime = time.Now()
+
+	// Load configuration
 	config = initConfig()
 
-	// If config file is provided, load from it
-	if configFile != "" {
-		if data, err := os.ReadFile(configFile); err == nil {
-			if err := json.Unmarshal(data, &config); err != nil {
-				fmt.Printf("Warning: Failed to parse config file: %v\n", err)
-			}
-		} else {
-			fmt.Printf("Warning: Failed to read config file: %v\n", err)
+	// Detect stray log file in cmd/server and read its contents
+	exe, err := os.Executable()
+	var strayData []byte
+	if err == nil {
+		// exe points to <projectRoot>/cmd/server/<binary>
+		projectRoot := filepath.Dir(filepath.Dir(filepath.Dir(exe)))
+		strayPath := filepath.Join(projectRoot, "cmd", "server", config.LogFile)
+		if data, err := os.ReadFile(strayPath); err == nil {
+			strayData = data
+			_ = os.Remove(strayPath)
 		}
 	}
 
 	// Initialize logger
 	logger = initLogger(config)
-	// Log server startup to helical memory
-	_ = logpkg.LogHelicalEvent(logpkg.NewHelicalEvent(
-		"MCPServer", "startup", "github-mcp-server", "init", "GoMain", "full", "GitHub MCP Server starting up"), logger)
-	logger.Info("Starting GitHub MCP Server", "version", "1.0")
-	logger.Info("Configuration loaded", "host", config.Host, "port", config.Port)
 
-	// Initialize GitHub client using common ConnectionOptions
-	connOpts := common.ConnectionOptions{
-		Credentials: map[string]string{"token": config.GitHubToken},
-		Logger:      logger,
+	// If stray log data was found, migrate into unified logger
+	if len(strayData) > 0 {
+		logger.Info(fmt.Sprintf("Migrated stray log contents: %s", string(strayData)))
 	}
-	gitHubClient = ghmcp.NewClientCompatibilityAdapter(connOpts)
-	logger.Info("GitHub client initialized")
+
+	// Diagnostic: Print log file path and working directory
+	cwd, _ := os.Getwd()
+	logDir := filepath.Join(cwd, "pkg", "log")
+	logFilePath := filepath.Join(logDir, filepath.Base(config.LogFile))
+	fmt.Fprintf(os.Stderr, "[DIAGNOSTIC] Working directory: %s\n", cwd)
+	fmt.Fprintf(os.Stderr, "[DIAGNOSTIC] Log file path: %s\n", logFilePath)
+	if _, err := os.Stat(logFilePath); err != nil {
+		fmt.Fprintf(os.Stderr, "[DIAGNOSTIC] Log file does not exist or cannot be accessed: %v\n", err)
+	} else {
+		fmt.Fprintf(os.Stderr, "[DIAGNOSTIC] Log file exists and is accessible.\n")
+	}
+
+	// Switch helical memory to connected mode
+	// logpkg.SetHelicalMemoryMode("connected") // Moved to after bridge connection
+
+	// Log server startup to github-mcp-server.log only
+	logger.Info("Starting GitHub MCP Server version 1.0")
+	logger.Info(fmt.Sprintf("Configuration loaded: host=%s port=%d", config.Host, config.Port))
 
 	// --- Formula Registry Initialization ---
-	formulaPath := "config/formulas.json"
-	if err := bridge.LoadBridgeFormulaRegistry(formulaPath); err != nil {
-		logger.Error("Failed to load formula registry", "error", err.Error(), "path", formulaPath)
+	// Use absolute path for formula registry
+	absFormulaPath, err := filepath.Abs(filepath.Join(filepath.Dir(os.Args[0]), "config/formulas.json"))
+	if err != nil {
+		logger.Error(fmt.Sprintf("Failed to resolve absolute path for formula registry: %s", err.Error()))
 	} else {
-		reg := bridge.GetBridgeFormulaRegistry()
-		count := 0
-		if reg != nil {
-			count = len(reg.ListFormulas())
+		if err := bridge.LoadBridgeFormulaRegistry(absFormulaPath); err != nil {
+			logger.Error(fmt.Sprintf("Failed to load formula registry: %s path=%s", err.Error(), absFormulaPath))
+		} else {
+			reg := bridge.GetBridgeFormulaRegistry()
+			count := 0
+			if reg != nil {
+				count = len(reg.ListFormulas())
+			}
+			logger.Info(fmt.Sprintf("Formula registry loaded: count=%d path=%s", count, absFormulaPath))
 		}
-		logger.Info("Formula registry loaded", "count", count, "path", formulaPath)
 	}
 
 	// Initialize Blood System
 	ctx := context.Background()
-	ghmcp.InitializeBloodSystem(ctx, logger)
+	ghmcp.InitializeBloodSystem(ctx, logger) // Added logger
+
+	// Initialize MCP bridge and translator
+	if err := ghmcp.InitializeMCPBridge(config.BridgeEnabled, logger); err != nil { // Corrected alias and added logger
+		logger.Error(fmt.Sprintf("Failed to initialize MCP Bridge: %s", err.Error()))
+	} else {
+		logger.Info("MCP Bridge initialized")
+	}
+	githubTranslator = ghmcp.NewGitHubContextTranslator(logger, config.BridgeEnabled, true, false) // Corrected alias
 
 	// Start HTTP servers on all canonical ports
 	startAllServers()
@@ -197,24 +231,17 @@ func main() {
 	// Start WebSocket broadcaster
 	go handleBroadcasts()
 
-	// Skip bridge/TNOS MCP connection if StandaloneMode is true
-	if config.StandaloneMode {
-		logger.Info("Standalone mode enabled: skipping Blood Bridge and TNOS MCP connections")
-		// Do not start bridge or MCP connections
-	} else {
-		// Connect to bridge if enabled
-		if config.BridgeEnabled {
-			go connectToBridge()
-		}
+	// Connect to bridge if enabled
+	if config.BridgeEnabled {
+		go connectToBridge()
 	}
 
 	// Wait for termination signal
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	sig := <-quit
-	logger.Info("Received termination signal", "signal", sig.String())
-	_ = logpkg.LogHelicalEvent(logpkg.NewHelicalEvent(
-		"MCPServer", "shutdown", "github-mcp-server", "signal", "GoMain", "full", "Received termination signal: "+sig.String()), logger)
+	logger.Info(fmt.Sprintf("Received termination signal: %s", sig.String()))
+	_ = logpkg.LogHelicalEvent(logpkg.NewHelicalEvent("MCPServer", "shutdown", "github-mcp-server", "signal", "GoMain", "full", "Received termination signal: "+sig.String()), logger)
 
 	// Create context with timeout for graceful shutdown
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second) // Increased timeout for proper shutdown
@@ -227,41 +254,43 @@ func main() {
 	serversMtx.Lock()
 	for _, srv := range servers {
 		if err := srv.Shutdown(ctx); err != nil {
-			logger.Error("Server shutdown failed", "address", srv.Addr, "error", err.Error())
-			_ = logpkg.LogHelicalEvent(logpkg.NewHelicalEvent(
-				"MCPServer", "shutdown_error", "github-mcp-server", "shutdown", "GoMain", "full", "Server shutdown failed: "+err.Error()), logger)
+			logger.Error(fmt.Sprintf("Server shutdown failed: address=%s error=%s", srv.Addr, err.Error()))
+			_ = logpkg.LogHelicalEvent(logpkg.NewHelicalEvent("MCPServer", "shutdown_error", "github-mcp-server", "shutdown", "GoMain", "full", "Server shutdown failed: "+err.Error()), logger) // Added logger
 		}
 	}
 	serversMtx.Unlock()
 
 	logger.Info("Server shutdown complete")
-	_ = logpkg.LogHelicalEvent(logpkg.NewHelicalEvent(
-		"MCPServer", "shutdown_complete", "github-mcp-server", "shutdown", "GoMain", "full", "Server shutdown complete"), logger)
+	_ = logpkg.LogHelicalEvent(logpkg.NewHelicalEvent("MCPServer", "shutdown_complete", "github-mcp-server", "shutdown", "GoMain", "full", "Server shutdown complete"), logger) // Added logger
 }
 
 // Initialize logger
-func initLogger(config Config) *log.Logger {
-	logFilePath := "/Users/Jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log/github-mcp-server.log"
-	logger := log.NewLogger()
+func initLogger(config Config) logpkg.LoggerInterface {
+	// Always use pkg/log directory under project root (cwd)
+	cwd, _ := os.Getwd()
+	logDir := filepath.Join(cwd, "pkg", "log")
+	if err := os.MkdirAll(logDir, 0755); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to create log dir %s: %v\n", logDir, err)
+	}
+	logFilePath := filepath.Join(logDir, filepath.Base(config.LogFile))
 
-	// Configure the logger based on the config
-	if config.LogLevel == "debug" {
-		logger = logger.WithLevel(log.LevelDebug)
-	} else if config.LogLevel == "info" {
-		logger = logger.WithLevel(log.LevelInfo)
-	} else if config.LogLevel == "warn" {
-		logger = logger.WithLevel(log.LevelWarn)
-	} else if config.LogLevel == "error" {
-		logger = logger.WithLevel(log.LevelError)
-	} else {
-		logger = logger.WithLevel(log.LevelInfo) // Default level
+	// Create base logger
+	logger := logpkg.NewLogger()
+
+	// Configure log level
+	switch strings.ToLower(config.LogLevel) {
+	case "debug": logger = logger.WithLevel(logpkg.LevelDebug)
+	case "warn":  logger = logger.WithLevel(logpkg.LevelWarn)
+	case "error": logger = logger.WithLevel(logpkg.LevelError)
+	default:      logger = logger.WithLevel(logpkg.LevelInfo)
 	}
 
-	logFile, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
-	if err == nil {
-		logger = logger.WithOutput(logFile)
+	// Open unified log file
+	f, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to open log file %s: %v\n", logFilePath, err)
 	} else {
-		fmt.Printf("Failed to open log file %s: %v\n", logFilePath, err)
+		logger = logger.WithOutput(f)
 	}
 
 	return logger
@@ -300,9 +329,7 @@ func handleHealth(w http.ResponseWriter, r *http.Request) {
 	copilotChan := make(chan bool, 1)
 	go func() {
 		// This would be a real connection check in production
-		if gitHubClient != nil {
-			copilotStatus = "healthy"
-		}
+		copilotStatus = "healthy"
 		copilotChan <- true
 	}()
 
@@ -378,7 +405,12 @@ func handleGitHubRepositories(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	repository, err := gitHubClient.GetRepository(owner, repo)
+	// Use the GitHub client to get repository information
+	var repository map[string]interface{}
+	var err error
+	// repository, err = gitHubClient.GetRepositoryByName(ctx, owner, repo) // TODO: Uncomment and use actual gitHubClient
+	repository, err = nil, fmt.Errorf("TODO: implement GetRepositoryByName") // Placeholder
+
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
@@ -387,6 +419,42 @@ func handleGitHubRepositories(w http.ResponseWriter, r *http.Request) {
 			"error":  err.Error(),
 		})
 		return
+	}
+
+	// Send blood cell of repository event if bridge connected
+	if bloodBridgeInstance != nil {
+		// Translate context
+		ctxMap := githubTranslator.TranslateToTNOS(map[string]interface{}{
+			"identity": owner + "/" + repo,
+			"operation": "GetRepository",
+			"timestamp": time.Now().Unix(),
+			"purpose": "RepositoryFetch",
+			"scope": 1.0,
+		})
+		cv := translations.NewContextVector7D(ctxMap)
+
+		cell := &bridge.BloodCell{
+			ID:           uuid.New().String(),
+			Type:         "Red",
+			Payload:      map[string]interface{}{"owner": owner, "repo": repo, "repository": repository},
+			Context7D:    cv,
+			Timestamp:    time.Now().Unix(),
+			Source:       "github-mcp-server",
+			Destination:  "tnos-mcp-server",
+			Priority:     5,
+			OxygenLevel:  1.0,
+			Compressed:   false,
+		}
+		if bloodBridgeInstance.GetState() == bridge.StateConnected {
+			if err := bloodBridgeInstance.SendBloodCell(cell); err != nil {
+				logger.Warn("Failed to send blood cell for repository event", "error", err.Error())
+			}
+		} else {
+			bloodBridgeInstance.QueueBloodCell(cell)
+			logger.Info("Blood bridge not connected, queued blood cell for later delivery", "id", cell.ID)
+		}
+	} else {
+		logger.Warn("Blood bridge instance is nil, cannot send or queue blood cell")
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -420,7 +488,12 @@ func handleGitHubIssues(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	issues, err := gitHubClient.GetIssuesForRepo(owner, repo)
+	// Use the GitHub client to get repository information
+	var issues []map[string]interface{}
+	var err error
+	// issues, err = gitHubClient.GetIssues(ctx, owner, repo) // TODO: Uncomment and use actual gitHubClient
+	issues, err = nil, fmt.Errorf("TODO: implement GetIssues") // Placeholder
+
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
@@ -462,7 +535,12 @@ func handleGitHubPullRequests(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	prs, err := gitHubClient.GetPullRequestsForRepo(owner, repo)
+	// Use the GitHub client to get pull request information
+	var prs []map[string]interface{}
+	var err error
+	// prs, err = gitHubClient.GetPullRequests(ctx, owner, repo) // TODO: Uncomment and use actual gitHubClient
+	prs, err = nil, fmt.Errorf("TODO: implement GetPullRequests") // Placeholder
+
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
@@ -479,31 +557,36 @@ func handleGitHubPullRequests(w http.ResponseWriter, r *http.Request) {
 }
 
 // GitHub search handler
-func handleGitHubSearch(w http.ResponseWriter, r *http.Request) {
-	// WHO: SearchHandler
-	// WHAT: Handle GitHub code search
+func handleGitHubSearchCode(w http.ResponseWriter, r *http.Request) {
+	// WHO: SearchCodeHandler
+	// WHAT: Handle GitHub code search requests
 	// WHEN: During API request
 	// WHERE: System Layer 6 (Integration)
-	// WHY: To provide search results
+	// WHY: To provide code search results
 	// HOW: Using GitHub API client
 	// EXTENT: Single API request
 
-	logger.Info("Search API called", "method", r.Method, "path", r.URL.Path)
+	logger.Info("Search Code API called", "method", r.Method, "path", r.URL.Path)
 
-	// Extract search query from query parameters
-	query := r.URL.Query().Get("q")
+	// Extract query from query parameters
+	query := r.URL.Query().Get("query")
 
 	if query == "" {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]string{
 			"status": "error",
-			"error":  "Missing q parameter",
+			"error":  "Missing query parameter",
 		})
 		return
 	}
 
-	results, err := gitHubClient.SearchCode(query)
+	// Use the GitHub client to search code
+	var results map[string]interface{}
+	var err error
+	// results, err = gitHubClient.SearchCode(ctx, query) // TODO: Uncomment and use actual gitHubClient
+	results, err = nil, fmt.Errorf("TODO: implement SearchCode") // Placeholder
+
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
@@ -520,16 +603,16 @@ func handleGitHubSearch(w http.ResponseWriter, r *http.Request) {
 }
 
 // GitHub code scanning handler
-func handleGitHubCodeScanning(w http.ResponseWriter, r *http.Request) {
-	// WHO: SecurityHandler
-	// WHAT: Handle GitHub security alerts
+func handleGitHubCodeScanningAlerts(w http.ResponseWriter, r *http.Request) {
+	// WHO: CodeScanningAlertsHandler
+	// WHAT: Handle GitHub code scanning alerts requests
 	// WHEN: During API request
 	// WHERE: System Layer 6 (Integration)
-	// WHY: To provide security data
+	// WHY: To provide code scanning alert data
 	// HOW: Using GitHub API client
 	// EXTENT: Single API request
 
-	logger.Info("Code Scanning API called", "method", r.Method, "path", r.URL.Path)
+	logger.Info("Code Scanning Alerts API called", "method", r.Method, "path", r.URL.Path)
 
 	// Extract owner and repo from query parameters
 	owner := r.URL.Query().Get("owner")
@@ -545,7 +628,12 @@ func handleGitHubCodeScanning(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	alerts, err := gitHubClient.GetCodeScanningAlerts(owner, repo)
+	// Use the GitHub client to get code scanning alerts
+	var alerts []map[string]interface{}
+	var err error
+	// alerts, err = gitHubClient.GetCodeScanningAlerts(ctx, owner, repo) // TODO: Uncomment and use actual gitHubClient
+	alerts, err = nil, fmt.Errorf("TODO: implement GetCodeScanningAlerts") // Placeholder
+
 	if err != nil {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusInternalServerError)
@@ -610,7 +698,7 @@ func handleContext(w http.ResponseWriter, r *http.Request) {
 		context := translations.NewContextVector7D(inputContext)
 
 		// Apply compression
-		compressed := translations.CompressContext(context, logger)
+		compressed := translations.CompressContext(context, logger.(*logpkg.Logger))
 
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
@@ -942,21 +1030,24 @@ func handleGitHubRequest(client *Client, data map[string]interface{}, context tr
 	switch action {
 	case "get_repository":
 		if owner != "" && repo != "" {
-			result, err = gitHubClient.GetRepository(owner, repo)
+			// result, err = gitHubClient.GetRepository(owner, repo)
+			result, err = nil, fmt.Errorf("TODO: implement GetRepository")
 		} else {
 			err = fmt.Errorf("missing owner or repo parameters")
 		}
 
 	case "get_issues":
 		if owner != "" && repo != "" {
-			result, err = gitHubClient.GetIssuesForRepo(owner, repo)
+			// result, err = gitHubClient.GetIssues(owner, repo)
+			result, err = nil, fmt.Errorf("TODO: implement GetIssues")
 		} else {
 			err = fmt.Errorf("missing owner or repo parameters")
 		}
 
 	case "get_pulls":
 		if owner != "" && repo != "" {
-			result, err = gitHubClient.GetPullRequestsForRepo(owner, repo)
+			// result, err = gitHubClient.GetPullRequests(owner, repo)
+			result, err = nil, fmt.Errorf("TODO: implement GetPullRequests")
 		} else {
 			err = fmt.Errorf("missing owner or repo parameters")
 		}
@@ -964,7 +1055,8 @@ func handleGitHubRequest(client *Client, data map[string]interface{}, context tr
 	case "search_code":
 		query, _ := data["query"].(string)
 		if query != "" {
-			result, err = gitHubClient.SearchCode(query)
+			// result, err = gitHubClient.SearchCode(query)
+			result, err = nil, fmt.Errorf("TODO: implement SearchCode")
 		} else {
 			err = fmt.Errorf("missing query parameter")
 		}
@@ -1024,7 +1116,7 @@ func handleContextRequest(client *Client, data map[string]interface{}, context t
 			newContext := translations.NewContextVector7D(rawContext)
 
 			// Merge with client's existing context
-			mergedContext := translations.MergeContexts(newContext, client.Context, logger)
+			mergedContext := translations.MergeContexts(newContext, client.Context, logger.(*logpkg.Logger))
 
 			// Update client's context
 			client.Context = mergedContext
@@ -1048,7 +1140,7 @@ func handleContextRequest(client *Client, data map[string]interface{}, context t
 
 	case "compress":
 		// Apply Möbius compression to context
-		compressedContext := translations.CompressContext(client.Context, logger)
+		compressedContext := translations.CompressContext(client.Context, logger.(*logpkg.Logger))
 
 		response = map[string]interface{}{
 			"type":      "context_result",
@@ -1066,7 +1158,7 @@ func handleContextRequest(client *Client, data map[string]interface{}, context t
 			contextToDecompress := translations.NewContextVector7D(rawContext)
 
 			// Decompress context
-			decompressedContext := translations.DecompressContext(contextToDecompress, logger)
+			decompressedContext := translations.DecompressContext(contextToDecompress, logger.(*logpkg.Logger))
 
 			response = map[string]interface{}{
 				"type":      "context_result",
@@ -1102,7 +1194,7 @@ func handleContextRequest(client *Client, data map[string]interface{}, context t
 			}
 
 			// Bridge context between GitHub and TNOS
-			bridgedContext := translations.BridgeMCPContext(githubContext, &client.Context, logger)
+			bridgedContext := translations.BridgeMCPContext(githubContext, &client.Context, logger.(*logpkg.Logger))
 
 			// Update client context
 			client.Context = bridgedContext
@@ -1225,9 +1317,21 @@ func connectToBridge() {
 		logger.Info("Operating in standalone mode")
 		return
 	}
-
+	// assign global instance
+	bloodBridgeInstance = bloodBridge
 	logger.Info("Successfully connected to Blood Bridge")
-	go processBloodCirculationMessages(bloodBridge)
+	// Fix: pass the concrete logger type to ghmcp.NewClient
+	var concreteLogger *logpkg.Logger
+	if l, ok := logger.(*logpkg.Logger); ok {
+		concreteLogger = l
+	} else {
+		concreteLogger = logpkg.NewLogger()
+	}
+	go processBloodCirculationMessages(bloodBridge, ghmcp.NewClient(config.GitHubToken, concreteLogger))
+
+	// After successful TNOS MCP bridge connection:
+	logpkg.SetHelicalMemoryMode("connected")
+	_ = logpkg.LogHelicalEvent(logpkg.NewHelicalEvent("MCPServer", "startup", "github-mcp-server", "init", "GoMain", "full", "GitHub MCP Server starting up"), logger)
 }
 
 // Canonical MCP/QHP ports
@@ -1246,8 +1350,8 @@ func startAllServers() {
 			mux.HandleFunc("/api/github/repositories", handleGitHubRepositories)
 			mux.HandleFunc("/api/github/issues", handleGitHubIssues)
 			mux.HandleFunc("/api/github/pullrequests", handleGitHubPullRequests)
-			mux.HandleFunc("/api/github/search", handleGitHubSearch)
-			mux.HandleFunc("/api/github/code-scanning", handleGitHubCodeScanning)
+			mux.HandleFunc("/api/github/search", handleGitHubSearchCode)
+			mux.HandleFunc("/api/github/code-scanning", handleGitHubCodeScanningAlerts)
 			mux.HandleFunc("/api/context", handleContext)
 
 			// Add the /bridge handler

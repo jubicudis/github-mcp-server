@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
+	logpkg "github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log" // Corrected import path
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
@@ -59,7 +60,7 @@ type ConnectionOptions struct {
 	// PythonMCPURL specifies the fallback stub endpoint for Python MCP
 	PythonMCPURL string
 	Context     map[string]interface{}
-	Logger      interface{}
+	Logger      logpkg.LoggerInterface // Changed from interface{}
 	Timeout     time.Duration
 	MaxRetries  int
 	RetryDelay  time.Duration
@@ -325,7 +326,7 @@ func LogHelicalMemory(who, what, when, where, why, how, extent, message string) 
 	// Path: /Users/Jubicudis/Tranquility-Neuro-OS/systems/memory/short_term/go/ and long_term/go/
 	// File name: YYYYMMDD_HHMMSS_WHO_WHAT.log (TranquilSpeak-compliant)
 	// All writes must be append-only, Mobius-compressed (passthrough, no standard compression)
-	// If file write fails, fallback to stdout
+	// If file write fails, fallback to logger.Warn
 
 	timestamp := time.Now().UTC().Format("20060102_150405")
 	filename := fmt.Sprintf("%s_%s_%s_%s.log", timestamp, who, what, where)
@@ -340,11 +341,13 @@ func LogHelicalMemory(who, what, when, where, why, how, extent, message string) 
 
 	// Write to short_term
 	if err := appendToFile(shortTermPath, mobiusCompressed); err != nil {
-		fmt.Printf("[HELICAL MEMORY LOG][FALLBACK] %s", mobiusCompressed)
+		// Use logger.Warn for fallback instead of fmt.Printf
+		logpkg.NewLogger().Warn("[HELICAL MEMORY LOG][FALLBACK] Failed to write to short_term", "error", err, "data", mobiusCompressed) // Use a temporary logger instance
 	}
 	// Write to long_term
 	if err := appendToFile(longTermPath, mobiusCompressed); err != nil {
-		fmt.Printf("[HELICAL MEMORY LOG][FALLBACK] %s", mobiusCompressed)
+		// Use logger.Warn for fallback instead of fmt.Printf
+		logpkg.NewLogger().Warn("[HELICAL MEMORY LOG][FALLBACK] Failed to write to long_term", "error", err, "data", mobiusCompressed) // Use a temporary logger instance
 	}
 }
 

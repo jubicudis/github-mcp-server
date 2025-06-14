@@ -11,16 +11,18 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"time"
 
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/bridge"
+	ghmcp "github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/github"
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/translations"
 )
 
 // processBloodCirculationMessages sets up handlers for blood circulation messages
-func processBloodCirculationMessages(bloodCirculation *bridge.BloodCirculation) {
+func processBloodCirculationMessages(bloodCirculation *bridge.BloodCirculation, gitHubClient *ghmcp.Client) {
 	// WHO: BloodProcessor
 	// WHAT: Process blood circulation messages
 	// WHEN: During blood bridge operation
@@ -49,7 +51,7 @@ func processBloodCirculationMessages(bloodCirculation *bridge.BloodCirculation) 
 			}
 
 			// Process based on message type
-			handleBloodCellMessage(bloodCirculation, cell, messageType)
+			handleBloodCellMessage(bloodCirculation, cell, messageType, gitHubClient)
 
 		case "White":
 			// White blood cells handle control messages
@@ -144,53 +146,50 @@ func processBloodCirculationMessages(bloodCirculation *bridge.BloodCirculation) 
 		ticker := time.NewTicker(5 * time.Minute)
 		defer ticker.Stop()
 
-		for {
-			select {
-			case <-ticker.C:
-				// Get system metrics
-				metrics := map[string]interface{}{
-					"uptime":        time.Since(startTime).String(),
-					"client_count":  len(clients),
-					"memory_usage":  "N/A", // TODO: implement memory usage tracking
-					"cpu_usage":     "N/A", // TODO: implement CPU usage tracking
-					"github_errors": 0,     // TODO: track GitHub API errors
-					"timestamp":     time.Now().Unix(),
-				}
-
-				// Create and queue a metrics cell
-				metricsCell := &bridge.BloodCell{
-					ID:          "metrics-" + time.Now().Format(time.RFC3339Nano),
-					Type:        "Platelet",
-					Payload: map[string]interface{}{
-						"type":    "metrics",
-						"metrics": metrics,
-						"source":  "github-mcp-server",
-					},
-					Timestamp:   time.Now().Unix(),
-					Source:      "github-mcp-server",
-					Destination: "tnos-mcp-server",
-					Priority:    3,
-					OxygenLevel: 1.0,
-					Context7D: translations.ContextVector7D{
-						Who:    "SystemMonitor",
-						What:   "Metrics",
-						When:   time.Now().Unix(),
-						Where:  "github-mcp-server",
-						Why:    "Health Monitoring",
-						How:    "Blood Bridge",
-						Extent: 0.5,
-						Source: "github-mcp-server",
-					},
-				}
-
-				bloodCirculation.QueueBloodCell(metricsCell)
+		for range ticker.C {
+			// Get system metrics
+			metrics := map[string]interface{}{
+				"uptime":        time.Since(startTime).String(),
+				"client_count":  len(clients),
+				"memory_usage":  "N/A", // TODO: implement memory usage tracking
+				"cpu_usage":     "N/A", // TODO: implement CPU usage tracking
+				"github_errors": 0,     // TODO: track GitHub API errors
+				"timestamp":     time.Now().Unix(),
 			}
+
+			// Create and queue a metrics cell
+			metricsCell := &bridge.BloodCell{
+				ID:          "metrics-" + time.Now().Format(time.RFC3339Nano),
+				Type:        "Platelet",
+				Payload: map[string]interface{}{
+					"type":    "metrics",
+					"metrics": metrics,
+					"source":  "github-mcp-server",
+				},
+				Timestamp:   time.Now().Unix(),
+				Source:      "github-mcp-server",
+				Destination: "tnos-mcp-server",
+				Priority:    3,
+				OxygenLevel: 1.0,
+				Context7D: translations.ContextVector7D{
+					Who:    "SystemMonitor",
+					What:   "Metrics",
+					When:   time.Now().Unix(),
+					Where:  "github-mcp-server",
+					Why:    "Health Monitoring",
+					How:    "Blood Bridge",
+					Extent: 0.5,
+					Source: "github-mcp-server",
+				},
+			}
+
+			bloodCirculation.QueueBloodCell(metricsCell)
 		}
 	}()
 }
 
 // Handle BloodCell messages
-func handleBloodCellMessage(bloodCirculation *bridge.BloodCirculation, cell *bridge.BloodCell, messageType string) {
+func handleBloodCellMessage(bloodCirculation *bridge.BloodCirculation, cell *bridge.BloodCell, messageType string, gitHubClient *ghmcp.Client) {
 	// Get the formula registry for translations
 	registry := bridge.GetBridgeFormulaRegistry()
 
@@ -289,7 +288,7 @@ func handleBloodCellMessage(bloodCirculation *bridge.BloodCirculation, cell *bri
 
 			if owner != "" && repo != "" && gitHubClient != nil {
 				// Call GitHub API
-				repoInfo, err := gitHubClient.GetRepository(owner, repo)
+				repoInfo, err := gitHubClient.GetRepositoryByName(context.Background(), owner, repo)
 				if err != nil {
 					responseData = map[string]interface{}{
 						"status": "error",

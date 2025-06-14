@@ -16,6 +16,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/gorilla/websocket"
+
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/bridge"
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/common"
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log"
@@ -36,41 +38,16 @@ const (
 
 var currentOperationalMode OperationalMode = ModeStandalone // Default to standalone
 
-// Canonical Helical Memory logger for TNOS (polyglot-compliant)
-func logToHelicalMemory(ctx context.Context, event string, details map[string]interface{}, context7d translations.ContextVector7D) error {
-	// Only perform helical memory logging if currentOperationalMode == ModeBloodConnected
+// logToHelicalMemory routes events through the provided LoggerInterface
+func logToHelicalMemory(ctx context.Context, event string, details map[string]interface{}, context7d translations.ContextVector7D, logger log.LoggerInterface) error {
+	// Standalone: log locally
 	if currentOperationalMode != ModeBloodConnected {
-		logWarningToFile(ctx, fmt.Sprintf("Attempted to log event '%s' in standalone mode, skipping Helical Memory logging.", event))
+		logger.Info(event+"_standalone", "details", details, "context", context7d)
 		return nil
 	}
-	// Compose log path for Circulatory system (short-term memory)
-	logDir := "/Users/Jubicudis/Tranquility-Neuro-OS/systems/memory/short-term/circulatory/"
-	if _, err := os.Stat(logDir); os.IsNotExist(err) {
-		_ = os.MkdirAll(logDir, 0755)
-	}
-	logFile := logDir + time.Now().Format("20060102T150405.000000000") + "_" + event + ".log"
-	// Compose 7D context log entry
-	logEntry := map[string]interface{}{
-		"event": event,
-		"details": details,
-		"7d": map[string]interface{}{
-			"who":    context7d.Who,
-			"what":   context7d.What,
-			"when":   context7d.When,
-			"where":  context7d.Where,
-			"why":    context7d.Why,
-			"how":    context7d.How,
-			"extent": context7d.Extent,
-			"source": context7d.Source,
-		},
-	}
-	f, err := os.Create(logFile)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	_, err = f.WriteString(fmt.Sprintf("%#v\n", logEntry))
-	return err
+	// Blood-connected: route through TNOS MCP logger
+	logger.Info(event, "details", details, "context", context7d)
+	return nil
 }
 
 // logWarningToFile logs a warning message to the GitHub MCP server logs
@@ -85,28 +62,12 @@ var canonicalQHPPorts = []int{9001, 10617, 10619, 8083}
 // InitializeBloodSystem checks for TNOS MCP connection and sets the operational mode.
 // This should be called at server startup.
 func InitializeBloodSystem(ctx context.Context, logger log.LoggerInterface) {
-	context7d := translations.ContextVector7D{
-		Who:    "GitHubMCPServer",
-		What:   "BloodSystemInit",
-		When:   time.Now().Unix(),
-		Where:  "SystemLayer6",
-		Why:    "TNOSBoot",
-		How:    "HelicalMemory",
-		Extent: 1.0,
-		Source: "github-mcp-server",
-	}
 	if common.CheckTNOSConnection(ctx) {
 		currentOperationalMode = ModeBloodConnected
-		_ = logToHelicalMemory(ctx, "BloodSystemInit", map[string]interface{}{
-			"status": "connected",
-			"mode":   currentOperationalMode,
-		}, context7d)
+		logger.Info("BloodSystemInit", "status", "connected", "mode", currentOperationalMode)
 	} else {
 		currentOperationalMode = ModeStandalone
-		_ = logToHelicalMemory(ctx, "BloodSystemInit", map[string]interface{}{
-			"status": "standalone",
-			"mode":   currentOperationalMode,
-		}, context7d)
+		logger.Info("BloodSystemInit", "status", "standalone", "mode", currentOperationalMode)
 	}
 }
 
@@ -129,14 +90,14 @@ const (
 // HelicalMemoryLog logs an event to the TNOS Helical Memory system
 func HelicalMemoryLog(ctx context.Context, event string, details map[string]interface{}, context7d translations.ContextVector7D, logger log.LoggerInterface) error {
 	if GetOperationalMode() != ModeBloodConnected {
-		_ = logToHelicalMemory(ctx, event+"_standalone", details, context7d)
+		_ = logToHelicalMemory(ctx, event+"_standalone", details, context7d, logger)
 		return nil
 	}
-	return logToHelicalMemory(ctx, event, details, context7d)
+	return logToHelicalMemory(ctx, event, details, context7d, logger)
 }
 
-// PerformQuantumHandshake executes the QHP handshake protocol with another TNOS component
-func PerformQuantumHandshake(ctx context.Context, endpoint string, metadata map[string]interface{}) (map[string]interface{}, error) {
+// PerformQuantumHandshake executes the QHP handshake protocol with TNOS components using canonical port list
+func PerformQuantumHandshake(ctx context.Context, metadata map[string]interface{}, logger log.LoggerInterface) (map[string]interface{}, error) {
 	context7d := translations.ContextVector7D{
 		Who:    "GitHubMCPServer",
 		What:   "QHPHandshake",
@@ -148,40 +109,53 @@ func PerformQuantumHandshake(ctx context.Context, endpoint string, metadata map[
 		Source: "github-mcp-server",
 	}
 	if GetOperationalMode() != ModeBloodConnected {
-		_ = logToHelicalMemory(ctx, "QHPHandshake_skipped", map[string]interface{}{"endpoint": endpoint}, context7d)
+		logger.Info("QHPHandshake_skipped", "mode", "standalone")
 		return map[string]interface{}{"status": "skipped_standalone_mode"}, nil
 	}
-	fingerprint := "QHP-Fingerprint-Canonical" // TODO: Replace with real QHP fingerprint logic
-	challengeStr := fmt.Sprintf("challenge-%d", time.Now().UnixNano())
-	challenge := "QHP-Challenge-Canonical" // TODO: Replace with real challenge logic
-	_ = logToHelicalMemory(ctx, "QHPHandshake_attempt", map[string]interface{}{
-		"endpoint":    endpoint,
-		"fingerprint": fingerprint,
-		"challenge":   challengeStr,
-	}, context7d)
-	return map[string]interface{}{
-		"status":      "success",
-		"fingerprint": fingerprint,
-		"challenge":   challenge,
-	}, nil
+	for _, port := range canonicalQHPPorts {
+		endpoint := fmt.Sprintf("ws://localhost:%d/ws", port)
+		logger.Info("QHPHandshake_connect", "endpoint", endpoint)
+		conn, _, err := websocket.DefaultDialer.Dial(endpoint, nil)
+		if err != nil {
+			logger.Info("QHPHandshake_dial_failed", "endpoint", endpoint, "error", err)
+			continue
+		}
+		defer conn.Close()
+		// Send handshake challenge
+		challenge := fmt.Sprintf("QHP-Challenge-%d", time.Now().UnixNano())
+		msg := map[string]interface{}{"event": "QHPHandshake", "challenge": challenge, "metadata": metadata}
+		if err := conn.WriteJSON(msg); err != nil {
+			logger.Info("QHPHandshake_write_failed", "endpoint", endpoint, "error", err)
+			continue
+		}
+		// Await response
+		var resp map[string]interface{}
+		if err := conn.ReadJSON(&resp); err != nil {
+			logger.Info("QHPHandshake_read_failed", "endpoint", endpoint, "error", err)
+			continue
+		}
+		// Validate response status
+		if status, ok := resp["status"].(string); ok && status == "ok" {
+			logger.Info("QHPHandshake_success", "endpoint", endpoint)
+			_ = HelicalMemoryLog(ctx, "QHPHandshake_success", resp, context7d, logger)
+			return resp, nil
+		}
+		logger.Info("QHPHandshake_rejected", "endpoint", endpoint, "resp", resp)
+	}
+	logger.Info("QHPHandshake_all_failed", "attempts", len(canonicalQHPPorts))
+	return nil, fmt.Errorf("all QHP handshake attempts failed")
 }
 
-// TranslateGitHubEventToBloodCell converts a GitHub event to a blood cell for circulation in TNOS
-func TranslateGitHubEventToBloodCell(ctx context.Context, event *github.Event) (*bridge.BloodCell, error) {
-	context7d := translations.ContextVector7D{
-		Who:    "GitHubMCPServer",
-		What:   "EventTranslation",
-		When:   time.Now().Unix(),
-		Where:  "SystemLayer6",
-		Why:    "BloodCirculation",
-		How:    "Biomimetics",
-		Extent: 1.0,
-		Source: "github-mcp-server",
-	}
-	if GetOperationalMode() != ModeBloodConnected {
-		_ = logToHelicalMemory(ctx, "TranslateGitHubEventToBloodCell_skipped", map[string]interface{}{"event": event}, context7d)
-		return nil, fmt.Errorf("blood cell translation unavailable in standalone mode")
-	}
+// global bridge instance registered by main
+var bloodBridge *bridge.BloodCirculation
+
+// RegisterBloodBridge sets the bridge instance for circulation
+func RegisterBloodBridge(b *bridge.BloodCirculation) {
+	bloodBridge = b
+}
+
+// TranslateGitHubEventToBloodCell converts and sends a GitHub event into TNOS circulation
+func TranslateGitHubEventToBloodCell(ctx context.Context, event *github.Event, logger log.LoggerInterface) error {
 	cell := &bridge.BloodCell{
 		ID:          GenerateBloodCellID(),
 		Type:        "Red",
@@ -190,14 +164,35 @@ func TranslateGitHubEventToBloodCell(ctx context.Context, event *github.Event) (
 		Timestamp:   time.Now().Unix(),
 		Priority:    5,
 		OxygenLevel: 1.0,
-		Context7D:   context7d,
-		Payload: map[string]interface{}{
-			"data": event,
-			"meta": map[string]interface{}{"timestamp": time.Now().Unix()},
+		Context7D: translations.ContextVector7D{
+			Who:    "GitHubMCPServer",
+			What:   "EventTranslation",
+			When:   time.Now().Unix(),
+			Where:  "SystemLayer6",
+			Why:    "BloodCirculation",
+			How:    "Biomimetics",
+			Extent: 1.0,
+			Source: "github-mcp-server",
 		},
+		Payload: map[string]interface{}{"event": event},
 	}
-	_ = logToHelicalMemory(ctx, "TranslateGitHubEventToBloodCell", map[string]interface{}{"cell": cell}, context7d)
-	return cell, nil
+	if bloodBridge == nil {
+		logger.Info("Blood bridge not registered, event not sent", "cellID", cell.ID)
+		return nil
+	}
+	// send over the bridge
+	if err := bloodBridge.SendBloodCell(cell); err != nil {
+		logger.Info("Failed to send blood cell", "error", err)
+		return err
+	}
+	logger.Info("TranslateGitHubEventToBloodCell sent", "cellID", cell.ID)
+	return nil
+}
+
+// Handler stub
+func HandleIncomingBloodCell(ctx context.Context, cell *bridge.BloodCell, logger log.LoggerInterface) {
+	logger.Info("Received blood cell", "cellID", cell.ID)
+	// TODO: map cell.Payload back into GitHub MCP responses
 }
 
 // GenerateBloodCellID generates a unique ID for a blood cell
@@ -206,43 +201,34 @@ func GenerateBloodCellID() string {
 }
 
 // CirculateBloodCell circulates a blood cell through the TNOS blood system
-func CirculateBloodCell(ctx context.Context, cell *bridge.BloodCell) error {
-	context7d := cell.Context7D
+func CirculateBloodCell(ctx context.Context, cell *bridge.BloodCell, logger log.LoggerInterface) error {
 	if GetOperationalMode() != ModeBloodConnected {
-		_ = logToHelicalMemory(ctx, "CirculateBloodCell_skipped", map[string]interface{}{"cellId": cell.ID}, context7d)
+		logger.Info("CirculateBloodCell_standalone", "cellID", cell.ID)
 		return nil
 	}
-	_ = logToHelicalMemory(ctx, "CirculateBloodCell", map[string]interface{}{"cellId": cell.ID, "payload": cell.Payload}, context7d)
-	return nil
+	return HelicalMemoryLog(ctx, "CirculateBloodCell", map[string]interface{}{"cellId": cell.ID, "payload": cell.Payload}, cell.Context7D, logger)
 }
 
 // GetBloodCirculationState retrieves the current state of the blood circulation system
-func GetBloodCirculationState(ctx context.Context) (*bridge.BloodCirculationState, error) {
+func GetBloodCirculationState(ctx context.Context, logger log.LoggerInterface) (*bridge.BloodCirculationState, error) {
 	context7d := translations.ContextVector7D{
 		Who:    "GitHubMCPServer",
 		What:   "BloodCirculationState",
 		When:   time.Now().Unix(),
 		Where:  "SystemLayer6",
 		Why:    "Monitoring",
-		How:    "StateQuery",
+		How:    "HelicalMemory",
 		Extent: 1.0,
 		Source: "github-mcp-server",
 	}
+	state := &bridge.BloodCirculationState{}
 	if GetOperationalMode() != ModeBloodConnected {
-		_ = logToHelicalMemory(ctx, "GetBloodCirculationState_skipped", nil, context7d)
-		return &bridge.BloodCirculationState{SystemHealth: 0}, nil
+		logger.Info("GetBloodCirculationState_standalone", "state", state)
+		return state, nil
 	}
-	state := &bridge.BloodCirculationState{
-		CellCount:        100,
-		CirculationRate:  0.8,
-		LastCirculation:  time.Now().Add(-5 * time.Minute).Unix(),
-		SystemHealth:     0.95,
-		QHPFingerprints:  []string{"QHP-Fingerprint-Canonical"},
-		SecureChannels:   5,
-		ActiveCells:      75,
-		ThreatDetections: 0,
+	if err := HelicalMemoryLog(ctx, "GetBloodCirculationState", map[string]interface{}{"state": state}, context7d, logger); err != nil {
+		return state, err
 	}
-	_ = logToHelicalMemory(ctx, "GetBloodCirculationState", map[string]interface{}{"state": state}, context7d)
 	return state, nil
 }
 

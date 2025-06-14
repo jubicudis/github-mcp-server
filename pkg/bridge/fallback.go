@@ -18,6 +18,9 @@ import (
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log"
 )
 
+// TRANQUILSPEAK SYMBOL CLUSTER: [𝒯⚕️βℏƒ𓆑#IM1𝑾𝑾𝑯𝑾𝑯𝑬𝑾𝑯𝑬𝑹𝑾𝑯𝒀𝑯𝑶𝑾𝑬𝑿⏳📍𝒮𝓔𝓗]
+// This file is part of the 'immune' biosystem. See symbolic_mapping_registry_autogen_20250603.tsq for details.
+
 // RouteOperation represents a function that can be executed with fallback
 type RouteOperation func() (interface{}, error)
 
@@ -34,34 +37,34 @@ func FallbackRoute(
 	fallback1 FallbackFunction, // Changed to use FallbackFunction for compatibility
 	fallback2 FallbackFunction, // Changed to use FallbackFunction for compatibility
 	fallback3 FallbackFunction, // Changed to use FallbackFunction for compatibility
-	logger *log.Logger,
+	logger log.LoggerInterface, // Changed to LoggerInterface
 ) (interface{}, error) {
 	startTime := time.Now()
 
 	result, err := primaryOp()
 	if err == nil {
 		if logger != nil {
-			logger.Debug("[%s] Primary operation succeeded in %s", 
-				operationName, time.Since(startTime))
+			logger.Debug(fmt.Sprintf("[%s] Primary operation succeeded in %s", 
+				operationName, time.Since(startTime)))
 		}
 		return result, nil
 	}
 
 	if logger != nil {
-		logger.Warn("[%s] Primary operation failed: %v", operationName, err)
+		logger.Warn(fmt.Sprintf("[%s] Primary operation failed: %v", operationName, err))
 	}
 
 	for i, fallback := range []FallbackFunction{fallback1, fallback2, fallback3} {
 		result, err = fallback()
 		if err == nil {
 			if logger != nil {
-				logger.Debug("[%s] Fallback #%d succeeded in %s", 
-					operationName, i+1, time.Since(startTime))
+				logger.Debug(fmt.Sprintf("[%s] Fallback #%d succeeded in %s", 
+					operationName, i+1, time.Since(startTime)))
 			}
 			return result, nil
 		}
 		if logger != nil {
-			logger.Warn("[%s] Fallback #%d failed: %v", operationName, i+1, err)
+			logger.Warn(fmt.Sprintf("[%s] Fallback #%d failed: %v", operationName, i+1, err))
 		}
 	}
 
