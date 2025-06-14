@@ -28,6 +28,9 @@ import (
 // EXTENT: All logger implementations
 type LoggerInterface interface {
 	Info(message string, args ...interface{})
+	Debug(message string, args ...interface{}) // Added Debug
+	Warn(message string, args ...interface{})  // Added Warn
+	Error(message string, args ...interface{}) // Added Error
 }
 
 // WHO: ContextVector7D
@@ -306,16 +309,12 @@ func (rw *RotatingFileWriter) shouldRotate(additionalBytes int64) bool {
 
 	// Check size-based rotation
 	if rw.maxSize > 0 && rw.currentSize+additionalBytes > rw.maxSize {
-		fmt.Printf("Size-based rotation: currentSize=%d, additionalBytes=%d, maxSize=%d\n",
-			rw.currentSize, additionalBytes, rw.maxSize)
 		return true
 	}
 
 	// Check time-based rotation
 	timeSinceLastRotation := time.Since(rw.lastRotation)
 	if rw.maxAge > 0 && timeSinceLastRotation > rw.maxAge {
-		fmt.Printf("Time-based rotation: timeSince=%v, maxAge=%v\n",
-			timeSinceLastRotation, rw.maxAge)
 		return true
 	}
 
@@ -332,12 +331,9 @@ func (rw *RotatingFileWriter) rotate() error {
 	// HOW: Using file rename and reopen
 	// EXTENT: File rotation
 
-	fmt.Printf("Rotating log file: %s\n", rw.baseFilename)
-
 	// Close the current file
 	if rw.currentFile != nil {
 		if err := rw.currentFile.Close(); err != nil {
-			fmt.Printf("Error closing file: %v\n", err)
 			return err
 		}
 	}
@@ -346,14 +342,11 @@ func (rw *RotatingFileWriter) rotate() error {
 	timestamp := time.Now().Format("20060102-150405.000")
 	rotatedName := fmt.Sprintf("%s.%s", rw.baseFilename, timestamp)
 
-	fmt.Printf("Renaming %s to %s\n", rw.baseFilename, rotatedName)
-
 	// Rename the current file
 	if err := os.Rename(rw.baseFilename, rotatedName); err != nil {
 		if os.IsNotExist(err) {
 			fmt.Printf("Warning: source file doesn't exist: %v\n", err)
 		} else {
-			fmt.Printf("Error renaming file: %v\n", err)
 			return err
 		}
 	}
@@ -361,7 +354,6 @@ func (rw *RotatingFileWriter) rotate() error {
 	// Open a new file
 	file, err := os.OpenFile(rw.baseFilename, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
 	if err != nil {
-		fmt.Printf("Error opening new file: %v\n", err)
 		return err
 	}
 
@@ -370,7 +362,6 @@ func (rw *RotatingFileWriter) rotate() error {
 	rw.currentSize = 0
 	rw.lastRotation = time.Now()
 
-	fmt.Printf("Log rotation complete\n")
 	return nil
 }
 
@@ -630,9 +621,11 @@ func (bw *BufferedContextWriter) SetContext(context *ContextVector7D) {
 
 // Compatibility logic for bridge and subcomponent needs
 func ConfigureIOForBridge(mode string) {
+	// Use unified logger instead of stdout prints
+	logger := NewNopLogger().WithLevel(LevelInfo).WithOutput(os.Stdout) // TODO: inject real logger
 	if mode == "standalone" {
-		fmt.Println("I/O configured for standalone mode")
+		logger.Info("I/O configured for standalone mode")
 	} else if mode == "blood-connected" {
-		fmt.Println("I/O configured for blood-connected mode")
+		logger.Info("I/O configured for blood-connected mode")
 	}
 }

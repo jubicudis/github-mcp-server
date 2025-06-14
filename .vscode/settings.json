@@ -43,7 +43,13 @@
 	// Ensure symmetry between MCP components
 	"files.associations": {
 		"*.go.tmpl": "go",
-		"*.mcpdef": "json"
+		"*.mcpdef": "json",
+		".github/workflows/code-scanning.yml": "yaml",
+		".github/workflows/docker-publish.yml": "yaml",
+		".github/workflows/go.yml": "yaml",
+		".github/workflows/goreleaser.yml": "yaml",
+		".github/workflows/license-check.yml": "yaml",
+		".github/workflows/lint.yaml": "yaml"
 	},
 	
 	// MCP-specific search settings

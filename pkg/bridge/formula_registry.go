@@ -7,6 +7,9 @@
 // HOW: Loads formulas from JSON file at startup
 // EXTENT: All formula execution and HemoFlux integration
 
+// TRANQUILSPEAK SYMBOL CLUSTER: [𝒯🦴ζℏƒ𓆑#SK1𝑾𝑾𝑯𝑾𝑯𝑬𝑾𝑯𝑬𝑹𝑾𝑯𝒀𝑯𝑶𝑾𝑬𝑿⏳📍𝒮𝓔𝓗]
+// This file is part of the 'skeletal' biosystem. See symbolic_mapping_registry_autogen_20250603.tsq for details.
+
 package bridge
 
 import (
@@ -235,6 +238,15 @@ func addDefaultTNOSMCPFormulas(registry *BridgeFormulaRegistry) {
 			"layer":    "identity_recursion",
 			"reference": "docs/technical/FORMULAS_AND_BLUEPRINTS.md#self-equation-recursive-identity-collapse",
 		},
+	})
+	
+	// TranquilSpeak logger initialization formula
+	registry.AddFormula(BridgeFormula{
+		ID:          "tranquilspeak.initializeLogger",
+		Description: "Initializes the TranquilSpeak logger with 7D context integration",
+		ContextReqs: []string{"who", "what", "when", "where", "why", "how", "extent"},
+		Parameters: map[string]interface{}{ "logLevel": "info" },
+		Metadata: map[string]interface{}{ "category": "tranquilspeak", "canonical_path": "/systems/tranquilspeak/logger/initialize" },
 	})
 }
 

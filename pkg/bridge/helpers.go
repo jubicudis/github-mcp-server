@@ -6,6 +6,9 @@
 // HOW: Using standard Go functions
 // EXTENT: All bridge operations
 
+// TRANQUILSPEAK SYMBOL CLUSTER: [𝒯🩹βℏƒ𓆑#IN1𝑾𝑾𝑯𝑾𝑯𝑬𝑾𝑯𝑬𝑹𝑾𝑯𝒀𝑯𝑶𝑾𝑬𝑿⏳📍𝒮𝓔𝓗]
+// This file is part of the 'integumentary' biosystem. See symbolic_mapping_registry_autogen_20250603.tsq for details.
+
 package bridge
 
 import (

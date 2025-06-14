@@ -8,14 +8,19 @@
 
 name: GoReleaser Release
 
-on: [push, pull_request]
-
-permissions:
-  contents: read
+on:
+  push:
+    tags:
+      - 'v*'
 
 jobs:
   release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+      issues: read
+      pull-requests: read
     steps:
       - name: Check out code
         uses: actions/checkout@v4
@@ -29,10 +34,10 @@ jobs:
         run: go mod download
 
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@9c156ee8a17a598857849441385a2041ef570552
+        uses: goreleaser/goreleaser-action@v5
         with:
           distribution: goreleaser
-          version: "~> v2"
+          version: latest
           args: release --clean
           workdir: .
         env:

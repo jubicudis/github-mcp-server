@@ -18,7 +18,6 @@ import (
 	"sync"
 	"time"
 
-	tnosmcp "github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/internal/tnos-mcp-interface" // Added for canonical ports
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/common"
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log"
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/translations"
@@ -29,10 +28,10 @@ import (
 // BloodConstants defines the constants specific to the blood bridge
 const (
 	// Ports for various MCP servers, aligned with QHP (Quantum Handshake Protocol)
-	// TNOSMCPPort    = 9001  // Replaced by tnosmcp.PortTNOSMCPServer
-	// BridgePort     = 10619 // Replaced by tnosmcp.PortMCPBridge
-	// GitHubMCPPort  = 10617 // Replaced by tnosmcp.PortGitHubMCPServer
-	// CopilotLLMPort = 8083  // Replaced by tnosmcp.PortCopilotLLM
+	TNOSMCPPort    = 9001
+	BridgePort     = 10619
+	GitHubMCPPort  = 10617
+	CopilotLLMPort = 8083
 
 	// Blood flow parameters
 	MaxCellCapacity      = 1024 * 1024 // Maximum size of a blood cell (1MB)
@@ -99,12 +98,21 @@ type BloodMetrics struct {
 	ClottingEvents       int
 }
 
+// Exported connection state constants
+const (
+	StateDisconnected = common.StateDisconnected
+	StateConnecting   = common.StateConnecting
+	StateConnected    = common.StateConnected
+	StateReconnecting = common.StateReconnecting
+	StateError        = common.StateError
+)
+
 // NewBloodCirculation creates a new blood circulation bridge
 func NewBloodCirculation(ctx context.Context, options common.ConnectionOptions) (*BloodCirculation, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	
 	// Default to TNOS MCP server URL if not provided
-	tnosMCPURL := fmt.Sprintf("ws://localhost:%d", tnosmcp.PortTNOSMCPServer)
+	tnosMCPURL := fmt.Sprintf("ws://localhost:%d", TNOSMCPPort)
 	if options.ServerURL != "" && options.ServerPort > 0 {
 		tnosMCPURL = fmt.Sprintf("ws://%s:%d", options.ServerURL, options.ServerPort)
 	}
@@ -194,16 +202,16 @@ func (bc *BloodCirculation) connect() error {
     // Define endpoints in priority order
     type endpoint struct{ name, url string }
     endpoints := []endpoint{
-        {"TNOS MCP", fmt.Sprintf("ws://localhost:%d", tnosmcp.PortTNOSMCPServer)},
-        {"Bridge MCP", fmt.Sprintf("ws://localhost:%d", tnosmcp.PortMCPBridge)},
-        {"GitHub MCP", fmt.Sprintf("ws://localhost:%d", tnosmcp.PortGitHubMCPServer)},
-        {"Copilot LLM", fmt.Sprintf("ws://localhost:%d", tnosmcp.PortCopilotLLM)},
+        {"TNOS MCP", fmt.Sprintf("ws://localhost:%d", TNOSMCPPort)},
+        {"Bridge MCP", fmt.Sprintf("ws://localhost:%d", BridgePort)},
+        {"GitHub MCP", fmt.Sprintf("ws://localhost:%d", GitHubMCPPort)},
+        {"Copilot LLM", fmt.Sprintf("ws://localhost:%d", CopilotLLMPort)},
     }
     // Include Python MCP stub fallback
     if bc.options.PythonMCPURL != "" {
         endpoints = append(endpoints, endpoint{"Python MCP Stub", bc.options.PythonMCPURL})
     } else {
-        endpoints = append(endpoints, endpoint{"Python MCP Stub", fmt.Sprintf("ws://localhost:%d", tnosmcp.PortTNOSMCPServer)}) // Fallback to TNOS MCP Port
+        endpoints = append(endpoints, endpoint{"Python MCP Stub", fmt.Sprintf("ws://localhost:%d", TNOSMCPPort)})
     }
 
     var lastErr error
@@ -351,6 +359,13 @@ func (bc *BloodCirculation) processQueuedCells() {
 	for i := len(bc.cellQueue) - 1; i >= 0; i-- {
 		cell := bc.cellQueue[i]
 		
+		// Apply hemoflux compression if needed
+		if HemofluxCompression && !cell.Compressed {
+			if err := bc.compressCell(cell); err != nil {
+				bc.logger.Error("Failed to compress cell", "id", cell.ID, "error", err)
+			}
+		}
+		
 		// Apply blood filtering if callback is set
 		if bc.filterCallback != nil && !bc.filterCallback(cell) {
 			bc.cellQueue = append(bc.cellQueue[:i], bc.cellQueue[i+1:]...)
@@ -407,6 +422,14 @@ func (bc *BloodCirculation) receiveBloodCells() {
 			
 			bc.metrics.CellsReceived++
 			bc.logger.Debug("Received blood cell", "id", cell.ID, "type", cell.Type)
+			
+			// Decompress if needed
+			if cell.Compressed {
+				if err := bc.decompressCell(cell); err != nil {
+					bc.logger.Error("Failed to decompress cell", "id", cell.ID, "error", err)
+					continue
+				}
+			}
 			
 			// Process the cell
 			go bc.processReceivedCell(cell)
@@ -498,63 +521,163 @@ func (bc *BloodCirculation) sendResponse(originalCell *BloodCell, responseType s
 
 // executeFormula executes a formula from the registry with the given parameters
 func (bc *BloodCirculation) executeFormula(formulaID string, params map[string]interface{}) (interface{}, error) {
-	// Get formula from cache or registry
+	if bc.state == common.StateConnected && bc.conn != nil {
+		// Delegate formula execution to TNOS MCP server via blood bridge
+		request := map[string]interface{}{
+			"action": "formula_request",
+			"formula_id": formulaID,
+			"parameters": params,
+		}
+		// Send request and wait for response (synchronously for simplicity)
+		response, err := bc.sendFormulaRequestToTNOS(request)
+		if err != nil {
+			return nil, err
+		}
+		return response, nil
+	}
+	// Standalone: use local registry
 	formula, ok := bc.formulaCache[formulaID]
 	if !ok {
 		registry := GetBridgeFormulaRegistry()
 		if registry == nil {
 			return nil, fmt.Errorf("formula registry is not initialized")
 		}
-		
 		formula, ok = registry.GetFormula(formulaID)
 		if !ok {
 			return nil, fmt.Errorf("formula not found: %s", formulaID)
 		}
-		
-		// Cache for future use
 		bc.formulaCache[formulaID] = formula
 	}
-	
-	// Log formula execution
-	bc.logger.Info("Executing formula", "id", formulaID, "params", params)
-	
-	// Check if formula requires specific context parameters
+	bc.logger.Info("Executing formula (standalone)", "id", formulaID, "params", params)
 	if len(formula.ContextReqs) > 0 {
-		// Ensure context is provided
 		ctx, ok := params["context"].(map[string]interface{})
 		if !ok {
 			ctx = make(map[string]interface{})
 			params["context"] = ctx
 		}
-		
-		// Check for missing required context parameters
 		for _, req := range formula.ContextReqs {
 			if _, exists := ctx[req]; !exists {
 				bc.logger.Warn("Missing required context parameter", "formula", formulaID, "param", req)
 			}
 		}
 	}
-	
-	// Execute the formula using the registry
 	registry := GetBridgeFormulaRegistry()
 	if registry == nil {
 		return nil, fmt.Errorf("formula registry is not initialized")
 	}
-	
 	result, err := registry.ExecuteFormula(formulaID, params)
 	if err != nil {
 		bc.logger.Error("Formula execution failed", "id", formulaID, "error", err)
 		return nil, err
 	}
-	
-	// Add execution timestamp and metadata
 	result["timestamp"] = time.Now().Unix()
 	result["formula_id"] = formulaID
-	
-	// Track formula usage in metrics
-	// TODO: Implement formula usage tracking
-	
 	return result, nil
+}
+
+// sendFormulaRequestToTNOS sends a formula execution request to the TNOS MCP server and waits for a response
+func (bc *BloodCirculation) sendFormulaRequestToTNOS(request map[string]interface{}) (map[string]interface{}, error) {
+	// This is a placeholder for the actual bridge logic
+	// In production, this would send the request over the WebSocket and wait for a response
+	// For now, return a not implemented error
+	return nil, fmt.Errorf("remote formula execution via blood bridge not yet implemented")
+}
+
+// compressCell applies hemoflux compression to a blood cell
+func (bc *BloodCirculation) compressCell(cell *BloodCell) error {
+	// Get the registry for formula execution
+	registry := GetBridgeFormulaRegistry()
+	if registry == nil {
+		return fmt.Errorf("formula registry not initialized")
+	}
+	
+	// Prepare the Hemoflux compression context using shared utility
+	context := common.GenerateContextMap(cell.Context7D)
+	// Add extra fields for compression context
+	context["destination"] = cell.Destination
+	context["timestamp"] = cell.Timestamp
+	context["cell_type"] = cell.Type
+	context["priority"] = cell.Priority
+	
+	// Prepare cell payload for compression
+	payloadData, err := json.Marshal(cell.Payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal cell payload: %w", err)
+	}
+	
+	// Execute the hemoflux.compress formula (this delegates to the Formula Registry)
+	// Note: Actual compression would be done by HemoFlux which is the sole executor of Mobius Equation
+	compressionParams := map[string]interface{}{
+		"data":         string(payloadData),
+		"context":      context,
+		"formula_key": "tnos_mcp_bridge",
+	}
+	
+	result, err := registry.ExecuteFormula("hemoflux.compress", compressionParams)
+	if err != nil {
+		return fmt.Errorf("hemoflux compression failed: %w", err)
+	}
+	
+	// In production, this compressed data would come from the actual HemoFlux system
+	// For now, we just simulate compression behavior
+	cell.Compressed = true
+	cell.CompressionID = "hemoflux-" + time.Now().Format(time.RFC3339Nano)
+	
+	// Update payload to include compression metadata
+	if compressedPayload, ok := result["compressed_payload"].(map[string]interface{}); ok {
+		cell.Payload = compressedPayload
+	}
+	
+	// Track compression ratio for metrics
+	if ratio, ok := result["compression_ratio"].(float64); ok {
+		bc.mutex.Lock()
+		bc.metrics.CompressionRatio = ratio
+		bc.mutex.Unlock()
+	}
+	
+	bc.logger.Debug("Applied HemoFlux compression to cell", 
+		"id", cell.ID, 
+		"compression_id", cell.CompressionID)
+	
+	return nil
+}
+
+// decompressCell decompresses a blood cell
+func (bc *BloodCirculation) decompressCell(cell *BloodCell) error {
+	// Get the registry for formula execution
+	registry := GetBridgeFormulaRegistry()
+	if registry == nil {
+		return fmt.Errorf("formula registry not initialized")
+	}
+	
+	// Skip if not compressed
+	if !cell.Compressed {
+		return nil
+	}
+	
+	// Execute the hemoflux.decompress formula (this delegates to the Formula Registry)
+	// Note: Actual decompression would be done by HemoFlux which is the sole executor of Mobius Equation
+	decompressionParams := map[string]interface{}{
+		"compressed_payload": cell.Payload,
+		"compression_id":     cell.CompressionID,
+		"context":            common.GenerateContextMap(cell.Context7D),
+	}
+	
+	result, err := registry.ExecuteFormula("hemoflux.decompress", decompressionParams)
+	if err != nil {
+		return fmt.Errorf("hemoflux decompression failed: %w", err)
+	}
+	
+	// Update payload with decompressed data
+	if decompressedPayload, ok := result["decompressed_payload"].(map[string]interface{}); ok {
+		cell.Payload = decompressedPayload
+	}
+	
+	cell.Compressed = false
+	
+	bc.logger.Debug("Applied HemoFlux decompression to cell", "id", cell.ID)
+	
+	return nil
 }
 
 // sendBloodCell sends a blood cell to the TNOS MCP server
@@ -574,6 +697,11 @@ func (bc *BloodCirculation) sendBloodCell(cell *BloodCell) error {
 	
 	bc.metrics.CellsTransmitted++
 	return nil
+}
+
+// Export SendBloodCell method
+func (bc *BloodCirculation) SendBloodCell(cell *BloodCell) error {
+	return bc.sendBloodCell(cell)
 }
 
 // QueueBloodCell queues a blood cell for circulation
@@ -789,4 +917,11 @@ func (bc *BloodCirculation) Close() error {
 	
 	bc.state = common.StateDisconnected
 	return nil
+}
+
+// GetState returns the current connection state of the blood bridge
+func (bc *BloodCirculation) GetState() common.ConnectionState {
+	bc.mutex.RLock()
+	defer bc.mutex.RUnlock()
+	return bc.state
 }

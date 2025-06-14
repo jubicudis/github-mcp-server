@@ -35,7 +35,7 @@ import (
 // EXTENT: Bridge mode configuration
 
 // InitializeMCPBridge sets up the MCP bridge between GitHub and TNOS MCP
-func InitializeMCPBridge(enableCompression bool) error {
+func InitializeMCPBridge(enableCompression bool, logger log.LoggerInterface) error { // Added logger parameter
 	// WHO: BridgeInitializer
 	// WHAT: MCP bridge initialization with fallback
 	// WHEN: During server startup
@@ -72,13 +72,13 @@ func InitializeMCPBridge(enableCompression bool) error {
 		"BridgeInit",
 		contextData, // Pass the converted map
 		func() (interface{}, error) {
-			fmt.Println("Initializing MCP Bridge between GitHub and TNOS")
+			logger.Info("Initializing MCP Bridge between GitHub and TNOS") // Use passed logger
 			return nil, nil
 		},
 		func() (interface{}, error) { return nil, fmt.Errorf("Bridge fallback not implemented") },
 		func() (interface{}, error) { return nil, fmt.Errorf("GitHub MCP fallback not implemented") },
 		func() (interface{}, error) { return nil, fmt.Errorf("Copilot fallback not implemented") },
-		log.NewLogger(),
+		logger, // Use passed logger directly assuming FallbackRoute accepts LoggerInterface
 	)
 	return err
 }
@@ -96,11 +96,11 @@ type GitHubContextTranslator struct {
 	EnableCompression bool
 	EnableLogging     bool
 	DebugMode         bool
-	Logger            *log.Logger
+	Logger            log.LoggerInterface // Changed to LoggerInterface
 }
 
 // NewGitHubContextTranslator creates a new context translator instance
-func NewGitHubContextTranslator(logger *log.Logger, enableCompression, enableLogging, debugMode bool) *GitHubContextTranslator {
+func NewGitHubContextTranslator(logger log.LoggerInterface, enableCompression, enableLogging, debugMode bool) *GitHubContextTranslator { // Changed logger type
 	// WHO: TranslatorFactory
 	// WHAT: Creates context translator
 	// WHEN: During bridge initialization
@@ -113,7 +113,7 @@ func NewGitHubContextTranslator(logger *log.Logger, enableCompression, enableLog
 		EnableCompression: enableCompression,
 		EnableLogging:     enableLogging,
 		DebugMode:         debugMode,
-		Logger:            logger,
+		Logger:            logger, // Use passed logger
 	}
 }
 
@@ -154,14 +154,18 @@ func (t *GitHubContextTranslator) TranslateToTNOS(githubContext map[string]inter
 		contextData, // Pass the converted map
 		func() (interface{}, error) {
 			if t.EnableLogging && t.Logger != nil {
-				t.Logger.Debug("Translating context from GitHub to TNOS")
+				if t.DebugMode {
+					t.Logger.Debug("Translating context from GitHub to TNOS")
+				} else {
+					t.Logger.Info("Translating context from GitHub to TNOS")
+				}
 			}
 			return nil, nil
 		},
 		func() (interface{}, error) { return nil, fmt.Errorf("Bridge fallback not implemented") },
 		func() (interface{}, error) { return nil, fmt.Errorf("GitHub MCP fallback not implemented") },
 		func() (interface{}, error) { return nil, fmt.Errorf("Copilot fallback not implemented") },
-		t.Logger,
+		t.Logger, // Use instance logger assuming FallbackRoute accepts LoggerInterface
 	)
 
 	// This would implement the actual translation logic in a real system
@@ -215,14 +219,18 @@ func (t *GitHubContextTranslator) TranslateFromTNOS(tnosContext map[string]inter
 		contextData, // Pass the converted map
 		func() (interface{}, error) {
 			if t.EnableLogging && t.Logger != nil {
-				t.Logger.Debug("Translating context from TNOS to GitHub")
+				if t.DebugMode {
+					t.Logger.Debug("Translating context from TNOS to GitHub")
+				} else {
+					t.Logger.Info("Translating context from TNOS to GitHub")
+				}
 			}
 			return nil, nil
 		},
 		func() (interface{}, error) { return nil, fmt.Errorf("Bridge fallback not implemented") },
 		func() (interface{}, error) { return nil, fmt.Errorf("GitHub MCP fallback not implemented") },
 		func() (interface{}, error) { return nil, fmt.Errorf("Copilot fallback not implemented") },
-		t.Logger,
+		t.Logger, // Use instance logger assuming FallbackRoute accepts LoggerInterface
 	)
 
 	// This would implement the actual translation logic in a real system
