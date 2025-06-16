@@ -90,7 +90,8 @@ func (t *ContextTranslator) TranslateMapToTNOS(
 
 	// Apply compression if enabled
 	if t.enableCompression {
-		tnosContext = translations.CompressTranslationContext(tnosContext)
+		standalone := GetOperationalMode() == ModeStandalone
+		tnosContext = translations.CompressTranslationContextWithMode(tnosContext, standalone)
 	}
 
 	// Convert to map for return
@@ -165,7 +166,8 @@ func (t *ContextTranslator) TranslateStringToTNOS(jsonStr string) (map[string]in
 
 	// Apply compression if enabled
 	if t.enableCompression {
-		compressed := cv.Compress()
+		standalone := GetOperationalMode() == ModeStandalone
+		compressed := cv.Compress(standalone)
 		cv = *compressed
 	}
 

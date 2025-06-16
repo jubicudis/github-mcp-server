@@ -14,93 +14,94 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/bridge"
 	ghmcp "github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/github"
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log"
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/translations"
 )
 
 // processBloodCirculationMessages sets up handlers for blood circulation messages
-func processBloodCirculationMessages(bloodCirculation *bridge.BloodCirculation, gitHubClient *ghmcp.Client) {
-	// WHO: BloodProcessor
-	// WHAT: Process blood circulation messages
-	// WHEN: During blood bridge operation
-	// WHERE: System Layer 6 (Integration)
-	// WHY: To handle bidirectional communication
-	// HOW: Using blood cell filtering and processing
-	// EXTENT: All blood circulation message handling
+func processBloodCirculationMessages(bloodCirculation *bridge.BloodCirculation, gitHubClient *ghmcp.Client, logger log.LoggerInterface, serverStartTime time.Time, clientsMap *map[*Client]bool, clientsMutex *sync.Mutex) {
+    // WHO: BloodProcessor
+    // WHAT: Process blood circulation messages
+    // WHEN: During blood bridge operation
+    // WHERE: System Layer 6 (Integration)
+    // WHY: To handle bidirectional communication
+    // HOW: Using blood cell filtering and processing
+    // EXTENT: All blood circulation message handling
 
-	logger.Info("Setting up blood circulation message processing")
+    logger.Info("Setting up blood circulation message processing")
 
-	// Register callback to handle blood cells
-	bloodCirculation.SetBloodFilter(func(cell *bridge.BloodCell) bool {
-		// Process the cell based on its type
-		switch cell.Type {
-		case "Red":
-			// Red blood cells carry data (payload)
-			logger.Debug("Received red blood cell", "id", cell.ID, "source", cell.Source)
+    // Register callback to handle blood cells
+    bloodCirculation.SetBloodFilter(func(cell *bridge.BloodCell) bool {
+        // Process the cell based on its type
+        switch cell.Type {
+        case "Red":
+            // Red blood cells carry data (payload)
+            logger.Debug("Received red blood cell", "id", cell.ID, "source", cell.Source)
 
-			// Extract message type from payload
-			var messageType string
-			if typeVal, ok := cell.Payload["type"].(string); ok {
-				messageType = typeVal
-			} else {
-				logger.Warn("Red blood cell missing message type", "id", cell.ID)
-				return true // Continue processing other cells
-			}
+            // Extract message type from payload
+            var messageType string
+            if typeVal, ok := cell.Payload["type"].(string); ok {
+                messageType = typeVal
+            } else {
+                logger.Warn("Red blood cell missing message type", "id", cell.ID)
+                return true // Continue processing other cells
+            }
 
-			// Process based on message type
-			handleBloodCellMessage(bloodCirculation, cell, messageType, gitHubClient)
+            // Process based on message type
+            handleBloodCellMessage(bloodCirculation, cell, messageType, gitHubClient, logger, serverStartTime, clientsMap, clientsMutex)
 
-		case "White":
-			// White blood cells handle control messages
-			logger.Debug("Received white blood cell", "id", cell.ID, "source", cell.Source)
+        case "White":
+            // White blood cells handle control messages
+            logger.Debug("Received white blood cell", "id", cell.ID, "source", cell.Source)
 
-			// Extract action from payload
-			var action string
-			if actionVal, ok := cell.Payload["action"].(string); ok {
-				action = actionVal
-			} else {
-				logger.Warn("White blood cell missing action type", "id", cell.ID)
-				return true // Continue processing other cells
-			}
+            // Extract action from payload
+            var action string
+            if actionVal, ok := cell.Payload["action"].(string); ok {
+                action = actionVal
+            } else {
+                logger.Warn("White blood cell missing action type", "id", cell.ID)
+                return true // Continue processing other cells
+            }
 
-			// Process based on action
-			handleBloodCellControl(bloodCirculation, cell, action)
+            // Process based on action
+            handleBloodCellControl(bloodCirculation, cell, action, logger, serverStartTime, clientsMap, clientsMutex)
 
-		case "Platelet":
-			// Platelets handle system health and recovery
-			logger.Debug("Received platelet", "id", cell.ID, "source", cell.Source)
+        case "Platelet":
+            // Platelets handle system health and recovery
+            logger.Debug("Received platelet", "id", cell.ID, "source", cell.Source)
 
-			// For heartbeats, just respond to keep the connection alive
-			if action, ok := cell.Payload["action"].(string); ok && action == "pulse" {
-				// Send heartbeat response
-				response := map[string]interface{}{
-					"type":      "control",
-					"action":    "pulse_ack",
-					"source":    "github-mcp-server",
-					"timestamp": time.Now().Unix(),
-				}
-				// Create and queue a response cell
-				responseCell := &bridge.BloodCell{
-					ID:          "pulse-ack-" + time.Now().Format(time.RFC3339Nano),
-					Type:        "Platelet",
-					Payload:     response,
-					Timestamp:   time.Now().Unix(),
-					Source:      "github-mcp-server",
-					Destination: cell.Source,
-					Priority:    1, // Low priority for heartbeats
-					OxygenLevel: 1.0,
-					Context7D:   cell.Context7D,
-				}
-				bloodCirculation.QueueBloodCell(responseCell)
-			}
-		}
+            // For heartbeats, just respond to keep the connection alive
+            if action, ok := cell.Payload["action"].(string); ok && action == "pulse" {
+                // Send heartbeat response
+                response := map[string]interface{}{
+                    "type":      "control",
+                    "action":    "pulse_ack",
+                    "source":    "github-mcp-server",
+                    "timestamp": time.Now().Unix(),
+                }
+                // Create and queue a response cell
+                responseCell := &bridge.BloodCell{
+                    ID:          "pulse-ack-" + time.Now().Format(time.RFC3339Nano),
+                    Type:        "Platelet",
+                    Payload:     response,
+                    Timestamp:   time.Now().Unix(),
+                    Source:      "github-mcp-server",
+                    Destination: cell.Source,
+                    Priority:    1, // Low priority for heartbeats
+                    OxygenLevel: 1.0,
+                    Context7D:   cell.Context7D,
+                }
+                bloodCirculation.QueueBloodCell(responseCell)
+            }
+        }
 
-		// Return true to continue processing other cells
-		return true
-	})
+        return true // Continue processing
+    })
 
 	// Send an initialization message to the TNOS MCP server
 	initContext := translations.ContextVector7D{
@@ -146,11 +147,14 @@ func processBloodCirculationMessages(bloodCirculation *bridge.BloodCirculation, 
 		ticker := time.NewTicker(5 * time.Minute)
 		defer ticker.Stop()
 
-		for range ticker.C {
+		for range ticker.C {		clientsMutex.Lock()
+		clientCount := len(*clientsMap)
+		clientsMutex.Unlock()
+
 			// Get system metrics
 			metrics := map[string]interface{}{
-				"uptime":        time.Since(startTime).String(),
-				"client_count":  len(clients),
+				"uptime":        time.Since(serverStartTime).String(),
+				"client_count":  clientCount,
 				"memory_usage":  "N/A", // TODO: implement memory usage tracking
 				"cpu_usage":     "N/A", // TODO: implement CPU usage tracking
 				"github_errors": 0,     // TODO: track GitHub API errors
@@ -160,36 +164,26 @@ func processBloodCirculationMessages(bloodCirculation *bridge.BloodCirculation, 
 			// Create and queue a metrics cell
 			metricsCell := &bridge.BloodCell{
 				ID:          "metrics-" + time.Now().Format(time.RFC3339Nano),
-				Type:        "Platelet",
+				Type:        "Red",
 				Payload: map[string]interface{}{
 					"type":    "metrics",
-					"metrics": metrics,
 					"source":  "github-mcp-server",
+					"metrics": metrics,
 				},
 				Timestamp:   time.Now().Unix(),
 				Source:      "github-mcp-server",
 				Destination: "tnos-mcp-server",
 				Priority:    3,
 				OxygenLevel: 1.0,
-				Context7D: translations.ContextVector7D{
-					Who:    "SystemMonitor",
-					What:   "Metrics",
-					When:   time.Now().Unix(),
-					Where:  "github-mcp-server",
-					Why:    "Health Monitoring",
-					How:    "Blood Bridge",
-					Extent: 0.5,
-					Source: "github-mcp-server",
-				},
+				Context7D:   initContext,
 			}
 
 			bloodCirculation.QueueBloodCell(metricsCell)
 		}
 	}()
 }
-
 // Handle BloodCell messages
-func handleBloodCellMessage(bloodCirculation *bridge.BloodCirculation, cell *bridge.BloodCell, messageType string, gitHubClient *ghmcp.Client) {
+func handleBloodCellMessage(bloodCirculation *bridge.BloodCirculation, cell *bridge.BloodCell, messageType string, gitHubClient *ghmcp.Client, logger log.LoggerInterface, serverStartTime time.Time, clientsMap *map[*Client]bool, clientsMutex *sync.Mutex) {
 	// Get the formula registry for translations
 	registry := bridge.GetBridgeFormulaRegistry()
 
@@ -307,15 +301,18 @@ func handleBloodCellMessage(bloodCirculation *bridge.BloodCirculation, cell *bri
 				}
 			}
 
-		case "system_status":
-			// Return system status information
-			responseData = map[string]interface{}{
-				"status":        "success",
-				"uptime":        time.Since(startTime).String(),
-				"client_count":  len(clients),
-				"capabilities":  []string{"github_api", "code_completion", "repo_management"},
-				"timestamp":     time.Now().Unix(),
-			}
+		case "system_status":		// Return system status information
+		responseData = map[string]interface{}{
+			"status":        "success",
+			"uptime":        time.Since(serverStartTime).String(),
+			"client_count":  func() int {
+				clientsMutex.Lock()
+				defer clientsMutex.Unlock()
+				return len(*clientsMap)
+			}(),
+			"capabilities":  []string{"github_api", "code_completion", "repo_management"},
+			"timestamp":     time.Now().Unix(),
+		}
 
 		default:
 			// Unknown query type
@@ -386,7 +383,7 @@ func handleBloodCellMessage(bloodCirculation *bridge.BloodCirculation, cell *bri
 }
 
 // handleBloodCellControl processes control messages in blood cells
-func handleBloodCellControl(bloodCirculation *bridge.BloodCirculation, cell *bridge.BloodCell, action string) {
+func handleBloodCellControl(bloodCirculation *bridge.BloodCirculation, cell *bridge.BloodCell, action string, logger log.LoggerInterface, serverStartTime time.Time, clientsMap *map[*Client]bool, clientsMutex *sync.Mutex) {
 	// WHO: BloodControlHandler
 	// WHAT: Process blood cell control messages
 	// WHEN: During blood bridge operation
@@ -655,8 +652,12 @@ func handleBloodCellControl(bloodCirculation *bridge.BloodCirculation, cell *bri
 
 		// Collect system status information
 		status := map[string]interface{}{
-			"uptime":         time.Since(startTime).String(),
-			"client_count":   len(clients),
+			"uptime":         time.Since(serverStartTime).String(),
+			"client_count":   func() int {
+				clientsMutex.Lock()
+				defer clientsMutex.Unlock()
+				return len(*clientsMap)
+			}(),
 			"timestamp":      time.Now().Unix(),
 			"blood_metrics":  bloodCirculation.GetCirculationMetrics(),
 			"compression":    bloodCirculation.GetCompressionOptions(),

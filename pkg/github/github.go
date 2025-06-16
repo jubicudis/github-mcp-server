@@ -75,9 +75,9 @@ func InitializeMCPBridge(enableCompression bool, logger log.LoggerInterface) err
 			logger.Info("Initializing MCP Bridge between GitHub and TNOS") // Use passed logger
 			return nil, nil
 		},
-		func() (interface{}, error) { return nil, fmt.Errorf("Bridge fallback not implemented") },
+		func() (interface{}, error) { return nil, fmt.Errorf("bridge fallback not implemented") },
 		func() (interface{}, error) { return nil, fmt.Errorf("GitHub MCP fallback not implemented") },
-		func() (interface{}, error) { return nil, fmt.Errorf("Copilot fallback not implemented") },
+		func() (interface{}, error) { return nil, fmt.Errorf("copilot fallback not implemented") },
 		logger, // Use passed logger directly assuming FallbackRoute accepts LoggerInterface
 	)
 	return err
@@ -162,9 +162,9 @@ func (t *GitHubContextTranslator) TranslateToTNOS(githubContext map[string]inter
 			}
 			return nil, nil
 		},
-		func() (interface{}, error) { return nil, fmt.Errorf("Bridge fallback not implemented") },
+		func() (interface{}, error) { return nil, fmt.Errorf("bridge fallback not implemented") },
 		func() (interface{}, error) { return nil, fmt.Errorf("GitHub MCP fallback not implemented") },
-		func() (interface{}, error) { return nil, fmt.Errorf("Copilot fallback not implemented") },
+		func() (interface{}, error) { return nil, fmt.Errorf("copilot fallback not implemented") },
 		t.Logger, // Use instance logger assuming FallbackRoute accepts LoggerInterface
 	)
 
@@ -227,9 +227,9 @@ func (t *GitHubContextTranslator) TranslateFromTNOS(tnosContext map[string]inter
 			}
 			return nil, nil
 		},
-		func() (interface{}, error) { return nil, fmt.Errorf("Bridge fallback not implemented") },
+		func() (interface{}, error) { return nil, fmt.Errorf("bridge fallback not implemented") },
 		func() (interface{}, error) { return nil, fmt.Errorf("GitHub MCP fallback not implemented") },
-		func() (interface{}, error) { return nil, fmt.Errorf("Copilot fallback not implemented") },
+		func() (interface{}, error) { return nil, fmt.Errorf("copilot fallback not implemented") },
 		t.Logger, // Use instance logger assuming FallbackRoute accepts LoggerInterface
 	)
 
@@ -281,9 +281,9 @@ func BridgeHealthCheck() (bool, error) {
 		"BridgeHealthCheck",
 		contextData, // Pass the converted map
 		func() (interface{}, error) { healthy = true; return nil, nil },
-		func() (interface{}, error) { return nil, fmt.Errorf("Bridge fallback not implemented") },
+		func() (interface{}, error) { return nil, fmt.Errorf("bridge fallback not implemented") },
 		func() (interface{}, error) { return nil, fmt.Errorf("GitHub MCP fallback not implemented") },
-		func() (interface{}, error) { return nil, fmt.Errorf("Copilot fallback not implemented") },
+		func() (interface{}, error) { return nil, fmt.Errorf("copilot fallback not implemented") },
 		log.NewLogger(),
 	)
 	return healthy, err

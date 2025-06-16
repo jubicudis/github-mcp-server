@@ -44,38 +44,64 @@ type HelicalEvent struct {
 	Meta   map[string]interface{} `json:"meta,omitempty"`
 }
 
-// LogHelicalEvent logs a 7D context event to both short_term.log and long_term.log (only in blood-connected mode)
+// LogHelicalEvent logs a 7D context event.
+// In "standalone" mode, it marshals the event and logs it as a JSON string using the provided logger's Info method.
+// In "blood-connected" mode, it marshals the event and writes it to the dedicated helical memory log file.
 func LogHelicalEvent(event HelicalEvent, logger LoggerInterface) error {
-	if helicalMode == "standalone" {
-		// Log directly to the main server log in standalone mode
-		b, err := json.Marshal(event)
-		if err != nil {
-			logger.Info("Failed to marshal helical event: %v", err)
-			return err
+	fmt.Fprintf(os.Stderr, "[DIAGNOSTIC] LogHelicalEvent called with helicalMode=%s\n", helicalMode)
+	b, err := json.Marshal(event)
+	if err != nil {
+		if logger != nil {
+			logger.Error("Failed to marshal helical event: %v", err)
 		}
-		logger.Info("[HELICAL] %s", string(b))
+		return fmt.Errorf("failed to marshal helical event: %w", err)
+	}
+	jsonEvent := string(b)
+
+	if helicalMode == "standalone" {
+		fpath := "/Users/Jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log/github-mcp-server.log"
+		fmt.Fprintf(os.Stderr, "[DIAGNOSTIC] Writing helical event to standalone log: %s\n", fpath)
+		f, err := os.OpenFile(fpath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
+		if err != nil {
+			if logger != nil {
+				logger.Error("Failed to open standalone helical memory file %s: %v", fpath, err)
+			}
+			return fmt.Errorf("standalone helical memory open %s: %w", fpath, err)
+		}
+		defer f.Close()
+		if _, err := f.WriteString(jsonEvent + "\n"); err != nil {
+			if logger != nil {
+				logger.Error("Failed to write to standalone helical memory file %s: %v", fpath, err)
+			}
+			return fmt.Errorf("standalone helical memory write %s: %w", fpath, err)
+		}
 		return nil
 	}
 
-	ensureHelicalMemoryDir()
-	b, err := json.Marshal(event)
-	if err != nil {
-		logger.Info("Failed to marshal helical event: %v", err)
-		return err
+	fmt.Fprintf(os.Stderr, "[DIAGNOSTIC] Writing helical event to blood-connected log: %s\n", filepath.Join(helicalMemoryDir, helicalLogFile))
+	if err := ensureHelicalMemoryDir(); err != nil {
+		if logger != nil {
+			logger.Error("Failed to ensure helical memory directory %s: %v", helicalMemoryDir, err)
+		}
+		return fmt.Errorf("failed to ensure helical memory directory %s: %w", helicalMemoryDir, err)
 	}
-	line := string(b) + "\n"
+
 	fpath := filepath.Join(helicalMemoryDir, helicalLogFile)
 	f, err := os.OpenFile(fpath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
-		logger.Info("helical memory open %s: %v", helicalLogFile, err)
-		return fmt.Errorf("helical memory open %s: %w", helicalLogFile, err)
+		if logger != nil {
+			logger.Error("Failed to open helical memory file %s: %v", fpath, err)
+		}
+		return fmt.Errorf("helical memory open %s: %w", fpath, err)
 	}
-	if _, err := f.WriteString(line); err != nil {
-		f.Close()
-		logger.Info("helical memory write %s: %v", helicalLogFile, err)
-		return fmt.Errorf("helical memory write %s: %w", helicalLogFile, err)
+	defer f.Close()
+
+	if _, err := f.WriteString(jsonEvent + "\n"); err != nil {
+		if logger != nil {
+			logger.Error("Failed to write to helical memory file %s: %v", fpath, err)
+		}
+		return fmt.Errorf("helical memory write %s: %w", fpath, err)
 	}
-	f.Close()
 	return nil
 }
 
@@ -95,11 +121,24 @@ func NewHelicalEvent(who, what, where, why, how, extent, msg string) HelicalEven
 	}
 }
 
-func ensureHelicalMemoryDir() {
-	_ = os.MkdirAll(helicalMemoryDir, 0755)
+func ensureHelicalMemoryDir() error { // Changed to return an error
+	if err := os.MkdirAll(helicalMemoryDir, 0755); err != nil {
+		return fmt.Errorf("failed to create helical memory directory %s: %w", helicalMemoryDir, err)
+	}
+	return nil
 }
 
-// SetHelicalMemoryMode sets the operational mode for helical memory logging
+// SetHelicalMemoryMode sets the operational mode for helical memory logging.
+// Valid modes are "standalone" and "blood-connected".
 func SetHelicalMemoryMode(mode string) {
-	helicalMode = mode
+	fmt.Fprintf(os.Stderr, "[DIAGNOSTIC] SetHelicalMemoryMode called with mode=%s\n", mode)
+	if mode == "standalone" || mode == "blood-connected" {
+		helicalMode = mode
+		fmt.Fprintf(os.Stderr, "[DIAGNOSTIC] Helical memory mode set to %s\n", helicalMode)
+	} else {
+		// Optionally log an error if an invalid mode is set, using a default/global logger if available,
+		// or print to stderr if no logger is accessible here.
+		fmt.Fprintf(os.Stderr, "Warning: Invalid helical memory mode specified: %s. Defaulting to 'standalone'.\n", mode)
+		helicalMode = "standalone" // Default to standalone if an invalid mode is provided.
+	}
 }

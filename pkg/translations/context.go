@@ -17,8 +17,47 @@ import (
 	"math"
 	"time"
 
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/hemoflux"
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log"
 )
+
+// For 7D Context Framework requirements, see docs/architecture/7D_CONTEXT_FRAMEWORK.md
+// NewContextVector7D creates a new 7D context vector with defaults from common package
+func NewContextVector7D(params map[string]interface{}) ContextVector7D {
+	now := time.Now().Unix()
+
+	// Extract values with defaults
+	who := getStringParam(params, "who", "System")
+	what := getStringParam(params, "what", "Transform")
+	when := getInt64Param(params, "when", now)
+	where := getStringParam(params, "where", "MCP_Bridge")
+	why := getStringParam(params, "why", "Protocol_Compliance")
+	how := getStringParam(params, "how", "Context_Translation")
+	extent := getFloat64Param(params, "extent", 1.0)
+	source := getStringParam(params, "source", "github_mcp") // default to Communication if unspecified
+
+	// Create context vector
+	return ContextVector7D{
+		Who:    who,
+		What:   what,
+		When:   when,
+		Where:  where,
+		Why:    why,
+		How:    how,
+		Extent: extent,
+		Meta: map[string]interface{}{
+			"B":         DefaultFactors.B, // Base factor
+			"V":         DefaultFactors.V, // Value factor
+			"I":         DefaultFactors.I, // Intent factor
+			"G":         DefaultFactors.G, // Growth factor
+			"F":         DefaultFactors.F, // Flexibility factor
+			"E":         DefaultFactors.E, // Energy factor
+			"T":         DefaultFactors.T, // Time factor (initial, will be calculated)
+			"createdAt": now,
+		},
+		Source: source,
+	}
+}
 
 // ContextVector7D represents a 7D context vector
 type ContextVector7D struct {
@@ -237,6 +276,8 @@ func ensureCompressionFactors(meta map[string]interface{}) {
 		"I": 0.9, // Intent factor
 		"G": 1.2, // Growth factor
 		"F": 0.6, // Flexibility factor
+		"E": 0.5, // Energy factor
+		"T": 0.0, // Time factor
 	}
 
 	// Ensure each factor exists
@@ -291,68 +332,27 @@ func (c ContextVector7D) Merge(other ContextVector7D) ContextVector7D {
 }
 
 // Compress applies the Möbius Compression Formula to the context
-func (c *ContextVector7D) Compress() *ContextVector7D {
-	// WHO: ContextCompressor
-	// WHAT: Compress context
-	// WHEN: During data optimization
-	// WHERE: System Layer 6 (Integration)
-	// WHY: For efficient data transfer
-	// HOW: Using Möbius Compression Formula
-	// EXTENT: Single context
-
-	// Extract compression factors from meta
-	var B, V, I, G, F float64 = 0.8, 0.7, 0.9, 1.2, 0.6
-
-	if val, exists := c.Meta["B"].(float64); exists {
-		B = val
+// Now delegates to pkg/hemoflux for all Mobius compression logic
+func (c *ContextVector7D) Compress(standalone bool) *ContextVector7D {
+	contextMap := map[string]interface{}{
+		"who": c.Who,
+		"what": c.What,
+		"when": c.When,
+		"where": c.Where,
+		"why": c.Why,
+		"how": c.How,
+		"extent": c.Extent,
+		"createdAt": time.Now().Unix(),
 	}
-	if val, exists := c.Meta["V"].(float64); exists {
-		V = val
+	compressedBytes, meta, err := hemoflux.MobiusCompress([]byte(fmt.Sprintf("%v", c)), contextMap, standalone)
+	if err != nil || meta == nil {
+		return c // fallback: return uncompressed context
 	}
-	if val, exists := c.Meta["I"].(float64); exists {
-		I = val
-	}
-	if val, exists := c.Meta["G"].(float64); exists {
-		G = val
-	}
-	if val, exists := c.Meta["F"].(float64); exists {
-		F = val
-	}
-
-	// Calculate entropy based on context complexity
-	entropy := calculateContextEntropy(c)
-
-	// Calculate time factor (normalized seconds since context creation)
-	var t float64 = 1.0
-	if createdAt, exists := c.Meta["createdAt"].(int64); exists {
-		elapsed := float64(time.Now().Unix() - createdAt)
-		t = math.Min(elapsed/86400, 1.0) // Normalize to max 1.0 (1 day)
-	}
-
-	// Calculate energy factor
-	E := 0.5 // Base energy cost
-
-	// Calculate sum of contextual connections
-	C_sum := 0.3 // Base connection value
-
-	// Calculate alignment
-	alignment := (B + V*I) * math.Exp(-t*E)
-
-	// Apply Möbius Compression Formula
-	compressed := (c.Extent * B * I * (1 - (entropy / math.Log2(1+V))) * (G + F)) /
-		(E*t + C_sum*entropy + alignment)
-
-	// Create new compressed context
 	compressedContext := *c
-	compressedContext.Extent = compressed
-
-	// Store compression variables
 	compressedContext.Meta["compressed"] = true
-	compressedContext.Meta["originalExtent"] = c.Extent
-	compressedContext.Meta["compressionRatio"] = c.Extent / compressed
-	compressedContext.Meta["entropy"] = entropy
-	compressedContext.Meta["alignment"] = alignment
-
+	compressedContext.Meta["originalExtent"] = meta.OriginalSize
+	compressedContext.Meta["compressionRatio"] = float64(meta.OriginalSize) / float64(len(compressedBytes))
+	compressedContext.Meta["mobiusMeta"] = meta.CompressionVars
 	return &compressedContext
 }
 
@@ -433,10 +433,8 @@ func FromMap(m map[string]interface{}) ContextVector7D {
 	how, _ := m["how"].(string)
 	source, _ := m["source"].(string)
 
-	// Handle numeric values
-	var when int64
-	var extent float64
-
+	// Handle numeric values with a default fallback
+	var when int64 = time.Now().Unix()
 	if whenVal, ok := m["when"]; ok {
 		switch v := whenVal.(type) {
 		case int64:
@@ -445,13 +443,10 @@ func FromMap(m map[string]interface{}) ContextVector7D {
 			when = int64(v)
 		case int:
 			when = int64(v)
-		default:
-			when = time.Now().Unix()
 		}
-	} else {
-		when = time.Now().Unix()
 	}
 
+	var extent float64 = 1.0
 	if extentVal, ok := m["extent"]; ok {
 		switch v := extentVal.(type) {
 		case float64:
@@ -460,11 +455,7 @@ func FromMap(m map[string]interface{}) ContextVector7D {
 			extent = float64(v)
 		case int64:
 			extent = float64(v)
-		default:
-			extent = 1.0
 		}
-	} else {
-		extent = 1.0
 	}
 
 	// Extract metadata
@@ -528,86 +519,30 @@ func calculateContextEntropy(c *ContextVector7D) float64 {
 	return entropy
 }
 
-// NewContextVector7D creates a new 7D context vector with default values
-func NewContextVector7D(params map[string]interface{}) ContextVector7D {
-	// WHO: ContextCreator
-	// WHAT: Create 7D context vector
-	// WHEN: During context initialization
-	// WHERE: System Layer 6 (Integration)
-	// WHY: To initialize context vector
-	// HOW: Using provided parameters with defaults
-	// EXTENT: 7D context creation
-
-	now := time.Now().Unix()
-
-	// Extract values with defaults
-	who := getStringParam(params, "who", "System")
-	what := getStringParam(params, "what", "Transform")
-	when := getInt64Param(params, "when", now)
-	where := getStringParam(params, "where", "MCP_Bridge")
-	why := getStringParam(params, "why", "Protocol_Compliance")
-	how := getStringParam(params, "how", "Context_Translation")
-	extent := getFloat64Param(params, "extent", 1.0)
-	source := getStringParam(params, "source", "github_mcp")
-
-	// Create context vector
-	return ContextVector7D{
-		Who:    who,
-		What:   what,
-		When:   when,
-		Where:  where,
-		Why:    why,
-		How:    how,
-		Extent: extent,
-		Source: source,
-		Meta: map[string]interface{}{
-			"B":         0.8, // Base factor
-			"V":         0.7, // Value factor
-			"I":         0.9, // Intent factor
-			"G":         1.2, // Growth factor
-			"F":         0.6, // Flexibility factor
-			"createdAt": now,
-		},
-	}
-}
-
-// Helpers for parameter extraction
+// Helper to extract string parameter with default
 func getStringParam(params map[string]interface{}, key, defaultValue string) string {
-	// WHO: ParamExtractor
-	// WHAT: Extract string parameter
-	// WHEN: During parameter processing
-	// WHERE: System Layer 6 (Integration)
-	// WHY: To safely extract parameters
-	// HOW: Using type assertion
-	// EXTENT: Single parameter extraction
-
+	if params == nil {
+		return defaultValue
+	}
 	if val, ok := params[key]; ok {
-		if str, ok := val.(string); ok {
-			return str
+		if s, ok := val.(string); ok {
+			return s
 		}
 	}
 	return defaultValue
 }
 
+// Helper to extract int64 parameter with default
 func getInt64Param(params map[string]interface{}, key string, defaultValue int64) int64 {
-	// WHO: ParamExtractor
-	// WHAT: Extract int64 parameter
-	// WHEN: During parameter processing
-	// WHERE: System Layer 6 (Integration)
-	// WHY: To safely extract parameters
-	// HOW: Using type assertion
-	// EXTENT: Single parameter extraction
-
+	if params == nil {
+		return defaultValue
+	}
 	if val, ok := params[key]; ok {
 		switch v := val.(type) {
 		case int:
 			return int64(v)
-		case int32:
-			return int64(v)
 		case int64:
 			return v
-		case float32:
-			return int64(v)
 		case float64:
 			return int64(v)
 		}
@@ -615,174 +550,24 @@ func getInt64Param(params map[string]interface{}, key string, defaultValue int64
 	return defaultValue
 }
 
+// Helper to extract float64 parameter with default
 func getFloat64Param(params map[string]interface{}, key string, defaultValue float64) float64 {
-	// WHO: ParamExtractor
-	// WHAT: Extract float64 parameter
-	// WHEN: During parameter processing
-	// WHERE: System Layer 6 (Integration)
-	// WHY: To safely extract parameters
-	// HOW: Using type assertion
-	// EXTENT: Single parameter extraction
-
+	if params == nil {
+		return defaultValue
+	}
 	if val, ok := params[key]; ok {
 		switch v := val.(type) {
-		case int:
-			return float64(v)
-		case int32:
-			return float64(v)
-		case int64:
-			return float64(v)
 		case float32:
 			return float64(v)
 		case float64:
 			return v
+		case int:
+			return float64(v)
+		case int64:
+			return float64(v)
 		}
 	}
 	return defaultValue
-}
-
-// TranslateGitHubToTNOS7D translates GitHub context to TNOS 7D
-func TranslateGitHubToTNOS7D(githubContext GitHubContext, logger *log.Logger) ContextVector7D {
-	// WHO: GitHubToTNOSTranslator
-	// WHAT: Translate GitHub to TNOS context
-	// WHEN: During GitHub-to-TNOS operations
-	// WHERE: System Layer 6 (Integration)
-	// WHY: To convert context formats
-	// HOW: Using context mapping
-	// EXTENT: Context translation operation
-
-	params := map[string]interface{}{
-		"who":    githubContext.User,
-		"what":   githubContext.Type,
-		"when":   githubContext.Timestamp,
-		"where":  "MCP_Bridge",
-		"why":    githubContext.Purpose,
-		"how":    githubContext.Operation,
-		"extent": githubContext.Scope,
-		"source": "github_mcp",
-	}
-
-	// Create TNOS 7D context
-	context := NewContextVector7D(params)
-
-	// Transfer metadata
-	if githubContext.Metadata != nil {
-		for k, v := range githubContext.Metadata {
-			context.Meta[k] = v
-		}
-	}
-
-	if logger != nil {
-		logger.Debug("Translated GitHub context to TNOS 7D",
-			"github_user", githubContext.User,
-			"tnos_who", context.Who)
-	}
-
-	return context
-}
-
-// TranslateTNOS7DToGitHub translates TNOS 7D context to GitHub
-func TranslateTNOS7DToGitHub(tnos7D ContextVector7D, logger *log.Logger) GitHubContext {
-	// WHO: TNOSToGitHubTranslator
-	// WHAT: Translate TNOS to GitHub context
-	// WHEN: During TNOS-to-GitHub operations
-	// WHERE: System Layer 6 (Integration)
-	// WHY: To convert context formats
-	// HOW: Using context mapping
-	// EXTENT: Context translation operation
-
-	// Create GitHub context
-	githubContext := GitHubContext{
-		User:      tnos7D.Who,
-		Identity:  tnos7D.Who,
-		Operation: tnos7D.How,
-		Type:      tnos7D.What,
-		Purpose:   tnos7D.Why,
-		Scope:     tnos7D.Extent,
-		Timestamp: tnos7D.When,
-		Source:    "tnos_mcp",
-		Metadata:  make(map[string]interface{}),
-	}
-
-	// Transfer metadata
-	if tnos7D.Meta != nil {
-		for k, v := range tnos7D.Meta {
-			githubContext.Metadata[k] = v
-		}
-	}
-
-	// Add translation metadata
-	githubContext.Metadata["translatedAt"] = time.Now().Unix()
-	githubContext.Metadata["translationMethod"] = "direct_mapping"
-
-	if logger != nil {
-		logger.Debug("Translated TNOS 7D context to GitHub",
-			"tnos_who", tnos7D.Who,
-			"github_user", githubContext.User)
-	}
-
-	return githubContext
-}
-
-// BridgeMCPContext bridges MCP contexts between systems with context awareness
-func BridgeMCPContext(githubContext GitHubContext, existingContext *ContextVector7D, logger *log.Logger) ContextVector7D {
-	// WHO: ContextBridger
-	// WHAT: Bridge contexts between systems
-	// WHEN: During cross-system operations
-	// WHERE: System Layer 6 (Integration)
-	// WHY: To provide unified context
-	// HOW: Using context bridging algorithm
-	// EXTENT: Complete context bridge operation
-
-	// Convert to TNOS 7D
-	context := TranslateGitHubToTNOS7D(githubContext, logger)
-
-	// If existing context is provided, merge them
-	if existingContext != nil {
-		context = MergeContexts(context, *existingContext, logger)
-	}
-
-	// Apply compression
-	compressedContext := CompressContext(context, logger)
-
-	if logger != nil {
-		logger.Debug("Bridged MCP contexts",
-			"source", githubContext.Source,
-			"destination", "tnos_7d")
-	}
-
-	return compressedContext
-}
-
-// MergeContexts merges two 7D contexts with weighting
-func MergeContexts(primary ContextVector7D, secondary ContextVector7D, logger *log.Logger) ContextVector7D {
-	// WHO: ContextMerger
-	// WHAT: Merge multiple contexts
-	// WHEN: During context combination
-	// WHERE: System Layer 6 (Integration)
-	// WHY: To combine context information
-	// HOW: Using weighted merging
-	// EXTENT: Context merge operation
-
-	// Default to primary values but use most recent timestamp
-	result := primary
-	result.When = max(primary.When, secondary.When)
-
-	// Record merge in metadata
-	if result.Meta == nil {
-		result.Meta = make(map[string]interface{})
-	}
-
-	result.Meta["mergedAt"] = time.Now().Unix()
-	result.Meta["mergedFrom"] = []string{primary.Source, secondary.Source}
-
-	if logger != nil {
-		logger.Debug("Merged contexts",
-			"primary_source", primary.Source,
-			"secondary_source", secondary.Source)
-	}
-
-	return result
 }
 
 // CompressContext compresses a 7D context using Möbius formula
@@ -1029,7 +814,7 @@ func GitHubContextTranslator(ctx context.Context, input map[string]interface{}) 
 	cv = CompressContext(cv, nil) // Pass nil logger as it's optional
 
 	// Store the 7D context in the Go context
-	ctx = ContextWithVector(ctx, cv)
+	_ = ContextWithVector(ctx, cv) // Assign to blank identifier
 
 	// Convert back to map for further processing
 	result := TNOSContextToMCP(cv)
@@ -1146,29 +931,32 @@ func ValidateContextDimension(dim string, value interface{}) error {
 // EXTENT: All context helper operations
 func CreateContextHelperFunc(translator ContextTranslatorFunc) func(context.Context, map[string]interface{}) (context.Context, map[string]interface{}, error) {
 	return func(ctx context.Context, input map[string]interface{}) (context.Context, map[string]interface{}, error) {
-		// Translate the context
+		// Translate the context using the provided translator function.
 		output, err := translator(ctx, input)
 		if err != nil {
-			return ctx, nil, err
+			return ctx, nil, err // Return original ctx and error if translation fails.
 		}
 
-		// Extract 7D context if available
-		var cv ContextVector7D
-		var exists bool
+		// Attempt to extract an existing ContextVector7D from the input context.
+		currentCV, cvExists := VectorFromContext(ctx)
 
-		if cv, exists = VectorFromContext(ctx); !exists {
-			// Create a new context from the output
+		if !cvExists {
+			// If no ContextVector7D exists in the input context, create one from the translation output.
 			ifaceMap := make(map[string]interface{})
 			for k, v := range output {
 				ifaceMap[k] = v
 			}
-			cv = FromMap(ifaceMap)
-
-			// Store it in the context
-			ctx = ContextWithVector(ctx, cv)
+			currentCV = FromMap(ifaceMap) // currentCV is now the newly created vector.
 		}
+		// At this point, currentCV holds the definitive ContextVector7D for this operation,
+		// either the one that pre-existed in ctx or the one newly created from output.
 
-		return ctx, output, nil
+		// Ensure the context being returned is updated with this definitive currentCV.
+		// This explicitly uses currentCV to determine the state of the returned context,
+		// which should satisfy the linter that currentCV is used.
+		updatedCtx := ContextWithVector(ctx, currentCV)
+
+		return updatedCtx, output, nil // Return the updated context, the translation output, and no error.
 	}
 }
 

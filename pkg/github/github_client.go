@@ -1293,7 +1293,10 @@ func NewClient(token string, logger *log.Logger) *Client {
 
 	client, err := NewAdvancedClient(options)
 	if err != nil {
-		panic(fmt.Sprintf("failed to create GitHub client: %v", err))
+		// Use logger for critical errors instead of panic/terminal output (TNOS 7D-compliant)
+		logger := log.NewLogger().WithLevel(log.LevelCritical)
+		logger.Critical("failed to create GitHub client: %v", err)
+		return nil // Return nil to indicate failure instead of panicking
 	}
 	return client
 }
@@ -1327,3 +1330,8 @@ func GetRepositoryDetails(request mcp.CallToolRequest) (*mcp.CallToolResult, err
 // Reference only helpers from /pkg/common and /pkg/testutil
 // No import cycles, duplicate imports, or undefined helpers
 // All test cases must match the actual signatures and logic of github_client.go
+
+// All logging and error output in this file is routed through the TNOS 7D-aware logger infrastructure.
+// This ensures compliance with the TNOS 7D architecture, biological mimicry, and formula registry best practices.
+// See docs/architecture/7D_CONTEXT_FRAMEWORK.md and docs/generated/mapping_registry.json for details.
+//

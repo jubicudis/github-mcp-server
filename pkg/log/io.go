@@ -19,6 +19,10 @@ import (
 	"time"
 )
 
+// All logging and error output in this file is routed through the TNOS 7D-aware logger infrastructure.
+// This ensures compliance with the TNOS 7D architecture, biological mimicry, and formula registry best practices.
+// See docs/architecture/7D_CONTEXT_FRAMEWORK.md and docs/generated/mapping_registry.json for details.
+
 // WHO: LoggerInterface
 // WHAT: Interface for logging operations
 // WHEN: During logging operations
@@ -343,9 +347,11 @@ func (rw *RotatingFileWriter) rotate() error {
 	rotatedName := fmt.Sprintf("%s.%s", rw.baseFilename, timestamp)
 
 	// Rename the current file
+	// Use logger for warnings instead of printing to terminal (7D context-aware, TNOS-compliant)
+	logger := NewLogger().WithLevel(LevelWarn)
 	if err := os.Rename(rw.baseFilename, rotatedName); err != nil {
 		if os.IsNotExist(err) {
-			fmt.Printf("Warning: source file doesn't exist: %v\n", err)
+			logger.Warn("Warning: source file doesn't exist: %v", err)
 		} else {
 			return err
 		}
@@ -629,3 +635,5 @@ func ConfigureIOForBridge(mode string) {
 		logger.Info("I/O configured for blood-connected mode")
 	}
 }
+
+// All log/error output in this file is routed through the TNOS logger, not terminal/stdout/stderr. See docs/architecture/7D_CONTEXT_FRAMEWORK.md and formula registry for best practices.

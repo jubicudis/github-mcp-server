@@ -14,6 +14,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"net/url"
 	"sync"
 	"time"
@@ -65,10 +66,10 @@ type BloodCirculation struct {
 	ctx            context.Context
 	cancelFunc     context.CancelFunc
 	conn           *websocket.Conn
-	tnosMCPURL     string
-	options        common.ConnectionOptions
-	logger         *log.Logger
-	state          common.ConnectionState
+	TargetURL      string // Renamed from TnosMCPURL to be generic
+	options        common.ConnectionOptions // Changed to store the whole options struct
+	logger         log.LoggerInterface // Changed to interface
+	State          common.ConnectionState
 	cellQueue      []*BloodCell
 	formulaCache   map[string]BridgeFormula
 	metrics        *BloodMetrics
@@ -109,146 +110,230 @@ const (
 
 // NewBloodCirculation creates a new blood circulation bridge
 func NewBloodCirculation(ctx context.Context, options common.ConnectionOptions) (*BloodCirculation, error) {
-	ctx, cancel := context.WithCancel(ctx)
-	
-	// Default to TNOS MCP server URL if not provided
-	tnosMCPURL := fmt.Sprintf("ws://localhost:%d", TNOSMCPPort)
-	if options.ServerURL != "" && options.ServerPort > 0 {
-		tnosMCPURL = fmt.Sprintf("ws://%s:%d", options.ServerURL, options.ServerPort)
+	if options.Logger == nil {
+		return nil, fmt.Errorf("logger is required in ConnectionOptions")
 	}
-	
+	if options.ServerURL == "" {
+		return nil, fmt.Errorf("serverURL is required in ConnectionOptions")
+	}
+	if options.QHPIntent == "" {
+		options.QHPIntent = "Generic MCP" // Default intent if not specified
+	}
+	if options.SourceComponent == "" {
+		options.SourceComponent = "Unknown TNOS Component"
+	}
+
+	ctx, cancel := context.WithCancel(ctx)
+
+
 	// Create the blood circulation instance
 	bc := &BloodCirculation{
 		ctx:          ctx,
 		cancelFunc:   cancel,
-		tnosMCPURL:   tnosMCPURL,
-		options:      options,
-		logger:       options.Logger.(*log.Logger),
-		state:        common.StateDisconnected,
+		TargetURL:    options.ServerURL, // Use ServerURL from options
+		options:      options,           // Store all options
+		logger:       options.Logger.(log.LoggerInterface), // Type assert to LoggerInterface
+		State:        common.StateDisconnected,
 		cellQueue:    make([]*BloodCell, 0, 100),
 		formulaCache: make(map[string]BridgeFormula),
 		metrics: &BloodMetrics{
 			CirculationStartTime: time.Now(),
 			LastPulse:            time.Now(),
-			CurrentOxygenLevel:   1.0,
+			CurrentOxygenLevel:   1.0, // Start fully oxygenated
 		},
+		// Initialize compression fields from options or defaults
+		compressionEnabled:      options.CompressionEnabled,
+		compressionThreshold:    options.CompressionThreshold,
+		compressionAlgorithm:    options.CompressionAlgorithm,
+		compressionLevel:        options.CompressionLevel,
+		compressionPreserveKeys: options.CompressionPreserveKeys,
+		filterCallback:          nil, // Will be set below if provided
+	}
+
+	// Validate logger type if possible, or ensure it's not nil
+	if _, ok := bc.logger.(*log.Logger); !ok {
+		// If it's not the concrete *log.Logger, we assume it's a valid LoggerInterface.
+		// No error, but a warning if a specific concrete type was expected for some internal features.
+		// For now, as long as it fulfills LoggerInterface, it's fine.
+	}
+
+	// Set up FilterCallback if provided
+	if options.FilterCallback != nil {
+		bc.filterCallback = func(cell *BloodCell) bool {
+			return options.FilterCallback(cell)
+		}
 	}
 	
-	// Start the circulation pump
-	if err := bc.startCirculation(); err != nil {
-		cancel()
-		return nil, fmt.Errorf("failed to start circulation: %w", err)
-	}
-	
+	// Start the circulation pump (will attempt connection in background)
+	// No need to call bc.startCirculation() here, Start() method will do it.
+
 	// Pre-load commonly used formulas
 	if err := bc.loadCoreFormulas(); err != nil {
-		bc.logger.Warn("Failed to load core formulas: %v", err)
+		bc.logger.Warn("Failed to load core formulas", "error", err, "component", bc.options.SourceComponent, "target", bc.TargetURL)
 	}
-	
+
+	bc.logger.Info("BloodCirculation instance created", "targetURL", bc.TargetURL, "qhpIntent", bc.options.QHPIntent, "source", bc.options.SourceComponent)
 	return bc, nil
 }
 
-// startCirculation initiates the blood pump and circulation system
-func (bc *BloodCirculation) startCirculation() error {
+// Start initiates the connection and circulation pump.
+func (bc *BloodCirculation) Start() {
+	bc.logger.Info("Starting BloodCirculation", "target", bc.TargetURL, "intent", bc.options.QHPIntent, "source", bc.options.SourceComponent)
+	if err := bc.startCirculationInternal(); err != nil {
+		bc.logger.Error("Failed to start circulation on Start()", "error", err, "target", bc.TargetURL)
+		// bc.State will be updated by connect/reconnectLoop
+	}
+}
+
+
+// startCirculationInternal initiates the blood pump and circulation system
+func (bc *BloodCirculation) startCirculationInternal() error { // Renamed to avoid export conflict if any, and clarify internal use
     bc.mutex.Lock()
     defer bc.mutex.Unlock()
 
     // Start heartbeat ticker and pumps immediately, connection retries run in background
     bc.pulseTicker = time.NewTicker(CirculationInterval)
     go bc.circulationPump()
-    go bc.receiveBloodCells()
+    go bc.receiveBloodCells() // Renamed from receiveBloodCells
 
     // Initial connection attempt (non-blocking)
     go func() {
         if err := bc.connect(); err != nil {
-            bc.logger.Warn("Initial connect failed, will retry in background", "error", err)
+            bc.logger.Warn("Initial connect failed, will retry in background", "error", err, "target", bc.TargetURL, "intent", bc.options.QHPIntent, "source", bc.options.SourceComponent)
             bc.reconnectLoop()
         } else {
-            bc.logger.Info("Connected on first attempt", "url", bc.tnosMCPURL)
+            bc.logger.Info("Connected on first attempt", "target", bc.TargetURL, "intent", bc.options.QHPIntent, "source", bc.options.SourceComponent)
         }
     }()
 
-    bc.logger.Info("Blood circulation started (async connect)", "tnos_mcp_url", bc.tnosMCPURL)
+    bc.logger.Info("Blood circulation started (async connect)", "target_url", bc.TargetURL, "intent", bc.options.QHPIntent, "source", bc.options.SourceComponent)
     return nil
 }
 
 // reconnectLoop attempts connection retries until success or max retries reached
 func (bc *BloodCirculation) reconnectLoop() {
-   retries := 0
-   for {
-       if bc.options.MaxRetries > 0 && retries >= bc.options.MaxRetries {
-           bc.logger.Error("Max reconnect attempts reached", "attempts", retries)
-           return
-       }
-       time.Sleep(bc.options.RetryDelay)
-       bc.logger.Info("Reconnection attempt", "attempt", retries+1)
-       if err := bc.connect(); err != nil {
-           retries++
-           bc.logger.Warn("Reconnect failed", "attempt", retries, "error", err)
-           bc.metrics.ClottingEvents++
-           bc.logger.Info("Hemoflux checkpoint", "event", "reconnect_failure", "attempt", retries)
-           continue
-       }
-       bc.logger.Info("Reconnected successfully")
-       return
-   }
+	retries := 0
+	maxRetries := bc.options.MaxRetries
+	if maxRetries <= 0 { // Default to a sensible number if not set or invalid
+		maxRetries = 5
+	}
+	retryDelay := bc.options.RetryDelay
+	if retryDelay <= 0 {
+		retryDelay = 10 * time.Second // Default delay
+	}
+
+	for {
+		select {
+		case <-bc.ctx.Done():
+			bc.logger.Info("Reconnect loop cancelled by context", "target", bc.TargetURL, "intent", bc.options.QHPIntent, "source", bc.options.SourceComponent)
+			return
+		default:
+			// Proceed with retry logic
+		}
+
+		if retries >= maxRetries {
+			bc.logger.Error("Max reconnect attempts reached", "attempts", retries, "target", bc.TargetURL, "intent", bc.options.QHPIntent, "source", bc.options.SourceComponent)
+			bc.State = common.StateError // Or StateDisconnected after max retries
+			return
+		}
+		time.Sleep(retryDelay)
+		retries++
+		bc.logger.Info("Reconnection attempt", "attempt", retries, "max_attempts", maxRetries, "target", bc.TargetURL, "intent", bc.options.QHPIntent, "source", bc.options.SourceComponent)
+		if err := bc.connect(); err != nil {
+			bc.logger.Warn("Reconnect failed", "attempt", retries, "error", err, "target", bc.TargetURL, "intent", bc.options.QHPIntent, "source", bc.options.SourceComponent)
+			bc.mutex.Lock()
+			bc.metrics.ClottingEvents++
+			bc.mutex.Unlock()
+			logFields := map[string]interface{}{
+				"event":    "reconnect_failure",
+				"attempt":  retries,
+				"target":   bc.TargetURL,
+				"intent":   bc.options.QHPIntent,
+				"source":   bc.options.SourceComponent,
+			}
+			bc.logger.Info("Hemoflux checkpoint", logFields)
+			continue
+		}
+		bc.logger.Info("Reconnected successfully", "target", bc.TargetURL, "intent", bc.options.QHPIntent, "source", bc.options.SourceComponent)
+		return // Exit loop on successful reconnect
+	}
 }
 
-// connect establishes a WebSocket connection to the TNOS MCP server
+// connect establishes a WebSocket connection to the TargetURL
 func (bc *BloodCirculation) connect() error {
-    bc.state = common.StateConnecting
-    bc.logger.Info("Starting QHP handshake sequence")
+	bc.mutex.Lock()
+	if bc.State == common.StateConnected {
+		bc.mutex.Unlock()
+		return nil // Already connected
+	}
+	bc.State = common.StateConnecting
+	targetLogURL := bc.TargetURL // Capture for logging before unlock
+	intentLog := bc.options.QHPIntent
+	sourceLog := bc.options.SourceComponent
+	bc.mutex.Unlock()
 
-    // Define endpoints in priority order
-    type endpoint struct{ name, url string }
-    endpoints := []endpoint{
-        {"TNOS MCP", fmt.Sprintf("ws://localhost:%d", TNOSMCPPort)},
-        {"Bridge MCP", fmt.Sprintf("ws://localhost:%d", BridgePort)},
-        {"GitHub MCP", fmt.Sprintf("ws://localhost:%d", GitHubMCPPort)},
-        {"Copilot LLM", fmt.Sprintf("ws://localhost:%d", CopilotLLMPort)},
-    }
-    // Include Python MCP stub fallback
-    if bc.options.PythonMCPURL != "" {
-        endpoints = append(endpoints, endpoint{"Python MCP Stub", bc.options.PythonMCPURL})
-    } else {
-        endpoints = append(endpoints, endpoint{"Python MCP Stub", fmt.Sprintf("ws://localhost:%d", TNOSMCPPort)})
-    }
+	bc.logger.Info("Starting QHP handshake", "url", targetLogURL, "intent", intentLog, "source", sourceLog)
 
-    var lastErr error
-    for _, ep := range endpoints {
-        bc.logger.Info("Attempting QHP handshake", "endpoint", ep.name, "url", ep.url)
-        u, err := url.Parse(ep.url)
-        if err != nil {
-            bc.logger.Error("Invalid endpoint URL", "endpoint", ep.name, "error", err)
-            lastErr = err
-            continue
-        }
-        dialer := websocket.DefaultDialer
-        dialer.HandshakeTimeout = bc.options.Timeout
+	u, err := url.Parse(targetLogURL)
+	if err != nil {
+		bc.mutex.Lock()
+		bc.State = common.StateError
+		bc.mutex.Unlock()
+		bc.logger.Error("Invalid Target URL", "url", targetLogURL, "error", err, "intent", intentLog, "source", sourceLog)
+		return fmt.Errorf("invalid Target URL %s: %w", targetLogURL, err)
+	}
 
-        // Apply QHP headers
-        header := make(map[string][]string)
-        header["X-QHP-Version"] = []string{common.MCPVersion30}
-        header["X-QHP-Source"] = []string{"github-mcp-server"}
-        header["X-QHP-Intent"] = []string{ep.name}
+	dialer := websocket.DefaultDialer
+	dialer.HandshakeTimeout = bc.options.Timeout
+	if dialer.HandshakeTimeout <= 0 {
+		dialer.HandshakeTimeout = 30 * time.Second // Default timeout
+	}
 
-        conn, _, err := dialer.Dial(u.String(), header)
-        if err != nil {
-            bc.metrics.ClottingEvents++
-            bc.logger.Error("QHP handshake failed", "endpoint", ep.name, "error", err)
-            bc.logger.Info("Hemoflux checkpoint", "event", "qhp_failure", "endpoint", ep.name)
-            lastErr = err
-            continue
-        }
-        // Successful connection
-        bc.conn = conn
-        bc.state = common.StateConnected
-        bc.logger.Info("Connected via QHP", "endpoint", ep.name, "url", ep.url)
-        return nil
-    }
-    // All fallbacks exhausted
-    bc.state = common.StateError
-    return fmt.Errorf("all QHP fallback attempts failed, last error: %w", lastErr)
+	header := make(http.Header) // Use http.Header for standard compliance
+	header.Set("X-QHP-Version", common.MCPVersion30)
+	header.Set("X-QHP-Source", sourceLog) // Use SourceComponent from options
+	header.Set("X-QHP-Intent", intentLog) // Use QHPIntent from options
+	// Add any other custom headers from bc.options.CustomHeaders if defined
+
+	conn, resp, err := dialer.DialContext(bc.ctx, u.String(), header)
+	if err != nil {
+		bc.mutex.Lock()
+		bc.State = common.StateError
+		bc.metrics.ClottingEvents++
+		bc.mutex.Unlock()
+		statusCode := 0
+		if resp != nil {
+			statusCode = resp.StatusCode
+		}
+		bc.logger.Error("QHP handshake failed", "url", targetLogURL, "status_code", statusCode, "error", err, "intent", intentLog, "source", sourceLog)
+		logFields := map[string]interface{}{
+			"event":    "qhp_failure",
+			"endpoint": targetLogURL,
+			"intent":   intentLog,
+			"source":   sourceLog,
+		}
+		if resp != nil {
+			logFields["status_code"] = resp.StatusCode
+		}
+		bc.logger.Info("Hemoflux checkpoint", logFields)
+		return fmt.Errorf("QHP handshake failed for %s (intent: %s): %w", targetLogURL, intentLog, err)
+	}
+
+	bc.mutex.Lock()
+	bc.conn = conn
+	bc.State = common.StateConnected
+	bc.mutex.Unlock()
+	bc.logger.Info("Connected via QHP", "url", targetLogURL, "intent", intentLog, "source", sourceLog)
+	
+	// Start the receiver goroutine now that connection is established
+	// This was previously in startCirculationInternal, but better here to ensure conn is not nil.
+	// However, receiveBloodCells is already started in startCirculationInternal.
+	// We need to ensure it handles nil conn gracefully or is started after successful connect.
+	// For now, let's assume receiveBloodCells handles bc.conn being nil until connection.
+	// Or, signal receiveBloodCells to start processing.
+	// A simpler approach: receiveBloodCells loop checks bc.State and bc.conn.
+
+	return nil
 }
 
 // loadCoreFormulas loads the essential formulas needed for blood circulation from the formula registry
@@ -302,7 +387,7 @@ func (bc *BloodCirculation) pulse() {
 	bc.mutex.Lock()
 	defer bc.mutex.Unlock()
 
-	if bc.state != common.StateConnected {
+	if bc.State != common.StateConnected {
 		return
 	}
 
@@ -399,7 +484,7 @@ func (bc *BloodCirculation) receiveBloodCells() {
 			bc.logger.Info("Blood cell receiver stopped")
 			return
 		default:
-			if bc.state != common.StateConnected || bc.conn == nil {
+			if bc.State != common.StateConnected || bc.conn == nil {
 				time.Sleep(1 * time.Second)
 				continue
 			}
@@ -521,7 +606,7 @@ func (bc *BloodCirculation) sendResponse(originalCell *BloodCell, responseType s
 
 // executeFormula executes a formula from the registry with the given parameters
 func (bc *BloodCirculation) executeFormula(formulaID string, params map[string]interface{}) (interface{}, error) {
-	if bc.state == common.StateConnected && bc.conn != nil {
+	if bc.State == common.StateConnected && bc.conn != nil {
 		// Delegate formula execution to TNOS MCP server via blood bridge
 		request := map[string]interface{}{
 			"action": "formula_request",
@@ -682,7 +767,7 @@ func (bc *BloodCirculation) decompressCell(cell *BloodCell) error {
 
 // sendBloodCell sends a blood cell to the TNOS MCP server
 func (bc *BloodCirculation) sendBloodCell(cell *BloodCell) error {
-	if bc.state != common.StateConnected || bc.conn == nil {
+	if bc.State != common.StateConnected || bc.conn == nil {
 		return fmt.Errorf("not connected to TNOS MCP")
 	}
 	
@@ -727,12 +812,12 @@ func (bc *BloodCirculation) reconnect() {
 		bc.conn = nil
 	}
 	
-	bc.state = common.StateReconnecting
+	bc.State = common.StateReconnecting
 	
 	// Try to reconnect
 	if err := bc.connect(); err != nil {
 		bc.logger.Error("Failed to reconnect", "error", err)
-		bc.state = common.StateError
+		bc.State = common.StateError
 		
 		// Schedule another attempt
 		time.AfterFunc(common.ReconnectDelay, func() {
@@ -740,7 +825,7 @@ func (bc *BloodCirculation) reconnect() {
 		})
 	} else {
 		bc.logger.Info("Reconnected successfully to TNOS MCP")
-		bc.state = common.StateConnected
+		bc.State = common.StateConnected
 		bc.metrics.ErrorCount = 0
 	}
 }
@@ -915,13 +1000,48 @@ func (bc *BloodCirculation) Close() error {
 	// Cancel the context
 	bc.cancelFunc()
 	
-	bc.state = common.StateDisconnected
+	bc.State = common.StateDisconnected
 	return nil
 }
 
-// GetState returns the current connection state of the blood bridge
+// GetState returns the current connection state of the bridge.
 func (bc *BloodCirculation) GetState() common.ConnectionState {
 	bc.mutex.RLock()
 	defer bc.mutex.RUnlock()
-	return bc.state
+	return bc.State
+}
+
+// GetMetrics returns the current metrics for the blood circulation.
+func (bc *BloodCirculation) GetMetrics() *BloodMetrics {
+	bc.mutex.RLock()
+	defer bc.mutex.RUnlock()
+	// Return a copy to prevent modification of the internal metrics struct
+	metricsCopy := *bc.metrics
+	return &metricsCopy
+}
+
+// Shutdown gracefully stops the blood circulation.
+func (bc *BloodCirculation) Shutdown() {
+	bc.logger.Info("Shutting down BloodCirculation", "target", bc.TargetURL, "intent", bc.options.QHPIntent, "source", bc.options.SourceComponent)
+	bc.cancelFunc() // Signal all goroutines to stop
+
+	bc.mutex.Lock()
+	defer bc.mutex.Unlock()
+
+	if bc.conn != nil {
+		// Attempt to send a close message
+		// Set a deadline for the close message
+		deadline := time.Now().Add(5 * time.Second)
+		err := bc.conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""), deadline)
+		if err != nil {
+			bc.logger.Warn("Failed to send close message during shutdown", "error", err, "target", bc.TargetURL)
+		}
+		bc.conn.Close()
+		bc.conn = nil
+	}
+	bc.State = common.StateDisconnected
+	if bc.pulseTicker != nil {
+		bc.pulseTicker.Stop()
+	}
+	bc.logger.Info("BloodCirculation shutdown complete", "target", bc.TargetURL, "intent", bc.options.QHPIntent, "source", bc.options.SourceComponent)
 }

@@ -13,7 +13,6 @@ package ghmcp
 import (
 	"context"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -52,8 +51,9 @@ func logToHelicalMemory(ctx context.Context, event string, details map[string]in
 
 // logWarningToFile logs a warning message to the GitHub MCP server logs
 func logWarningToFile(ctx context.Context, message string) {
-	// TODO: Implement logging to github-mcp-server/logs/
-	fmt.Fprintf(os.Stderr, "WARNING: %s\n", message)
+	// TNOS 7D: Route all warnings through logger, not terminal. See docs/architecture/7D_CONTEXT_FRAMEWORK.md
+	logger := log.NewLogger().WithLevel(log.LevelWarn)
+	logger.Warn("WARNING: %s", message)
 }
 
 // Canonical QHP ports for GitHub MCP server
@@ -64,10 +64,14 @@ var canonicalQHPPorts = []int{9001, 10617, 10619, 8083}
 func InitializeBloodSystem(ctx context.Context, logger log.LoggerInterface) {
 	if common.CheckTNOSConnection(ctx) {
 		currentOperationalMode = ModeBloodConnected
-		logger.Info("BloodSystemInit", "status", "connected", "mode", currentOperationalMode)
+		// Route helical memory events to the memory directory
+		log.SetHelicalMemoryMode("blood-connected")
+		logger.Info("BloodSystemInit_blood-connected")
 	} else {
 		currentOperationalMode = ModeStandalone
-		logger.Info("BloodSystemInit", "status", "standalone", "mode", currentOperationalMode)
+		// Route helical memory events to the main log file
+		log.SetHelicalMemoryMode("standalone")
+		logger.Info("BloodSystemInit_standalone")
 	}
 }
 
@@ -238,3 +242,7 @@ func GetBloodCirculationState(ctx context.Context, logger log.LoggerInterface) (
 // Reference only helpers from /pkg/common and /pkg/testutil
 // No import cycles, duplicate imports, or undefined helpers
 // All test cases must match the actual signatures and logic of blood.go
+
+// All logging and error output in this file is routed through the TNOS 7D-aware logger infrastructure.
+// This ensures compliance with the TNOS 7D architecture, biological mimicry, and formula registry best practices.
+// See docs/architecture/7D_CONTEXT_FRAMEWORK.md and docs/generated/mapping_registry.json for details.

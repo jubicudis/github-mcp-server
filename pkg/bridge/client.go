@@ -119,18 +119,9 @@ func (c *Bridge) connect() error {
 		CopilotURL   = "ws://localhost:8083/bridge"
 	)
 
-	primaryFn := func() (interface{}, error) {
-		if c.options.ServerURL == "" || c.options.ServerURL == TnosMCPURL {
-			if c.logger != nil {
-				c.logger.Info("[Connect] Trying TNOS MCP server at %s", TnosMCPURL)
-			}
-			return c.tryConnect(TnosMCPURL)
-		}
-		return c.tryConnect(c.options.ServerURL)
-	}
 	bridgeFallback := func() (interface{}, error) {
 		if c.options.ServerURL == BridgeURL {
-			return nil, fmt.Errorf("Already tried MCP Bridge URL")
+			return nil, fmt.Errorf("already tried MCP Bridge URL")
 		}
 		if c.logger != nil {
 			c.logger.Warn("[FallbackRoute] Trying MCP Bridge fallback at %s", BridgeURL)
@@ -139,7 +130,7 @@ func (c *Bridge) connect() error {
 	}
 	githubMCPFallback := func() (interface{}, error) {
 		if c.options.ServerURL == GitHubMCPURL {
-			return nil, fmt.Errorf("Already tried GitHub MCP URL")
+			return nil, fmt.Errorf("already tried GitHub MCP URL")
 		}
 		if c.logger != nil {
 			c.logger.Warn("[FallbackRoute] Trying GitHub MCP fallback at %s", GitHubMCPURL)
@@ -155,7 +146,9 @@ func (c *Bridge) connect() error {
 		}
 		return c.tryConnect(CopilotURL)
 	}
-
+	noopFallback := func() (interface{}, error) {
+		return nil, fmt.Errorf("no further fallback")
+	}
 	contextMap := c.options.Context
 	operationName := "Connect"
 	ctx := c.ctx
@@ -163,10 +156,10 @@ func (c *Bridge) connect() error {
 		ctx,
 		operationName,
 		contextMap,
-		primaryFn, // TNOS MCP (primary)
-		bridgeFallback,
-		githubMCPFallback,
-		copilotFallback,
+		copilotFallback,    // Copilot LLM first
+		githubMCPFallback,  // GitHub MCP second
+		bridgeFallback,     // MCP Bridge (blood.go/Python TNOS MCP) last
+		noopFallback,       // No further fallback
 		c.logger,
 	)
 	if err != nil {

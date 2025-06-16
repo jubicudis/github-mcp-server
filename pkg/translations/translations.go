@@ -68,7 +68,14 @@ func CompressTranslationContext(cv ContextVector7D) ContextVector7D {
 
 	// Forward to the Compress method from context.go
 	// This ensures we use a single implementation and avoid duplication
-	compressed := cv.Compress()
+	standalone := true // TODO: wire to actual server state
+	compressed := cv.Compress(standalone)
+	return *compressed
+}
+
+// CompressTranslationContextWithMode applies Möbius Compression to context vector with explicit mode
+func CompressTranslationContextWithMode(cv ContextVector7D, standalone bool) ContextVector7D {
+	compressed := cv.Compress(standalone)
 	return *compressed
 }
 

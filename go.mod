@@ -17,7 +17,6 @@ require (
 )
 
 require (
-	github.com/google/uuid v1.6.0
 	github.com/klauspost/reedsolomon v1.12.4
 	github.com/mattn/go-sqlite3 v1.14.28
 	go.etcd.io/bbolt v1.4.0
@@ -37,6 +36,7 @@ require (
 	github.com/go-viper/mapstructure/v2 v2.2.1 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.8 // indirect

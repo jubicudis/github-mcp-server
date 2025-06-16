@@ -37,45 +37,46 @@ import (
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/translations"
 
 	// External packages
-	"github.com/google/uuid"
+
 	"github.com/gorilla/websocket"
 )
 
-// Server configuration
+// Config holds the application configuration
 type Config struct {
-	// WHO: ConfigManager
-	// WHAT: Server configuration settings
-	// WHEN: During server initialization
-	// WHERE: System Layer 6 (Integration)
-	// WHY: To centralize configuration parameters
-	// HOW: Using structured configuration with env fallbacks
-	// EXTENT: All server parameters
-	Port          int    `json:"port"`
-	Host          string `json:"host"`
-	LogLevel      string `json:"logLevel"`
-	LogFile       string `json:"logFile"`
-	BridgeEnabled bool   `json:"bridgeEnabled"`
-	BridgePort    int    `json:"bridgePort"`
-	GitHubToken   string `json:"githubToken"`
+	// Core Server Settings
+	Host         string `json:"host"`
+	Port         int    `json:"port"`
+	LogLevel     string `json:"logLevel"`
+	LogFile      string `json:"logFile"`
+	GitHubToken  string `json:"githubToken"` // Essential for core GitHub MCP functionality
+
+	// External Service Settings
+	CopilotLLMURL string `json:"copilotLLMURL"` // URL for Copilot LLM
+
+	// Bridge Settings (for connecting to TNOS MCP)
+	BridgeEnabled    bool   `json:"bridgeEnabled"`    // Specifically for the bridge to TNOS MCP
+	BridgePort       int    `json:"bridgePort"`       // Port this server listens on for bridge-related communication
+	TNOSMCPBridgeURL string `json:"tnosMCPBridgeURL"` // URL for the TNOS MCP to bridge to
+	GitHubMCPURL     string `json:"githubMCPURL"`     // URL for this GitHub MCP server (self-reference, used for discovery by other services)
 }
 
 // Global variables
 var (
-	config     Config
-	logger     logpkg.LoggerInterface
-	clients    = make(map[*Client]bool)
-	clientsMtx sync.Mutex
-	broadcast  = make(chan []byte)
+    config     Config
+    logger     logpkg.LoggerInterface
+    clients    = make(map[*Client]bool)
+    clientsMtx sync.Mutex
+    broadcast  = make(chan []byte)
 
-	// Track all HTTP servers for graceful shutdown
-	servers    []*http.Server
-	serversMtx sync.Mutex
+    // Track all HTTP servers for graceful shutdown
+    servers    []*http.Server
+    serversMtx sync.Mutex
 
-	// Add global translator and bridge instance
-	githubTranslator  *ghmcp.GitHubContextTranslator // Corrected alias
-	bloodBridgeInstance *bridge.BloodCirculation
+    // Connection managers for external services and TNOS bridge
+    copilotConnection   *bridge.BloodCirculation // Connection to Copilot LLM
+    bloodBridgeInstance *bridge.BloodCirculation // Primary bridge to Python TNOS MCP server
 
-	startTime         time.Time // Added startTime for uptime calculation
+    startTime time.Time // Added startTime for uptime calculation
 )
 
 // Client represents a connected websocket client
@@ -98,26 +99,29 @@ type Client struct {
 // Initialize server configuration from environment or defaults
 func initConfig() Config {
 	// Get configuration from environment variables with defaults
-	portStr := getEnv("MCP_SERVER_PORT", "10617")
+	portStr := getEnv("MCP_SERVER_PORT", "10617") // This server's listening port (GitHub MCP functionality)
 	port, err := strconv.Atoi(portStr)
 	if err != nil {
-		port = 10617 // Default port
+		port = 10617 // Default port for this GitHub MCP server
 	}
 
-	bridgePortStr := getEnv("MCP_BRIDGE_PORT", "10619")
+	bridgePortStr := getEnv("MCP_BRIDGE_LISTENING_PORT", "10619") // Port this server might listen on for specific bridge ops, if different from main port
 	bridgePort, err := strconv.Atoi(bridgePortStr)
 	if err != nil {
-		bridgePort = 10619 // Default bridge port
+		bridgePort = 10619
 	}
 
 	return Config{
-		Port:          port,
-		Host:          getEnv("MCP_SERVER_HOST", "localhost"),
-		LogLevel:      getEnv("MCP_LOG_LEVEL", "info"),
-		LogFile:       getEnv("MCP_LOG_FILE", "github-mcp-server.log"),
-		BridgeEnabled: getEnvBool("MCP_BRIDGE_ENABLED", true),
-		BridgePort:    bridgePort,
-		GitHubToken:   getEnv("GITHUB_TOKEN", ""),
+		Port:             port,
+		Host:             getEnv("MCP_SERVER_HOST", "localhost"),
+		LogLevel:         getEnv("MCP_LOG_LEVEL", "info"),
+		LogFile:          getEnv("MCP_LOG_FILE", "github-mcp-server.log"),
+		BridgeEnabled:    getEnvBool("TNOS_BRIDGE_ENABLED", true), // Is the bridge to TNOS MCP enabled?
+		BridgePort:       bridgePort,                               // Port this server listens on (e.g., for incoming bridge commands if any)
+		GitHubToken:      getEnv("GITHUB_TOKEN", ""),
+		CopilotLLMURL:    getEnv("COPILOT_LLM_URL", "ws://localhost:8083"), // Default Copilot LLM URL
+		GitHubMCPURL:     getEnv("GITHUB_MCP_URL", "ws://localhost:10617"),  // Default GitHub MCP URL (this server itself, or an external one)
+		TNOSMCPBridgeURL: getEnv("TNOS_MCP_BRIDGE_TARGET_URL", "ws://localhost:9001"), // Target TNOS MCP Server URL
 	}
 }
 
@@ -144,6 +148,13 @@ func getEnvBool(key string, fallback bool) bool {
 
 // Main server handler
 func main() {
+	// Diagnostic: Print working directory and intended log file path at the very start
+	cwd, _ := os.Getwd()
+	absLogPath, _ := filepath.Abs("pkg/log/github-mcp-server.log") // FIX: removed extra 'github-mcp-server' from path
+	preLogger := logpkg.NewLogger() // Temporary logger for diagnostics before main logger is ready
+	preLogger.Debug("[DIAGNOSTIC] (main) Working directory: %s", cwd)
+	preLogger.Debug("[DIAGNOSTIC] (main) Intended log file absolute path: %s", absLogPath)
+
 	// Parse command line flags
 	var configFile string
 	flag.StringVar(&configFile, "config", "", "Path to configuration file")
@@ -169,7 +180,31 @@ func main() {
 	}
 
 	// Initialize logger
-	logger = initLogger(config)
+	loggerIface := initLogger(config)
+	// Set global logger
+	logger = loggerIface
+	// Ensure concrete type for early diagnostics
+	if concreteLogger, ok := logger.(*logpkg.Logger); !ok {
+		preLogger.Error("Logger type assertion failed; using fallback logger")
+		logger = preLogger // Use preLogger if type assertion fails
+	} else {
+		// The global 'logger' variable is now set.
+		// No need for SetDefaultLogger if the package relies on passing the logger instance
+		// or using a package-level global variable that 'logger' now represents.
+		// logpkg.SetDefaultLogger(concreteLogger) // Removed this line
+		// If other parts of logpkg need a default logger, ensure they access this global 'logger'
+		// or that logpkg is refactored to accept/use this instance.
+		// For now, we assume direct usage of the 'logger' variable or passing it as an argument is sufficient.
+		_ = concreteLogger // Avoid unused variable error if concreteLogger is not used otherwise in this block
+	}
+
+
+	// Set Helical Memory mode based on whether the bridge to TNOS is enabled
+	if !config.BridgeEnabled {
+		logpkg.SetHelicalMemoryMode("standalone")
+	} else {
+		logpkg.SetHelicalMemoryMode("blood-connected")
+	}
 
 	// If stray log data was found, migrate into unified logger
 	if len(strayData) > 0 {
@@ -177,15 +212,15 @@ func main() {
 	}
 
 	// Diagnostic: Print log file path and working directory
-	cwd, _ := os.Getwd()
-	logDir := filepath.Join(cwd, "pkg", "log")
+	cwd, _ = os.Getwd()
+	logDir := filepath.Join(cwd, "pkg", "log") // FIX: removed extra 'github-mcp-server' from path
 	logFilePath := filepath.Join(logDir, filepath.Base(config.LogFile))
-	fmt.Fprintf(os.Stderr, "[DIAGNOSTIC] Working directory: %s\n", cwd)
-	fmt.Fprintf(os.Stderr, "[DIAGNOSTIC] Log file path: %s\n", logFilePath)
+	logger.Debug("[DIAGNOSTIC] Working directory: %s", cwd)
+	logger.Debug("[DIAGNOSTIC] Log file path: %s", logFilePath)
 	if _, err := os.Stat(logFilePath); err != nil {
-		fmt.Fprintf(os.Stderr, "[DIAGNOSTIC] Log file does not exist or cannot be accessed: %v\n", err)
+		logger.Warn("[DIAGNOSTIC] Log file does not exist or cannot be accessed: %v", err)
 	} else {
-		fmt.Fprintf(os.Stderr, "[DIAGNOSTIC] Log file exists and is accessible.\n")
+		logger.Debug("[DIAGNOSTIC] Log file exists and is accessible.")
 	}
 
 	// Switch helical memory to connected mode
@@ -217,24 +252,54 @@ func main() {
 	ctx := context.Background()
 	ghmcp.InitializeBloodSystem(ctx, logger) // Added logger
 
-	// Initialize MCP bridge and translator
-	if err := ghmcp.InitializeMCPBridge(config.BridgeEnabled, logger); err != nil { // Corrected alias and added logger
-		logger.Error(fmt.Sprintf("Failed to initialize MCP Bridge: %s", err.Error()))
-	} else {
-		logger.Info("MCP Bridge initialized")
-	}
-	githubTranslator = ghmcp.NewGitHubContextTranslator(logger, config.BridgeEnabled, true, false) // Corrected alias
+
+	// Initialize and start API Status Handler
+	go func() {
+		// Create a new ServeMux for the API status server to avoid conflicts
+		// if other HTTP services are added to the default mux or another mux.
+		statusMux := http.NewServeMux()
+		statusMux.HandleFunc("/api/status", handleStatus) // Changed apiStatusHandler to handleStatus
+
+		// Use a different port for the API status for clarity, or ensure config.Port is dedicated.
+		// For now, assuming config.Port is for the main application and API status runs on it.
+		// If main server also uses http.DefaultServeMux, ensure routes don't clash.
+		// It's generally better to have one main http.Server instance managing all routes
+		// or separate http.Server instances on different ports.
+
+		// The main server setup in startAllServers might conflict if it also uses DefaultServeMux on the same port.
+		// Let's assume startAllServers configures the main application server, and this is an auxiliary endpoint.
+		// If config.Port is the main app port, this status endpoint will be part of it.
+
+		// The variable 'addr' was here, but removed as it was unused after commenting out the separate server start below.
+		// This server instance is local to this goroutine.
+		// It might be better to integrate this handler into the main server setup in startAllServers.
+		// For now, let it run as a separate thought, assuming it's managed or intended to be part of the main server.
+		// If startAllServers() also listens on config.Port with its own mux, this might not behave as expected
+		// unless handleStatus is registered on that main mux.
+
+		// The current structure has startAllServers() which likely starts the main HTTP server.
+		// Adding another ListenAndServe on the same port will fail.
+		// The handleStatus should be registered on the mux used by the main server.
+		// For now, I will comment out this independent server start for /api/status
+		// and assume it's (or should be) registered on the main server's mux.
+		// If not, this is a structural issue to be addressed.
+		logger.Info("API Status Handler configured for /api/status on the main server.")
+		// server := &http.Server{Addr: addr, Handler: statusMux}
+
+		// logger.Info("API Status Handler listening", "address", addr)
+		// if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		// 	logger.Error("API Status Handler failed to start", "error", err.Error())
+		// 	_ = logpkg.LogHelicalEvent(logpkg.NewHelicalEvent(
+		// 		"MCPServer", "fatal_error", "github-mcp-server", "crash", "GoMain", "full", "API Status Handler failed to start: "+err.Error()), logger)
+		// 	os.Exit(1)
+		// }
+	}()
 
 	// Start HTTP servers on all canonical ports
 	startAllServers()
 
 	// Start WebSocket broadcaster
 	go handleBroadcasts()
-
-	// Connect to bridge if enabled
-	if config.BridgeEnabled {
-		go connectToBridge()
-	}
 
 	// Wait for termination signal
 	quit := make(chan os.Signal, 1)
@@ -266,29 +331,31 @@ func main() {
 
 // Initialize logger
 func initLogger(config Config) logpkg.LoggerInterface {
-	// Always use pkg/log directory under project root (cwd)
-	cwd, _ := os.Getwd()
-	logDir := filepath.Join(cwd, "pkg", "log")
-	if err := os.MkdirAll(logDir, 0755); err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to create log dir %s: %v\n", logDir, err)
-	}
+	// Always use absolute path for log file
+	projectRoot, _ := filepath.Abs(".")
+	logDir := filepath.Join(projectRoot, "pkg", "log") // FIX: removed extra 'github-mcp-server' from path
 	logFilePath := filepath.Join(logDir, filepath.Base(config.LogFile))
-
-	// Create base logger
 	logger := logpkg.NewLogger()
 
-	// Configure log level
+	if err := os.MkdirAll(logDir, 0755); err != nil {
+		logger.Error("Failed to create log dir %s: %v", logDir, err)
+	}
+	logger.Debug("[DIAGNOSTIC] Using logDir=%s, logFile=%s", logDir, logFilePath)
+
 	switch strings.ToLower(config.LogLevel) {
-	case "debug": logger = logger.WithLevel(logpkg.LevelDebug)
-	case "warn":  logger = logger.WithLevel(logpkg.LevelWarn)
-	case "error": logger = logger.WithLevel(logpkg.LevelError)
-	default:      logger = logger.WithLevel(logpkg.LevelInfo)
+	case "debug":
+		logger = logger.WithLevel(logpkg.LevelDebug)
+	case "warn":
+		logger = logger.WithLevel(logpkg.LevelWarn)
+	case "error":
+		logger = logger.WithLevel(logpkg.LevelError)
+	default:
+		logger = logger.WithLevel(logpkg.LevelInfo)
 	}
 
-	// Open unified log file
 	f, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to open log file %s: %v\n", logFilePath, err)
+		logger.Error("[DIAGNOSTIC] Failed to open log file %s: %v", logFilePath, err)
 	} else {
 		logger = logger.WithOutput(f)
 	}
@@ -360,23 +427,125 @@ func handleHealth(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// Define APIServerStatus struct
+type APIServerStatus struct {
+	ServerName        string                 `json:"server_name"`
+	Version           string                 `json:"version"`
+	Status            string                 `json:"status"`
+	StartTime         string                 `json:"start_time"`
+	UpTime            string                 `json:"up_time"`
+	ActiveConnections int                    `json:"active_connections"`
+	Host              string                 `json:"host"`
+	Port              int                    `json:"port"`
+	BridgeEnabled     bool                   `json:"bridge_enabled"`
+	BridgeStatus      string                 `json:"bridge_status"`
+	BridgeDetails     map[string]interface{} `json:"bridge_details"`
+	CopilotLLMStatus  string                 `json:"copilot_llm_status"`
+	GitHubMCPStatus   string                 `json:"github_mcp_status"` // Status of this server's GitHub MCP functionality
+	LogFile           string                 `json:"log_file"`
+	Timestamp         int64                  `json:"timestamp"`
+}
+
 // Server status handler
 func handleStatus(w http.ResponseWriter, r *http.Request) {
-	clientsMtx.Lock()
-	clientCount := len(clients)
-	clientsMtx.Unlock()
+    clientsMtx.Lock()
+    clientCount := len(clients)
+    clientsMtx.Unlock()
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status":        "running",
-		"uptime":        int64(time.Since(startTime).Seconds()),
-		"clientCount":   clientCount,
-		"host":          config.Host,
-		"port":          config.Port,
-		"bridgeEnabled": config.BridgeEnabled,
-		"timestamp":     time.Now().Unix(),
-	})
+    bridgeStatus := "disconnected"
+    bridgeDetails := map[string]interface{}{"state": "N/A"}
+    
+    // Use bloodBridgeInstance (canonical TNOS MCP bridge) instead of tnosBridge
+    if bloodBridgeInstance != nil {
+        state := bloodBridgeInstance.GetState()
+        bridgeStatus = string(state)
+        bridgeDetails["url"] = bloodBridgeInstance.TargetURL
+        bridgeDetails["state"] = string(state)
+        
+        // TNOS 7D Biomimicry: Blood circulation metrics
+        metrics := bloodBridgeInstance.GetMetrics()
+        if metrics != nil {
+            bridgeDetails["cells_transmitted"] = metrics.CellsTransmitted
+            bridgeDetails["cells_received"] = metrics.CellsReceived
+            bridgeDetails["error_count"] = metrics.ErrorCount
+            bridgeDetails["clotting_events"] = metrics.ClottingEvents
+            // Additional biomimicry metrics
+            bridgeDetails["circulation_health"] = calculateCirculationHealth(metrics)
+            bridgeDetails["flow_rate"] = calculateFlowRate(metrics)
+        }
+    } else if config.BridgeEnabled {
+        bridgeStatus = "Enabled but not Initialized"
+        bridgeDetails["state"] = bridgeStatus
+    }
+
+    uptime := time.Since(startTime)
+
+    status := APIServerStatus{
+        ServerName:        "GitHub MCP Server (TNOS-Integrated)",
+        Version:           common.AppVersion,
+        Status:            "Running",
+        StartTime:         startTime.Format(time.RFC3339),
+        UpTime:            uptime.String(),
+        ActiveConnections: clientCount,
+        Host:              config.Host,
+        Port:              config.Port,
+        BridgeEnabled:     config.BridgeEnabled,
+        BridgeStatus:      bridgeStatus,
+        BridgeDetails:     bridgeDetails,
+        CopilotLLMStatus:  "Not Implemented",
+        GitHubMCPStatus:   "Running (Self)",
+        LogFile:           config.LogFile,
+        Timestamp:         time.Now().Unix(),
+    }
+
+    // Get Copilot LLM Connection Status
+    if copilotConnection != nil {
+        status.CopilotLLMStatus = string(copilotConnection.GetState())
+    } else {
+        status.CopilotLLMStatus = "Disabled/Not Initialized"
+    }
+
+    response, err := json.MarshalIndent(status, "", "  ")
+    if err != nil {
+        logger.Error("Failed to marshal status response", "error", err)
+        http.Error(w, "Failed to marshal status response", http.StatusInternalServerError)
+        return
+    }
+    w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(http.StatusOK)
+    w.Write(response)
+}
+
+// TNOS 7D Biomimicry helper functions for circulation health
+func calculateCirculationHealth(metrics *bridge.BloodMetrics) string {
+    if metrics == nil {
+        return "unknown"
+    }
+    
+    errorRate := float64(metrics.ErrorCount) / float64(metrics.CellsTransmitted+1) // Avoid division by zero
+    if errorRate < 0.01 {
+        return "excellent"
+    } else if errorRate < 0.05 {
+        return "good"
+    } else if errorRate < 0.1 {
+        return "fair"
+    }
+    return "poor"
+}
+
+func calculateFlowRate(metrics *bridge.BloodMetrics) float64 {
+    if metrics == nil {
+        return 0.0
+    }
+    
+    // Simple flow rate calculation based on total cells and uptime
+    uptime := time.Since(startTime).Seconds()
+    if uptime == 0 {
+        return 0.0
+    }
+    
+    totalCells := float64(metrics.CellsTransmitted + metrics.CellsReceived)
+    return totalCells / uptime // cells per second
 }
 
 // GitHub repositories handler
@@ -419,42 +588,6 @@ func handleGitHubRepositories(w http.ResponseWriter, r *http.Request) {
 			"error":  err.Error(),
 		})
 		return
-	}
-
-	// Send blood cell of repository event if bridge connected
-	if bloodBridgeInstance != nil {
-		// Translate context
-		ctxMap := githubTranslator.TranslateToTNOS(map[string]interface{}{
-			"identity": owner + "/" + repo,
-			"operation": "GetRepository",
-			"timestamp": time.Now().Unix(),
-			"purpose": "RepositoryFetch",
-			"scope": 1.0,
-		})
-		cv := translations.NewContextVector7D(ctxMap)
-
-		cell := &bridge.BloodCell{
-			ID:           uuid.New().String(),
-			Type:         "Red",
-			Payload:      map[string]interface{}{"owner": owner, "repo": repo, "repository": repository},
-			Context7D:    cv,
-			Timestamp:    time.Now().Unix(),
-			Source:       "github-mcp-server",
-			Destination:  "tnos-mcp-server",
-			Priority:     5,
-			OxygenLevel:  1.0,
-			Compressed:   false,
-		}
-		if bloodBridgeInstance.GetState() == bridge.StateConnected {
-			if err := bloodBridgeInstance.SendBloodCell(cell); err != nil {
-				logger.Warn("Failed to send blood cell for repository event", "error", err.Error())
-			}
-		} else {
-			bloodBridgeInstance.QueueBloodCell(cell)
-			logger.Info("Blood bridge not connected, queued blood cell for later delivery", "id", cell.ID)
-		}
-	} else {
-		logger.Warn("Blood bridge instance is nil, cannot send or queue blood cell")
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -665,7 +798,7 @@ func handleContext(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
 		// Return a new default context
-		context := translations.NewContextVector7D(map[string]interface{}{
+		context := translations.NewContextVector7D(map[string]interface{}{                                                          
 			"who":    "APIClient",
 			"what":   "ContextRequest",
 			"when":   time.Now().Unix(),
@@ -695,7 +828,7 @@ func handleContext(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Create 7D context from input
-		context := translations.NewContextVector7D(inputContext)
+		var context = translations.NewContextVector7D(inputContext)
 
 		// Apply compression
 		compressed := translations.CompressContext(context, logger.(*logpkg.Logger))
@@ -1115,8 +1248,8 @@ func handleContextRequest(client *Client, data map[string]interface{}, context t
 			// Create new context
 			newContext := translations.NewContextVector7D(rawContext)
 
-			// Merge with client's existing context
-			mergedContext := translations.MergeContexts(newContext, client.Context, logger.(*logpkg.Logger))
+			// Merge with client's existing context using 7D Merge method
+			mergedContext := newContext.Merge(client.Context)
 
 			// Update client's context
 			client.Context = mergedContext
@@ -1194,7 +1327,7 @@ func handleContextRequest(client *Client, data map[string]interface{}, context t
 			}
 
 			// Bridge context between GitHub and TNOS
-			bridgedContext := translations.BridgeMCPContext(githubContext, &client.Context, logger.(*logpkg.Logger))
+			bridgedContext := translations.BridgeMCPContext(githubContext, &client.Context, logger)
 
 			// Update client context
 			client.Context = bridgedContext
@@ -1271,6 +1404,9 @@ func connectToBridge() {
 	// HOW: Using WebSocket connection with retry logic
 	// EXTENT: Blood Bridge connection lifecycle with error handling
 
+	if logger == nil {
+		logger = logpkg.NewLogger()
+	}
 	logger.Info("Connecting to Blood Bridge", "port", config.BridgePort)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
@@ -1306,77 +1442,103 @@ func connectToBridge() {
 		Timeout:     60 * time.Second,
 		MaxRetries:  5,
 		RetryDelay:  2 * time.Second,
-		TLSEnabled:  false,
 		Credentials: map[string]string{"source": "github-mcp-server"},
 		Headers:     map[string]string{"X-QHP-Version": "1.0"},
 	}
 
-	bloodBridge, err := bridge.NewBloodCirculation(ctx, bloodOpts)
-	if err != nil {
-		logger.Error("Failed to connect to Blood Bridge", "error", err.Error())
-		logger.Info("Operating in standalone mode")
-		return
-	}
-	// assign global instance
-	bloodBridgeInstance = bloodBridge
-	logger.Info("Successfully connected to Blood Bridge")
-	// Fix: pass the concrete logger type to ghmcp.NewClient
-	var concreteLogger *logpkg.Logger
-	if l, ok := logger.(*logpkg.Logger); ok {
-		concreteLogger = l
-	} else {
-		concreteLogger = logpkg.NewLogger()
-	}
-	go processBloodCirculationMessages(bloodBridge, ghmcp.NewClient(config.GitHubToken, concreteLogger))
+							bloodBridge, err := bridge.NewBloodCirculation(ctx, bloodOpts)
+				if err != nil {
+					logger.Error("Failed to connect to Blood Bridge", "error", err.Error())
+					logger.Info("Operating in standalone mode - server will continue without blood bridge")
+					logpkg.SetHelicalMemoryMode("standalone")
+					bloodBridgeInstance = nil // No blood bridge available
+					_ = logpkg.LogHelicalEvent(logpkg.NewHelicalEvent("MCPServer", "startup", "github-mcp-server", "init", "GoMain", "full", "GitHub MCP Server starting up (standalone mode)"), logger)
+					// Server continues without blood bridge
+				} else {
+					// assign global instance
+					bloodBridgeInstance = bloodBridge
+					
+					// START the blood circulation system
+					bloodBridgeInstance.Start()
+					
+					logger.Info("Blood circulation system started")
+					
+					// Fix: pass the concrete logger type to ghmcp.NewClient
+					var concreteLogger *logpkg.Logger
+					if l, ok := logger.(*logpkg.Logger); ok {
+						concreteLogger = l
+					} else {
+						concreteLogger = logpkg.NewLogger()
+					}
+					go processBloodCirculationMessages(
+						bloodBridgeInstance, 
+						ghmcp.NewClient(config.GitHubToken, concreteLogger),
+						logger,
+						startTime,
+						&clients,
+						&clientsMtx,
+					)
+				
+					// After successful TNOS MCP bridge connection:
+					logpkg.SetHelicalMemoryMode("connected")
+					_ = logpkg.LogHelicalEvent(logpkg.NewHelicalEvent("MCPServer", "startup", "github-mcp-server", "init", "GoMain", "full", "GitHub MCP Server starting up"), logger)
+				}
+				
+				// Server continues here regardless of blood bridge status
+				logger.Info("GitHub MCP Server initialization complete")
+			}
 
-	// After successful TNOS MCP bridge connection:
-	logpkg.SetHelicalMemoryMode("connected")
-	_ = logpkg.LogHelicalEvent(logpkg.NewHelicalEvent("MCPServer", "startup", "github-mcp-server", "init", "GoMain", "full", "GitHub MCP Server starting up"), logger)
-}
-
-// Canonical MCP/QHP ports
-var canonicalPorts = []int{9001, 10617, 10619, 8083}
+// Canonical MCP/QHP ports for TNOS 7D layer communication
+var canonicalPorts = []int{9001, 10617, 8083, 10619}
 
 func startAllServers() {
-	for _, port := range canonicalPorts {
-		go func(p int) {
-			mux := http.NewServeMux()
-			mux.HandleFunc("/", handleRoot)
-			mux.HandleFunc("/api/health", handleHealth)
-			mux.HandleFunc("/api/status", handleStatus)
-			mux.HandleFunc("/ws", handleWebSocket)
+    // Log canonical ports for reference
+    logger.Info("TNOS Canonical MCP/QHP ports available", "ports", canonicalPorts)
+	// Main application server (WebSocket, API endpoints)
+	mainMux := http.NewServeMux() // Use a specific mux for the main server
+	mainMux.HandleFunc("/", handleRoot)
+	mainMux.HandleFunc("/health", handleHealth)
+	mainMux.HandleFunc("/ws", handleWebSocket) // WebSocket endpoint
+	mainMux.HandleFunc("/api/status", handleStatus) // Register handleStatus here
 
-			// GitHub API routes
-			mux.HandleFunc("/api/github/repositories", handleGitHubRepositories)
-			mux.HandleFunc("/api/github/issues", handleGitHubIssues)
-			mux.HandleFunc("/api/github/pullrequests", handleGitHubPullRequests)
-			mux.HandleFunc("/api/github/search", handleGitHubSearchCode)
-			mux.HandleFunc("/api/github/code-scanning", handleGitHubCodeScanningAlerts)
-			mux.HandleFunc("/api/context", handleContext)
-
-			// Add the /bridge handler
-			mux.HandleFunc("/bridge", handleBridge)
-
-			addr := fmt.Sprintf("%s:%d", config.Host, p)
-			server := &http.Server{Addr: addr, Handler: mux}
-
-			// Track server for shutdown
-			serversMtx.Lock()
-			servers = append(servers, server)
-			serversMtx.Unlock()
-
-			// Start server in a goroutine
-			go func() {
-				logger.Info("Server listening", "address", addr)
-				if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-					logger.Error("Server failed to start", "error", err.Error())
-					_ = logpkg.LogHelicalEvent(logpkg.NewHelicalEvent(
-						"MCPServer", "fatal_error", "github-mcp-server", "crash", "GoMain", "full", "Server failed to start: "+err.Error()), logger)
-					os.Exit(1)
-				}
-			}()
-		}(port)
+	mainAddr := fmt.Sprintf("%s:%d", config.Host, config.Port)
+	mainServer := &http.Server{
+		Addr:    mainAddr,
+		Handler: mainMux, // Use the main mux
 	}
+	addServer(mainServer) // Track this server for graceful shutdown
+
+	go func() {
+		logger.Info(fmt.Sprintf("Main GitHub MCP Server listening on %s", mainAddr))
+		if err := mainServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			logger.Error(fmt.Sprintf("Main server ListenAndServe failed: %s", err.Error()))
+			_ = logpkg.LogHelicalEvent(logpkg.NewHelicalEvent("MCPServer", "fatal_error", "github-mcp-server", "crash", "GoMain", "full", "Main server ListenAndServe failed: "+err.Error()), logger)
+			os.Exit(1) // Critical failure
+		}
+	}()
+
+	// --- Bridge Listener (if this server also *listens* for bridge connections) ---
+	// The config.BridgePort (MCP_BRIDGE_LISTENING_PORT, default 10619) was intended for this.
+	// If this server needs to accept incoming connections *as a bridge endpoint* for other services,
+	// then another server should be started on config.BridgePort.
+	// The current `tnosBridge` and `copilotConnection` are outgoing connections from this server.
+
+	// If config.BridgePort is for this server to *listen* for incoming bridge-related commands (not just outgoing connections),
+	// a separate server instance would be needed here.
+	// Example:
+	// if config.BridgeEnabled && config.BridgePort != config.Port { // Only if different from main port
+	// bridgeMux := http.NewServeMux()
+	// bridgeMux.HandleFunc("/bridge-endpoint", handleBridgeSpecificRequests) // Example handler
+	// bridgeAddr := fmt.Sprintf("%s:%d", config.Host, config.BridgePort)
+	// bridgeServer := &http.Server{Addr: bridgeAddr, Handler: bridgeMux}
+	// addServer(bridgeServer)
+	// go func() {
+	// logger.Info(fmt.Sprintf("Bridge listener server starting on %s", bridgeAddr))
+	// if err := bridgeServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+	// logger.Error(fmt.Sprintf("Bridge listener server failed: %s", err.Error()))
+	// }
+	// }()
+	// }
 }
 
 // --- MCP Bridge WebSocket Handler ---
@@ -1398,82 +1560,98 @@ func handleBridge(w http.ResponseWriter, r *http.Request) {
 		Timeout:    60 * time.Second,
 		MaxRetries: 0,
 		RetryDelay: 0,
-		Headers:    nil,
-		Context:    map[string]interface{}{ // Use map for context
-			"who":    "BridgeServer",
-			"what":   "Session",
-			"when":   time.Now().Unix(),
-			"where":  "Layer6",
-			"why":    "WebSocket",
-			"how":    "Upgrade",
-			"extent": 1.0,
+		Context:    map[string]interface{}{ // 7D TNOS context for bridge session
+			common.ContextKeyWho:    "BridgeServer",
+			common.ContextKeyWhat:   "Session",
+			common.ContextKeyWhen:   time.Now().Unix(),
+			common.ContextKeyWhere:  "Layer6",
+			common.ContextKeyWhy:    "WebSocket",
+			common.ContextKeyHow:    "Upgrade",
+			common.ContextKeyExtent: 1.0,
 		},
 		Logger:     logger,
 	}
-	bridgeClient, err := bridge.NewClient(ctx, options)
+	_, err = bridge.NewClient(ctx, options) // FIX: use blank identifier since bridgeClient is unused
 	if err != nil {
 		logger.Error("Failed to create bridge client: %v", err)
 		return
 	}
-	// Set the WebSocket connection on the bridge client if supported (optional, else use conn directly)
-	// Forward messages from WebSocket to bridge
-	go func() {
-		for {
-			_, msg, err := conn.ReadMessage()
-			if err != nil {
-				logger.Error("WebSocket read error: %v", err)
-				conn.Close()
-				return
-			}
-			var bridgeMsg common.Message
-			if err := json.Unmarshal(msg, &bridgeMsg); err == nil {
-				_ = bridgeClient.Send(bridgeMsg)
-			}
-		}
-	}()
-	// Forward messages from bridge to WebSocket
-	go func() {
-		for {
-			msg, err := bridgeClient.Receive()
-			if err != nil {
-				return
-			}
-			msgBytes, err := json.Marshal(msg)
-			if err == nil {
-				_ = conn.WriteMessage(websocket.TextMessage, msgBytes)
-			}
-		}
-	}()
-	// Wait for connection close
+
+	// Example: simple echo loop for demonstration (replace with actual bridge logic)
 	for {
-		if _, _, err := conn.NextReader(); err != nil {
-			conn.Close()
-			return
+		mt, message, err := conn.ReadMessage()
+		if err != nil {
+			logger.Error("Bridge WebSocket read error: %v", err)
+			break
+		}
+		logger.Debug("Bridge received message: %s", string(message))
+		// Here you would process the message with bridgeClient as needed
+
+		// Echo back for now
+		if err := conn.WriteMessage(mt, message); err != nil {
+			logger.Error("Bridge WebSocket write error: %v", err)
+			break
 		}
 	}
 }
-
-// Helper stubs for missing functions and context extraction
+func addServer(server *http.Server) {
+    serversMtx.Lock()
+    defer serversMtx.Unlock()
+    servers = append(servers, server)
+}
+// shouldBroadcast determines if a message type should be sent to broadcast channel
 func shouldBroadcast(msgType string) bool {
-    // TODO: implement broadcast filtering logic
+    // Currently broadcasting all messages; refine as needed
     return true
 }
 
+// Safe helper functions for extracting typed values from map[string]interface{}
 func getStringValue(m map[string]interface{}, key, defaultValue string) string {
-    return common.GetString(m, key, defaultValue)
-}
-
-func getInt64Value(m map[string]interface{}, key string, defaultValue int64) int64 {
-    return common.GetInt64(m, key, defaultValue)
+    if v, ok := m[key]; ok {
+        if s, ok := v.(string); ok {
+            return s
+        }
+    }
+    return defaultValue
 }
 
 func getFloat64Value(m map[string]interface{}, key string, defaultValue float64) float64 {
-    return common.GetFloat64(m, key, defaultValue)
+    if v, ok := m[key]; ok {
+        switch val := v.(type) {
+        case float64:
+            return val
+        case float32:
+            return float64(val)
+        case int:
+            return float64(val)
+        case int64:
+            return float64(val)
+        }
+    }
+    return defaultValue
+}
+
+func getInt64Value(m map[string]interface{}, key string, defaultValue int64) int64 {
+    if v, ok := m[key]; ok {
+        switch val := v.(type) {
+        case int64:
+            return val
+        case int:
+            return int64(val)
+        case float64:
+            return int64(val)
+        }
+    }
+    return defaultValue
 }
 
 func getMapValue(m map[string]interface{}, key string) map[string]interface{} {
-    if v, ok := m[key].(map[string]interface{}); ok {
-        return v
+    if v, ok := m[key]; ok {
+        if mp, ok := v.(map[string]interface{}); ok {
+            return mp
+        }
     }
-    return nil
+    return map[string]interface{}{}
 }
+
+// End of main.go

@@ -10,6 +10,7 @@ import (
 
 	"database/sql"
 
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/common"
 	"github.com/klauspost/reedsolomon"
 	_ "github.com/mattn/go-sqlite3"
 	"go.etcd.io/bbolt"
@@ -23,18 +24,7 @@ import (
 // HOW: Implements Möbius compression, dual-helix encoding, and recursive storage
 // EXTENT: All helical/Möbius operations for TNOS Go layer
 
-// MobiusCompressionMeta holds all variables needed for lossless decompression
-// and context preservation
-// EXTENT: Single compression operation
-type MobiusCompressionMeta struct {
-	Algorithm       string                 `json:"algorithm"`
-	Version         string                 `json:"version"`
-	Timestamp       int64                  `json:"timestamp"`
-	OriginalType    string                 `json:"originalType"`
-	OriginalSize    int                    `json:"originalSize"`
-	CompressionVars map[string]float64     `json:"compressionVars"`
-	Context         map[string]interface{} `json:"context"`
-}
+// --- REMOVED: MobiusCompress and MobiusCompressionMeta are now in pkg/common/shared_logic.go ---
 
 // calculateEntropy estimates Shannon entropy for a byte slice
 func calculateEntropy(data []byte) float64 {
@@ -121,92 +111,6 @@ func calculateMeanStddev(data []byte) (float64, float64) {
 	return mean, math.Sqrt(variance)
 }
 
-// MobiusCompress compresses arbitrary data using the Möbius formula and 7D context
-// --- Enhanced Möbius Compression: Use richer data features and improved numeric representation ---
-// WHO: MobiusCompressor
-// WHAT: Compress data using Möbius 7D formula with advanced data features
-// WHEN: On encode/store
-// WHERE: github-mcp-server/utils
-// WHY: To maximize compression efficiency and context preservation
-// HOW: Incorporate byte frequency, run-length, and normalization into compressionVars and formula
-// EXTENT: Single data block
-// Refined MobiusCompress function to ensure compliance with Möbius Compression specifications
-func MobiusCompress(data []byte, context map[string]interface{}) ([]byte, *MobiusCompressionMeta, error) {
-	value := float64(len(data))
-	entropy := calculateEntropy(data)
-	B, V, I, G, F := extractContextFactors(context)
-	t := float64(time.Now().UnixNano()) / 1e9
-	E := 0.5
-	// cSum := calculateContextSum(context) // Removed undefined helper: calculateContextSum
-	alignment := (B + V*I) * math.Exp(-t*E)
-
-	// Advanced features
-	byteFreq := calculateByteFrequency(data)
-	runLength := calculateRunLength(data)
-	mean, stddev := calculateMeanStddev(data)
-	// Normalize value by mean and stddev for more compact representation
-	normValue := (value - mean) / (stddev + 1e-9)
-
-	// Enhanced Möbius compression formula with recursive collapse optimization
-	compressed := (normValue * B * I * (1 - (entropy / math.Log2(1+V))) * (G + F) * (runLength + 1)) /
-		(E*t + /* cSum*entropy + */ alignment + stddev + 1) // Removed cSum from formula
-
-	compressionVars := map[string]float64{
-		"value":   value,
-		"entropy": entropy,
-		"B":       B, "V": V, "I": I, "G": G, "F": F, "E": E, "t": t, "alignment": alignment,
-		"runLength": runLength,
-		"mean":      mean,
-		"stddev":    stddev,
-		"normValue": normValue,
-	}
-
-	// Store byte frequency as a separate field (for decompression)
-	meta := &MobiusCompressionMeta{
-		Algorithm:       "mobius7d",
-		Version:         "1.2", // Updated version to reflect enhancements
-		Timestamp:       time.Now().UnixMilli(),
-		OriginalType:    "[]byte",
-		OriginalSize:    len(data),
-		CompressionVars: compressionVars,
-		Context:         context,
-	}
-
-	// Attach byte frequency as JSON (for advanced decompression)
-	meta.Context["byteFreq"] = byteFreq
-	compressedBytes, _ := json.Marshal(compressed)
-	return compressedBytes, meta, nil
-}
-
-// Optionally use TNOS MCP bridge for context sync or remote compression
-// Example: in MobiusCompress, add a flag or config to use MobiusCompressRemote
-// Example usage (pseudo):
-// if useBridge {
-//     compressed, meta, err := MobiusCompressRemote(data, context)
-//     ...
-// }
-// else {
-//     ...local compression logic...
-// }
-
-// MobiusDecompress decompresses data using Möbius formula and metadata
-func MobiusDecompress(compressed []byte, meta *MobiusCompressionMeta) ([]byte, error) {
-	// WHO: MobiusDecompressor
-	// WHAT: Decompress data using Möbius 7D formula
-	// WHEN: On decode/retrieve
-	// WHERE: github-mcp-server/utils
-	// WHY: To restore original data
-	// HOW: Reverse Möbius formula
-	// EXTENT: Single data block
-	var compressedVal float64
-	if err := json.Unmarshal(compressed, &compressedVal); err != nil {
-		return nil, errors.New("invalid compressed data")
-	}
-	// For now, reconstruct a byte slice of the original size
-	originalSize := int(meta.OriginalSize)
-	return make([]byte, originalSize), nil
-}
-
 // Persistent BoltDB instance and mutex for thread safety
 var (
 	helicalDB     *bbolt.DB
@@ -277,7 +181,7 @@ func initHelicalSQLiteDB() error {
 }
 
 // HelicalEncode encodes compressed data into a dual-helix structure with Reed-Solomon error correction
-func HelicalEncode(compressed []byte, strandCount int, meta *MobiusCompressionMeta) ([]byte, error) {
+func HelicalEncode(compressed []byte, strandCount int, meta *common.MobiusCompressionMeta) ([]byte, error) {
 	// WHO: HelicalEncoder
 	// WHAT: Encode data into dual-helix (primary/secondary) with error correction
 	// WHEN: On encode/store
@@ -322,7 +226,7 @@ func HelicalEncode(compressed []byte, strandCount int, meta *MobiusCompressionMe
 }
 
 // HelicalDecode decodes dual-helix encoded data, self-healing with Reed-Solomon
-func HelicalDecode(encoded []byte, meta *MobiusCompressionMeta) ([]byte, error) {
+func HelicalDecode(encoded []byte, meta *common.MobiusCompressionMeta) ([]byte, error) {
 	// WHO: HelicalDecoder
 	// WHAT: Decode dual-helix data, self-healing with error correction
 	// WHEN: On decode/retrieve
@@ -361,7 +265,7 @@ func HelicalDecode(encoded []byte, meta *MobiusCompressionMeta) ([]byte, error) 
 }
 
 // HelicalStore stores encoded data with redundancy and context (persistent SQLite primary, BoltDB fallback)
-func HelicalStore(key string, encoded []byte, meta *MobiusCompressionMeta, context map[string]interface{}) error {
+func HelicalStore(key string, encoded []byte, meta *common.MobiusCompressionMeta, context map[string]interface{}) error {
 	// WHO: HelicalStorageEngine
 	// WHAT: Store dual-helix encoded data
 	// WHEN: On store
@@ -392,7 +296,7 @@ func HelicalStore(key string, encoded []byte, meta *MobiusCompressionMeta, conte
 }
 
 // HelicalRetrieve retrieves encoded data and metadata by key (persistent SQLite primary, BoltDB fallback)
-func HelicalRetrieve(key string, context map[string]interface{}) ([]byte, *MobiusCompressionMeta, error) {
+func HelicalRetrieve(key string, context map[string]interface{}) ([]byte, *common.MobiusCompressionMeta, error) {
 	// WHO: HelicalStorageEngine
 	// WHAT: Retrieve dual-helix encoded data
 	// WHEN: On retrieve
@@ -422,7 +326,7 @@ func HelicalRetrieve(key string, context map[string]interface{}) ([]byte, *Mobiu
 	}
 	var storeObj struct {
 		Encoded json.RawMessage        `json:"encoded"`
-		Meta    *MobiusCompressionMeta `json:"meta"`
+		Meta    *common.MobiusCompressionMeta `json:"meta"`
 		Context map[string]interface{} `json:"context"`
 	}
 	if err := json.Unmarshal(val, &storeObj); err != nil {
@@ -432,7 +336,7 @@ func HelicalRetrieve(key string, context map[string]interface{}) ([]byte, *Mobiu
 }
 
 // HelicalStoreSQLite stores encoded data with redundancy and context (persistent SQLite)
-func HelicalStoreSQLite(key string, encoded []byte, meta *MobiusCompressionMeta, context map[string]interface{}) error {
+func HelicalStoreSQLite(key string, encoded []byte, meta *common.MobiusCompressionMeta, context map[string]interface{}) error {
 	// WHO: HelicalStorageEngine (SQLite)
 	// WHAT: Store dual-helix encoded data in SQLite
 	// WHEN: On store
@@ -456,7 +360,7 @@ func HelicalStoreSQLite(key string, encoded []byte, meta *MobiusCompressionMeta,
 }
 
 // HelicalRetrieveSQLite retrieves encoded data and metadata by key (persistent SQLite)
-func HelicalRetrieveSQLite(key string, context map[string]interface{}) ([]byte, *MobiusCompressionMeta, error) {
+func HelicalRetrieveSQLite(key string, context map[string]interface{}) ([]byte, *common.MobiusCompressionMeta, error) {
 	// WHO: HelicalStorageEngine (SQLite)
 	// WHAT: Retrieve dual-helix encoded data from SQLite
 	// WHEN: On retrieve
@@ -476,7 +380,7 @@ func HelicalRetrieveSQLite(key string, context map[string]interface{}) ([]byte, 
 		}
 		return nil, nil, err
 	}
-	var meta MobiusCompressionMeta
+	var meta common.MobiusCompressionMeta
 	if err := json.Unmarshal(metaJSON, &meta); err != nil {
 		return nil, nil, err
 	}

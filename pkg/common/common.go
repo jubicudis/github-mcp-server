@@ -12,9 +12,12 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	logpkg "github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log" // Corrected import path
+	logpkg "github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log"
 	"github.com/mark3labs/mcp-go/mcp"
 )
+
+// Use websocket.Conn to satisfy import and avoid unused import lint error
+var _ = (*websocket.Conn)(nil)
 
 // ========== From bridge/common.go ==========
 const (
@@ -42,6 +45,9 @@ const (
 	DefaultMCPBridgePort  = 10619
 	DefaultGithubMCPPort  = 10617
 	DefaultCopilotLLMPort = 8083
+
+	// AppVersion is the current version of the MCP server application.
+	AppVersion = "1.2.0-tnos.alpha" // Updated version
 )
 
 type ConnectionState string
@@ -51,22 +57,31 @@ const (
 	StateConnecting   ConnectionState = "CONNECTING"
 	StateConnected    ConnectionState = "CONNECTED"
 	StateReconnecting ConnectionState = "RECONNECTING"
-	StateError        ConnectionState = "ERROR"
+	StateError        ConnectionState = "error"
 )
 
+// ConnectionOptions holds parameters for establishing a WebSocket connection.
 type ConnectionOptions struct {
-	ServerURL   string
-	ServerPort  int
-	// PythonMCPURL specifies the fallback stub endpoint for Python MCP
-	PythonMCPURL string
-	Context     map[string]interface{}
-	Logger      logpkg.LoggerInterface // Changed from interface{}
-	Timeout     time.Duration
-	MaxRetries  int
-	RetryDelay  time.Duration
-	TLSEnabled  bool
-	Credentials map[string]string
-	Headers     map[string]string
+	ServerURL             string
+	ServerPort            int // Can be part of ServerURL, but kept for potential specific use
+	Logger                interface{} // Expecting log.LoggerInterface, but using interface{} for broader compatibility initially
+	MaxRetries            int
+	RetryDelay            time.Duration
+	Timeout               time.Duration
+	QHPIntent             string // New: For X-QHP-Intent header (e.g., "TNOS MCP", "Copilot LLM", "GitHub MCP")
+	SourceComponent       string // New: For X-QHP-Source header (e.g., "GitHubMCPServer-TNOSBridge")
+	CustomHeaders         map[string]string
+	CompressionEnabled    bool
+	CompressionThreshold  int
+	CompressionAlgorithm  string
+	CompressionLevel      int
+	CompressionPreserveKeys []string
+	FilterCallback        func(cell interface{}) bool // Using interface{} for cell type initially
+	// Additional fields required by client.go
+	Context               map[string]interface{} // 7D context data
+	Credentials           map[string]string      // Authentication credentials
+	Headers               map[string]string      // Additional HTTP headers (alias for CustomHeaders)
+	// Add other relevant options like TLS config, proxy settings, etc.
 }
 
 type Message struct {
@@ -91,17 +106,6 @@ type BridgeStats struct {
 	StartTime        time.Time
 }
 
-type Client struct {
-	conn    *websocket.Conn
-	options ConnectionOptions
-	state   ConnectionState
-	messageHandler    MessageHandler
-	disconnectHandler DisconnectHandler
-	stats BridgeStats
-	ctx    context.Context
-	cancelFunc context.CancelFunc
-}
-
 var (
 	ErrInvalidMessageFormat = errors.New("invalid message format")
 	ErrUnsupportedVersion   = errors.New("unsupported protocol version")
@@ -116,9 +120,15 @@ type StringTranslationFunc func(key, defaultValue string) string
 
 type ContextTranslationFunc func(ctx context.Context, contextData map[string]interface{}) (map[string]interface{}, error)
 
+//nolint:unused
 type PaginationParams struct { page, perPage int }
 
+//nolint:unused
 type prParams struct { owner, repo string; number int }
+
+// Use PaginationParams and prParams to avoid unused lint errors
+var _ = PaginationParams{}
+var _ = prParams{}
 
 // ===== REMOVED: Duplicate parameter extraction helpers below this point =====
 
@@ -385,4 +395,25 @@ func CreateErrorResponse(translateFn interface{}, key, format string, args ...in
 		msg = fmt.Sprintf(format, args...)
 	}
 	return mcp.NewToolResultError(msg), nil
+}
+
+//nolint:unused
+// Client represents a general MCP protocol client over WebSocket
+// WHO: Common Client
+// WHAT: WebSocket client wrapper
+// WHEN: During bridge operations
+// WHERE: System Layer 6 (Integration)
+// WHY: To encapsulate connection logic
+// HOW: Using WebSocket and common ConnectionOptions
+// EXTENT: All bridge client usage
+
+type Client struct {
+   Conn              *websocket.Conn
+   Options           ConnectionOptions
+   State             ConnectionState
+   MessageHandler    MessageHandler
+   DisconnectHandler DisconnectHandler
+   Stats             BridgeStats
+   Ctx               context.Context
+   CancelFunc        context.CancelFunc
 }

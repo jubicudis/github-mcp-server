@@ -6,6 +6,10 @@
 // HOW: Using persistent storage with compression
 // EXTENT: All 7D context vectors used in the MCP Bridge
 
+// All logging and error output in this file is routed through the TNOS 7D-aware logger infrastructure.
+// This ensures compliance with the TNOS 7D architecture, biological mimicry, and formula registry best practices.
+// See docs/architecture/7D_CONTEXT_FRAMEWORK.md and docs/generated/mapping_registry.json for details.
+
 package mcp
 
 import (
@@ -18,6 +22,7 @@ import (
 	"time"
 
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/bridge"
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log"
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/translations"
 )
 
@@ -52,6 +57,12 @@ type ContextPersistenceConfig struct {
 type ContextEntry struct {
 	// WHO: Context storage component
 	// WHAT: Context entry representation
+	// WHEN: During context creation/update
+	// WHERE: Memory cache and persistent storage
+	// WHY: To preserve context for future use
+	// HOW: Using structured storage format
+	// EXTENT: Single context vector
+
 	Vector     translations.ContextVector7D    `json:"vector"`      // WHAT: The 7D context vector
 	Metadata   map[string]string  `json:"metadata"`    // WHAT: Associated metadata
 	CreateTime time.Time          `json:"create_time"` // WHEN: Creation timestamp
@@ -145,7 +156,8 @@ func (cp *ContextPersistence) startSyncTimer() {
 
 	cp.syncTimer = time.AfterFunc(cp.config.SyncInterval, func() {
 		if err := cp.SyncToStorage(); err != nil {
-			fmt.Printf("Context sync failed: %v\n", err)
+			logger := log.NewLogger().WithLevel(log.LevelError)
+			logger.Error("Context sync failed: %v", err)
 		}
 		// Update stats
 		cp.mutex.Lock()
@@ -282,7 +294,8 @@ func (cp *ContextPersistence) trackDimensionAccess(vector translations.ContextVe
 	if reg := bridge.GetBridgeFormulaRegistry(); reg != nil {
 		params := map[string]interface{}{"vector": vector}
 		if _, err := reg.ExecuteFormula("tranquilspeak.trackDimensionAccess", params); err != nil {
-			fmt.Printf("Error in TranquilSpeak trackDimensionAccess: %v\n", err)
+			logger := log.NewLogger().WithLevel(log.LevelError)
+			logger.Error("Error in TranquilSpeak trackDimensionAccess: %v", err)
 		}
 	}
 	// Increment counters for each 7D dimension (normalized lowercase)

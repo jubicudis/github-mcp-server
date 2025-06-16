@@ -12,7 +12,8 @@ package translations
 
 import (
 	"context"
-	"log"
+
+	logpkg "github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log"
 )
 
 // TranslationsContextKey is the key used in translations.go
@@ -60,7 +61,9 @@ func BridgeContextsAndSync(ctx context.Context) context.Context {
 	}
 
 	// Apply compression-first approach
-	compressed := cv.Compress()
+	// NOTE: Must specify standalone/blood-connected mode for Mobius compression
+	standalone := true // TODO: wire to actual server state
+	compressed := cv.Compress(standalone)
 
 	// Store in both implementations for compatibility
 	newCtx := context.WithValue(ctx, TranslationsContextKey, *compressed)
@@ -92,15 +95,8 @@ func GetFromTranslationsContext(ctx context.Context) (ContextVector7D, bool) {
 	return cv, ok
 }
 
-// MigrateAllContextReferences updates all code to use the context.go implementation
-// WHO: ContextMigrator
-// WHAT: Migrate context references
-// WHEN: During system upgrade
-// WHERE: System Layer 6 (Integration)
-// WHY: For standardization
-// HOW: Using bridging and synchronization
-// EXTENT: All context migration operations
-func MigrateAllContextReferences(ctx context.Context, logger *log.Logger) context.Context {
+// MigrateAllContextReferences updates translations to use standardized context implementation
+func MigrateAllContextReferences(ctx context.Context, logger logpkg.LoggerInterface) context.Context {
 	// This function should be called at the beginning of operations
 	// to ensure all code uses the standardized context implementation
 
@@ -113,7 +109,7 @@ func MigrateAllContextReferences(ctx context.Context, logger *log.Logger) contex
 	if translationsExists && !contextExists {
 		// Only exists in translations.go format, migrate to context.go
 		if logger != nil {
-			logger.Println("Migrating context from translations.go to context.go format")
+			logger.Info("Migrating context from translations.go to context.go format")
 		}
 		return context.WithValue(ctx, contextVector7DKey, translationsCV)
 	}
@@ -121,7 +117,7 @@ func MigrateAllContextReferences(ctx context.Context, logger *log.Logger) contex
 	if !translationsExists && contextExists {
 		// Only exists in context.go format, add to translations.go for compatibility
 		if logger != nil {
-			logger.Println("Adding context.go format to translations.go for compatibility")
+			logger.Info("Adding context.go format to translations.go for compatibility")
 		}
 		return context.WithValue(ctx, TranslationsContextKey, contextCV)
 	}
@@ -136,12 +132,12 @@ func MigrateAllContextReferences(ctx context.Context, logger *log.Logger) contex
 			var newerCV ContextVector7D
 			if translationsCV.When > contextCV.When {
 				if logger != nil {
-					logger.Println("Using translations.go context (newer) for synchronization")
+					logger.Info("Using translations.go context (newer) for synchronization")
 				}
 				newerCV = translationsCV
 			} else {
 				if logger != nil {
-					logger.Println("Using context.go context (newer) for synchronization")
+					logger.Info("Using context.go context (newer) for synchronization")
 				}
 				newerCV = contextCV
 			}
@@ -167,10 +163,32 @@ func MigrateAllContextReferences(ctx context.Context, logger *log.Logger) contex
 	})
 
 	if logger != nil {
-		logger.Println("Creating default context for both implementations")
+		logger.Info("Creating default context for both implementations")
 	}
 
 	// Store in both implementations
 	newCtx := context.WithValue(ctx, TranslationsContextKey, defaultCV)
 	return context.WithValue(newCtx, contextVector7DKey, defaultCV)
+}
+
+// BridgeMCPContext bridges GitHub and TNOS 7D context vectors
+func BridgeMCPContext(githubCtx GitHubContext, tnosCtx *ContextVector7D, logger logpkg.LoggerInterface) ContextVector7D {
+	// Create a new 7D vector from GitHub context fields
+	params := map[string]interface{}{ // 7D context mapping
+		"who":    githubCtx.User,
+		"what":   githubCtx.Operation,
+		"when":   githubCtx.Timestamp,
+		"where":  tnosCtx.Where,
+		"why":    githubCtx.Purpose,
+		"how":    githubCtx.Type,
+		"extent": githubCtx.Scope,
+		"source": githubCtx.Source,
+	}
+	newCV := NewContextVector7D(params)
+	// Merge with existing TNOS context, prioritizing the more recent
+	merged := tnosCtx.Merge(newCV)
+	if logger != nil {
+		logger.Info("Bridged 7D context: %+v", merged)
+	}
+	return merged
 }
