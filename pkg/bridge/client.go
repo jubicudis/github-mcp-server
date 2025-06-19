@@ -22,6 +22,7 @@ import (
 
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/common"
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log"
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/tranquilspeak"
 
 	"github.com/gorilla/websocket"
 )
@@ -42,10 +43,11 @@ type Bridge struct {
 	messages   chan common.Message
 	connected  bool        // Flag to track connection status
 	sessionKey string      // Session key from handshake
+	triggerMatrix *tranquilspeak.TriggerMatrix // Add triggerMatrix field
 }
 
-// NewClient creates a new bridge client with the given options
-func NewClient(ctx context.Context, options common.ConnectionOptions) (*Bridge, error) {
+// NewClient creates a new bridge client with the given options and triggerMatrix
+func NewClient(ctx context.Context, options common.ConnectionOptions, triggerMatrix *tranquilspeak.TriggerMatrix) (*Bridge, error) {
 	// WHO: ClientFactory
 	// WHAT: Create bridge client
 	// WHEN: During client initialization
@@ -61,7 +63,7 @@ func NewClient(ctx context.Context, options common.ConnectionOptions) (*Bridge, 
 	if loggerInterface, ok := options.Logger.(*log.Logger); ok {
 		logger = loggerInterface
 	} else {
-		logger = log.NewLogger() // fallback to default logger
+		logger = log.NewLogger(triggerMatrix) // fallback to default logger (canonical)
 	}
 
 	// Ensure context is initialized
@@ -87,6 +89,7 @@ func NewClient(ctx context.Context, options common.ConnectionOptions) (*Bridge, 
 		messages:   make(chan common.Message, common.MessageBufferSize),
 		stats:      common.BridgeStats{},
 		state:      common.StateDisconnected,
+		triggerMatrix: triggerMatrix, // Store triggerMatrix in the client
 	}
 
 	err := client.connect()
@@ -112,38 +115,32 @@ func (c *Bridge) connect() error {
 
 	// Canonical fallback URLs/ports from common.go
 	const (
-		TnosMCPURL   = "ws://localhost:9001" // TNOS MCP server (primary) - FIXED: removed /bridge
-		BridgeURL    = "ws://localhost:10619/bridge"
-		GitHubMCPURL = "ws://localhost:10617/bridge"
-		CopilotURL   = "ws://localhost:8083/bridge"
+		TnosMCPURL = "ws://localhost:9001" // TNOS MCP server (primary)
 	)
+	const tnosMCPPort = 9001
+
+	c.options.ServerPort = tnosMCPPort
+
+	// Emit ATM event trigger for port assignment (after assignment)
+	if c.triggerMatrix != nil {
+		trigger := tranquilspeak.CreateTrigger(
+			"BridgeClient", // who
+			"PortAssignment", // what
+			"SystemLayer6", // where
+			"CanonicalPortAssignment", // why
+			"ATMEvent", // how
+			"1.0", // extent
+			tranquilspeak.TriggerTypeSystemControl, // triggerType
+			"bridge", // targetSystem
+			map[string]interface{}{
+				"assigned_port": tnosMCPPort,
+			},
+		)
+		_ = c.triggerMatrix.ProcessTrigger(trigger)
+	}
 
 	bridgeFallback := func() (interface{}, error) {
-		if c.options.ServerURL == BridgeURL {
-			return nil, fmt.Errorf("already tried MCP Bridge URL")
-		}
-		if c.logger != nil {
-			c.logger.Warn("[FallbackRoute] Trying MCP Bridge fallback at %s", BridgeURL)
-		}
-		return c.tryConnect(BridgeURL)
-	}
-	githubMCPFallback := func() (interface{}, error) {
-		if c.options.ServerURL == GitHubMCPURL {
-			return nil, fmt.Errorf("already tried GitHub MCP URL")
-		}
-		if c.logger != nil {
-			c.logger.Warn("[FallbackRoute] Trying GitHub MCP fallback at %s", GitHubMCPURL)
-		}
-		return c.tryConnect(GitHubMCPURL)
-	}
-	copilotFallback := func() (interface{}, error) {
-		if c.options.ServerURL == CopilotURL {
-			return nil, fmt.Errorf("already tried Copilot LLM URL")
-		}
-		if c.logger != nil {
-			c.logger.Warn("[FallbackRoute] Trying Copilot LLM fallback at %s", CopilotURL)
-		}
-		return c.tryConnect(CopilotURL)
+		return c.tryConnect(TnosMCPURL)
 	}
 	noopFallback := func() (interface{}, error) {
 		return nil, fmt.Errorf("no further fallback")
@@ -155,12 +152,43 @@ func (c *Bridge) connect() error {
 		ctx,
 		operationName,
 		contextMap,
-		copilotFallback,    // Copilot LLM first
-		githubMCPFallback,  // GitHub MCP second
-		bridgeFallback,     // MCP Bridge (blood.go/Python TNOS MCP) last
-		noopFallback,       // No further fallback
+		bridgeFallback,
+		noopFallback,
+		func() (interface{}, error) { return nil, fmt.Errorf("not implemented") },
+		func() (interface{}, error) { return nil, fmt.Errorf("not implemented") },
 		c.logger,
 	)
+
+	// Emit ATM event trigger for connection result (after attempt)
+	if c.triggerMatrix != nil {
+		triggerType := tranquilspeak.TriggerTypeSystemControl
+		triggerWhat := "ConnectionSuccess"
+		triggerWhy := "ConnectionEstablished"
+		triggerPayload := map[string]interface{}{
+			"url": TnosMCPURL,
+			"port": tnosMCPPort,
+			"success": true,
+		}
+		if err != nil {
+			triggerWhat = "ConnectionFailure"
+			triggerWhy = "ConnectionFailed"
+			triggerPayload["success"] = false
+			triggerPayload["error"] = err.Error()
+		}
+		trigger := tranquilspeak.CreateTrigger(
+			"BridgeClient",
+			triggerWhat,
+			"SystemLayer6",
+			triggerWhy,
+			"ATMEvent",
+			"1.0",
+			triggerType,
+			"bridge",
+			triggerPayload,
+		)
+		_ = c.triggerMatrix.ProcessTrigger(trigger)
+	}
+
 	if err != nil {
 		return err
 	}
@@ -331,7 +359,7 @@ func (c *Bridge) Send(msg common.Message) error {
 		if WriteTimeout > 0 {
 			err = c.conn.SetWriteDeadline(time.Now().Add(WriteTimeout))
 			if err != nil {
-				c.logger.Error("Failed to set write deadline", "error", err.Error())
+				c.logger.Error("Failed to set write deadline: %v", err)
 			}
 		}
 		err = c.conn.WriteMessage(websocket.TextMessage, data)
@@ -374,7 +402,7 @@ func (c *Bridge) readPump() {
 	if ReadTimeout > 0 {
 		err := c.conn.SetReadDeadline(time.Now().Add(ReadTimeout))
 		if err != nil {
-			c.logger.Error("Failed to set read deadline", "error", err.Error())
+			c.logger.Error("Failed to set read deadline: %v", err)
 		}
 	}
 
@@ -386,13 +414,13 @@ func (c *Bridge) readPump() {
 		if ReadTimeout > 0 {
 			err := c.conn.SetReadDeadline(time.Now().Add(ReadTimeout))
 			if err != nil {
-				c.logger.Error("Failed to reset read deadline", "error", err.Error())
+				c.logger.Error("Failed to reset read deadline: %v", err)
 			}
 		}
 
 		_, data, err := c.conn.ReadMessage()
 		if err != nil {
-			c.logger.Error("Failed to read message", "error", err.Error())
+			c.logger.Error("Failed to read message: %v", err)
 			c.connected = false
 
 			// Try to reconnect
@@ -405,7 +433,7 @@ func (c *Bridge) readPump() {
 
 		var msg common.Message
 		if err := json.Unmarshal(data, &msg); err != nil {
-			c.logger.Error("Failed to unmarshal message", "error", err.Error())
+			c.logger.Error("Failed to unmarshal message: %v", err)
 			c.stats.ErrorCount++
 			continue
 		}
@@ -464,7 +492,7 @@ func (c *Bridge) reconnect() {
 			operationName,
 			contextMap,
 			func() (interface{}, error) {
-				c.logger.Info("Attempting to reconnect to bridge", "attempt", i+1)
+				c.logger.Info("Attempting to reconnect to bridge (attempt %d)", i+1)
 				err := c.connect()
 				if err == nil {
 					c.logger.Info("Successfully reconnected to bridge")
@@ -472,7 +500,7 @@ func (c *Bridge) reconnect() {
 					go c.readPump()
 					return nil, nil
 				}
-				c.logger.Error("Failed to reconnect", "attempt", i+1, "error", err.Error())
+				c.logger.Error("Failed to reconnect (attempt %d): %v", i+1, err)
 				return nil, err
 			},
 			func() (interface{}, error) { return nil, fmt.Errorf("Bridge fallback not implemented") },
@@ -485,7 +513,7 @@ func (c *Bridge) reconnect() {
 		}
 		time.Sleep(retryDelay)
 	}
-	c.logger.Error("Failed to reconnect after maximum attempts", "maxRetries", maxRetries)
+	c.logger.Error("Failed to reconnect after maximum attempts (%d)", maxRetries)
 }
 
 // close closes the WebSocket connection and cleans up resources

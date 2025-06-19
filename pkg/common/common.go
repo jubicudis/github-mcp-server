@@ -8,11 +8,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/gorilla/websocket"
-	logpkg "github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log"
 	"github.com/mark3labs/mcp-go/mcp"
 )
 
@@ -29,12 +27,12 @@ var NullTranslationHelperFunc TranslationHelperFunc = func(key string, defaultVa
 }
 
 // ========== From bridge/common.go ==========
+// Remove all bridge URLs, port assignments, and any logic not truly shared or canonical.
+// Only keep minimal, truly shared constants and types.
 const (
 	MCPVersion10           = "1.0"
 	MCPVersion20           = "2.0"
 	MCPVersion30           = "3.0"
-	DefaultBridgeURL       = "ws://localhost:10619/bridge"
-	BridgeServiceName      = "github_mcp_bridge"
 	MaxReconnectAttempts   = 10
 	ReconnectDelay         = 5 * time.Second
 	HealthCheckInterval    = 30 * time.Second
@@ -44,19 +42,7 @@ const (
 	PingInterval           = 30 * time.Second
 	MaxMessageSize         = 10485760
 	DefaultProtocolVersion = "3.0"
-
-	// Canonical QHP port assignments for TNOS (see memory refresh)
-	// TNOS MCP server: 9001
-	// MCP Bridge: 10619
-	// GitHub MCP server: 10617
-	// Copilot LLM server: 8083
-	DefaultTNOSMCPPort    = 9001
-	DefaultMCPBridgePort  = 10619
-	DefaultGithubMCPPort  = 10617
-	DefaultCopilotLLMPort = 8083
-
-	// AppVersion is the current version of the MCP server application.
-	AppVersion = "1.2.0-tnos.alpha" // Updated version
+	AppVersion             = "1.2.0-tnos.alpha" // Updated version
 )
 
 type ConnectionState string
@@ -356,61 +342,6 @@ func WithPagination(request mcp.CallToolRequest) (page, perPage int, err error) 
 }
 
 // ===== End MCP Parameter Helpers =====
-
-// LogHelicalMemory logs an event to the Helical Memory system with 7D context.
-// WHO: Who is performing the action
-// WHAT: What is being done
-// WHEN: When the action occurs
-// WHERE: Where in the system
-// WHY: Why the action is performed
-// HOW: How the action is performed
-// EXTENT: To what extent (scope, impact)
-func LogHelicalMemory(who, what, when, where, why, how, extent, message string) {
-	// Canonical Mobius-only, 7D contextual logging for TNOS (see TRANQUILSPEAK_PROTOCOL.md)
-	// Write to both short_term and long_term helical memory, with biosystem subfolders
-	// Path: /Users/Jubicudis/Tranquility-Neuro-OS/systems/memory/short_term/go/ and long_term/go/
-	// File name: YYYYMMDD_HHMMSS_WHO_WHAT.log (TranquilSpeak-compliant)
-	// All writes must be append-only, Mobius-compressed (passthrough, no standard compression)
-	// If file write fails, fallback to logger.Warn
-
-	timestamp := time.Now().UTC().Format("20060102_150405")
-	filename := fmt.Sprintf("%s_%s_%s_%s.log", timestamp, who, what, where)
-	shortTermPath := "/Users/Jubicudis/Tranquility-Neuro-OS/systems/memory/short_term/go/" + filename
-	longTermPath := "/Users/Jubicudis/Tranquility-Neuro-OS/systems/memory/long_term/go/" + filename
-
-	// Compose TranquilSpeak/7D context log line
-	tranquilLine := fmt.Sprintf("[TS7D] WHO:%s | WHAT:%s | WHEN:%s | WHERE:%s | WHY:%s | HOW:%s | EXTENT:%s | MSG:%s\n", who, what, when, where, why, how, extent, message)
-
-	// Mobius passthrough (no-op, enforced)
-	mobiusCompressed := tranquilLine // Mobius compression is a passthrough in C++/Go (see MOBIUS_COMPRESSION_SPEC.md)
-
-	// Write to short_term
-	if err := appendToFile(shortTermPath, mobiusCompressed); err != nil {
-		// Use logger.Warn for fallback instead of fmt.Printf
-		logpkg.NewLogger().Warn("[HELICAL MEMORY LOG][FALLBACK] Failed to write to short_term", "error", err, "data", mobiusCompressed) // Use a temporary logger instance
-	}
-	// Write to long_term
-	if err := appendToFile(longTermPath, mobiusCompressed); err != nil {
-		// Use logger.Warn for fallback instead of fmt.Printf
-		logpkg.NewLogger().Warn("[HELICAL MEMORY LOG][FALLBACK] Failed to write to long_term", "error", err, "data", mobiusCompressed) // Use a temporary logger instance
-	}
-}
-
-// appendToFile appends a string to a file, creating it if needed (atomic, append-only)
-func appendToFile(path, data string) error {
-	f, err := openFileAtomicAppend(path)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-	_, err = f.WriteString(data)
-	return err
-}
-
-// openFileAtomicAppend opens a file for atomic append, creating it if needed
-func openFileAtomicAppend(path string) (*os.File, error) {
-	return os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-}
 
 // CreateErrorResponse returns a formatted MCP error response for tool handlers.
 // translateFn: a translation function (may be nil), key: translation key, format: error message format, args: format args

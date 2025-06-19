@@ -19,6 +19,7 @@ import (
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/bridge"
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/common"
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log"
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/tranquilspeak"
 
 	"github.com/google/go-github/v71/github"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -34,7 +35,7 @@ import (
 // EXTENT: Bridge mode configuration
 
 // InitializeMCPBridge sets up the MCP bridge between GitHub and TNOS MCP
-func InitializeMCPBridge(enableCompression bool, logger log.LoggerInterface) error { // Added logger parameter
+func InitializeMCPBridge(enableCompression bool, logger log.LoggerInterface, triggerMatrix *tranquilspeak.TriggerMatrix) error { // Added triggerMatrix parameter
 	// WHO: BridgeInitializer
 	// WHAT: MCP bridge initialization with fallback
 	// WHEN: During server startup
@@ -245,7 +246,7 @@ func (t *GitHubContextTranslator) TranslateFromTNOS(tnosContext map[string]inter
 }
 
 // BridgeHealthCheck performs a health check on the MCP bridge
-func BridgeHealthCheck() (bool, error) {
+func BridgeHealthCheck(triggerMatrix *tranquilspeak.TriggerMatrix) (bool, error) {
 	// WHO: HealthMonitor
 	// WHAT: Bridge health check with fallback
 	// WHEN: During system monitoring
@@ -283,7 +284,7 @@ func BridgeHealthCheck() (bool, error) {
 		func() (interface{}, error) { return nil, fmt.Errorf("bridge fallback not implemented") },
 		func() (interface{}, error) { return nil, fmt.Errorf("GitHub MCP fallback not implemented") },
 		func() (interface{}, error) { return nil, fmt.Errorf("copilot fallback not implemented") },
-		log.NewLogger(),
+		log.NewLogger(triggerMatrix), // Canonical usage
 	)
 	return healthy, err
 }

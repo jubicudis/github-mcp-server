@@ -54,14 +54,22 @@ type Config struct {
 }
 
 func main() {
-	// 1. Load configuration
+	var err error
+	// 1. Load symbol registry FIRST (before logger, triggers, or anything else)
+	err = tranquilspeak.LoadSymbolRegistry("/Users/Jubicudis/Tranquility-Neuro-OS/systems/tranquilspeak/circulatory/github-mcp-server/symbolic_mapping_registry_autogen_20250603.tsq")
+	if err != nil {
+		panic("[FATAL] Could not load TranquilSpeak symbol registry: " + err.Error())
+	}
+	// 2. Load configuration
 	config := loadConfig()
 
-	// 2. Initialize logger (7D/AI-DNA-aware)
-	logger = initLogger(config)
+	// 3. Initialize the canonical TriggerMatrix (ATM)
+	triggerMatrix := tranquilspeak.NewTriggerMatrix()
+	// 4. Initialize logger (7D/AI-DNA-aware, helical memory backend)
+	logger = initLogger(config, triggerMatrix)
 	logger.Info("[BOOT] GitHub MCP Server starting up (7D/ATM/AI-DNA/TranquilSpeak)")
 
-	// 3. Initialize 7D context (AI-DNA-aware)
+	// 5. Initialize 7D context (AI-DNA-aware)
 	mainContext = translations.NewContextVector7D(map[string]interface{}{
 		"who": "MCPServer",
 		"what": "Startup",
@@ -73,7 +81,7 @@ func main() {
 		"source": "github_mcp",
 	})
 
-	// 4. Load formula registry and log all formulas
+	// 6. Load formula registry and log all formulas
 	formulaPath := config.FormulaRegistryPath
 	if formulaPath == "" {
 		formulaPath = filepath.Join("config", "formulas.json")
@@ -89,7 +97,7 @@ func main() {
 		}
 	}
 
-	// 5. Initialize canonical MCP bridge client
+	// 7. Initialize canonical MCP bridge client
 	bridgeOpts := common.ConnectionOptions{
 		ServerURL: fmt.Sprintf("ws://%s:%d/bridge", config.Host, config.BridgePort),
 		ServerPort: config.BridgePort,
@@ -103,34 +111,27 @@ func main() {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
-	var err error
-	bridgeClient, err = bridge.NewClient(ctx, bridgeOpts)
+	bridgeClient, err = bridge.NewClient(ctx, bridgeOpts, triggerMatrix)
 	if err != nil {
 		logger.Error("Failed to connect to MCP bridge: %v", err)
 	} else {
 		logger.Info("MCP bridge client connected")
 	}
 
-	// 6. Initialize context orchestrator (ATM/7D/biomimetic)
+	// 8. Initialize context orchestrator (ATM/7D/biomimetic)
 	orchestrator := pkgcontext.NewContextOrchestrator(logger)
 	logger.Info("Context orchestrator initialized (ATM/7D/biomimetic)")
 
-	// 7. Register ATM event triggers
+	// 9. Register ATM event triggers
 	registerATMEventTriggers(orchestrator)
 
-	// 8. Start GitHub MCP API server (REST + WebSocket)
+	// 10. Start GitHub MCP API server (REST + WebSocket)
 	startGitHubMCPServer(config, orchestrator)
 
-	// 9. Load TranquilSpeak symbol registry for correct symbol cluster logging
-	err = tranquilspeak.LoadSymbolRegistry("/Users/Jubicudis/Tranquility-Neuro-OS/systems/tranquilspeak/circulatory/github-mcp-server/symbolic_mapping_registry_autogen_20250603.tsq")
-	if err != nil {
-		logger.Info("[BOOT] WARNING: Could not load TranquilSpeak symbol registry, symbol cluster logging may be incomplete: %v", err)
-	}
-
-	// 10. Wait for shutdown signal
+	// 11. Wait for shutdown signal
 	waitForShutdown()
 
-	// 11. Send a bridge status message to the MCP bridge (demonstrate bridgeClient usage)
+	// 12. Send a bridge status message to the MCP bridge (demonstrate bridgeClient usage)
 	if bridgeClient != nil {
 		statusMsg := common.Message{
 			Type:      "status",
@@ -164,11 +165,8 @@ func loadConfig() Config {
 	return config
 }
 
-func initLogger(config Config) log.LoggerInterface {
-	logDir := filepath.Join("pkg", "log")
-	logFilePath := filepath.Join(logDir, filepath.Base(config.LogFile))
-	_ = os.MkdirAll(logDir, 0755)
-	logger := log.NewLogger()
+func initLogger(config Config, triggerMatrix *tranquilspeak.TriggerMatrix) log.LoggerInterface {
+	logger := log.NewLogger(triggerMatrix)
 	switch strings.ToLower(config.LogLevel) {
 	case "debug":
 		logger = logger.WithLevel(log.LevelDebug)
@@ -178,10 +176,6 @@ func initLogger(config Config) log.LoggerInterface {
 		logger = logger.WithLevel(log.LevelError)
 	default:
 		logger = logger.WithLevel(log.LevelInfo)
-	}
-	f, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
-	if err == nil {
-		logger = logger.WithOutput(f)
 	}
 	return logger
 }

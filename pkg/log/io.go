@@ -13,10 +13,9 @@ package log
 import (
 	"fmt"
 	"io"
-	"os"
-	"path/filepath"
 	"sync"
-	"time"
+
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/tranquilspeak"
 )
 
 // All logging and error output in this file is routed through the TNOS 7D-aware logger infrastructure.
@@ -253,181 +252,6 @@ func (cw *ContextWriter) SetContext(context *ContextVector7D) {
 	cw.mu.Lock()
 	defer cw.mu.Unlock()
 	cw.context = context
-}
-
-// RotatingFileWriter implements a file writer that rotates logs based on size or time
-type RotatingFileWriter struct {
-	// WHO: LogRotator
-	// WHAT: Rotate log files
-	// WHEN: During log size/time thresholds
-	// WHERE: System Layer 6 (Integration)
-	// WHY: To manage log file growth
-	// HOW: Using file rotation strategies
-	// EXTENT: Log file lifecycle
-
-	baseFilename string
-	maxSize      int64
-	maxAge       time.Duration
-	currentFile  *os.File
-	currentSize  int64
-	lastRotation time.Time
-	mu           sync.Mutex
-}
-
-// NewRotatingFileWriter creates a new rotating file writer
-func NewRotatingFileWriter(baseFilename string, maxSizeBytes int64, maxAgeDuration time.Duration) (*RotatingFileWriter, error) {
-	// WHO: RotatorFactory
-	// WHAT: Create rotating writer
-	// WHEN: During writer initialization
-	// WHERE: System Layer 6 (Integration)
-	// WHY: To provide managed log files
-	// HOW: Using factory pattern
-	// EXTENT: Writer lifecycle
-
-	// Create directory if it doesn't exist
-	dir := filepath.Dir(baseFilename)
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return nil, fmt.Errorf("failed to create log directory: %v", err)
-	}
-
-	// Open initial file
-	file, err := os.OpenFile(baseFilename, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open log file: %v", err)
-	}
-
-	// Get current file size
-	info, err := file.Stat()
-	var size int64 = 0
-	if err == nil {
-		size = info.Size()
-	}
-
-	return &RotatingFileWriter{
-		baseFilename: baseFilename,
-		maxSize:      maxSizeBytes,
-		maxAge:       maxAgeDuration,
-		currentFile:  file,
-		currentSize:  size,
-		lastRotation: time.Now(),
-	}, nil
-}
-
-// Write implements io.Writer with rotation logic
-func (rw *RotatingFileWriter) Write(p []byte) (n int, err error) {
-	// WHO: RotationalWriter
-	// WHAT: Write with rotation check
-	// WHEN: During write operations
-	// WHERE: System Layer 6 (Integration)
-	// WHY: To manage log file sizes
-	// HOW: Using size/time checks
-	// EXTENT: All log writes
-
-	rw.mu.Lock()
-	defer rw.mu.Unlock()
-
-	// Check if rotation is needed
-	if rw.shouldRotate(int64(len(p))) {
-		if err := rw.rotate(); err != nil {
-			return 0, err
-		}
-	}
-
-	// Write to the current file
-	n, err = rw.currentFile.Write(p)
-	rw.currentSize += int64(n)
-	return n, err
-}
-
-// Close implements io.Closer
-func (rw *RotatingFileWriter) Close() error {
-	// WHO: RotationResourceManager
-	// WHAT: Close rotator resources
-	// WHEN: During shutdown
-	// WHERE: System Layer 6 (Integration)
-	// WHY: To clean up file handles
-	// HOW: Using clean shutdown
-	// EXTENT: Resource cleanup
-
-	rw.mu.Lock()
-	defer rw.mu.Unlock()
-
-	if rw.currentFile != nil {
-		err := rw.currentFile.Close()
-		rw.currentFile = nil
-		return err
-	}
-	return nil
-}
-
-// shouldRotate determines if the file needs rotation
-func (rw *RotatingFileWriter) shouldRotate(additionalBytes int64) bool {
-	// WHO: RotationValidator
-	// WHAT: Check rotation conditions
-	// WHEN: Before writes
-	// WHERE: System Layer 6 (Integration)
-	// WHY: To determine rotation need
-	// HOW: Using size and time checks
-	// EXTENT: Rotation decision
-
-	// Check size-based rotation
-	if rw.maxSize > 0 && rw.currentSize+additionalBytes > rw.maxSize {
-		return true
-	}
-
-	// Check time-based rotation
-	timeSinceLastRotation := time.Since(rw.lastRotation)
-	if rw.maxAge > 0 && timeSinceLastRotation > rw.maxAge {
-		return true
-	}
-
-	return false
-}
-
-// rotate performs the actual file rotation
-func (rw *RotatingFileWriter) rotate() error {
-	// WHO: FileRotator
-	// WHAT: Rotate log file
-	// WHEN: During rotation trigger
-	// WHERE: System Layer 6 (Integration)
-	// WHY: To implement rotation
-	// HOW: Using file rename and reopen
-	// EXTENT: File rotation
-
-	// Close the current file
-	if rw.currentFile != nil {
-		if err := rw.currentFile.Close(); err != nil {
-			return err
-		}
-	}
-
-	// Generate timestamp for the rotated file
-	timestamp := time.Now().Format("20060102-150405.000")
-	rotatedName := fmt.Sprintf("%s.%s", rw.baseFilename, timestamp)
-
-	// Rename the current file
-	// Use logger for warnings instead of printing to terminal (7D context-aware, TNOS-compliant)
-	logger := NewLogger().WithLevel(LevelWarn)
-	if err := os.Rename(rw.baseFilename, rotatedName); err != nil {
-		if os.IsNotExist(err) {
-			logger.Warn("Warning: source file doesn't exist: %v", err)
-		} else {
-			return err
-		}
-	}
-
-	// Open a new file
-	file, err := os.OpenFile(rw.baseFilename, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
-	if err != nil {
-		return err
-	}
-
-	// Update writer state
-	rw.currentFile = file
-	rw.currentSize = 0
-	rw.lastRotation = time.Now()
-
-	return nil
 }
 
 // MultiContextWriter allows writing to multiple writers with context
@@ -685,9 +509,9 @@ func (bw *BufferedContextWriter) SetContext(context *ContextVector7D) {
 }
 
 // Compatibility logic for bridge and subcomponent needs
-func ConfigureIOForBridge(mode string) {
+func ConfigureIOForBridge(mode string, triggerMatrix *tranquilspeak.TriggerMatrix) {
 	// Use unified logger instead of stdout prints
-	logger := NewNopLogger().WithLevel(LevelInfo).WithOutput(os.Stdout) // TODO: inject real logger
+	logger := NewNopLogger(triggerMatrix).WithLevel(LevelInfo) // Event-driven only
 	if mode == "standalone" {
 		logger.Info("I/O configured for standalone mode")
 	} else if mode == "blood-connected" {
@@ -695,4 +519,5 @@ func ConfigureIOForBridge(mode string) {
 	}
 }
 
-// All log/error output in this file is routed through the TNOS logger, not terminal/stdout/stderr. See docs/architecture/7D_CONTEXT_FRAMEWORK.md and formula registry for best practices.
+// Remove all direct file and disk I/O logic. All log I/O must be event-driven via the logger and TriggerMatrix.
+// Remove any file rotation, file output, or direct disk I/O. Only event-driven log emission is allowed.

@@ -27,6 +27,7 @@ import (
 	"github.com/google/go-github/v71/github"
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/common"
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log"
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/tranquilspeak"
 
 	"github.com/mark3labs/mcp-go/mcp"
 
@@ -1273,7 +1274,8 @@ func (a *loggerAdapter) Error(msg string, args ...interface{}) {
 
 // NewClient creates a new GitHub API client with the given token and logger.
 // This is a simplified wrapper around NewAdvancedClient.
-func NewClient(token string, logger *log.Logger) *Client {
+func NewClient(token string, triggerMatrix *tranquilspeak.TriggerMatrix) *Client {
+	logger := log.NewLogger(triggerMatrix)
 	var logAdapter Logger
 	if logger != nil {
 		logAdapter = &loggerAdapter{logger: logger}
@@ -1293,7 +1295,7 @@ func NewClient(token string, logger *log.Logger) *Client {
 	client, err := NewAdvancedClient(options)
 	if err != nil {
 		// Use logger for critical errors instead of panic/terminal output (TNOS 7D-compliant)
-		logger := log.NewLogger().WithLevel(log.LevelCritical)
+		logger := log.NewLogger(triggerMatrix).WithLevel(log.LevelCritical)
 		logger.Critical("failed to create GitHub client: %v", err)
 		return nil // Return nil to indicate failure instead of panicking
 	}

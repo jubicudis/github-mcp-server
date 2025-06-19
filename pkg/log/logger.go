@@ -10,90 +10,41 @@ package log
 
 import (
 	"fmt"
-	"io"
-	"os"
-	"strings"
 	"time"
+
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/tranquilspeak"
 )
 
-var (
-	centralLocation *time.Location
-)
-
-// Compile-time assertion to ensure Logger implements LoggerInterface
-var _ LoggerInterface = (*Logger)(nil)
-
-// LogLevel defines logging level constants
 type LogLevel int
 
-// Log level constants
+var centralLocation *time.Location
+
+// Logger provides a 7D context-aware logging facility, event-driven via TriggerMatrix
+// All log entries are emitted as ATM triggers and routed through the TriggerMatrix for HemoFlux compression and helical memory storage
+// No file output, no direct memory calls
+// This logger is a thin event emitter
+
+type Logger struct {
+	level         int
+	context       map[string]string
+	triggerMatrix *tranquilspeak.TriggerMatrix
+	dna           interface{} // Added for WithDNA/identity-aware logging
+}
+
 const (
-	LevelDebug LogLevel = iota
-	LevelInfo
-	LevelWarn
-	LevelError
-	LevelCritical
+	LevelDebug = 0
+	LevelInfo  = 1
+	LevelWarn  = 2
+	LevelError = 3
+	LevelCritical = 4
 )
 
-// String returns the string representation of a log level
-func (l LogLevel) String() string {
-	switch l {
-	case LevelDebug:
-		return "DEBUG"
-	case LevelInfo:
-		return "INFO"
-	case LevelWarn:
-		return "WARN"
-	case LevelError:
-		return "ERROR"
-	case LevelCritical:
-		return "CRITICAL"
-	default:
-		return "UNKNOWN"
-	}
-}
-
-// Logger provides a 7D context-aware logging facility
-type Logger struct {
-	// WHO: LoggerDataStructure
-	// WHAT: Logger configuration and state
-	// WHEN: Throughout logger lifecycle
-	// WHERE: System Layer 6 (Integration)
-	// WHY: To maintain logger configuration
-	// HOW: Using structured logger properties
-	// EXTENT: All logging operations
-
-	level          LogLevel
-	output         io.Writer
-	timeFormat     string
-	context        map[string]string
-	useCompression bool
-	DNA interface{} // Optional: AI-DNA identity reference, use interface{} to avoid import issues
-}
-
-// NewLogger creates a new 7D-aware logger with default settings
-func NewLogger() *Logger {
-	// WHO: LoggerFactory
-	// WHAT: Create new logger instance
-	// WHEN: During system initialization
-	// WHERE: System Layer 6 (Integration)
-	// WHY: To provide logging capabilities
-	// HOW: Using factory pattern with default values
-	// EXTENT: Logger initialization
-
+// NewLogger creates a new 7D-aware logger with helical memory integration
+func NewLogger(triggerMatrix *tranquilspeak.TriggerMatrix) *Logger {
 	return &Logger{
-		level:      LevelInfo,
-		output:     os.Stdout,
-		timeFormat: time.RFC3339,
-		context: map[string]string{
-			"who":    "System",
-			"what":   "Log",
-			"where":  "TNOS_MCP_Bridge",
-			"why":    "SystemMonitoring",
-			"how":    "LoggerComponent",
-			"extent": "SystemWide",
-		},
-		useCompression: true,
+		level:   LevelInfo,
+		context: map[string]string{"who": "System", "what": "Log", "where": "TNOS_MCP_Bridge", "why": "SystemMonitoring", "how": "LoggerComponent", "extent": "SystemWide"},
+		triggerMatrix: triggerMatrix,
 	}
 }
 
@@ -105,15 +56,14 @@ func NewLogger() *Logger {
 // WHY: To provide a silent logger for testing
 // HOW: Using discard writer
 // EXTENT: Testing operations
-func NewNopLogger() *Logger {
-	logger := NewLogger()
-	logger.output = io.Discard
+func NewNopLogger(triggerMatrix *tranquilspeak.TriggerMatrix) *Logger {
+	logger := NewLogger(triggerMatrix)
 	logger.level = LevelCritical // Only log critical messages
 	return logger
 }
 
 // WithLevel sets the minimum log level
-func (l *Logger) WithLevel(level LogLevel) *Logger {
+func (l *Logger) WithLevel(level int) *Logger {
 	// WHO: LogLevelConfigurator
 	// WHAT: Set logger level
 	// WHEN: During logger configuration
@@ -123,34 +73,6 @@ func (l *Logger) WithLevel(level LogLevel) *Logger {
 	// EXTENT: Logger level setting
 
 	l.level = level
-	return l
-}
-
-// WithOutput sets the output writer
-func (l *Logger) WithOutput(w io.Writer) *Logger {
-	// WHO: LogOutputConfigurator
-	// WHAT: Set logger output destination
-	// WHEN: During logger configuration
-	// WHERE: System Layer 6 (Integration)
-	// WHY: To direct log output
-	// HOW: Using fluent interface pattern
-	// EXTENT: Logger output configuration
-
-	l.output = w
-	return l
-}
-
-// WithTimeFormat sets the time format
-func (l *Logger) WithTimeFormat(format string) *Logger {
-	// WHO: TimeFormatConfigurator
-	// WHAT: Set time format for log entries
-	// WHEN: During logger configuration
-	// WHERE: System Layer 6 (Integration)
-	// WHY: To control timestamp formatting
-	// HOW: Using fluent interface pattern
-	// EXTENT: Logger time format setting
-
-	l.timeFormat = format
 	return l
 }
 
@@ -170,80 +92,15 @@ func (l *Logger) WithContext(ctx map[string]string) *Logger {
 	return l
 }
 
-// WithCompression enables or disables log compression
-func (l *Logger) WithCompression(compress bool) *Logger {
-	// WHO: CompressionConfigurator
-	// WHAT: Configure log compression
-	// WHEN: During logger configuration
-	// WHERE: System Layer 6 (Integration)
-	// WHY: To support compression-first principle
-	// HOW: Using fluent interface pattern
-	// EXTENT: Logger compression setting
-
-	l.useCompression = compress
-	return l
-}
-
-// WithDNA sets the DNA/identity for the logger
+// WithDNA sets the DNA/identity context for the logger (required by LoggerInterface)
 func (l *Logger) WithDNA(dna interface{}) LoggerInterface {
-	l.DNA = dna
-	return l
-}
-
-// compressLogMessage applies Möbius Compression to log messages
-// This is a placeholder for actual compression implementation
-func (l *Logger) compressLogMessage(message string) string {
-	// WHO: LogCompressor
-	// WHAT: Apply compression to log messages
-	// WHEN: During log processing
-	// WHERE: System Layer 6 (Integration)
-	// WHY: To implement compression-first principle
-	// HOW: Using Möbius Compression Formula
-	// EXTENT: Log message compression
-
-	if !l.useCompression {
-		return message
-	}
-
-	// In a real implementation, this would apply the Möbius Compression Formula
-	// Currently just a placeholder
-	if len(message) > 100 {
-		compressed := message[:50] + "..." + message[len(message)-50:]
-		return fmt.Sprintf("[COMPRESSED:%d->%d] %s", len(message), len(compressed), compressed)
-	}
-	return message
-}
-
-// format creates a formatted log message with 7D context
-func (l *Logger) format(level LogLevel, message string) string {
-	// WHO: LogFormatter
-	// WHAT: Format log messages with context
-	// WHEN: During log processing
-	// WHERE: System Layer 6 (Integration)
-	// WHY: To create structured logs with context
-	// HOW: Using string formatting with 7D context
-	// EXTENT: All log message formatting
-
-	timestamp := time.Now().In(centralLocation).Format(l.timeFormat)
-
-	// Format with 7D context
-	contextStr := make([]string, 0, len(l.context))
-	for dim, val := range l.context {
-		contextStr = append(contextStr, fmt.Sprintf("%s:%s", dim, val))
-	}
-
-	// Apply compression if enabled
-	message = l.compressLogMessage(message)
-
-	return fmt.Sprintf("[%s] [%s] [%s] %s",
-		timestamp,
-		level.String(),
-		strings.Join(contextStr, ","),
-		message)
+	newLogger := *l
+	newLogger.dna = dna
+	return &newLogger
 }
 
 // log writes a message at the specified level
-func (l *Logger) log(level LogLevel, message string, args ...interface{}) {
+func (l *Logger) log(level int, message string, args ...interface{}) {
 	// WHO: LogWriter
 	// WHAT: Write log message
 	// WHEN: During logging operation
@@ -256,11 +113,31 @@ func (l *Logger) log(level LogLevel, message string, args ...interface{}) {
 		return
 	}
 
+	msg := message
 	if len(args) > 0 {
-		message = fmt.Sprintf(message, args...)
+		msg = fmt.Sprintf(message, args...)
 	}
-
-	fmt.Fprintln(l.output, l.format(level, message))
+	// Build 7D context
+	ctx7d := map[string]interface{}{
+		"who":    l.context["who"],
+		"what":   l.context["what"],
+		"when":   time.Now().Unix(),
+		"where":  l.context["where"],
+		"why":    l.context["why"],
+		"how":    l.context["how"],
+		"extent": l.context["extent"],
+	}
+	payload := map[string]interface{}{
+		"level":   level,
+		"context": ctx7d,
+		"message": msg,
+		"time":    time.Now().Format(time.RFC3339),
+	}
+	atmTrigger := tranquilspeak.CreateTrigger(
+		l.context["who"], l.context["what"], l.context["where"], l.context["why"], l.context["how"], l.context["extent"],
+		tranquilspeak.TriggerTypeSystemControl, "helical_memory", payload,
+	)
+	_ = l.triggerMatrix.ProcessTrigger(atmTrigger)
 }
 
 // Debug logs a debug message
@@ -363,8 +240,8 @@ func (l *Logger) InfoWithIdentity(message string, dna interface{}, args ...inter
 		if s, ok := getDNASignature(dna); ok {
 			sig = s
 		}
-	} else if l.DNA != nil {
-		if s, ok := getDNASignature(l.DNA); ok {
+	} else if l.dna != nil {
+		if s, ok := getDNASignature(l.dna); ok {
 			sig = s
 		}
 	}
@@ -379,8 +256,8 @@ func (l *Logger) DebugWithIdentity(message string, dna interface{}, args ...inte
 		if s, ok := getDNASignature(dna); ok {
 			sig = s
 		}
-	} else if l.DNA != nil {
-		if s, ok := getDNASignature(l.DNA); ok {
+	} else if l.dna != nil {
+		if s, ok := getDNASignature(l.dna); ok {
 			sig = s
 		}
 	}
@@ -395,8 +272,8 @@ func (l *Logger) ErrorWithIdentity(message string, dna interface{}, args ...inte
 		if s, ok := getDNASignature(dna); ok {
 			sig = s
 		}
-	} else if l.DNA != nil {
-		if s, ok := getDNASignature(l.DNA); ok {
+	} else if l.dna != nil {
+		if s, ok := getDNASignature(l.dna); ok {
 			sig = s
 		}
 	}
@@ -411,8 +288,8 @@ func (l *Logger) CriticalWithIdentity(message string, dna interface{}, args ...i
 		if s, ok := getDNASignature(dna); ok {
 			sig = s
 		}
-	} else if l.DNA != nil {
-		if s, ok := getDNASignature(l.DNA); ok {
+	} else if l.dna != nil {
+		if s, ok := getDNASignature(l.dna); ok {
 			sig = s
 		}
 	}
@@ -434,13 +311,12 @@ func getDNASignature(dna interface{}) (string, bool) {
 // LogWithTEI logs with TEI (Tranquility Engine Identity) awareness
 func (l *Logger) LogWithTEI(level LogLevel, actionName string, message string, args ...interface{}) {
 	teiMessage := fmt.Sprintf("[TEI:%s] %s", actionName, message)
-	l.log(level, teiMessage, args...)
+	l.log(int(level), teiMessage, args...)
 }
 
 // Update logger configuration based on mode
-func UpdateLoggerMode(mode string) {
-	// Initialize a logger for mode updates
-	logger := NewLogger().WithLevel(LevelInfo)
+func UpdateLoggerMode(mode string, triggerMatrix *tranquilspeak.TriggerMatrix) {
+	logger := NewLogger(triggerMatrix).WithLevel(LevelInfo)
 	if mode == "standalone" {
 		logger.Info("Logger set to standalone mode")
 	} else if mode == "blood-connected" {
