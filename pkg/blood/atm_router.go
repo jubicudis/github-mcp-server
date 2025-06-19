@@ -286,71 +286,74 @@ func (bc *BloodCirculation) CleanupExpiredCells() {
 	cleanupCount := 0
 	
 	// Cleanup expired red cells
-	for len(bc.redCells) > 0 {
-		var redCell *RedBloodCell
-		select {
-		case redCell = <-bc.redCells:
-			if !redCell.IsExpired() {
-				select {
-				case bc.redCells <- redCell:
-				default:
-					// Channel full, cell lost
+	redCellCleanup:
+		for len(bc.redCells) > 0 {
+			var redCell *RedBloodCell
+			select {
+			case redCell = <-bc.redCells:
+				if !redCell.IsExpired() {
+					select {
+					case bc.redCells <- redCell:
+					default:
+						// Channel full, cell lost
+					}
+				} else {
+					cleanupCount++
 				}
-			} else {
-				cleanupCount++
+			default:
+				// No more cells to process
+				break redCellCleanup
 			}
-		default:
-			// No more cells to process
-			break
+			if len(bc.redCells) == 0 {
+				break
+			}
 		}
-		if len(bc.redCells) == 0 {
-			break
+
+	whiteCellCleanup:
+		for len(bc.whiteCells) > 0 {
+			var whiteCell *WhiteBloodCell
+			select {
+			case whiteCell = <-bc.whiteCells:
+				if !whiteCell.IsExpired() {
+					select {
+					case bc.whiteCells <- whiteCell:
+					default:
+						// Channel full, cell lost
+					}
+				} else {
+					cleanupCount++
+				}
+			default:
+				// No more cells to process
+				break whiteCellCleanup
+			}
+			if len(bc.whiteCells) == 0 {
+				break
+			}
 		}
 	}
-
-	// Cleanup expired white cells
-	for len(bc.whiteCells) > 0 {
-		var whiteCell *WhiteBloodCell
-		select {
-		case whiteCell = <-bc.whiteCells:
-			if !whiteCell.IsExpired() {
-				select {
-				case bc.whiteCells <- whiteCell:
-				default:
-					// Channel full, cell lost
+	plateletCleanup:
+		for len(bc.platelets) > 0 {
+			var platelet *Platelet
+			select {
+			case platelet = <-bc.platelets:
+				if !platelet.IsExpired() {
+					select {
+					case bc.platelets <- platelet:
+					default:
+						// Channel full, platelet lost
+					}
+				} else {
+					cleanupCount++
 				}
-			} else {
-				cleanupCount++
+			default:
+				// No more platelets to process
+				break plateletCleanup
 			}
-		default:
-			// No more cells to process
-			break
-		}
-		if len(bc.whiteCells) == 0 {
-			break
-		}
-	}
-
-	// Cleanup expired platelets
-	for len(bc.platelets) > 0 {
-		var platelet *Platelet
-		select {
-		case platelet = <-bc.platelets:
-			if !platelet.IsExpired() {
-				select {
-				case bc.platelets <- platelet:
-				default:
-					// Channel full, platelet lost
-				}
-			} else {
-				cleanupCount++
+			if len(bc.platelets) == 0 {
+				break
 			}
-		default:
-			// No more platelets to process
-			break
 		}
-		if len(bc.platelets) == 0 {
-			break
 		}
 	}
 	

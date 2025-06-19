@@ -1,0 +1,38 @@
+2025-06-15T22:04:45-05:00 [INFO] [COMPRESSED:38->21|ratio=1.81] Starting GitHub MCP Server version 1.0
+2025-06-15T22:04:45-05:00 [INFO] [COMPRESSED:47->19|ratio=2.47] Configuration loaded: host=localhost port=10617
+2025-06-15T22:04:45-05:00 [ERROR] [COMPRESSED:153->21|ratio=7.29] Failed to load formula registry: failed to decode formula registry: EOF path=/Users/Jubicudis/Tranquility-Neuro-OS/github-mcp-server/config/formulas.json
+2025-06-15T22:04:45-05:00 [INFO] [COMPRESSED:26->20|ratio=1.30] BloodSystemInit_standalone
+2025-06-15T22:04:45-05:00 [INFO] [COMPRESSED:91->21|ratio=4.33] TNOS Canonical MCP/QHP ports available%!(EXTRA string=ports, []int=[9001 10617 8083 10619])
+2025-06-15T22:04:45-05:00 [INFO] [COMPRESSED:65->20|ratio=3.25] API Status Handler configured for /api/status on the main server.
+2025-06-15T22:04:45-05:00 [INFO] [COMPRESSED:51->21|ratio=2.43] Main GitHub MCP Server listening on localhost:10617
+2025-06-15T22:19:34-05:00 [INFO] [COMPRESSED:38->21|ratio=1.81] Starting GitHub MCP Server version 1.0
+2025-06-15T22:19:35-05:00 [INFO] [COMPRESSED:47->20|ratio=2.35] Configuration loaded: host=localhost port=10617
+2025-06-15T22:19:35-05:00 [ERROR] [COMPRESSED:153->20|ratio=7.65] Failed to load formula registry: failed to decode formula registry: EOF path=/Users/Jubicudis/Tranquility-Neuro-OS/github-mcp-server/config/formulas.json
+2025-06-15T22:19:35-05:00 [INFO] [COMPRESSED:26->20|ratio=1.30] BloodSystemInit_standalone
+2025-06-15T22:19:35-05:00 [INFO] [COMPRESSED:91->20|ratio=4.55] TNOS Canonical MCP/QHP ports available%!(EXTRA string=ports, []int=[9001 10617 8083 10619])
+2025-06-15T22:19:35-05:00 [INFO] [COMPRESSED:65->21|ratio=3.10] API Status Handler configured for /api/status on the main server.
+2025-06-15T22:19:35-05:00 [INFO] [COMPRESSED:51->21|ratio=2.43] Main GitHub MCP Server listening on localhost:10617
+2025-06-15T22:19:35-05:00 [ERROR] [COMPRESSED:91->21|ratio=4.33] Main server ListenAndServe failed: listen tcp 127.0.0.1:10617: bind: address already in use
+{"who":"MCPServer","what":"fatal_error","when":1750043975,"where":"github-mcp-server","why":"crash","how":"GoMain","extent":"full","ts":1750043975,"msg":"Main server ListenAndServe failed: listen tcp 127.0.0.1:10617: bind: address already in use"}
+2025-06-15T22:26:22-05:00 [INFO] [COMPRESSED:38->21|ratio=1.81] Starting GitHub MCP Server version 1.0
+2025-06-15T22:26:22-05:00 [INFO] [COMPRESSED:47->21|ratio=2.24] Configuration loaded: host=localhost port=10617
+2025-06-15T22:26:22-05:00 [ERROR] [COMPRESSED:153->22|ratio=6.95] Failed to load formula registry: failed to decode formula registry: EOF path=/Users/Jubicudis/Tranquility-Neuro-OS/github-mcp-server/config/formulas.json
+2025-06-15T22:26:22-05:00 [INFO] [COMPRESSED:26->20|ratio=1.30] BloodSystemInit_standalone
+2025-06-15T22:26:22-05:00 [INFO] [COMPRESSED:91->21|ratio=4.33] TNOS Canonical MCP/QHP ports available%!(EXTRA string=ports, []int=[9001 10617 8083 10619])
+2025-06-15T22:26:22-05:00 [INFO] [COMPRESSED:65->21|ratio=3.10] API Status Handler configured for /api/status on the main server.
+2025-06-15T22:26:22-05:00 [INFO] [COMPRESSED:51->21|ratio=2.43] Main GitHub MCP Server listening on localhost:10617
+2025-06-15T22:27:58-05:00 [INFO] [COMPRESSED:38->20|ratio=1.90] Received termination signal: interrupt
+{"who":"MCPServer","what":"shutdown","when":1750044478,"where":"github-mcp-server","why":"signal","how":"GoMain","extent":"full","ts":1750044478,"msg":"Received termination signal: interrupt"}
+2025-06-15T22:27:58-05:00 [INFO] [COMPRESSED:24->20|ratio=1.20] Server shutdown complete
+{"who":"MCPServer","what":"shutdown_complete","when":1750044478,"where":"github-mcp-server","why":"shutdown","how":"GoMain","extent":"full","ts":1750044478,"msg":"Server shutdown complete"}
+2025-06-16T04:56:09-05:00 [INFO] [COMPRESSED:38->21|ratio=1.81] Starting GitHub MCP Server version 1.0
+2025-06-16T04:56:09-05:00 [INFO] [COMPRESSED:47->20|ratio=2.35] Configuration loaded: host=localhost port=10617
+2025-06-16T04:56:09-05:00 [ERROR] [COMPRESSED:153->21|ratio=7.29] Failed to load formula registry: failed to decode formula registry: EOF path=/Users/Jubicudis/Tranquility-Neuro-OS/github-mcp-server/config/formulas.json
+2025-06-16T04:56:09-05:00 [INFO] [COMPRESSED:26->20|ratio=1.30] BloodSystemInit_standalone
+2025-06-16T04:56:09-05:00 [INFO] [COMPRESSED:91->21|ratio=4.33] TNOS Canonical MCP/QHP ports available%!(EXTRA string=ports, []int=[9001 10617 8083 10619])
+2025-06-16T04:56:09-05:00 [INFO] [COMPRESSED:65->21|ratio=3.10] API Status Handler configured for /api/status on the main server.
+2025-06-16T04:56:09-05:00 [INFO] [COMPRESSED:51->20|ratio=2.55] Main GitHub MCP Server listening on localhost:10617
+2025-06-16T05:00:58-05:00 [INFO] [COMPRESSED:38->21|ratio=1.81] Received termination signal: interrupt
+{"who":"MCPServer","what":"shutdown","when":1750068058,"where":"github-mcp-server","why":"signal","how":"GoMain","extent":"full","ts":1750068058,"msg":"Received termination signal: interrupt"}
+2025-06-16T05:00:58-05:00 [INFO] [COMPRESSED:24->20|ratio=1.20] Server shutdown complete
+{"who":"MCPServer","what":"shutdown_complete","when":1750068058,"where":"github-mcp-server","why":"shutdown","how":"GoMain","extent":"full","ts":1750068058,"msg":"Server shutdown complete"}
