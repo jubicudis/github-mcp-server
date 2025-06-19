@@ -20,14 +20,13 @@ import (
 	"time"
 
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log"
-	pkglog "github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log"
 	tspeak "github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/tranquilspeak"
 )
 
 // Context7DEngine - The core 7D context translation system following TNOS architecture
 // This engine orchestrates context operations via ATM triggers while maintaining LoggerInterface integration
 type Context7DEngine struct {
-	logger         pkglog.LoggerInterface  // Essential for ATM logging integration
+	logger         log.LoggerInterface  // Essential for ATM logging integration
 	triggerMatrix  *tspeak.TriggerMatrix   // ATM trigger system
 	enableCompression bool
 	mu             sync.RWMutex
@@ -36,7 +35,7 @@ type Context7DEngine struct {
 }
 
 // NewContext7DEngine creates a new 7D translation engine using ATM triggers only
-func NewContext7DEngine(logger pkglog.LoggerInterface) *Context7DEngine {
+func NewContext7DEngine(logger log.LoggerInterface) *Context7DEngine {
 	engine := &Context7DEngine{
 		logger:            logger,
 		triggerMatrix:     tspeak.NewTriggerMatrix(),
@@ -73,7 +72,7 @@ func (engine *Context7DEngine) registerATMTriggers() {
 		if !ok {
 			return fmt.Errorf("invalid context data type")
 		}
-		_ = ToMap(contextData)
+		_ = log.ToMap(contextData)
 		// Optionally, you could log or store the result here
 		return nil
 	})
@@ -88,7 +87,7 @@ func (engine *Context7DEngine) TranslateFromMCPContext(githubContext map[string]
 	if engine.enableCompression {
 		trigger := tspeak.CreateTrigger(
 			"Context7DEngine", "context.compress", "context_translator", "compress context", "atm_trigger", "context_compression", "context.compress", "context", map[string]interface{}{
-				"context": FromMap(tnosContext),
+				"context": log.FromMap(tnosContext),
 			},
 		)
 		err := engine.triggerMatrix.ProcessTrigger(trigger)
@@ -117,7 +116,7 @@ func (engine *Context7DEngine) TranslateJSONContext(jsonStr string) (map[string]
 	}
 
 	// Apply compression via ATM trigger if enabled
-	result := ToMap(cv)
+	result := log.ToMap(cv)
 	if engine.enableCompression {
 		trigger := tspeak.CreateTrigger(
 			"Context7DEngine", "context.compress", "context_translator", "compress context", "atm_trigger", "context_compression", "context.compress", "context", map[string]interface{}{
@@ -189,7 +188,7 @@ func (engine *Context7DEngine) jsonToContextVector(jsonStr string) (log.ContextV
 		return log.ContextVector7D{}, err
 	}
 	
-	return FromMap(data), nil
+	return log.FromMap(data), nil
 }
 
 // GetMetrics returns current engine metrics

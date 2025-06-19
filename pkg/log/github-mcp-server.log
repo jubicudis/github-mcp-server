@@ -36,3 +36,17 @@
 {"who":"MCPServer","what":"shutdown","when":1750068058,"where":"github-mcp-server","why":"signal","how":"GoMain","extent":"full","ts":1750068058,"msg":"Received termination signal: interrupt"}
 2025-06-16T05:00:58-05:00 [INFO] [COMPRESSED:24->20|ratio=1.20] Server shutdown complete
 {"who":"MCPServer","what":"shutdown_complete","when":1750068058,"where":"github-mcp-server","why":"shutdown","how":"GoMain","extent":"full","ts":1750068058,"msg":"Server shutdown complete"}
+[2025-06-19T06:15:42-05:00] [INFO] [who:System,what:Log,where:TNOS_MCP_Bridge,why:SystemMonitoring,how:LoggerComponent,extent:SystemWide] [BOOT] GitHub MCP Server starting up (7D/ATM/AI-DNA/TranquilSpeak)
+[2025-06-19T06:15:42-05:00] [ERROR] [extent:SystemWide,who:System,what:Log,where:TNOS_MCP_Bridge,why:SystemMonitoring,how:LoggerComponent] Failed to load formula registry: failed to decode formula registry: EOF
+[2025-06-19T06:15:42-05:00] [WARN] [who:System,what:Log,where:TNOS_MCP_Bridge,why:SystemMonitoring,how:LoggerComponent,extent:SystemWide] [FallbackRoute] Trying Copilot LLM fallback at ws://localhost:8083/bridge
+[2025-06-19T06:15:43-05:00] [WARN] [who:System,what:Log,where:TNOS_MCP_Bridge,why:SystemMonitoring,how:LoggerComponent,extent:SystemWide] [COMPRESSED:122->103] [Connect] Primary operation failed: failed to dial...::1]:8083: connect: connection refused (status: 0)
+[2025-06-19T06:15:43-05:00] [WARN] [where:TNOS_MCP_Bridge,why:SystemMonitoring,how:LoggerComponent,extent:SystemWide,who:System,what:Log] [FallbackRoute] Trying GitHub MCP fallback at ws://localhost:10617/bridge
+[2025-06-19T06:15:43-05:00] [WARN] [what:Log,where:TNOS_MCP_Bridge,why:SystemMonitoring,how:LoggerComponent,extent:SystemWide,who:System] [COMPRESSED:117->103] [Connect] Fallback #1 failed: failed to dial WebSo...:1]:10617: connect: connection refused (status: 0)
+[2025-06-19T06:15:43-05:00] [WARN] [what:Log,where:TNOS_MCP_Bridge,why:SystemMonitoring,how:LoggerComponent,extent:SystemWide,who:System] [Connect] Fallback #2 failed: already tried MCP Bridge URL
+[2025-06-19T06:15:43-05:00] [WARN] [who:System,what:Log,where:TNOS_MCP_Bridge,why:SystemMonitoring,how:LoggerComponent,extent:SystemWide] [Connect] Fallback #3 failed: no further fallback
+[2025-06-19T06:15:43-05:00] [ERROR] [extent:SystemWide,who:System,what:Log,where:TNOS_MCP_Bridge,why:SystemMonitoring,how:LoggerComponent] [COMPRESSED:102->103] Failed to connect to MCP bridge: failed to connect...o bridge: [Connect] All fallback operations failed
+[2025-06-19T06:15:43-05:00] [INFO] [who:System,what:Log,where:TNOS_MCP_Bridge,why:SystemMonitoring,how:LoggerComponent,extent:SystemWide] [COMPRESSED:261->103] [DNA:] ContextOrchestrator%!(EXTRA map[string]inte...xtOrchestrator why:biological_context_management])
+[2025-06-19T06:15:43-05:00] [INFO] [who:System,what:Log,where:TNOS_MCP_Bridge,why:SystemMonitoring,how:LoggerComponent,extent:SystemWide] Context orchestrator initialized (ATM/7D/biomimetic)
+[2025-06-19T06:15:43-05:00] [INFO] [who:System,what:Log,where:TNOS_MCP_Bridge,why:SystemMonitoring,how:LoggerComponent,extent:SystemWide] GitHub MCP Server listening%!(EXTRA string=address, string=localhost:10617)
+[2025-06-19T06:21:17-05:00] [INFO] [extent:SystemWide,who:System,what:Log,where:TNOS_MCP_Bridge,why:SystemMonitoring,how:LoggerComponent] Received shutdown signal%!(EXTRA string=signal, string=interrupt)
+[2025-06-19T06:21:17-05:00] [INFO] [extent:SystemWide,who:System,what:Log,where:TNOS_MCP_Bridge,why:SystemMonitoring,how:LoggerComponent] Shutdown complete (7D/ATM/AI-DNA/TranquilSpeak)

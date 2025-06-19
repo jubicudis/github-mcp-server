@@ -1,3 +1,6 @@
+// TRANQUILSPEAK SYMBOL CLUSTER: [𝒯🔴⚪🟡∞φ𓂀♦SK5𝑾𝑾𝑯𝑾𝑯𝑬𝑾𝑯𝑬𝑹𝑾𝑯𝒀𝑯𝑶𝑾𝑬𝑿🩸💊𝒮𝓒𝓮𝓵𝓵]
+// This file is part of the 'circulatory' biosystem. See symbolic_mapping_registry_autogen_20250603.tsq for details.
+
 /*
  * WHO: BloodCells
  * WHAT: Blood cell types for ATM trigger transport through circulatory system
@@ -15,9 +18,6 @@ import (
 
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/tranquilspeak"
 )
-
-// TRANQUILSPEAK SYMBOL CLUSTER: [𝒯🔴⚪🟡∞φ𓂀♦SK5𝑾𝑾𝑯𝑾𝑯𝑬𝑾𝑯𝑬𝑹𝑾𝑯𝒀𝑯𝑶𝑾𝑬𝑿🩸💊𝒮𝓒𝓮𝓵𝓵]
-// This file is part of the 'circulatory' biosystem. See symbolic_mapping_registry_autogen_20250603.tsq for details.
 
 // BloodCell represents the base interface for all blood cell types
 type BloodCell interface {

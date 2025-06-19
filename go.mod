@@ -16,6 +16,8 @@ require (
 	golang.org/x/oauth2 v0.30.0
 )
 
+require github.com/mattn/go-sqlite3 v1.14.28
+
 require (
 	github.com/Microsoft/go-winio v0.4.14 // indirect
 	github.com/containerd/log v0.1.0 // indirect

@@ -27,7 +27,6 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/bridge"
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/common"
-	_ "github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/context" // ensure import used for side effects only
 	pkgcontext "github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/context"
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log"
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/tranquilspeak"
@@ -122,8 +121,33 @@ func main() {
 	// 8. Start GitHub MCP API server (REST + WebSocket)
 	startGitHubMCPServer(config, orchestrator)
 
-	// 9. Wait for shutdown signal
+	// 9. Load TranquilSpeak symbol registry for correct symbol cluster logging
+	err = tranquilspeak.LoadSymbolRegistry("/Users/Jubicudis/Tranquility-Neuro-OS/systems/tranquilspeak/symbolic_mapping_registry_autogen_20250603.tsq")
+	if err != nil {
+		logger.Info("[BOOT] WARNING: Could not load TranquilSpeak symbol registry, symbol cluster logging may be incomplete: %v", err)
+	}
+
+	// 10. Wait for shutdown signal
 	waitForShutdown()
+
+	// 11. Send a bridge status message to the MCP bridge (demonstrate bridgeClient usage)
+	if bridgeClient != nil {
+		statusMsg := common.Message{
+			Type:      "status",
+			Timestamp: time.Now().Unix(),
+			Payload: map[string]interface{}{
+				"event":   "startup",
+				"context": mainContext.ToMap(),
+				"message": "GitHub MCP Server startup complete. Bridge client active.",
+			},
+		}
+		err := bridgeClient.Send(statusMsg)
+		if err != nil {
+			logger.Warn("Failed to send bridge status message: %v", err)
+		} else {
+			logger.Info("Bridge status message sent to MCP bridge.")
+		}
+	}
 }
 
 func loadConfig() Config {
