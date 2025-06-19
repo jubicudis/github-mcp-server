@@ -8,7 +8,7 @@
 // EXTENT: All formula execution and HemoFlux integration
 
 // TRANQUILSPEAK SYMBOL CLUSTER: [𝒯🦴ζℏƒ𓆑#SK1𝑾𝑾𝑯𝑾𝑯𝑬𝑾𝑯𝑬𝑹𝑾𝑯𝒀𝑯𝑶𝑾𝑬𝑿⏳📍𝒮𝓔𝓗]
-// This file is part of the 'skeletal' biosystem. See symbolic_mapping_registry_autogen_20250603.tsq for details.
+// This file is part of the 'skeletal' biosystem. See circulatory/github-mcp-server/symbolic_mapping_registry_autogen_20250603.tsq for details.
 
 package bridge
 
@@ -403,3 +403,19 @@ func (r *BridgeFormulaRegistry) GetFormulasByType(formulaType string) []BridgeFo
 	}
 	return matching
 }
+
+// [TNOS] All formula registration and execution must use TranquilSpeak symbols as canonical keys.
+// See: ../../../../systems/cpp/circulatory/algorithms/data/tranquilspeak_symbol_key.md for the authoritative mapping.
+// Example: {"helical.parity": "ⓗ"} (replace with actual symbol from mapping)
+//
+// Usage: Always pass the symbol, not a hardcoded name, to AddFormula/ExecuteFormula.
+
+// Example symbol mapping (should be auto-generated or imported in production)
+var FORMULA_SYMBOLS = map[string]string{
+	"helical.parity": "ⓗ", // TODO: Replace with actual symbol from mapping
+	"helical.recover_primary": "ⓡ", // TODO: Replace with actual symbol from mapping
+	// ...add more as needed
+}
+
+// In all usages, replace calls like GetFormula("helical.parity") with GetFormula(FORMULA_SYMBOLS["helical.parity"])
+// and ExecuteFormula("helical.parity", ...) with ExecuteFormula(FORMULA_SYMBOLS["helical.parity"], ...)

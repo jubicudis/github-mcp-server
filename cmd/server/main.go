@@ -122,7 +122,7 @@ func main() {
 	startGitHubMCPServer(config, orchestrator)
 
 	// 9. Load TranquilSpeak symbol registry for correct symbol cluster logging
-	err = tranquilspeak.LoadSymbolRegistry("/Users/Jubicudis/Tranquility-Neuro-OS/systems/tranquilspeak/symbolic_mapping_registry_autogen_20250603.tsq")
+	err = tranquilspeak.LoadSymbolRegistry("/Users/Jubicudis/Tranquility-Neuro-OS/systems/tranquilspeak/circulatory/github-mcp-server/symbolic_mapping_registry_autogen_20250603.tsq")
 	if err != nil {
 		logger.Info("[BOOT] WARNING: Could not load TranquilSpeak symbol registry, symbol cluster logging may be incomplete: %v", err)
 	}

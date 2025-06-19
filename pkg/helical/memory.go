@@ -558,4 +558,18 @@ func (hme *HelicalMemoryEngine) RetrieveWithSelfHealing(id string, helixID strin
 // TODO: Integrate HemoFlux compression and formula registry for all data operations.
 // TODO: Add self-documenting event logging for all major operations.
 
-// (No changes, force save to refresh file and clear stale redeclaration error)
+// [TNOS] All formula registry lookups and execution must use TranquilSpeak symbols as canonical keys.
+// See: ../../../../systems/cpp/circulatory/algorithms/data/tranquilspeak_symbol_key.md for the authoritative mapping.
+// Example: {"helical.parity": "ⓗ"} (replace with actual symbol from mapping)
+//
+// Usage: Always pass the symbol, not a hardcoded name, to GetFormula/ExecuteFormula.
+
+// Example symbol mapping (should be auto-generated or imported in production)
+var FORMULA_SYMBOLS = map[string]string{
+	"helical.parity": "ⓗ", // TODO: Replace with actual symbol from mapping
+	"helical.recover_primary": "ⓡ", // TODO: Replace with actual symbol from mapping
+	// ...add more as needed
+}
+
+// In all usages, replace calls like GetFormula("helical.parity") with GetFormula(FORMULA_SYMBOLS["helical.parity"])
+// and ExecuteFormula("helical.parity", ...) with ExecuteFormula(FORMULA_SYMBOLS["helical.parity"], ...)

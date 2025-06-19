@@ -18,7 +18,7 @@ import (
 )
 
 // TRANQUILSPEAK SYMBOL CLUSTER: [𝒯🧠ψ∇♦𓂀∞SK7𝑾𝑾𝑯𝑾𝑯𝑬𝑾𝑯𝑬𝑹𝑾𝑯𝒀𝑯𝑶𝑾𝑬𝑿⚡🌊𝒮𝓒𝓸𝓜]
-// This file is part of the 'command' layer biosystem. See symbolic_mapping_registry_autogen_20250603.tsq for details.
+// This file is part of the 'command' layer biosystem. See circulatory/github-mcp-server/symbolic_mapping_registry_autogen_20250603.tsq for details.
 
 // ATM Trigger Types - Core event types that flow through the blood circulation
 const (
@@ -213,7 +213,7 @@ func (tm *TriggerMatrix) routeThroughBlood(trigger ATMTrigger) error {
 	}
 	
 	// Log circulation through TranquilSpeak
-	LogWithSymbolCluster("trigger_matrix", 
+	LogWithSymbolCluster("circulatory/blood.tranquilspeak", 
 		fmt.Sprintf("ATM trigger %s routed via %s blood cell to %s", 
 			trigger.TriggerType, trigger.BloodCellType, trigger.TargetSystem))
 	

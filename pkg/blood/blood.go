@@ -1,5 +1,5 @@
 // TRANQUILSPEAK SYMBOL CLUSTER: [𝒯❤️🔄∞φ𓂀♦SK5𝑾𝑾𝑯𝑾𝑯𝑬𝑾𝑯𝑬𝑹𝑾𝑯𝒀𝑯𝑶𝑾𝑬𝑿💉🌊𝒮𝓒𝓲𝓻𝓬]
-// This file is part of the 'circulatory' biosystem. See symbolic_mapping_registry_autogen_20250603.tsq for details.
+// This file is part of the 'circulatory' biosystem. See circulatory/github-mcp-server/symbolic_mapping_registry_autogen_20250603.tsq for details.
 //
 /*WHO: BloodCirculatorySystem
 * WHAT: Core circulatory system managing ATM trigger flow through biological components
@@ -171,7 +171,7 @@ func NewBloodCirculation(logger log.LoggerInterface) *BloodCirculation {
 	circulation.registerATMHandlers()
 	
 	// Log circulatory system initialization
-	tranquilspeak.LogWithSymbolCluster("circulatory/blood", 
+	tranquilspeak.LogWithSymbolCluster("circulatory/blood.tranquilspeak", 
 		"Blood circulation system initialized - ready for ATM trigger transport")
 	
 	return circulation
@@ -261,7 +261,7 @@ func (bc *BloodCirculation) StartCirculation() error {
 		})
 	}
 	
-	tranquilspeak.LogWithSymbolCluster("circulatory/blood", 
+	tranquilspeak.LogWithSymbolCluster("circulatory/blood.tranquilspeak", 
 		fmt.Sprintf("Blood circulation started - heartbeat: %v, pressure: %d", 
 			bc.heart.beatInterval, bc.heart.pressure))
 	
@@ -289,7 +289,7 @@ func (bc *BloodCirculation) StopCirculation() error {
 	
 	bc.isCirculating = false
 	
-	tranquilspeak.LogWithSymbolCluster("circulatory/blood", "Blood circulation stopped")
+	tranquilspeak.LogWithSymbolCluster("circulatory/blood.tranquilspeak", "Blood circulation stopped")
 	
 	return nil
 }
@@ -337,7 +337,7 @@ func (bc *BloodCirculation) heartbeatPump() {
 	
 	// Log heartbeat (periodic logging to avoid spam)
 	if bc.heart.beatCount%1000 == 0 {
-		tranquilspeak.LogWithSymbolCluster("circulatory/blood", 
+		tranquilspeak.LogWithSymbolCluster("circulatory/blood.tranquilspeak", 
 			fmt.Sprintf("Heartbeat #%d - circulation active", bc.heart.beatCount))
 	}
 }
@@ -452,7 +452,7 @@ func (bc *BloodCirculation) registerATMHandlers() {
 
 // handleCirculatoryFlowTrigger handles circulation flow ATM triggers
 func (bc *BloodCirculation) handleCirculatoryFlowTrigger(trigger tranquilspeak.ATMTrigger) error {
-	tranquilspeak.LogWithSymbolCluster("circulatory/blood", 
+	tranquilspeak.LogWithSymbolCluster("circulatory/blood.tranquilspeak", 
 		fmt.Sprintf("Processing circulatory flow trigger from %s", trigger.Who))
 	
 	// Update circulation parameters based on trigger
@@ -467,7 +467,7 @@ func (bc *BloodCirculation) handleCirculatoryFlowTrigger(trigger tranquilspeak.A
 
 // handleSystemControlTrigger handles system control ATM triggers
 func (bc *BloodCirculation) handleSystemControlTrigger(trigger tranquilspeak.ATMTrigger) error {
-	tranquilspeak.LogWithSymbolCluster("circulatory/blood", 
+	tranquilspeak.LogWithSymbolCluster("circulatory/blood.tranquilspeak", 
 		fmt.Sprintf("Processing system control trigger from %s", trigger.Who))
 	
 	// Handle system control commands
@@ -489,7 +489,7 @@ func (bc *BloodCirculation) handleSystemControlTrigger(trigger tranquilspeak.ATM
 
 // handleErrorRecoveryTrigger handles error recovery ATM triggers
 func (bc *BloodCirculation) handleErrorRecoveryTrigger(trigger tranquilspeak.ATMTrigger) error {
-	tranquilspeak.LogWithSymbolCluster("circulatory/blood", 
+	tranquilspeak.LogWithSymbolCluster("circulatory/blood.tranquilspeak", 
 		fmt.Sprintf("Processing error recovery trigger from %s", trigger.Who))
 	
 	// Create recovery platelet

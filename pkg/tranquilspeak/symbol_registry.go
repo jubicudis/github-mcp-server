@@ -2,6 +2,7 @@
 // Auto-generated symbol registry parser for Go integration.
 //
 // This utility loads the symbolic_mapping_registry_autogen_20250603.tsq file and provides lookup functions.
+// Update: Now loads from circulatory/github-mcp-server/symbolic_mapping_registry_autogen_20250603.tsq
 package tranquilspeak
 
 import (

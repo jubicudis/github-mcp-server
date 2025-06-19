@@ -19,7 +19,7 @@ import (
 )
 
 // TRANQUILSPEAK SYMBOL CLUSTER: [𝒯🔄🌐∞φ𓂀♦SK5𝑾𝑾𝑯𝑾𝑯𝑬𝑾𝑯𝑬𝑹𝑾𝑯𝒀𝑯𝑶𝑾𝑬𝑿🩸🔗𝒮𝓡𝓸𝓾𝓽]
-// This file is part of the 'circulatory' biosystem. See symbolic_mapping_registry_autogen_20250603.tsq for details.
+// This file is part of the 'circulatory' biosystem. See circulatory/github-mcp-server/symbolic_mapping_registry_autogen_20250603.tsq for details.
 
 // ConnectBiologicalSystem creates artery and vein connections to a biological system
 func (bc *BloodCirculation) ConnectBiologicalSystem(systemName string, capacity int) error {
@@ -63,7 +63,7 @@ func (bc *BloodCirculation) ConnectBiologicalSystem(systemName string, capacity 
 	bc.arteries[systemName] = artery
 	bc.veins[systemName] = vein
 	
-	tranquilspeak.LogWithSymbolCluster("circulatory/blood",
+	tranquilspeak.LogWithSymbolCluster("circulatory/blood.tranquilspeak",
 		fmt.Sprintf("Connected biological system: %s (arterial capacity: %d, venous capacity: %d)",
 			systemName, capacity, capacity/2))
 	
@@ -86,7 +86,7 @@ func (bc *BloodCirculation) DisconnectBiologicalSystem(systemName string) error 
 		delete(bc.veins, systemName)
 	}
 	
-	tranquilspeak.LogWithSymbolCluster("circulatory/blood",
+	tranquilspeak.LogWithSymbolCluster("circulatory/blood.tranquilspeak",
 		fmt.Sprintf("Disconnected biological system: %s", systemName))
 	
 	return nil
@@ -164,7 +164,7 @@ func (bc *BloodCirculation) SendATMTrigger(trigger tranquilspeak.ATMTrigger) err
 		}
 	}
 	
-	tranquilspeak.LogWithSymbolCluster("circulatory/blood",
+	tranquilspeak.LogWithSymbolCluster("circulatory/blood.tranquilspeak",
 		fmt.Sprintf("Injected %s cell carrying %s trigger to %s",
 			bloodCell.GetCellType(), trigger.TriggerType, trigger.TargetSystem))
 	
@@ -213,7 +213,7 @@ func (bc *BloodCirculation) CreateCapillaryConnection(systemComponent string, pe
 	
 	bc.capillaries[systemComponent] = capillary
 	
-	tranquilspeak.LogWithSymbolCluster("circulatory/blood",
+	tranquilspeak.LogWithSymbolCluster("circulatory/blood.tranquilspeak",
 		fmt.Sprintf("Created capillary connection to component: %s", systemComponent))
 	
 	return nil
@@ -272,7 +272,7 @@ func (bc *BloodCirculation) AdjustCirculationPressure(newPressure int) error {
 		}
 	}
 	
-	tranquilspeak.LogWithSymbolCluster("circulatory/blood",
+	tranquilspeak.LogWithSymbolCluster("circulatory/blood.tranquilspeak",
 		fmt.Sprintf("Adjusted circulation pressure from %d to %d", oldPressure, newPressure))
 	
 	return nil
@@ -360,19 +360,19 @@ whiteCellCleanup:
 endPlateletCleanup:
 
 	if cleanupCount > 0 {
-		tranquilspeak.LogWithSymbolCluster("circulatory/blood",
+		tranquilspeak.LogWithSymbolCluster("circulatory/blood.tranquilspeak",
 			fmt.Sprintf("Cleaned up %d expired blood cells", cleanupCount))
 	}
 
 	if plateletCleanupCount > 0 {
-		tranquilspeak.LogWithSymbolCluster("circulatory/blood",
+		tranquilspeak.LogWithSymbolCluster("circulatory/blood.tranquilspeak",
 			fmt.Sprintf("Cleaned up %d expired platelets", plateletCleanupCount))
 	}
 }
 
 // EmergencyCirculationStop immediately stops circulation for critical system protection
 func (bc *BloodCirculation) EmergencyCirculationStop(reason string) error {
-	tranquilspeak.LogWithSymbolCluster("circulatory/blood",
+	tranquilspeak.LogWithSymbolCluster("circulatory/blood.tranquilspeak",
 		fmt.Sprintf("EMERGENCY CIRCULATION STOP: %s", reason))
 	
 	// Create emergency stop trigger
@@ -405,7 +405,7 @@ func (bc *BloodCirculation) EmergencyCirculationStop(reason string) error {
 
 // RestoreCirculationAfterEmergency restores circulation after emergency stop
 func (bc *BloodCirculation) RestoreCirculationAfterEmergency() error {
-	tranquilspeak.LogWithSymbolCluster("circulatory/blood",
+	tranquilspeak.LogWithSymbolCluster("circulatory/blood.tranquilspeak",
 		"Restoring circulation after emergency stop")
 	
 	// Create restoration trigger
@@ -549,7 +549,7 @@ func (ar *ATMRouter) handleRoutingTrigger(trigger tranquilspeak.ATMTrigger) erro
 	// HOW: Using biological routing patterns and blood cell transport
 	// EXTENT: All standard ATM trigger routing operations
 
-	tranquilspeak.LogWithSymbolCluster("circulatory/blood", "Processing standard ATM routing trigger")
+	tranquilspeak.LogWithSymbolCluster("circulatory/blood.tranquilspeak", "Processing standard ATM routing trigger")
 
 	// Route through blood circulation
 	return ar.circulation.SendATMTrigger(trigger)
@@ -565,7 +565,7 @@ func (ar *ATMRouter) handleBroadcastTrigger(trigger tranquilspeak.ATMTrigger) er
 	// HOW: Using blood circulation to deliver triggers to all biological systems
 	// EXTENT: All ATM trigger broadcast operations
 
-	tranquilspeak.LogWithSymbolCluster("circulatory/blood", "Processing ATM broadcast trigger")
+	tranquilspeak.LogWithSymbolCluster("circulatory/blood.tranquilspeak", "Processing ATM broadcast trigger")
 
 	// Broadcast to all biological systems through blood circulation
 	for targetSystem := range ar.systemRoutes {
@@ -588,7 +588,7 @@ func (ar *ATMRouter) handleBroadcastTrigger(trigger tranquilspeak.ATMTrigger) er
 
 			err := ar.circulation.SendATMTrigger(broadcastTrigger)
 			if err != nil {
-				tranquilspeak.LogWithSymbolCluster("circulatory/blood",
+				tranquilspeak.LogWithSymbolCluster("circulatory/blood.tranquilspeak",
 					fmt.Sprintf("Failed to broadcast to %s: %v", targetSystem, err))
 			}
 		}
