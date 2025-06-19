@@ -1,7 +1,4 @@
-github-m* filter=lfs diff=lfs merge=lfs -text
-*/server/github-m* filter=lfs diff=lfs merge=lfs -text
+# Only track .jar files with LFS
 *.jar filter=lfs diff=lfs merge=lfs -text
-bin/* filter=lfs diff=lfs merge=lfs -text
-server filter=lfs diff=lfs merge=lfs -text
-main filter=lfs diff=lfs merge=lfs -text
+# Remove all other broad patterns to prevent accidental LFS tracking
 *.log !text !filter !merge !diff
