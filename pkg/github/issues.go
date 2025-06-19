@@ -18,7 +18,7 @@ import (
 
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/common"
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log"
-	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/translations"
+	
 
 	"github.com/google/go-github/v71/github"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -40,7 +40,7 @@ import (
  * EXTENT: Single issue retrieval operation
  */
 // GetIssue creates a tool to get details of a specific issue in a GitHub repository.
-func GetIssue(getClient common.GetClientFn, t translations.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
+func GetIssue(getClient common.GetClientFn, t common.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
 	tool = mcp.NewTool(
 		"get_issue",
 		mcp.WithDescription(t("TOOL_GET_ISSUE_DESCRIPTION", "Get details of a specific issue in a GitHub repository")),
@@ -112,7 +112,7 @@ func GetIssue(getClient common.GetClientFn, t translations.TranslationHelperFunc
 }
 
 // AddIssueComment creates a tool to add a comment to an issue.
-func AddIssueComment(getClient common.GetClientFn, t translations.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
+func AddIssueComment(getClient common.GetClientFn, t common.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
 	tool = mcp.NewTool(
 		"add_issue_comment",
 		mcp.WithDescription(t("TOOL_ADD_ISSUE_COMMENT_DESCRIPTION", "Add a comment to an existing issue")),
@@ -189,7 +189,7 @@ func AddIssueComment(getClient common.GetClientFn, t translations.TranslationHel
 }
 
 // SearchIssues creates a tool to search for issues and pull requests.
-func SearchIssues(getClient common.GetClientFn, t translations.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
+func SearchIssues(getClient common.GetClientFn, t common.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
 	tool = mcp.NewTool(
 		"search_issues",
 		mcp.WithDescription(t("TOOL_SEARCH_ISSUES_DESCRIPTION", "Search for issues and pull requests across GitHub repositories")),
@@ -289,7 +289,7 @@ func SearchIssues(getClient common.GetClientFn, t translations.TranslationHelper
 }
 
 // CreateIssue creates a tool to create a new issue in a GitHub repository.
-func CreateIssue(getClient common.GetClientFn, t translations.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
+func CreateIssue(getClient common.GetClientFn, t common.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
 	tool = mcp.NewTool(
 		"create_issue",
 		mcp.WithDescription(t("TOOL_CREATE_ISSUE_DESCRIPTION", "Create a new issue in a GitHub repository")),
@@ -421,7 +421,7 @@ func CreateIssue(getClient common.GetClientFn, t translations.TranslationHelperF
 }
 
 // ListIssues creates a tool to list and filter repository issues
-func ListIssues(getClient common.GetClientFn, t translations.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
+func ListIssues(getClient common.GetClientFn, t common.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
 	tool = mcp.NewTool(
 		"list_issues",
 		mcp.WithDescription(t("TOOL_LIST_ISSUES_DESCRIPTION", "List issues in a GitHub repository with filtering options")),
@@ -569,7 +569,7 @@ func ListIssues(getClient common.GetClientFn, t translations.TranslationHelperFu
 }
 
 // UpdateIssue creates a tool to update an existing issue in a GitHub repository.
-func UpdateIssue(getClient common.GetClientFn, t translations.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
+func UpdateIssue(getClient common.GetClientFn, t common.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
 	tool = mcp.NewTool(
 		"update_issue",
 		mcp.WithDescription(t("TOOL_UPDATE_ISSUE_DESCRIPTION", "Update an existing issue in a GitHub repository")),
@@ -710,7 +710,7 @@ func UpdateIssue(getClient common.GetClientFn, t translations.TranslationHelperF
 }
 
 // GetIssueComments creates a tool to get comments for a GitHub issue.
-func GetIssueComments(getClient common.GetClientFn, t translations.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
+func GetIssueComments(getClient common.GetClientFn, t common.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
 	tool = mcp.NewTool(
 		"get_issue_comments",
 		mcp.WithDescription(t("TOOL_GET_ISSUE_COMMENTS_DESCRIPTION", "Get comments for a GitHub issue")),
@@ -857,7 +857,7 @@ func parseISOTimestamp(timestamp string) (time.Time, error) {
 // WHY: To retrieve issues via MCP
 // HOW: Using MCP tool definition mechanism
 // EXTENT: Issue retrieval operations
-func GetIssues(getClient common.GetClientFn, t translations.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
+func GetIssues(getClient common.GetClientFn, t common.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
 	// We'll use the translation function directly without creating an adapter
 	// since we're using it only for string translation
 	tool = mcp.NewTool("get_issues",

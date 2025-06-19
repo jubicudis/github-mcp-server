@@ -10,7 +10,7 @@ import (
 
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/common"
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/testutil"
-	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/translations"
+	
 
 	"github.com/google/go-github/v71/github"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -25,7 +25,7 @@ import (
 // Deprecated: use common.RequiredParam, common.OptionalParamOK, common.Ptr for pointers
 // Local generic param helpers removed in favor of common
 
-func GetCommit(getClient common.GetClientFn, t translations.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
+func GetCommit(getClient common.GetClientFn, t common.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
 	return mcp.NewTool("get_commit",
 			mcp.WithDescription(t("TOOL_GET_COMMITS_DESCRIPTION", "Get details for a commit from a GitHub repository")),
 			mcp.WithString("owner",
@@ -102,7 +102,7 @@ func GetCommit(getClient common.GetClientFn, t translations.TranslationHelperFun
 }
 
 // ListCommits creates a tool to get commits of a branch in a repository.
-func ListCommits(getClient common.GetClientFn, t translations.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
+func ListCommits(getClient common.GetClientFn, t common.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
 	return mcp.NewTool("list_commits",
 			mcp.WithDescription(t("TOOL_LIST_COMMITS_DESCRIPTION", "Get list of commits of a branch in a GitHub repository")),
 			mcp.WithString("owner",
@@ -184,7 +184,7 @@ func ListCommits(getClient common.GetClientFn, t translations.TranslationHelperF
 }
 
 // ListBranches creates a tool to list branches in a GitHub repository.
-func ListBranches(getClient common.GetClientFn, t translations.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
+func ListBranches(getClient common.GetClientFn, t common.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
 	return mcp.NewTool("list_branches",
 			mcp.WithDescription(t("TOOL_LIST_BRANCHES_DESCRIPTION", "List branches in a GitHub repository")),
 			mcp.WithString("owner",
@@ -256,7 +256,7 @@ func ListBranches(getClient common.GetClientFn, t translations.TranslationHelper
 }
 
 // CreateOrUpdateFile creates a tool to create or update a file in a GitHub repository.
-func CreateOrUpdateFile(getClient common.GetClientFn, t translations.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
+func CreateOrUpdateFile(getClient common.GetClientFn, t common.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
 	return mcp.NewTool("create_or_update_file",
 			mcp.WithDescription(t("TOOL_CREATE_OR_UPDATE_FILE_DESCRIPTION", "Create or update a file in a GitHub repository")),
 			mcp.WithString("owner",
@@ -355,7 +355,7 @@ func CreateOrUpdateFile(getClient common.GetClientFn, t translations.Translation
 }
 
 // CreateRepository creates a tool to create a new GitHub repository.
-func CreateRepository(getClient common.GetClientFn, t translations.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
+func CreateRepository(getClient common.GetClientFn, t common.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
 	return mcp.NewTool("create_repository",
 			mcp.WithDescription(t("TOOL_CREATE_REPOSITORY_DESCRIPTION", "Create a new GitHub repository")),
 			mcp.WithString("name",
@@ -434,7 +434,7 @@ func CreateRepository(getClient common.GetClientFn, t translations.TranslationHe
 }
 
 // GetFileContents creates a tool to get the contents of a file or directory from a GitHub repository.
-func GetFileContents(getClient common.GetClientFn, t translations.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
+func GetFileContents(getClient common.GetClientFn, t common.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
 	return mcp.NewTool("get_file_contents",
 			mcp.WithDescription(t("TOOL_GET_FILE_CONTENTS_DESCRIPTION", "Get the contents of a file or directory from a GitHub repository")),
 			mcp.WithString("owner",
@@ -514,7 +514,7 @@ func GetFileContents(getClient common.GetClientFn, t translations.TranslationHel
 }
 
 // ForkRepository creates a tool to fork a repository.
-func ForkRepository(getClient common.GetClientFn, t translations.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
+func ForkRepository(getClient common.GetClientFn, t common.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
 	return mcp.NewTool("fork_repository",
 			mcp.WithDescription(t("TOOL_FORK_REPOSITORY_DESCRIPTION", "Fork a GitHub repository")),
 			mcp.WithString("owner",
@@ -574,7 +574,7 @@ func ForkRepository(getClient common.GetClientFn, t translations.TranslationHelp
 }
 
 // CreateBranch creates a tool to create a new branch.
-func CreateBranch(getClient common.GetClientFn, t translations.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
+func CreateBranch(getClient common.GetClientFn, t common.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
 	return mcp.NewTool("create_branch",
 			mcp.WithDescription(t("TOOL_CREATE_BRANCH_DESCRIPTION", "Create a new branch in a GitHub repository")),
 			mcp.WithString("owner",
@@ -822,7 +822,7 @@ func commitFiles(ctx context.Context, client *github.Client, params *PushFilesPa
 }
 
 // PushFiles creates a tool to push multiple files in a single commit to a GitHub repository.
-func PushFiles(getClient common.GetClientFn, t translations.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
+func PushFiles(getClient common.GetClientFn, t common.TranslationHelperFunc) (tool mcp.Tool, handler server.ToolHandlerFunc) {
 	return mcp.NewTool("push_files",
 			mcp.WithDescription(t("TOOL_PUSH_FILES_DESCRIPTION", "Push multiple files in a single commit to a GitHub repository")),
 			mcp.WithString("owner",
@@ -879,7 +879,7 @@ func PushFiles(getClient common.GetClientFn, t translations.TranslationHelperFun
 }
 
 // GetRepositoryResourceContent defines the resource template and handler for getting repository content.
-func GetRepositoryResourceContent(getClient common.GetClientFn, t translations.TranslationHelperFunc) (mcp.ResourceTemplate, server.ResourceTemplateHandlerFunc) {
+func GetRepositoryResourceContent(getClient common.GetClientFn, t common.TranslationHelperFunc) (mcp.ResourceTemplate, server.ResourceTemplateHandlerFunc) {
 	return mcp.NewResourceTemplate(
 		"repo://{owner}/{repo}/contents{/path*}", // Resource template
 		t("RESOURCE_REPOSITORY_CONTENT_DESCRIPTION", "Repository Content"),

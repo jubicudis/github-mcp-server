@@ -22,7 +22,7 @@ import (
 
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/common"
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log"
-	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/translations"
+	
 
 	"github.com/gorilla/websocket"
 )
@@ -414,7 +414,7 @@ func (c *Bridge) readPump() {
 		// Process context if needed
 		if ctxMap, ok := msg.Context.(map[string]interface{}); ok {
 			// Convert context map to ContextVector7D
-			contextVector := translations.ContextVector7D{
+			contextVector := log.ContextVector7D{
 				Who:    getString(ctxMap, "who", "RemoteSystem"),
 				What:   getString(ctxMap, "what", "Communication"),
 				When:   getInt64(ctxMap, "when", time.Now().Unix()),

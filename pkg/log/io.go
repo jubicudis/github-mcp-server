@@ -35,6 +35,12 @@ type LoggerInterface interface {
 	Debug(message string, args ...interface{}) // Added Debug
 	Warn(message string, args ...interface{})  // Added Warn
 	Error(message string, args ...interface{}) // Added Error
+	// DNA/identity-aware logging methods
+	InfoWithIdentity(message string, dna interface{}, args ...interface{})
+	DebugWithIdentity(message string, dna interface{}, args ...interface{})
+	ErrorWithIdentity(message string, dna interface{}, args ...interface{})
+	CriticalWithIdentity(message string, dna interface{}, args ...interface{})
+	WithDNA(dna interface{}) LoggerInterface
 }
 
 // WHO: ContextVector7D
@@ -54,6 +60,59 @@ type ContextVector7D struct {
 	Extent float64                `json:"extent"`
 	Meta   map[string]interface{} `json:"meta,omitempty"`
 	Source string                 `json:"source,omitempty"`
+}
+
+// ToMap converts a ContextVector7D to a map[string]interface{} for serialization or neural mapping
+func ToMap(cv ContextVector7D) map[string]interface{} {
+	result := map[string]interface{}{
+		"who":    cv.Who,
+		"what":   cv.What,
+		"when":   cv.When,
+		"where":  cv.Where,
+		"why":    cv.Why,
+		"how":    cv.How,
+		"extent": cv.Extent,
+	}
+	if cv.Source != "" {
+		result["source"] = cv.Source
+	}
+	if len(cv.Meta) > 0 {
+		result["meta"] = cv.Meta
+	}
+	return result
+}
+
+// FromMap converts a map[string]interface{} to a ContextVector7D for deserialization or neural mapping
+func FromMap(m map[string]interface{}) ContextVector7D {
+	cv := ContextVector7D{}
+	if v, ok := m["who"].(string); ok {
+		cv.Who = v
+	}
+	if v, ok := m["what"].(string); ok {
+		cv.What = v
+	}
+	if v, ok := m["when"]; ok {
+		cv.When = v
+	}
+	if v, ok := m["where"].(string); ok {
+		cv.Where = v
+	}
+	if v, ok := m["why"].(string); ok {
+		cv.Why = v
+	}
+	if v, ok := m["how"].(string); ok {
+		cv.How = v
+	}
+	if v, ok := m["extent"].(float64); ok {
+		cv.Extent = v
+	}
+	if v, ok := m["meta"].(map[string]interface{}); ok {
+		cv.Meta = v
+	}
+	if v, ok := m["source"].(string); ok {
+		cv.Source = v
+	}
+	return cv
 }
 
 // The LoggerInterface is defined above

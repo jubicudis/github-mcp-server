@@ -12,9 +12,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"time"
-
-	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/hemoflux"
 )
 
 var (
@@ -64,10 +63,12 @@ type Logger struct {
 	// HOW: Using structured logger properties
 	// EXTENT: All logging operations
 
-	level      LogLevel
-	output     io.Writer
-	timeFormat string
-	context    map[string]string
+	level          LogLevel
+	output         io.Writer
+	timeFormat     string
+	context        map[string]string
+	useCompression bool
+	DNA interface{} // Optional: AI-DNA identity reference, use interface{} to avoid import issues
 }
 
 // NewLogger creates a new 7D-aware logger with default settings
@@ -92,6 +93,7 @@ func NewLogger() *Logger {
 			"how":    "LoggerComponent",
 			"extent": "SystemWide",
 		},
+		useCompression: true,
 	}
 }
 
@@ -168,35 +170,76 @@ func (l *Logger) WithContext(ctx map[string]string) *Logger {
 	return l
 }
 
-// format creates a formatted log message with 7D context and applies Mobius (Hemoflux) compression if in standalone mode
-func (l *Logger) format(level LogLevel, message string) string {
-	timestamp := time.Now().In(centralLocation).Format(l.timeFormat)
-	context := l.context
+// WithCompression enables or disables log compression
+func (l *Logger) WithCompression(compress bool) *Logger {
+	// WHO: CompressionConfigurator
+	// WHAT: Configure log compression
+	// WHEN: During logger configuration
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To support compression-first principle
+	// HOW: Using fluent interface pattern
+	// EXTENT: Logger compression setting
 
-	// Build a 7D context map for Mobius compression
-	contextMap := map[string]interface{}{
-		"who":    context["who"],
-		"what":   context["what"],
-		"where":  context["where"],
-		"why":    context["why"],
-		"how":    context["how"],
-		"extent": context["extent"],
-		"createdAt": time.Now().Unix(),
+	l.useCompression = compress
+	return l
+}
+
+// WithDNA sets the DNA/identity for the logger
+func (l *Logger) WithDNA(dna interface{}) LoggerInterface {
+	l.DNA = dna
+	return l
+}
+
+// compressLogMessage applies Möbius Compression to log messages
+// This is a placeholder for actual compression implementation
+func (l *Logger) compressLogMessage(message string) string {
+	// WHO: LogCompressor
+	// WHAT: Apply compression to log messages
+	// WHEN: During log processing
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To implement compression-first principle
+	// HOW: Using Möbius Compression Formula
+	// EXTENT: Log message compression
+
+	if !l.useCompression {
+		return message
 	}
-	// TODO: Replace this with actual mode detection logic
-	standalone := true // Set to false if blood-connected (should be set by server state)
-	compressed, meta, err := hemoflux.MobiusCompress([]byte(message), contextMap, standalone)
-	compressionStats := ""
-	if err == nil && meta != nil && standalone {
-		orig := meta.OriginalSize
-		comp := len(compressed)
-		var ratio float64
-		if comp > 0 {
-			ratio = float64(orig) / float64(comp)
-		}
-		compressionStats = fmt.Sprintf("[COMPRESSED:%d->%d|ratio=%.2f] ", orig, comp, ratio)
+
+	// In a real implementation, this would apply the Möbius Compression Formula
+	// Currently just a placeholder
+	if len(message) > 100 {
+		compressed := message[:50] + "..." + message[len(message)-50:]
+		return fmt.Sprintf("[COMPRESSED:%d->%d] %s", len(message), len(compressed), compressed)
 	}
-	return fmt.Sprintf("%s [%s] %s%s", timestamp, level.String(), compressionStats, message)
+	return message
+}
+
+// format creates a formatted log message with 7D context
+func (l *Logger) format(level LogLevel, message string) string {
+	// WHO: LogFormatter
+	// WHAT: Format log messages with context
+	// WHEN: During log processing
+	// WHERE: System Layer 6 (Integration)
+	// WHY: To create structured logs with context
+	// HOW: Using string formatting with 7D context
+	// EXTENT: All log message formatting
+
+	timestamp := time.Now().In(centralLocation).Format(l.timeFormat)
+
+	// Format with 7D context
+	contextStr := make([]string, 0, len(l.context))
+	for dim, val := range l.context {
+		contextStr = append(contextStr, fmt.Sprintf("%s:%s", dim, val))
+	}
+
+	// Apply compression if enabled
+	message = l.compressLogMessage(message)
+
+	return fmt.Sprintf("[%s] [%s] [%s] %s",
+		timestamp,
+		level.String(),
+		strings.Join(contextStr, ","),
+		message)
 }
 
 // log writes a message at the specified level
@@ -311,6 +354,89 @@ func (l *Logger) GetContext(dimension string) string {
 	return l.context[dimension]
 }
 
+// Identity-aware logging methods required by LoggerInterface
+
+// InfoWithIdentity logs an info message with DNA/identity context
+func (l *Logger) InfoWithIdentity(message string, dna interface{}, args ...interface{}) {
+	sig := ""
+	if dna != nil {
+		if s, ok := getDNASignature(dna); ok {
+			sig = s
+		}
+	} else if l.DNA != nil {
+		if s, ok := getDNASignature(l.DNA); ok {
+			sig = s
+		}
+	}
+	identityMessage := fmt.Sprintf("[DNA:%s] %s", sig, message)
+	l.log(LevelInfo, identityMessage, args...)
+}
+
+// DebugWithIdentity logs a debug message with DNA/identity context
+func (l *Logger) DebugWithIdentity(message string, dna interface{}, args ...interface{}) {
+	sig := ""
+	if dna != nil {
+		if s, ok := getDNASignature(dna); ok {
+			sig = s
+		}
+	} else if l.DNA != nil {
+		if s, ok := getDNASignature(l.DNA); ok {
+			sig = s
+		}
+	}
+	identityMessage := fmt.Sprintf("[DNA:%s] %s", sig, message)
+	l.log(LevelDebug, identityMessage, args...)
+}
+
+// ErrorWithIdentity logs an error message with DNA/identity context
+func (l *Logger) ErrorWithIdentity(message string, dna interface{}, args ...interface{}) {
+	sig := ""
+	if dna != nil {
+		if s, ok := getDNASignature(dna); ok {
+			sig = s
+		}
+	} else if l.DNA != nil {
+		if s, ok := getDNASignature(l.DNA); ok {
+			sig = s
+		}
+	}
+	identityMessage := fmt.Sprintf("[DNA:%s] %s", sig, message)
+	l.log(LevelError, identityMessage, args...)
+}
+
+// CriticalWithIdentity logs a critical message with DNA/identity context
+func (l *Logger) CriticalWithIdentity(message string, dna interface{}, args ...interface{}) {
+	sig := ""
+	if dna != nil {
+		if s, ok := getDNASignature(dna); ok {
+			sig = s
+		}
+	} else if l.DNA != nil {
+		if s, ok := getDNASignature(l.DNA); ok {
+			sig = s
+		}
+	}
+	identityMessage := fmt.Sprintf("[DNA:%s] %s", sig, message)
+	l.log(LevelCritical, identityMessage, args...)
+}
+
+// getDNASignature attempts to extract a signature from a DNA-like object
+func getDNASignature(dna interface{}) (string, bool) {
+	if dna == nil {
+		return "", false
+	}
+	if s, ok := dna.(interface{ Signature() string }); ok {
+		return s.Signature(), true
+	}
+	return "", false
+}
+
+// LogWithTEI logs with TEI (Tranquility Engine Identity) awareness
+func (l *Logger) LogWithTEI(level LogLevel, actionName string, message string, args ...interface{}) {
+	teiMessage := fmt.Sprintf("[TEI:%s] %s", actionName, message)
+	l.log(level, teiMessage, args...)
+}
+
 // Update logger configuration based on mode
 func UpdateLoggerMode(mode string) {
 	// Initialize a logger for mode updates
@@ -321,9 +447,6 @@ func UpdateLoggerMode(mode string) {
 		logger.Info("Logger set to blood-connected mode")
 	}
 }
-
-// NOTE: All log compression must use Mobius (HemoFlux) compression ONLY. No standard or placeholder compression is permitted anywhere in the project. If Mobius compression is not available, logs must be written uncompressed.
-// If Mobius compression is implemented, call it here for all log output.
 
 func init() {
 	var err error

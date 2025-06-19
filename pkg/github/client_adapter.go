@@ -22,8 +22,8 @@ import (
 
 	gh "github.com/google/go-github/v71/github"
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/common"
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log"
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/models"
-	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/translations"
 )
 
 // Logger defines a custom logger interface that supports structured logging
@@ -48,7 +48,7 @@ type ClientCompatibilityAdapter struct {
 	logger Logger
 
 	// Legacy context data
-	legacyContext translations.ContextVector7D
+	legacyContext log.ContextVector7D
 
 	// Advanced client reference
 	advancedClient *Client
@@ -73,10 +73,10 @@ func NewClientCompatibilityAdapter(opts common.ConnectionOptions) *ClientCompati
 		}
 	}
 	// Initialize context: use provided when map present, else default
-	var ctx translations.ContextVector7D
+	var ctx log.ContextVector7D
 	if opts.Context != nil {
 		m := common.Extract7DContext(opts.Context)
-		ctx = translations.ContextVector7D{
+		ctx = log.ContextVector7D{
 			Who:    m[common.ContextKeyWho],
 			What:   m[common.ContextKeyWhat],
 			When:   time.Now().Unix(),
@@ -89,7 +89,7 @@ func NewClientCompatibilityAdapter(opts common.ConnectionOptions) *ClientCompati
 	} else {
 		// Default context
 		now := time.Now().Unix()
-		ctx = translations.ContextVector7D{
+		ctx = log.ContextVector7D{
 			Who:    "GitHubClient",
 			What:   "APIClient",
 			When:   now,
@@ -416,7 +416,7 @@ func (a *ClientCompatibilityAdapter) CreateIssue(owner, repo, title, body string
 }
 
 // ParseResourceURI parses a resource URI into a ResourceURI struct
-func (a *ClientCompatibilityAdapter) ParseResourceURI(uri string) (*ResourceURI, error) {
+func (a *ClientCompatibilityAdapter) ParseResourceURI(uri string) (*models.ResourceURI, error) {
 	// WHO: URIParser
 	// WHAT: Parse resource URI
 	// WHEN: During URI operations
@@ -461,7 +461,7 @@ func (a *ClientCompatibilityAdapter) ParseResourceURI(uri string) (*ResourceURI,
 	repo := parts[1]
 
 	// Initialize ResourceURI
-	resourceURI := &ResourceURI{
+	resourceURI := &models.ResourceURI{
 		Scheme:    "repo",
 		Owner:     owner,
 		Repo:      repo,
@@ -562,7 +562,21 @@ func (a *ClientCompatibilityAdapter) ApplyMobiusCompression(data interface{}) (m
 
 	// Calculate time factor
 	now := time.Now().Unix()
-	t := float64(now-a.legacyContext.When) / 86400.0 // Days
+	var whenInt int64
+	switch v := a.legacyContext.When.(type) {
+	case int64:
+		whenInt = v
+	case float64:
+		whenInt = int64(v)
+	case int:
+		whenInt = int64(v)
+	case string:
+		parsed, err := strconv.ParseInt(v, 10, 64)
+		if err == nil {
+			whenInt = parsed
+		}
+	}
+	t := float64(now-whenInt) / 86400.0 // Days
 	if t < 0 {
 		t = 0
 	}
@@ -608,7 +622,7 @@ func (a *ClientCompatibilityAdapter) ApplyMobiusCompression(data interface{}) (m
 }
 
 // WithContext creates a copy of the client with updated context
-func (a *ClientCompatibilityAdapter) WithContext(ctx translations.ContextVector7D) *ClientCompatibilityAdapter {
+func (a *ClientCompatibilityAdapter) WithContext(ctx log.ContextVector7D) *ClientCompatibilityAdapter {
 	// WHO: ContextUpdater
 	// WHAT: Update client context
 	// WHEN: During context operations
@@ -626,7 +640,7 @@ func (a *ClientCompatibilityAdapter) WithContext(ctx translations.ContextVector7
 }
 
 // GetContext returns the current context
-func (a *ClientCompatibilityAdapter) GetContext() translations.ContextVector7D {
+func (a *ClientCompatibilityAdapter) GetContext() log.ContextVector7D {
 	// WHO: ContextProvider
 	// WHAT: Get client context
 	// WHEN: During context operations
@@ -639,7 +653,7 @@ func (a *ClientCompatibilityAdapter) GetContext() translations.ContextVector7D {
 }
 
 // CreateContext creates a new context with the given values
-func (a *ClientCompatibilityAdapter) CreateContext(what, why string, extent float64) translations.ContextVector7D {
+func (a *ClientCompatibilityAdapter) CreateContext(what, why string, extent float64) log.ContextVector7D {
 	// WHO: ContextCreator
 	// WHAT: Create new context
 	// WHEN: During context operations
@@ -649,7 +663,7 @@ func (a *ClientCompatibilityAdapter) CreateContext(what, why string, extent floa
 	// EXTENT: Context management operations
 
 	now := time.Now().Unix()
-	return translations.ContextVector7D{
+	return log.ContextVector7D{
 		Who:    a.legacyContext.Who,
 		What:   what,
 		When:   now,

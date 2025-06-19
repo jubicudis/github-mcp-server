@@ -27,7 +27,6 @@ import (
 	"github.com/google/go-github/v71/github"
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/common"
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log"
-	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/translations"
 
 	"github.com/mark3labs/mcp-go/mcp"
 
@@ -37,7 +36,7 @@ import (
 	"golang.org/x/oauth2"
 )
 
-// We use translations.ContextVector7D defined in the translations package
+// We use log.ContextVector7D defined in the translations package
 // Use translations.ToMap() function to convert the context vector to a map
 
 // We're using the Logger interface defined in client_adapter.go
@@ -128,7 +127,7 @@ type Client struct {
 	graphQLURL  *url.URL
 
 	// Context for requests
-	context *translations.ContextVector7D
+	context *log.ContextVector7D
 
 	// Cache for common operations
 	cache         map[string]*cacheItem
@@ -218,7 +217,7 @@ func NewAdvancedClient(options ClientOptions) (*Client, error) {
 
 	// Create 7D context for the client
 	now := time.Now().Unix()
-	contextVector := &translations.ContextVector7D{
+	contextVector := &log.ContextVector7D{
 		Who:    "GitHubClient",
 		What:   "GitHubIntegration",
 		When:   now,
@@ -249,7 +248,7 @@ func NewAdvancedClient(options ClientOptions) (*Client, error) {
 }
 
 // SetContext updates the client context
-func (c *Client) SetContext(context *translations.ContextVector7D) {
+func (c *Client) SetContext(context *log.ContextVector7D) {
 	// WHO: ContextManager
 	// WHAT: Update context
 	// WHEN: During context changes
@@ -825,7 +824,7 @@ func (c *Client) setHTTPRequestHeaders(req *http.Request, headers map[string]str
 
 	// Add context as header
 	if c.context != nil {
-		contextJSON, _ := json.Marshal(c.context.ToMap())
+		contextJSON, _ := json.Marshal(log.ToMap(*c.context))
 		req.Header.Set("X-MCP-Context", string(contextJSON))
 	}
 }

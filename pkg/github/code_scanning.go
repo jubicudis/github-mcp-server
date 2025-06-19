@@ -17,7 +17,7 @@ import (
 	"net/http"
 
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/common"
-	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/translations"
+	
 
 	"github.com/google/go-github/v71/github"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -36,7 +36,7 @@ import (
 // WHY: To provide vulnerability information
 // HOW: Using GitHub Code Scanning API
 // EXTENT: Single alert retrieval
-func GetCodeScanningAlert(getClient common.GetClientFn, t translations.TranslationHelperFunc) (mcp.Tool, server.ToolHandlerFunc) {
+func GetCodeScanningAlert(getClient common.GetClientFn, t common.TranslationHelperFunc) (mcp.Tool, server.ToolHandlerFunc) {
 	tool := mcp.NewTool("get_code_scanning_alert",
 		mcp.WithDescription(t("tool.get_code_scanning_alert.description", "Get details of a specific code scanning alert in a GitHub repository")),
 		mcp.WithString("owner",
@@ -115,7 +115,7 @@ func fetchCodeScanningAlert(ctx context.Context, client *github.Client, owner, r
 }
 
 // handleGetCodeScanningAlert implements the handler logic for getting a code scanning alert
-func handleGetCodeScanningAlert(getClient common.GetClientFn, t translations.TranslationHelperFunc) server.ToolHandlerFunc { // Add 't' parameter
+func handleGetCodeScanningAlert(getClient common.GetClientFn, t common.TranslationHelperFunc) server.ToolHandlerFunc { // Add 't' parameter
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		owner, repo, alertNumber, err := extractAlertParams(request)
 		if err != nil {
@@ -147,7 +147,7 @@ func handleGetCodeScanningAlert(getClient common.GetClientFn, t translations.Tra
 // WHY: To enumerate security vulnerabilities
 // HOW: Using GitHub Code Scanning API
 // EXTENT: Repository-wide alert enumeration
-func ListCodeScanningAlerts(getClient common.GetClientFn, t translations.TranslationHelperFunc) (mcp.Tool, server.ToolHandlerFunc) {
+func ListCodeScanningAlerts(getClient common.GetClientFn, t common.TranslationHelperFunc) (mcp.Tool, server.ToolHandlerFunc) {
 	tool := mcp.NewTool("list_code_scanning_alerts",
 		mcp.WithDescription(t("tool.list_code_scanning_alerts.description", "List code scanning alerts in a GitHub repository")),
 		mcp.WithString("owner",
@@ -214,7 +214,7 @@ func fetchCodeScanningAlerts(ctx context.Context, client *github.Client, owner, 
 }
 
 // handleListCodeScanningAlerts implements the handler logic for listing code scanning alerts
-func handleListCodeScanningAlerts(getClient common.GetClientFn, t translations.TranslationHelperFunc) server.ToolHandlerFunc { // Add 't' parameter
+func handleListCodeScanningAlerts(getClient common.GetClientFn, t common.TranslationHelperFunc) server.ToolHandlerFunc { // Add 't' parameter
 	return func(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		owner, repo, ref, state, err := extractCodeScanningParams(request)
 		if err != nil {

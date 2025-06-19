@@ -16,7 +16,7 @@ import (
 
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/common"
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log"
-	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/translations"
+	
 )
 
 // Constants from common.go made accessible in the bridge package
@@ -40,12 +40,12 @@ var (
 )
 
 // ConvertToContextVector7D converts a map[string]interface{} to a ContextVector7D
-func ConvertToContextVector7D(m map[string]interface{}) translations.ContextVector7D {
+func ConvertToContextVector7D(m map[string]interface{}) log.ContextVector7D {
 	if m == nil {
 		m = make(map[string]interface{})
 	}
 	
-	return translations.ContextVector7D{
+	return log.ContextVector7D{
 		Who:    getString(m, "Who", getString(m, "who", "BridgeClient")),
 		What:   getString(m, "What", getString(m, "what", "Communication")),
 		When:   getInt64(m, "When", getInt64(m, "when", time.Now().Unix())),

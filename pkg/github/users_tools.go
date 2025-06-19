@@ -7,7 +7,7 @@ import (
 
 	"github.com/google/go-github/v71/github"
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/common"
-	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/translations"
+	
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
 )
@@ -16,7 +16,7 @@ import (
 // If no username is provided, it fetches the authenticated user.
 func GetUser(
 	clientFn common.GetClientFn,
-	translateFn translations.TranslationHelperFunc,
+	translateFn common.TranslationHelperFunc,
 ) (mcp.Tool, server.ToolHandlerFunc) {
 	tool := mcp.NewTool("get_user",
 		mcp.WithDescription(translateFn("tool.get_user.description", "Retrieves information about a GitHub user. If no username is specified, it retrieves information about the authenticated user.")),

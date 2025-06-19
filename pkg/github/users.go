@@ -16,6 +16,7 @@ import (
 	"net/http"
 
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/common"
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/models"
 )
 
 // UserService provides methods for working with GitHub users
@@ -46,7 +47,7 @@ func NewUserService(client *Client) *UserService {
 	}
 }
 
-func (s *UserService) GetAuthenticated() (*User, error) {
+func (s *UserService) GetAuthenticated() (*models.User, error) {
 	// WHO: AuthenticatedUserGetter
 	// WHAT: Get authenticated user details
 	// WHEN: During authentication verification
@@ -55,12 +56,12 @@ func (s *UserService) GetAuthenticated() (*User, error) {
 	// HOW: Using GitHub API
 	// EXTENT: Current user data
 
-	user := new(User)
+	user := new(models.User)
 	err := s.client.Request(context.Background(), http.MethodGet, common.UserEndpoint, nil, user)
 	return user, err
 }
 
-func (s *UserService) Get(username string) (*User, error) {
+func (s *UserService) Get(username string) (*models.User, error) {
 	// WHO: UserGetter
 	// WHAT: Get user details
 	// WHEN: During user lookup
@@ -70,11 +71,11 @@ func (s *UserService) Get(username string) (*User, error) {
 	// EXTENT: Single user data
 
 	path := fmt.Sprintf("%s/%s", common.UserEndpoint, username)
-	user := new(User)
+	user := new(models.User)
 	err := s.client.Request(context.Background(), http.MethodGet, path, nil, user)
 	return user, err
 }
-func (s *UserService) ListFollowers(username string) ([]User, error) {
+func (s *UserService) ListFollowers(username string) ([]models.User, error) {
 	// WHO: FollowerLister
 	// WHAT: List user followers
 	// WHEN: During follower enumeration
@@ -84,14 +85,14 @@ func (s *UserService) ListFollowers(username string) ([]User, error) {
 	// EXTENT: Multiple user data
 
 	path := fmt.Sprintf("%s/%s/followers", common.UserEndpoint, username)
-	var followers []User
+	var followers []models.User
 	err := s.client.Request(context.Background(), http.MethodGet, path, nil, &followers)
 	return followers, err
 }
 
 // WHO: FollowingLister
 // WHAT: List users being followed
-func (s *UserService) ListFollowing(username string) ([]User, error) {
+func (s *UserService) ListFollowing(username string) ([]models.User, error) {
 	// WHO: FollowingLister
 	// WHAT: List users being followed
 	// WHEN: During following enumeration
@@ -101,7 +102,7 @@ func (s *UserService) ListFollowing(username string) ([]User, error) {
 	// EXTENT: Multiple user data
 
 	path := fmt.Sprintf("%s/%s/following", common.UserEndpoint, username)
-	var following []User
+	var following []models.User
 	err := s.client.Request(context.Background(), http.MethodGet, path, nil, &following)
 	return following, err
 }

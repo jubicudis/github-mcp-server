@@ -19,7 +19,6 @@ import (
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/bridge"
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/common"
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log"
-	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/translations"
 
 	"github.com/google/go-github/v71/github"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -44,7 +43,7 @@ func InitializeMCPBridge(enableCompression bool, logger log.LoggerInterface) err
 	// HOW: Using FallbackRoute utility
 	// EXTENT: System integration
 
-	context7d := translations.ContextVector7D{
+	context7d := log.ContextVector7D{
 		Who:    "GitHubMCPServer",
 		What:   "BridgeInit",
 		When:   time.Now().Unix(),
@@ -55,7 +54,7 @@ func InitializeMCPBridge(enableCompression bool, logger log.LoggerInterface) err
 		Source: "GitHubMCPServer",
 	}
 
-	// Convert translations.ContextVector7D to map[string]interface{}
+	// Convert log.ContextVector7D to map[string]interface{}
 	contextData := map[string]interface{}{
 		"Who":    context7d.Who,
 		"What":   context7d.What,
@@ -127,7 +126,7 @@ func (t *GitHubContextTranslator) TranslateToTNOS(githubContext map[string]inter
 	// HOW: Using context mapping
 	// EXTENT: Inbound messages
 
-	context7d := translations.ContextVector7D{
+	context7d := log.ContextVector7D{
 		Who:    "GitHubContextTranslator",
 		What:   "TranslateToTNOS",
 		When:   time.Now().Unix(),
@@ -138,7 +137,7 @@ func (t *GitHubContextTranslator) TranslateToTNOS(githubContext map[string]inter
 		Source: "GitHubMCPServer",
 	}
 	ctx := context.Background()
-	// Convert translations.ContextVector7D to map[string]interface{}
+	// Convert log.ContextVector7D to map[string]interface{}
 	contextData := map[string]interface{}{
 		"Who":    context7d.Who,
 		"What":   context7d.What,
@@ -192,7 +191,7 @@ func (t *GitHubContextTranslator) TranslateFromTNOS(tnosContext map[string]inter
 	// HOW: Using context mapping
 	// EXTENT: Outbound messages
 
-	context7d := translations.ContextVector7D{
+	context7d := log.ContextVector7D{
 		Who:    "GitHubContextTranslator",
 		What:   "TranslateFromTNOS",
 		When:   time.Now().Unix(),
@@ -203,7 +202,7 @@ func (t *GitHubContextTranslator) TranslateFromTNOS(tnosContext map[string]inter
 		Source: "GitHubMCPServer",
 	}
 	ctx := context.Background()
-	// Convert translations.ContextVector7D to map[string]interface{}
+	// Convert log.ContextVector7D to map[string]interface{}
 	contextData := map[string]interface{}{
 		"Who":    context7d.Who,
 		"What":   context7d.What,
@@ -254,7 +253,7 @@ func BridgeHealthCheck() (bool, error) {
 	// WHY: To ensure bridge availability
 	// HOW: Using FallbackRoute
 	// EXTENT: Bridge operational status
-	context7d := translations.ContextVector7D{
+	context7d := log.ContextVector7D{
 		Who:    "GitHubMCPServer",
 		What:   "HealthCheck",
 		When:   time.Now().Unix(),
@@ -266,7 +265,7 @@ func BridgeHealthCheck() (bool, error) {
 	}
 	ctx := context.Background()
 	healthy := false
-	// Convert translations.ContextVector7D to map[string]interface{}
+	// Convert log.ContextVector7D to map[string]interface{}
 	contextData := map[string]interface{}{
 		"Who":    context7d.Who,
 		"What":   context7d.What,
@@ -339,7 +338,7 @@ type MCPServer interface {
 	RegisterTool(tool mcp.Tool, handler server.ToolHandlerFunc)
 }
 
-func RegisterTools(server MCPServer, getClient common.GetClientFn, t translations.TranslationHelperFunc) {
+func RegisterTools(server MCPServer, getClient common.GetClientFn, t common.TranslationHelperFunc) {
 	// WHO: ToolRegistrar
 	// WHAT: Register GitHub tools
 	// WHEN: During server initialization

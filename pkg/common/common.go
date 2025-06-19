@@ -19,22 +19,31 @@ import (
 // Use websocket.Conn to satisfy import and avoid unused import lint error
 var _ = (*websocket.Conn)(nil)
 
+// TranslationHelperFunc is a function type for simple string translations
+// Moved from translations package to eliminate dependency
+type TranslationHelperFunc func(key string, defaultValue string) string
+
+// NullTranslationHelperFunc is a no-op implementation that returns the default value
+var NullTranslationHelperFunc TranslationHelperFunc = func(key string, defaultValue string) string {
+	return defaultValue
+}
+
 // ========== From bridge/common.go ==========
 const (
-	MCPVersion10          = "1.0"
-	MCPVersion20          = "2.0"
-	MCPVersion30          = "3.0"
-	DefaultBridgeURL      = "ws://localhost:10619/bridge"
-	BridgeServiceName     = "github_mcp_bridge"
-	MaxReconnectAttempts  = 10
-	ReconnectDelay        = 5 * time.Second
-	HealthCheckInterval   = 30 * time.Second
-	MessageBufferSize     = 100
-	WriteTimeout          = 10 * time.Second
-	ReadTimeout           = 15 * time.Second
-	PingInterval          = 30 * time.Second
-	MaxMessageSize        = 10485760
-	DefaultProtocolVersion= "3.0"
+	MCPVersion10           = "1.0"
+	MCPVersion20           = "2.0"
+	MCPVersion30           = "3.0"
+	DefaultBridgeURL       = "ws://localhost:10619/bridge"
+	BridgeServiceName      = "github_mcp_bridge"
+	MaxReconnectAttempts   = 10
+	ReconnectDelay         = 5 * time.Second
+	HealthCheckInterval    = 30 * time.Second
+	MessageBufferSize      = 100
+	WriteTimeout           = 10 * time.Second
+	ReadTimeout            = 15 * time.Second
+	PingInterval           = 30 * time.Second
+	MaxMessageSize         = 10485760
+	DefaultProtocolVersion = "3.0"
 
 	// Canonical QHP port assignments for TNOS (see memory refresh)
 	// TNOS MCP server: 9001
@@ -62,25 +71,25 @@ const (
 
 // ConnectionOptions holds parameters for establishing a WebSocket connection.
 type ConnectionOptions struct {
-	ServerURL             string
-	ServerPort            int // Can be part of ServerURL, but kept for potential specific use
-	Logger                interface{} // Expecting log.LoggerInterface, but using interface{} for broader compatibility initially
-	MaxRetries            int
-	RetryDelay            time.Duration
-	Timeout               time.Duration
-	QHPIntent             string // New: For X-QHP-Intent header (e.g., "TNOS MCP", "Copilot LLM", "GitHub MCP")
-	SourceComponent       string // New: For X-QHP-Source header (e.g., "GitHubMCPServer-TNOSBridge")
-	CustomHeaders         map[string]string
-	CompressionEnabled    bool
-	CompressionThreshold  int
-	CompressionAlgorithm  string
-	CompressionLevel      int
+	ServerURL               string
+	ServerPort              int         // Can be part of ServerURL, but kept for potential specific use
+	Logger                  interface{} // Expecting log.LoggerInterface, but using interface{} for broader compatibility initially
+	MaxRetries              int
+	RetryDelay              time.Duration
+	Timeout                 time.Duration
+	QHPIntent               string // New: For X-QHP-Intent header (e.g., "TNOS MCP", "Copilot LLM", "GitHub MCP")
+	SourceComponent         string // New: For X-QHP-Source header (e.g., "GitHubMCPServer-TNOSBridge")
+	CustomHeaders           map[string]string
+	CompressionEnabled      bool
+	CompressionThreshold    int
+	CompressionAlgorithm    string
+	CompressionLevel        int
 	CompressionPreserveKeys []string
-	FilterCallback        func(cell interface{}) bool // Using interface{} for cell type initially
+	FilterCallback          func(cell interface{}) bool // Using interface{} for cell type initially
 	// Additional fields required by client.go
-	Context               map[string]interface{} // 7D context data
-	Credentials           map[string]string      // Authentication credentials
-	Headers               map[string]string      // Additional HTTP headers (alias for CustomHeaders)
+	Context     map[string]interface{} // 7D context data
+	Credentials map[string]string      // Authentication credentials
+	Headers     map[string]string      // Additional HTTP headers (alias for CustomHeaders)
 	// Add other relevant options like TLS config, proxy settings, etc.
 }
 
@@ -116,15 +125,14 @@ var (
 
 // ========== From github/common.go ==========
 
-type StringTranslationFunc func(key, defaultValue string) string
-
-type ContextTranslationFunc func(ctx context.Context, contextData map[string]interface{}) (map[string]interface{}, error)
+//nolint:unused
+type PaginationParams struct{ page, perPage int }
 
 //nolint:unused
-type PaginationParams struct { page, perPage int }
-
-//nolint:unused
-type prParams struct { owner, repo string; number int }
+type prParams struct {
+	owner, repo string
+	number      int
+}
 
 // Use PaginationParams and prParams to avoid unused lint errors
 var _ = PaginationParams{}
@@ -157,12 +165,17 @@ const (
 )
 
 func ToJSON(v interface{}) (string, error) {
-	if v == nil { return "{}", nil }
-	data, err := json.Marshal(v); return string(data), err
+	if v == nil {
+		return "{}", nil
+	}
+	data, err := json.Marshal(v)
+	return string(data), err
 }
 
 func DecodeJSON(data string, v interface{}) error {
-	if data == "" { return ErrEmptyMessage }
+	if data == "" {
+		return ErrEmptyMessage
+	}
 	return json.Unmarshal([]byte(data), v)
 }
 
@@ -179,10 +192,20 @@ const (
 	TestBridgeAddress = "localhost:9000"
 )
 
-func ToJSONTest(v interface{}) (string, error) { b, err := json.Marshal(v); return string(b), err }
+func ToJSONTest(v interface{}) (string, error)      { b, err := json.Marshal(v); return string(b), err }
 func FromJSONTest(data string, v interface{}) error { return json.Unmarshal([]byte(data), v) }
-func NewTestContext() (context.Context, context.CancelFunc) { return context.WithTimeout(context.Background(), TestTimeout) }
-func ErrorsEqual(err1, err2 error) bool { if err1 == nil && err2 == nil { return true }; if err1 == nil || err2 == nil { return false }; return err1.Error() == err2.Error() }
+func NewTestContext() (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.Background(), TestTimeout)
+}
+func ErrorsEqual(err1, err2 error) bool {
+	if err1 == nil && err2 == nil {
+		return true
+	}
+	if err1 == nil || err2 == nil {
+		return false
+	}
+	return err1.Error() == err2.Error()
+}
 
 // ========== Generic Map Helper Functions ==========
 
@@ -191,7 +214,7 @@ func GetString(m map[string]interface{}, key, defaultValue string) string {
 	if m == nil {
 		return defaultValue
 	}
-	
+
 	if val, ok := m[key]; ok {
 		if str, ok := val.(string); ok {
 			return str
@@ -205,7 +228,7 @@ func GetInt64(m map[string]interface{}, key string, defaultValue int64) int64 {
 	if m == nil {
 		return defaultValue
 	}
-	
+
 	if val, ok := m[key]; ok {
 		switch v := val.(type) {
 		case int64:
@@ -224,7 +247,7 @@ func GetFloat64(m map[string]interface{}, key string, defaultValue float64) floa
 	if m == nil {
 		return defaultValue
 	}
-	
+
 	if val, ok := m[key]; ok {
 		switch v := val.(type) {
 		case float64:
@@ -249,9 +272,14 @@ func Ptr[T any](v T) *T {
 
 func OptionalParamOK[T any](r mcp.CallToolRequest, p string) (value T, ok bool, err error) {
 	val, exists := r.Params.Arguments[p]
-	if !exists { return }
+	if !exists {
+		return
+	}
 	value, ok = val.(T)
-	if !ok { err = fmt.Errorf("parameter %s is not of type %T, is %T", p, value, val); ok = true }
+	if !ok {
+		err = fmt.Errorf("parameter %s is not of type %T, is %T", p, value, val)
+		ok = true
+	}
 	return
 }
 
@@ -270,7 +298,9 @@ func RequiredParam[T comparable](r mcp.CallToolRequest, p string) (T, error) {
 
 func RequiredIntParam(r mcp.CallToolRequest, p string) (int, error) {
 	v, err := RequiredParam[float64](r, p)
-	if err != nil { return 0, err }
+	if err != nil {
+		return 0, err
+	}
 	return int(v), nil
 }
 
@@ -281,8 +311,12 @@ func OptionalIntParam(r mcp.CallToolRequest, p string) (int, error) {
 
 func OptionalIntParamWithDefault(r mcp.CallToolRequest, p string, d int) (int, error) {
 	v, err := OptionalIntParam(r, p)
-	if err != nil { return 0, err }
-	if v == 0 { return d, nil }
+	if err != nil {
+		return 0, err
+	}
+	if v == 0 {
+		return d, nil
+	}
 	return v, nil
 }
 
@@ -320,6 +354,7 @@ func WithPagination(request mcp.CallToolRequest) (page, perPage int, err error) 
 	}
 	return page, perPage, nil
 }
+
 // ===== End MCP Parameter Helpers =====
 
 // LogHelicalMemory logs an event to the Helical Memory system with 7D context.
@@ -408,12 +443,12 @@ func CreateErrorResponse(translateFn interface{}, key, format string, args ...in
 // EXTENT: All bridge client usage
 
 type Client struct {
-   Conn              *websocket.Conn
-   Options           ConnectionOptions
-   State             ConnectionState
-   MessageHandler    MessageHandler
-   DisconnectHandler DisconnectHandler
-   Stats             BridgeStats
-   Ctx               context.Context
-   CancelFunc        context.CancelFunc
+	Conn              *websocket.Conn
+	Options           ConnectionOptions
+	State             ConnectionState
+	MessageHandler    MessageHandler
+	DisconnectHandler DisconnectHandler
+	Stats             BridgeStats
+	Ctx               context.Context
+	CancelFunc        context.CancelFunc
 }
