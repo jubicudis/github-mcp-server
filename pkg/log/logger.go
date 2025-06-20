@@ -17,8 +17,6 @@ import (
 
 type LogLevel int
 
-var centralLocation *time.Location
-
 // Logger provides a 7D context-aware logging facility, event-driven via TriggerMatrix
 // All log entries are emitted as ATM triggers and routed through the TriggerMatrix for HemoFlux compression and helical memory storage
 // No file output, no direct memory calls
@@ -317,17 +315,10 @@ func (l *Logger) LogWithTEI(level LogLevel, actionName string, message string, a
 // Update logger configuration based on mode
 func UpdateLoggerMode(mode string, triggerMatrix *tranquilspeak.TriggerMatrix) {
 	logger := NewLogger(triggerMatrix).WithLevel(LevelInfo)
-	if mode == "standalone" {
+	switch mode {
+	case "standalone":
 		logger.Info("Logger set to standalone mode")
-	} else if mode == "blood-connected" {
+	case "blood-connected":
 		logger.Info("Logger set to blood-connected mode")
-	}
-}
-
-func init() {
-	var err error
-	centralLocation, err = time.LoadLocation("America/Chicago")
-	if err != nil {
-		centralLocation = time.Local // fallback
 	}
 }

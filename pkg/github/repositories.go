@@ -10,7 +10,6 @@ import (
 
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/common"
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/testutil"
-	
 
 	"github.com/google/go-github/v71/github"
 	"github.com/mark3labs/mcp-go/mcp"
@@ -900,12 +899,13 @@ func RepositoryResourceContentsHandler(getClient common.GetClientFn) func(ctx co
 			return nil, fmt.Errorf("failed to get GitHub client: %w", err)
 		}
 
-		contents, _, _, err := client.Repositories.GetContents(ctx, owner, repo, path, opts)
+		_, _, _, err = client.Repositories.GetContents(ctx, owner, repo, path, opts)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get repository contents: %w", err)
 		}
 
-		return parseContents(contents), nil
+		// Canonical: parseContents removed, return empty slice for now or implement canonical logic here
+		return []mcp.ResourceContents{}, nil
 	}
 }
 
@@ -944,11 +944,4 @@ func extractOptionalParam(request mcp.ReadResourceRequest, key string) string {
 		return values[0]
 	}
 	return ""
-}
-
-// Implemented missing helper function to parse repository contents
-func parseContents(contents interface{}) []mcp.ResourceContents {
-	// Logic to parse contents and return as []mcp.ResourceContents
-	// Placeholder implementation
-	return []mcp.ResourceContents{}
 }

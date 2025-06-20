@@ -177,12 +177,3 @@ func TestOptionalParamOKFloat64(t *testing.T) {
 // Reference only helpers from /pkg/common and /pkg/testutil
 // No import cycles, duplicate imports, or undefined helpers
 // All test cases must match the actual signatures and logic of helper.go
-
-// 7D Contextual Logging Stub (for future Helical Memory integration)
-func log7DContext(t *testing.T, who, what, when, where, why, how, extent string) {
-	// TODO: Integrate with Helical Memory system for 7D contextual logging
-	// Example: helicalMemory.Log(who, what, when, where, why, how, extent)
-}
-
-// (File deprecated: all helpers moved to pkg/testutil/test_helpers.go)
-// This file is intentionally left empty to avoid import cycles.

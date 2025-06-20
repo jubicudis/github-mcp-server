@@ -55,100 +55,98 @@ type Config struct {
 
 func main() {
 	var err error
-	// 1. Load symbol registry FIRST (before logger, triggers, or anything else)
+
+	// 1. Load Symbol Registry (TranquilSpeak, event/trigger definitions)
 	err = tranquilspeak.LoadSymbolRegistry("/Users/Jubicudis/Tranquility-Neuro-OS/systems/tranquilspeak/circulatory/github-mcp-server/symbolic_mapping_registry_autogen_20250603.tsq")
 	if err != nil {
 		panic("[FATAL] Could not load TranquilSpeak symbol registry: " + err.Error())
 	}
-	// 2. Load configuration
+
+	// 2. Load Formula Registry (Mobius, HemoFlux, etc.)
 	config := loadConfig()
-
-	// 3. Initialize the canonical TriggerMatrix (ATM)
-	triggerMatrix := tranquilspeak.NewTriggerMatrix()
-	// 4. Initialize logger (7D/AI-DNA-aware, helical memory backend)
-	logger = initLogger(config, triggerMatrix)
-	logger.Info("[BOOT] GitHub MCP Server starting up (7D/ATM/AI-DNA/TranquilSpeak)")
-
-	// 5. Initialize 7D context (AI-DNA-aware)
-	mainContext = translations.NewContextVector7D(map[string]interface{}{
-		"who": "MCPServer",
-		"what": "Startup",
-		"when": time.Now().Unix(),
-		"where": "Layer6",
-		"why": "SystemInitialization",
-		"how": "CanonicalMain",
-		"extent": 1.0,
-		"source": "github_mcp",
-	})
-
-	// 6. Load formula registry and log all formulas
 	formulaPath := config.FormulaRegistryPath
 	if formulaPath == "" {
 		formulaPath = filepath.Join("config", "formulas.json")
 	}
 	if err := bridge.LoadBridgeFormulaRegistry(formulaPath); err != nil {
-		logger.Error("Failed to load formula registry: %v", err)
-	} else {
-		reg := bridge.GetBridgeFormulaRegistry()
-		if reg != nil {
-			for _, f := range reg.ListFormulas() {
-				logger.Info("Formula loaded", "id", f.ID, "desc", f.Description, "meta", f.Metadata)
+		fmt.Fprintf(os.Stderr, "Failed to load formula registry: %v\n", err)
+	}
+
+	// 3. Initialize 7D Context and Memory (ContextVector7D, Helical Memory, etc.)
+	mainContext = translations.NewContextVector7D(map[string]interface{}{
+		"who":    "MCPServer",
+		"what":   "Startup",
+		"when":   time.Now().Unix(),
+		"where":  "Layer6",
+		"why":    "SystemInitialization",
+		"how":    "CanonicalMain",
+		"extent": 1.0,
+		"source": "github_mcp",
+	})
+
+	// 4. Configure Canonical Logging and Event Routing (TriggerMatrix, logger)
+	triggerMatrix := tranquilspeak.NewTriggerMatrix()
+	logger = initLogger(config, triggerMatrix)
+	logger.Info("[BOOT] GitHub MCP Server starting up (7D/ATM/AI-DNA/TranquilSpeak)")
+
+	// 5. Register All Canonical Tools and Bridges (Context orchestrator, event triggers)
+	orchestrator := pkgcontext.NewContextOrchestrator(logger)
+	logger.Info("Context orchestrator initialized (ATM/7D/biomimetic)")
+	registerATMEventTriggers(orchestrator)
+
+	// 6. Initialize Port Assignment AI (Mobius Collapse, formula registry-driven)
+	// (If there is a Mobius/port assignment module, initialize it here. Otherwise, ensure formula registry is loaded.)
+	// Example: bridge.GetBridgeFormulaRegistry().EnsureHemofluxFormulas()
+	if reg := bridge.GetBridgeFormulaRegistry(); reg != nil {
+		reg.EnsureHemofluxFormulas()
+		logger.Info("Mobius Collapse/Port Assignment AI initialized (formula registry-driven)")
+	}
+
+	// 7. Start MCP Server (REST + WebSocket)
+	startGitHubMCPServer(config, orchestrator)
+	logger.Info("GitHub MCP Server started (REST + WebSocket)")
+
+	// 8. Start Bridge to TNOS MCP Server (after MCP server is running and ready)
+	if config.BridgeEnabled {
+		bridgeOpts := common.ConnectionOptions{
+			ServerURL:   fmt.Sprintf("ws://%s:%d/bridge", config.Host, config.BridgePort),
+			ServerPort:  config.BridgePort,
+			Context:     mainContext.ToMap(),
+			Logger:      logger,
+			Timeout:     60 * time.Second,
+			MaxRetries:  5,
+			RetryDelay:  2 * time.Second,
+			Credentials: map[string]string{"source": "github-mcp-server"},
+			Headers:     map[string]string{"X-QHP-Version": "1.0"},
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+		defer cancel()
+		bridgeClient, err = bridge.NewClient(ctx, bridgeOpts, triggerMatrix)
+		if err != nil {
+			logger.Error("Failed to connect to MCP bridge: %v", err)
+		} else {
+			logger.Info("MCP bridge client connected to TNOS MCP server")
+			// Optionally send a status message
+			statusMsg := common.Message{
+				Type:      "status",
+				Timestamp: time.Now().Unix(),
+				Payload: map[string]interface{}{
+					"event":   "startup",
+					"context": mainContext.ToMap(),
+					"message": "GitHub MCP Server startup complete. Bridge client active.",
+				},
+			}
+			err := bridgeClient.Send(statusMsg)
+			if err != nil {
+				logger.Warn("Failed to send bridge status message: %v", err)
+			} else {
+				logger.Info("Bridge status message sent to MCP bridge.")
 			}
 		}
 	}
 
-	// 7. Initialize canonical MCP bridge client
-	bridgeOpts := common.ConnectionOptions{
-		ServerURL: fmt.Sprintf("ws://%s:%d/bridge", config.Host, config.BridgePort),
-		ServerPort: config.BridgePort,
-		Context: mainContext.ToMap(),
-		Logger: logger,
-		Timeout: 60 * time.Second,
-		MaxRetries: 5,
-		RetryDelay: 2 * time.Second,
-		Credentials: map[string]string{"source": "github-mcp-server"},
-		Headers: map[string]string{"X-QHP-Version": "1.0"},
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
-	defer cancel()
-	bridgeClient, err = bridge.NewClient(ctx, bridgeOpts, triggerMatrix)
-	if err != nil {
-		logger.Error("Failed to connect to MCP bridge: %v", err)
-	} else {
-		logger.Info("MCP bridge client connected")
-	}
-
-	// 8. Initialize context orchestrator (ATM/7D/biomimetic)
-	orchestrator := pkgcontext.NewContextOrchestrator(logger)
-	logger.Info("Context orchestrator initialized (ATM/7D/biomimetic)")
-
-	// 9. Register ATM event triggers
-	registerATMEventTriggers(orchestrator)
-
-	// 10. Start GitHub MCP API server (REST + WebSocket)
-	startGitHubMCPServer(config, orchestrator)
-
-	// 11. Wait for shutdown signal
+	// 9. Wait for shutdown signal
 	waitForShutdown()
-
-	// 12. Send a bridge status message to the MCP bridge (demonstrate bridgeClient usage)
-	if bridgeClient != nil {
-		statusMsg := common.Message{
-			Type:      "status",
-			Timestamp: time.Now().Unix(),
-			Payload: map[string]interface{}{
-				"event":   "startup",
-				"context": mainContext.ToMap(),
-				"message": "GitHub MCP Server startup complete. Bridge client active.",
-			},
-		}
-		err := bridgeClient.Send(statusMsg)
-		if err != nil {
-			logger.Warn("Failed to send bridge status message: %v", err)
-		} else {
-			logger.Info("Bridge status message sent to MCP bridge.")
-		}
-	}
 }
 
 func loadConfig() Config {

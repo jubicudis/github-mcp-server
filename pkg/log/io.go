@@ -512,9 +512,10 @@ func (bw *BufferedContextWriter) SetContext(context *ContextVector7D) {
 func ConfigureIOForBridge(mode string, triggerMatrix *tranquilspeak.TriggerMatrix) {
 	// Use unified logger instead of stdout prints
 	logger := NewNopLogger(triggerMatrix).WithLevel(LevelInfo) // Event-driven only
-	if mode == "standalone" {
+	switch mode {
+	case "standalone":
 		logger.Info("I/O configured for standalone mode")
-	} else if mode == "blood-connected" {
+	case "blood-connected":
 		logger.Info("I/O configured for blood-connected mode")
 	}
 }

@@ -1025,22 +1025,6 @@ func (c *Client) getCachedItem(key string) (interface{}, bool) {
 	return item.data, true
 }
 
-// clearCache clears the entire cache
-func (c *Client) clearCache() {
-	// WHO: CacheCleaner
-	// WHAT: Clear cache
-	// WHEN: During cache management
-	// WHERE: System Layer 6 (Integration)
-	// WHY: To refresh cached data
-	// HOW: Using cache invalidation
-	// EXTENT: All cache items
-
-	c.cacheMutex.Lock()
-	defer c.cacheMutex.Unlock()
-
-	c.cache = make(map[string]*cacheItem)
-}
-
 // ParseResourceURI parses a GitHub resource URI
 func ParseResourceURI(uri string) (map[string]string, error) {
 	// WHO: URIParser

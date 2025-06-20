@@ -52,7 +52,6 @@ func InitializeMCPBridge(enableCompression bool, logger log.LoggerInterface, tri
 		Why:    "Startup",
 		How:    "FallbackRoute",
 		Extent: 1.0,
-		Source: "GitHubMCPServer",
 	}
 
 	// Convert log.ContextVector7D to map[string]interface{}
@@ -135,7 +134,6 @@ func (t *GitHubContextTranslator) TranslateToTNOS(githubContext map[string]inter
 		Why:    "ContextTranslation",
 		How:    "FallbackRoute",
 		Extent: 1.0,
-		Source: "GitHubMCPServer",
 	}
 	ctx := context.Background()
 	// Convert log.ContextVector7D to map[string]interface{}
@@ -200,7 +198,6 @@ func (t *GitHubContextTranslator) TranslateFromTNOS(tnosContext map[string]inter
 		Why:    "ContextTranslation",
 		How:    "FallbackRoute",
 		Extent: 1.0,
-		Source: "GitHubMCPServer",
 	}
 	ctx := context.Background()
 	// Convert log.ContextVector7D to map[string]interface{}
@@ -262,7 +259,6 @@ func BridgeHealthCheck(triggerMatrix *tranquilspeak.TriggerMatrix) (bool, error)
 		Why:    "Monitoring",
 		How:    "FallbackRoute",
 		Extent: 1.0,
-		Source: "GitHubMCPServer",
 	}
 	ctx := context.Background()
 	healthy := false
