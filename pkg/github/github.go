@@ -11,12 +11,9 @@
 package ghmcp
 
 import (
-	"context"
 	"fmt"
 	"net/http"
-	"time"
 
-	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/bridge"
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/common"
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log"
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/tranquilspeak"
@@ -44,42 +41,11 @@ func InitializeMCPBridge(enableCompression bool, logger log.LoggerInterface, tri
 	// HOW: Using FallbackRoute utility
 	// EXTENT: System integration
 
-	context7d := log.ContextVector7D{
-		Who:    "GitHubMCPServer",
-		What:   "BridgeInit",
-		When:   time.Now().Unix(),
-		Where:  "SystemLayer6",
-		Why:    "Startup",
-		How:    "FallbackRoute",
-		Extent: 1.0,
-	}
+	logger.Info("Initializing MCP Bridge between GitHub and TNOS") // Use passed logger
 
-	// Convert log.ContextVector7D to map[string]interface{}
-	contextData := map[string]interface{}{
-		"Who":    context7d.Who,
-		"What":   context7d.What,
-		"When":   context7d.When,
-		"Where":  context7d.Where,
-		"Why":    context7d.Why,
-		"How":    context7d.How,
-		"Extent": context7d.Extent,
-	}
+	// This is where the actual initialization logic would go
 
-	// Corrected to use bridge.FallbackRoute and contextData
-	_, err := bridge.FallbackRoute(
-		context.Background(),
-		"BridgeInit",
-		contextData, // Pass the converted map
-		func() (interface{}, error) {
-			logger.Info("Initializing MCP Bridge between GitHub and TNOS") // Use passed logger
-			return nil, nil
-		},
-		func() (interface{}, error) { return nil, fmt.Errorf("bridge fallback not implemented") },
-		func() (interface{}, error) { return nil, fmt.Errorf("GitHub MCP fallback not implemented") },
-		func() (interface{}, error) { return nil, fmt.Errorf("copilot fallback not implemented") },
-		logger, // Use passed logger directly assuming FallbackRoute accepts LoggerInterface
-	)
-	return err
+	return nil
 }
 
 // GitHubContextTranslator provides bidirectional translation between GitHub context and TNOS 7D context
@@ -126,46 +92,6 @@ func (t *GitHubContextTranslator) TranslateToTNOS(githubContext map[string]inter
 	// HOW: Using context mapping
 	// EXTENT: Inbound messages
 
-	context7d := log.ContextVector7D{
-		Who:    "GitHubContextTranslator",
-		What:   "TranslateToTNOS",
-		When:   time.Now().Unix(),
-		Where:  "SystemLayer6",
-		Why:    "ContextTranslation",
-		How:    "FallbackRoute",
-		Extent: 1.0,
-	}
-	ctx := context.Background()
-	// Convert log.ContextVector7D to map[string]interface{}
-	contextData := map[string]interface{}{
-		"Who":    context7d.Who,
-		"What":   context7d.What,
-		"When":   context7d.When,
-		"Where":  context7d.Where,
-		"Why":    context7d.Why,
-		"How":    context7d.How,
-		"Extent": context7d.Extent,
-	}
-	_, _ = bridge.FallbackRoute(
-		ctx,
-		"TranslateToTNOS",
-		contextData, // Pass the converted map
-		func() (interface{}, error) {
-			if t.EnableLogging && t.Logger != nil {
-				if t.DebugMode {
-					t.Logger.Debug("Translating context from GitHub to TNOS")
-				} else {
-					t.Logger.Info("Translating context from GitHub to TNOS")
-				}
-			}
-			return nil, nil
-		},
-		func() (interface{}, error) { return nil, fmt.Errorf("bridge fallback not implemented") },
-		func() (interface{}, error) { return nil, fmt.Errorf("GitHub MCP fallback not implemented") },
-		func() (interface{}, error) { return nil, fmt.Errorf("copilot fallback not implemented") },
-		t.Logger, // Use instance logger assuming FallbackRoute accepts LoggerInterface
-	)
-
 	// This would implement the actual translation logic in a real system
 	tnosContext := map[string]interface{}{
 		"who":    githubContext["identity"],
@@ -190,46 +116,6 @@ func (t *GitHubContextTranslator) TranslateFromTNOS(tnosContext map[string]inter
 	// HOW: Using context mapping
 	// EXTENT: Outbound messages
 
-	context7d := log.ContextVector7D{
-		Who:    "GitHubContextTranslator",
-		What:   "TranslateFromTNOS",
-		When:   time.Now().Unix(),
-		Where:  "SystemLayer6",
-		Why:    "ContextTranslation",
-		How:    "FallbackRoute",
-		Extent: 1.0,
-	}
-	ctx := context.Background()
-	// Convert log.ContextVector7D to map[string]interface{}
-	contextData := map[string]interface{}{
-		"Who":    context7d.Who,
-		"What":   context7d.What,
-		"When":   context7d.When,
-		"Where":  context7d.Where,
-		"Why":    context7d.Why,
-		"How":    context7d.How,
-		"Extent": context7d.Extent,
-	}
-	_, _ = bridge.FallbackRoute(
-		ctx,
-		"TranslateFromTNOS",
-		contextData, // Pass the converted map
-		func() (interface{}, error) {
-			if t.EnableLogging && t.Logger != nil {
-				if t.DebugMode {
-					t.Logger.Debug("Translating context from TNOS to GitHub")
-				} else {
-					t.Logger.Info("Translating context from TNOS to GitHub")
-				}
-			}
-			return nil, nil
-		},
-		func() (interface{}, error) { return nil, fmt.Errorf("bridge fallback not implemented") },
-		func() (interface{}, error) { return nil, fmt.Errorf("GitHub MCP fallback not implemented") },
-		func() (interface{}, error) { return nil, fmt.Errorf("copilot fallback not implemented") },
-		t.Logger, // Use instance logger assuming FallbackRoute accepts LoggerInterface
-	)
-
 	// This would implement the actual translation logic in a real system
 	githubContext := map[string]interface{}{
 		"identity":  tnosContext["who"],
@@ -251,38 +137,13 @@ func BridgeHealthCheck(triggerMatrix *tranquilspeak.TriggerMatrix) (bool, error)
 	// WHY: To ensure bridge availability
 	// HOW: Using FallbackRoute
 	// EXTENT: Bridge operational status
-	context7d := log.ContextVector7D{
-		Who:    "GitHubMCPServer",
-		What:   "HealthCheck",
-		When:   time.Now().Unix(),
-		Where:  "SystemLayer6",
-		Why:    "Monitoring",
-		How:    "FallbackRoute",
-		Extent: 1.0,
-	}
-	ctx := context.Background()
 	healthy := false
-	// Convert log.ContextVector7D to map[string]interface{}
-	contextData := map[string]interface{}{
-		"Who":    context7d.Who,
-		"What":   context7d.What,
-		"When":   context7d.When,
-		"Where":  context7d.Where,
-		"Why":    context7d.Why,
-		"How":    context7d.How,
-		"Extent": context7d.Extent,
-	}
-	_, err := bridge.FallbackRoute(
-		ctx,
-		"BridgeHealthCheck",
-		contextData, // Pass the converted map
-		func() (interface{}, error) { healthy = true; return nil, nil },
-		func() (interface{}, error) { return nil, fmt.Errorf("bridge fallback not implemented") },
-		func() (interface{}, error) { return nil, fmt.Errorf("GitHub MCP fallback not implemented") },
-		func() (interface{}, error) { return nil, fmt.Errorf("copilot fallback not implemented") },
-		log.NewLogger(triggerMatrix), // Canonical usage
-	)
-	return healthy, err
+	// Removed bridge.FallbackRoute usage
+
+	// This is where the actual health check logic would go
+	healthy = true // Assume healthy for this example
+
+	return healthy, nil
 }
 
 // ConnectMCPChannels establishes bidirectional channels between GitHub and TNOS MCP

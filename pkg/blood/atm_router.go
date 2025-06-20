@@ -376,7 +376,7 @@ func (bc *BloodCirculation) EmergencyCirculationStop(reason string) error {
 		fmt.Sprintf("EMERGENCY CIRCULATION STOP: %s", reason))
 	
 	// Create emergency stop trigger
-	emergencyTrigger := tranquilspeak.CreateTrigger(
+	emergencyTrigger := bc.triggerMatrix.CreateTrigger(
 		"BloodCirculation",
 		"Emergency_Circulation_Stop",
 		"SystemLayer5_Quantum_Circulatory",
@@ -409,7 +409,7 @@ func (bc *BloodCirculation) RestoreCirculationAfterEmergency() error {
 		"Restoring circulation after emergency stop")
 	
 	// Create restoration trigger
-	restorationTrigger := tranquilspeak.CreateTrigger(
+	restorationTrigger := bc.triggerMatrix.CreateTrigger(
 		"BloodCirculation",
 		"Circulation_Restoration",
 		"SystemLayer5_Quantum_Circulatory",

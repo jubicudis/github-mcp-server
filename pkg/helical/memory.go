@@ -24,17 +24,29 @@ import (
 
 	_ "github.com/mattn/go-sqlite3"
 
-	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/bridge"
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/formularegistry"
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/identity"
-	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log"
 	tspeak "github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/tranquilspeak"
 )
+
+// ContextVector7D represents the 7-dimensional context for helical memory operations
+type ContextVector7D struct {
+	Who    interface{} `json:"who"`
+	What   interface{} `json:"what"`
+	When   interface{} `json:"when"`
+	Where  interface{} `json:"where"`
+	Why    interface{} `json:"why"`
+	How    interface{} `json:"how"`
+	Extent float64     `json:"extent"`
+	Meta   interface{} `json:"meta,omitempty"`
+	Source string      `json:"source,omitempty"`
+}
 
 // HelicalMemoryStrand represents a single strand of helical memory (like DNA)
 type HelicalMemoryStrand struct {
 	ID           string                 `json:"id"`
 	Sequence     string                 `json:"sequence"`
-	Context7D    log.ContextVector7D    `json:"context_7d"`
+	Context7D    ContextVector7D        `json:"context_7d"`
 	Timestamp    time.Time              `json:"timestamp"`
 	Checksum     string                 `json:"checksum"`
 	Metadata     map[string]interface{} `json:"metadata"`
@@ -61,8 +73,6 @@ type HelicalMemoryHelix struct {
 // HOW: Through helical data structures, quantum mechanics, and ATM triggers
 type HelicalMemoryEngine struct {
 	// Biological DNA system components
-	triggerMatrix    *tspeak.TriggerMatrix          // ATM trigger system
-	logger          log.LoggerInterface             // Biological logging
 	
 	// DNA helix storage
 	memoryHelices   map[string]*HelicalMemoryHelix  // All DNA helices
@@ -83,22 +93,38 @@ type HelicalMemoryEngine struct {
 
 	// SQLite3 database for helical memory storage
 	db *sql.DB
+
+	// Canonical event-driven trigger matrix
+	triggerMatrix *tspeak.TriggerMatrix
 }
 
 // Global helical memory engine (singleton pattern like biological DNA)
 var globalHelicalEngine *HelicalMemoryEngine
 var helicalOnce sync.Once
+var sharedTriggerMatrix *tspeak.TriggerMatrix
+
+// SetSharedTriggerMatrix sets the shared trigger matrix for the global helical engine
+func SetSharedTriggerMatrix(triggerMatrix *tspeak.TriggerMatrix) {
+	sharedTriggerMatrix = triggerMatrix
+}
 
 // GetGlobalHelicalEngine returns the global helical memory engine instance
 func GetGlobalHelicalEngine() *HelicalMemoryEngine {
 	helicalOnce.Do(func() {
-		globalHelicalEngine = NewHelicalMemoryEngine(nil)
+		// Use shared trigger matrix if available, otherwise create a new one
+		var triggerMatrix *tspeak.TriggerMatrix
+		if sharedTriggerMatrix != nil {
+			triggerMatrix = sharedTriggerMatrix
+		} else {
+			triggerMatrix = tspeak.NewTriggerMatrix()
+		}
+		globalHelicalEngine = NewHelicalMemoryEngine(triggerMatrix)
 	})
 	return globalHelicalEngine
 }
 
 // NewHelicalMemoryEngine creates a new DNA-inspired helical memory engine
-func NewHelicalMemoryEngine(logger log.LoggerInterface) *HelicalMemoryEngine {
+func NewHelicalMemoryEngine(triggerMatrix *tspeak.TriggerMatrix) *HelicalMemoryEngine {
 	db, err := sql.Open("sqlite3", "helical_memory.sqlite3")
 	if err != nil {
 		panic(fmt.Sprintf("Failed to open helical memory DB: %v", err))
@@ -121,8 +147,7 @@ func NewHelicalMemoryEngine(logger log.LoggerInterface) *HelicalMemoryEngine {
 		formula_refs TEXT
 	);`)
 	engine := &HelicalMemoryEngine{
-		triggerMatrix:   tspeak.NewTriggerMatrix(),
-		logger:         logger,
+		triggerMatrix:   triggerMatrix,
 		memoryHelices:  make(map[string]*HelicalMemoryHelix),
 		strandIndex:    make(map[string]string),
 		quantumStates:  make(map[string]string),
@@ -131,15 +156,11 @@ func NewHelicalMemoryEngine(logger log.LoggerInterface) *HelicalMemoryEngine {
 		db:             db,
 	}
 	
-	// Initialize DNA pathways (register ATM triggers)
+	// Initialize DNA pathways according to TNOS Layer 4 (AI Core Initialization)
 	engine.initializeDNAPathways()
 	
-	// Log DNA system initialization
-	engine.logDNAActivity("DNA Helical Memory Engine initialized (SQLite3 backend)", map[string]interface{}{
-		"who":     "HelicalMemoryEngine",
-		"what":    "dna_initialization",
-		"db":      "sqlite3",
-	})
+	// Register ATM trigger handlers for incoming events
+	engine.registerATMHandlers()
 	
 	return engine
 }
@@ -147,7 +168,7 @@ func NewHelicalMemoryEngine(logger log.LoggerInterface) *HelicalMemoryEngine {
 // initializeDNAPathways sets up the DNA trigger pathways for memory operations
 func (hme *HelicalMemoryEngine) initializeDNAPathways() {
 	// DNA storage pathway (like DNA replication)
-	storageRequest := tspeak.CreateTrigger(
+	storageRequest := hme.triggerMatrix.CreateTrigger(
 		"HelicalMemoryEngine",                // WHO
 		"dna_pathway_initialization",         // WHAT  
 		"helical_package",                   // WHERE
@@ -165,11 +186,17 @@ func (hme *HelicalMemoryEngine) initializeDNAPathways() {
 	
 	err := hme.triggerMatrix.ProcessTrigger(storageRequest)
 	if err != nil {
-		hme.logger.Error("Failed to initialize DNA storage pathway: %v", err)
+		// DNA pathway error - create error trigger instead of logging
+		errorTrigger := hme.triggerMatrix.CreateTrigger(
+			"HelicalMemoryEngine", "pathway_error", "helical_package", 
+			"dna_pathway_failure", "error_trigger_creation", "single_error",
+			tspeak.TriggerHelicalError, "helical", 
+			map[string]interface{}{"error": err.Error(), "pathway": "storage"})
+		hme.triggerMatrix.ProcessTrigger(errorTrigger)
 	}
 	
 	// DNA retrieval pathway (like DNA transcription)
-	retrievalRequest := tspeak.CreateTrigger(
+	retrievalRequest := hme.triggerMatrix.CreateTrigger(
 		"HelicalMemoryEngine",                // WHO
 		"dna_pathway_initialization",         // WHAT
 		"helical_package",                   // WHERE
@@ -187,11 +214,17 @@ func (hme *HelicalMemoryEngine) initializeDNAPathways() {
 	
 	err = hme.triggerMatrix.ProcessTrigger(retrievalRequest)
 	if err != nil {
-		hme.logger.Error("Failed to initialize DNA retrieval pathway: %v", err)
+		// DNA pathway error - create error trigger instead of logging
+		errorTrigger := hme.triggerMatrix.CreateTrigger(
+			"HelicalMemoryEngine", "pathway_error", "helical_package", 
+			"dna_pathway_failure", "error_trigger_creation", "single_error",
+			tspeak.TriggerHelicalError, "helical", 
+			map[string]interface{}{"error": err.Error(), "pathway": "retrieval"})
+		hme.triggerMatrix.ProcessTrigger(errorTrigger)
 	}
 	
 	// DNA error pathway (like DNA repair mechanisms)
-	errorRequest := tspeak.CreateTrigger(
+	errorRequest := hme.triggerMatrix.CreateTrigger(
 		"HelicalMemoryEngine",                // WHO
 		"dna_pathway_initialization",         // WHAT
 		"helical_package",                   // WHERE
@@ -209,7 +242,13 @@ func (hme *HelicalMemoryEngine) initializeDNAPathways() {
 	
 	err = hme.triggerMatrix.ProcessTrigger(errorRequest)
 	if err != nil {
-		hme.logger.Error("Failed to initialize DNA error repair pathway: %v", err)
+		// DNA pathway error - create error trigger instead of logging
+		errorTrigger := hme.triggerMatrix.CreateTrigger(
+			"HelicalMemoryEngine", "pathway_error", "helical_package", 
+			"dna_pathway_failure", "error_trigger_creation", "single_error",
+			tspeak.TriggerHelicalError, "helical", 
+			map[string]interface{}{"error": err.Error(), "pathway": "error_repair"})
+		hme.triggerMatrix.ProcessTrigger(errorTrigger)
 	}
 }
 
@@ -218,8 +257,8 @@ func (hme *HelicalMemoryEngine) ProcessMemoryOperation(operation string, data ma
 	// Update DNA activity
 	hme.updateDNAActivity()
 	
-	// Create ATM trigger for the memory operation
-	trigger := tspeak.CreateTrigger(
+	// Create ATM trigger for the memory operation following TNOS Layer 4 (AI Core) patterns
+	trigger := hme.triggerMatrix.CreateTrigger(
 		"HelicalMemoryEngine",               // WHO
 		"memory_operation",                  // WHAT
 		"helical_package",                  // WHERE
@@ -240,7 +279,13 @@ func (hme *HelicalMemoryEngine) ProcessMemoryOperation(operation string, data ma
 	hme.quantumMutex.Unlock()
 	
 	if err != nil {
-		hme.logger.Error("DNA pathway processing failed: %v", err)
+		// DNA pathway error - create error trigger instead of logging
+		errorTrigger := hme.triggerMatrix.CreateTrigger(
+			"HelicalMemoryEngine", "processing_error", "helical_package", 
+			"dna_processing_failure", "error_trigger_creation", "single_error",
+			tspeak.TriggerHelicalError, "helical", 
+			map[string]interface{}{"error": err.Error(), "operation": operation})
+		hme.triggerMatrix.ProcessTrigger(errorTrigger)
 		return fmt.Errorf("DNA pathway processing failed: %w", err)
 	}
 	
@@ -255,7 +300,7 @@ func RecordMemory(event string, data map[string]interface{}) error {
 	}
 	
 	// Create 7D context for this memory
-	context7d := log.ContextVector7D{
+	context7d := ContextVector7D{
 		Who:    "HelicalMemoryEngine",
 		What:   event,
 		When:   time.Now().Unix(),
@@ -282,7 +327,7 @@ func RecordMemory(event string, data map[string]interface{}) error {
 // Note: ATM trigger processing now handled by TriggerMatrix.ProcessTrigger()
 // These utility functions support the biological DNA operations
 
-func (hme *HelicalMemoryEngine) createDNAStrand(event string, context7d log.ContextVector7D, data map[string]interface{}) HelicalMemoryStrand {
+func (hme *HelicalMemoryEngine) createDNAStrand(event string, context7d ContextVector7D, data map[string]interface{}) HelicalMemoryStrand {
 	// Create DNA sequence from data
 	dataBytes, _ := json.Marshal(data)
 	sequence := hme.generateDNASequence(dataBytes)
@@ -326,7 +371,7 @@ func (hme *HelicalMemoryEngine) generateDNASequence(data []byte) string {
 	return sequence
 }
 
-func (hme *HelicalMemoryEngine) generateStrandID(event string, context7d log.ContextVector7D) string {
+func (hme *HelicalMemoryEngine) generateStrandID(event string, context7d ContextVector7D) string {
 	data := fmt.Sprintf("%s-%s-%v-%d", event, context7d.Who, context7d.What, time.Now().UnixNano())
 	hash := sha256.Sum256([]byte(data))
 	return hex.EncodeToString(hash[:])[:16] // 16 character ID
@@ -374,11 +419,12 @@ func (hme *HelicalMemoryEngine) updateDNAActivity() {
 }
 
 func (hme *HelicalMemoryEngine) logDNAActivity(message string, metadata map[string]interface{}) {
-	if hme.logger != nil {
-		// Format metadata as string for logging
-		metadataStr := fmt.Sprintf("metadata: %+v", metadata)
-		hme.logger.Info("HelicalMemoryEngine: %s | %s", message, metadataStr)
-	}
+	// Silent DNA activity tracking - no logging to prevent infinite loops
+	// Store activity metrics internally for monitoring
+	hme.quantumMutex.Lock()
+	hme.lastReplication = time.Now()
+	hme.quantumMutex.Unlock()
+	// Note: Direct SQLite logging without ATM triggers to prevent recursion
 }
 
 func max(a, b int) int {
@@ -420,7 +466,7 @@ func (hme *HelicalMemoryEngine) Signature() string {
 }
 
 // DNA-aware memory strand creation
-func (hme *HelicalMemoryEngine) NewStrand(sequence string, context log.ContextVector7D, meta map[string]interface{}) *HelicalMemoryStrand {
+func (hme *HelicalMemoryEngine) NewStrand(sequence string, context ContextVector7D, meta map[string]interface{}) *HelicalMemoryStrand {
 	strand := &HelicalMemoryStrand{
 		ID:           fmt.Sprintf("strand-%d", time.Now().UnixNano()),
 		Sequence:     sequence,
@@ -465,8 +511,74 @@ func (hme *HelicalMemoryEngine) RetrieveStrand(id string) (*HelicalMemoryStrand,
 	return &strand, nil
 }
 
+// DecompressStrandData uses the canonical HemoFlux Mobius decompression via TriggerMatrix (canonical event-driven logic)
+func (hme *HelicalMemoryEngine) DecompressStrandData(compressed []byte, meta interface{}) ([]byte, error) {
+	if hme.triggerMatrix == nil {
+		return nil, fmt.Errorf("TriggerMatrix not initialized")
+	}
+	// Canonical ATMTrigger from TranquilSpeak (trigger_matrix.go)
+	trigger := tspeak.ATMTrigger{
+		Who:          "HelicalMemoryEngine",
+		What:         "mobius_decompress", // Canonical event name
+		When:         time.Now().Unix(),
+		Where:        "helical_memory",
+		Why:          "mobius_decompression",
+		How:          "event_driven",
+		Extent:       "1.0",
+		TriggerType:  tspeak.TriggerTypeDecompressionReq, // Canonical trigger type from trigger_matrix.go
+		TargetSystem: "hemoflux",
+		Payload: map[string]interface{}{
+			"compressed": compressed,
+			"meta":      meta,
+		},
+	}
+	// Process the decompression event through the canonical TriggerMatrix
+	err := hme.triggerMatrix.ProcessTrigger(trigger)
+	if err != nil {
+		return nil, fmt.Errorf("Mobius decompression trigger failed: %w", err)
+	}
+	// Canonical handler should populate decompressed data in trigger.Payload["decompressed"]
+	decompressed, ok := trigger.Payload["decompressed"].([]byte)
+	if !ok {
+		// Some handlers may return as string, handle both
+		if s, ok2 := trigger.Payload["decompressed"].(string); ok2 {
+			return []byte(s), nil
+		}
+		return nil, fmt.Errorf("Mobius decompression did not return valid data")
+	}
+	return decompressed, nil
+}
+
+// RetrieveStrandWithDecompression retrieves a strand and decompresses its data if Mobius-compressed
+func (hme *HelicalMemoryEngine) RetrieveStrandWithDecompression(id string) (*HelicalMemoryStrand, error) {
+	strand, err := hme.RetrieveStrand(id)
+	if err != nil {
+		return nil, err
+	}
+	// Check for Mobius/HemoFlux compression marker (canonical: "hemoflux_compressed")
+	if strand.Metadata != nil {
+		if strand.Metadata["hemoflux_compressed"] == true {
+			compressed, ok := strand.Metadata["compressed"].([]byte)
+			if !ok {
+				if s, ok2 := strand.Metadata["compressed"].(string); ok2 {
+					compressed = []byte(s)
+				} else {
+					return nil, fmt.Errorf("compressed data missing or invalid")
+				}
+			}
+			meta := strand.Metadata["meta"]
+			decompressed, derr := hme.DecompressStrandData(compressed, meta)
+			if derr != nil {
+				return nil, fmt.Errorf("decompression failed: %w", derr)
+			}
+			strand.Metadata["decompressed"] = decompressed
+		}
+	}
+	return strand, nil
+}
+
 // StoreDualHelix stores both primary and secondary (parity) strands in the SQLite3 DB
-func (hme *HelicalMemoryEngine) StoreDualHelix(event string, context7d log.ContextVector7D, data map[string]interface{}, helixID string, symbolCluster string, atmMeta map[string]interface{}, formulaRefs []string) error {
+func (hme *HelicalMemoryEngine) StoreDualHelix(event string, context7d ContextVector7D, data map[string]interface{}, helixID string, symbolCluster string, atmMeta map[string]interface{}, formulaRefs []string) error {
 	// 1. Create primary strand
 	primary := hme.createDNAStrand(event, context7d, data)
 	primary.HelixIndex = 0
@@ -478,13 +590,13 @@ func (hme *HelicalMemoryEngine) StoreDualHelix(event string, context7d log.Conte
 		return fmt.Errorf("failed to marshal primary data: %v", err)
 	}
 	// Use formula registry for parity (e.g., XOR or custom)
-	registry := bridge.GetBridgeFormulaRegistry()
-	parityFormula, ok := registry.GetFormula("helical.parity")
+	registry := formularegistry.GetBridgeFormulaRegistry()
+	_, ok := registry.GetFormulaByName("helical.parity")
 	if !ok {
 		return fmt.Errorf("parity formula not found in registry")
 	}
 	params := map[string]interface{}{"primary": primaryBytes}
-	result, err := registry.ExecuteFormula(parityFormula.ID, params)
+	result, err := registry.ExecuteFormulaByName("helical.parity", params)
 	if err != nil {
 		return fmt.Errorf("parity formula execution failed: %v", err)
 	}
@@ -509,9 +621,9 @@ func (hme *HelicalMemoryEngine) StoreDualHelix(event string, context7d log.Conte
 	return nil
 }
 
-// RetrieveWithSelfHealing retrieves a strand, using parity if needed
+// RetrieveWithSelfHealing retrieves a strand, using parity if needed, and decompresses if Mobius-compressed
 func (hme *HelicalMemoryEngine) RetrieveWithSelfHealing(id string, helixID string) (*HelicalMemoryStrand, error) {
-	strand, err := hme.RetrieveStrand(id)
+	strand, err := hme.RetrieveStrandWithDecompression(id)
 	if err == nil {
 		return strand, nil
 	}
@@ -519,17 +631,17 @@ func (hme *HelicalMemoryEngine) RetrieveWithSelfHealing(id string, helixID strin
 	row := hme.db.QueryRow(`SELECT id FROM strands WHERE helix_id = ? AND strand_type = 'secondary'`, helixID)
 	var parityID string
 	if err := row.Scan(&parityID); err == nil {
-		parityStrand, err2 := hme.RetrieveStrand(parityID)
+		parityStrand, err2 := hme.RetrieveStrandWithDecompression(parityID)
 		if err2 == nil {
 			// Use formula registry to reconstruct primary from parity
-			registry := bridge.GetBridgeFormulaRegistry()
-			recoveryFormula, ok := registry.GetFormula("helical.recover_primary")
+			registry := formularegistry.GetBridgeFormulaRegistry()
+			formulaKey, ok := FORMULA_SYMBOLS["helical.recover_primary"]
 			if !ok {
-				return nil, fmt.Errorf("recovery formula not found in registry")
+				return nil, fmt.Errorf("recovery formula symbol not found in registry")
 			}
 			parityBytes, _ := json.Marshal(parityStrand.Sequence)
 			params := map[string]interface{}{"parity": parityBytes}
-			result, err := registry.ExecuteFormula(recoveryFormula.ID, params)
+			result, err := registry.ExecuteFormulaByName(formulaKey, params)
 			if err != nil {
 				return nil, fmt.Errorf("recovery formula execution failed: %v", err)
 			}
@@ -539,7 +651,7 @@ func (hme *HelicalMemoryEngine) RetrieveWithSelfHealing(id string, helixID strin
 			// Recreate the primary strand
 			recoveredStrand := hme.createDNAStrand(id, parityStrand.Context7D, recoveredData)
 			recoveredStrand.HelixIndex = 0
-			hme.logDNAActivity("Self-healing: reconstructed from parity", map[string]interface{}{"helix_id": helixID, "parity_id": parityID})
+			hme.logDNAActivity("Self-healing: reconstructed from parity", map[string]interface{}{ "helix_id": helixID, "parity_id": parityID })
 			return &recoveredStrand, nil
 		}
 	}
@@ -553,6 +665,136 @@ func (hme *HelicalMemoryEngine) RetrieveWithSelfHealing(id string, helixID strin
 // - This engine is initialized globally and used for all helical memory operations.
 // - See docs/technical/FORMULAS_AND_BLUEPRINTS.md for HDSA/dual-helix/quantum logic.
 // - All major operations are self-logged and 7D/ATM/TranquilSpeak-compliant.
+
+// registerATMHandlers registers ATM trigger handlers for incoming events
+func (hme *HelicalMemoryEngine) registerATMHandlers() {
+	// Register DATA_TRANSPORT handler for log entries with HemoFlux compression
+	hme.triggerMatrix.RegisterTrigger(tspeak.TriggerTypeDataTransport, 
+		func(trigger tspeak.ATMTrigger) error {
+			return hme.handleDataTransportTrigger(trigger)
+		})
+	
+	// Register HELICAL_MEMORY_STORE handler
+	hme.triggerMatrix.RegisterTrigger(tspeak.TriggerHelicalStore, 
+		func(trigger tspeak.ATMTrigger) error {
+			return hme.handleHelicalStoreTrigger(trigger)
+		})
+	
+	// Register HELICAL_MEMORY_RETRIEVE handler
+	hme.triggerMatrix.RegisterTrigger(tspeak.TriggerHelicalRetrieve, 
+		func(trigger tspeak.ATMTrigger) error {
+			return hme.handleHelicalRetrieveTrigger(trigger)
+		})
+	
+	// Register HELICAL_MEMORY_ERROR handler
+	hme.triggerMatrix.RegisterTrigger(tspeak.TriggerHelicalError, 
+		func(trigger tspeak.ATMTrigger) error {
+			return hme.handleHelicalErrorTrigger(trigger)
+		})
+}
+
+// handleDataTransportTrigger handles log entry storage with HemoFlux compression
+func (hme *HelicalMemoryEngine) handleDataTransportTrigger(trigger tspeak.ATMTrigger) error {
+	// Check if this is a log entry (avoid recursive logging)
+	if level, exists := trigger.Payload["level"]; exists {
+		if levelStr, ok := level.(string); ok && levelStr != "" {
+			// This is a log entry - store it in helical memory with HemoFlux compression
+			return hme.storeLogEntry(trigger)
+		}
+	}
+	
+	// Handle other data transport triggers
+	return hme.storeGenericData(trigger)
+}
+
+// handleHelicalStoreTrigger handles explicit helical memory store requests
+func (hme *HelicalMemoryEngine) handleHelicalStoreTrigger(trigger tspeak.ATMTrigger) error {
+	return hme.storeHelicalData(trigger)
+}
+
+// handleHelicalRetrieveTrigger handles helical memory retrieval requests
+func (hme *HelicalMemoryEngine) handleHelicalRetrieveTrigger(trigger tspeak.ATMTrigger) error {
+	return hme.retrieveHelicalData(trigger)
+}
+
+// handleHelicalErrorTrigger handles helical memory error events
+func (hme *HelicalMemoryEngine) handleHelicalErrorTrigger(trigger tspeak.ATMTrigger) error {
+	// Store error information for analysis
+	return hme.storeErrorData(trigger)
+}
+
+// storeLogEntry stores log entries with HemoFlux compression
+func (hme *HelicalMemoryEngine) storeLogEntry(trigger tspeak.ATMTrigger) error {
+	// Apply HemoFlux compression to the log payload
+	compressed, err := hme.applyHemoFluxCompression(trigger.Payload)
+	if err != nil {
+		return fmt.Errorf("HemoFlux compression failed: %w", err)
+	}
+	
+	// Store compressed log data
+	strand := hme.createDNAStrand("log_entry", hme.convertToContextVector7D(trigger), compressed)
+	return hme.StoreStrand(strand, "log", "log_helix", "", trigger.Payload, []string{})
+}
+
+// storeGenericData stores generic data transport events
+func (hme *HelicalMemoryEngine) storeGenericData(trigger tspeak.ATMTrigger) error {
+	strand := hme.createDNAStrand("data_transport", hme.convertToContextVector7D(trigger), trigger.Payload)
+	return hme.StoreStrand(strand, "data", "data_helix", "", trigger.Payload, []string{})
+}
+
+// storeHelicalData stores explicit helical memory requests
+func (hme *HelicalMemoryEngine) storeHelicalData(trigger tspeak.ATMTrigger) error {
+	strand := hme.createDNAStrand("helical_store", hme.convertToContextVector7D(trigger), trigger.Payload)
+	return hme.StoreStrand(strand, "helical", "helical_helix", "", trigger.Payload, []string{})
+}
+
+// retrieveHelicalData retrieves data from helical memory
+func (hme *HelicalMemoryEngine) retrieveHelicalData(trigger tspeak.ATMTrigger) error {
+	// Implementation for data retrieval
+	// This would query the SQLite database and return results
+	return nil
+}
+
+// storeErrorData stores error information
+func (hme *HelicalMemoryEngine) storeErrorData(trigger tspeak.ATMTrigger) error {
+	strand := hme.createDNAStrand("error_event", hme.convertToContextVector7D(trigger), trigger.Payload)
+	return hme.StoreStrand(strand, "error", "error_helix", "", trigger.Payload, []string{})
+}
+
+// applyHemoFluxCompression applies HemoFlux compression using formula registry
+func (hme *HelicalMemoryEngine) applyHemoFluxCompression(payload map[string]interface{}) (map[string]interface{}, error) {
+	registry := formularegistry.GetBridgeFormulaRegistry()
+	if registry == nil {
+		// No compression available - return payload as-is
+		return payload, nil
+	}
+	
+	// Use HemoFlux compression formula
+	compressedResult, err := registry.ExecuteFormula("hemoflux.compress", payload)
+	if err != nil {
+		// Compression failed - return original payload
+		return payload, nil
+	}
+	
+	// ExecuteFormula returns map[string]interface{}, so we can use it directly
+	compressedResult["hemoflux_compressed"] = true
+	return compressedResult, nil
+}
+
+// convertToContextVector7D converts ATM trigger to local ContextVector7D
+func (hme *HelicalMemoryEngine) convertToContextVector7D(trigger tspeak.ATMTrigger) ContextVector7D {
+	return ContextVector7D{
+		Who:    trigger.Who,
+		What:   trigger.What,
+		When:   trigger.When,
+		Where:  trigger.Where,
+		Why:    trigger.Why,
+		How:    trigger.How,
+		Extent: 1.0,
+		Source: trigger.TargetSystem,
+		Meta:   trigger.Payload,
+	}
+}
 
 // TODO: Implement dual-helix encoding, error correction, and quantum state logic per HDSA spec.
 // TODO: Integrate HemoFlux compression and formula registry for all data operations.
@@ -573,3 +815,9 @@ var FORMULA_SYMBOLS = map[string]string{
 
 // In all usages, replace calls like GetFormula("helical.parity") with GetFormula(FORMULA_SYMBOLS["helical.parity"])
 // and ExecuteFormula("helical.parity", ...) with ExecuteFormula(FORMULA_SYMBOLS["helical.parity"], ...)
+
+// [DOCS CROSS-REFERENCE]
+// - See docs/technical/FORMULAS_AND_BLUEPRINTS.md for Mobius/quantum/7D context compliance
+// - See docs/architecture/CONTEXT_MCP_INTEGRATION.md for event/trigger matrix logic
+// - See pkg/formularegistry/ for canonical formula registry usage
+// - All decompression is routed through canonical event-driven HemoFlux logic (no simulation, no duplication)

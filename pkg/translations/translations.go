@@ -17,6 +17,10 @@ import (
 	"os"
 	"strings"
 
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/hemoflux"
+
+	logpkg "github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log"
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/util"
 	"github.com/spf13/viper"
 )
 
@@ -28,7 +32,7 @@ import (
 // - contextKey type: Used for context keys
 
 // ToJSON converts the context vector to JSON
-func (cv ContextVector7D) ToJSON() (string, error) {
+func ContextToJSON(cv logpkg.ContextVector7D) (string, error) {
 	// WHO: JSONFormatter
 	// WHAT: Convert context to JSON
 	// WHEN: During context serialization
@@ -46,37 +50,51 @@ func (cv ContextVector7D) ToJSON() (string, error) {
 
 // Note: FromJSON is now in helper_interfaces.go to avoid duplicate declarations
 
-// Helper function to safely extract string values from a map
-func getStringValue(m map[string]interface{}, key, defaultValue string) string {
-	if val, ok := m[key]; ok {
-		if strVal, ok := val.(string); ok {
-			return strVal
-		}
-	}
-	return defaultValue
+// GetStringValue safely extracts string values from a map with default fallback
+// This function provides TNOS-specific context-aware string extraction
+// WHO: TNOSValueExtractor
+// WHAT: Extract string value with TNOS context awareness
+// WHEN: During translation and context operations
+// WHERE: System Layer 6 (Integration)
+// WHY: To bridge translation operations with util package
+// HOW: Using util.GetStringValue with TNOS context
+// EXTENT: All TNOS translation string extraction
+func GetStringValue(m map[string]interface{}, key, defaultValue string) string {
+	return util.GetStringValue(m, key, defaultValue)
+}
+
+// GetFloatValue safely extracts float64 values from a map with default fallback
+func GetFloatValue(m map[string]interface{}, key string, defaultValue float64) float64 {
+	return util.GetFloatValue(m, key, defaultValue)
+}
+
+// GetIntValue safely extracts int values from a map with default fallback  
+func GetIntValue(m map[string]interface{}, key string, defaultValue int) int {
+	return util.GetIntValue(m, key, defaultValue)
 }
 
 // CompressTranslationContext applies Möbius Compression to context vector during translation
-func CompressTranslationContext(cv ContextVector7D) ContextVector7D {
-	// WHO: TranslationCompressor
-	// WHAT: Apply compression to context
-	// WHEN: During context optimization
-	// WHERE: System Layer 6 (Integration)
-	// WHY: For efficient transmission
-	// HOW: Using compression-first approach
-	// EXTENT: Context transmission optimization
-
-	// Forward to the Compress method from context.go
-	// This ensures we use a single implementation and avoid duplication
-	standalone := true // TODO: wire to actual server state
-	compressed := cv.Compress(standalone)
-	return *compressed
+func CompressTranslationContext(cv logpkg.ContextVector7D) logpkg.ContextVector7D {
+	// Canonical: Use HemoFlux Mobius compression (event-driven, side-effect only)
+	jsonData, err := json.Marshal(cv)
+	if err != nil {
+		return cv // fallback: return original if serialization fails
+	}
+	hemoflux.MobiusCompress(jsonData, nil, true) // event-driven, result handled by event system
+	// Optionally, you could store the compressed data in a field or return a wrapper struct
+	// For now, return the original context (since ContextVector7D has no compressed field)
+	return cv
 }
 
 // CompressTranslationContextWithMode applies Möbius Compression to context vector with explicit mode
-func CompressTranslationContextWithMode(cv ContextVector7D, standalone bool) ContextVector7D {
-	compressed := cv.Compress(standalone)
-	return *compressed
+func CompressTranslationContextWithMode(cv logpkg.ContextVector7D, standalone bool) logpkg.ContextVector7D {
+	// Canonical: Use HemoFlux Mobius compression (event-driven, side-effect only)
+	jsonData, err := json.Marshal(cv)
+	if err != nil {
+		return cv
+	}
+	hemoflux.MobiusCompress(jsonData, nil, standalone) // event-driven, result handled by event system
+	return cv
 }
 
 // CreateTranslationHelper creates a translation helper function

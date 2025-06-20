@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/common"
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/formularegistry"
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log"
 )
 
@@ -37,6 +38,10 @@ var (
 	getInt64   = common.GetInt64
 	getFloat64 = common.GetFloat64
 )
+
+// Canonical: Re-export formula registry functions for main.go and bridge consumers
+var LoadBridgeFormulaRegistry = formularegistry.LoadBridgeFormulaRegistry
+var GetBridgeFormulaRegistry = formularegistry.GetBridgeFormulaRegistry
 
 // ConvertToContextVector7D converts a map[string]interface{} to a ContextVector7D
 func ConvertToContextVector7D(m map[string]interface{}) log.ContextVector7D {

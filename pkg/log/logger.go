@@ -131,7 +131,7 @@ func (l *Logger) log(level int, message string, args ...interface{}) {
 		"message": msg,
 		"time":    time.Now().Format(time.RFC3339),
 	}
-	atmTrigger := tranquilspeak.CreateTrigger(
+	atmTrigger := l.triggerMatrix.CreateTrigger(
 		l.context["who"], l.context["what"], l.context["where"], l.context["why"], l.context["how"], l.context["extent"],
 		tranquilspeak.TriggerTypeSystemControl, "helical_memory", payload,
 	)

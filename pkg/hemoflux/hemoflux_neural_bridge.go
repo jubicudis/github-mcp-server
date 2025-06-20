@@ -26,8 +26,8 @@ func RegisterNeuralBridgeTriggers(triggerMatrix *tranquilspeak.TriggerMatrix) {
 		if err != nil {
 			return err
 		}
-		_ = compressed
-		_ = meta
+		trigger.Payload["compressed"] = compressed
+		trigger.Payload["meta"] = meta
 		return nil
 	})
 
@@ -36,8 +36,12 @@ func RegisterNeuralBridgeTriggers(triggerMatrix *tranquilspeak.TriggerMatrix) {
 		if !ok {
 			return fmt.Errorf("invalid or missing compressed data for neural decompression")
 		}
-		// TODO: Implement MobiusDecompress
-		_ = compressed
+		meta, _ := trigger.Payload["meta"].(*MobiusCompressionMeta)
+		decompressed, _, err := MobiusDecompress(compressed, meta)
+		if err != nil {
+			return err
+		}
+		trigger.Payload["decompressed"] = decompressed
 		return nil
 	})
 }

@@ -11,6 +11,8 @@ package translations
 import (
 	"context"
 	"encoding/json"
+
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log"
 )
 
 // TranslationHelperFunc is a function type for simple string translations
@@ -31,14 +33,14 @@ type TranslationHelper interface {
 }
 
 // FromJSON parses JSON into a value, used when TranslationHelper is not available
-func FromJSON(jsonStr string) (ContextVector7D, error) {
-	var cv ContextVector7D
+func FromJSON(jsonStr string) (log.ContextVector7D, error) {
+	var cv log.ContextVector7D
 	if jsonStr == "" {
-		return NewContextVector7D(map[string]interface{}{}), nil
+		return log.FromMap(map[string]interface{}{}), nil
 	}
 	err := json.Unmarshal([]byte(jsonStr), &cv)
 	if err != nil {
-		return NewContextVector7D(map[string]interface{}{}), err
+		return log.FromMap(map[string]interface{}{}), err
 	}
 	return cv, nil
 }

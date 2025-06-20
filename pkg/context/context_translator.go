@@ -85,7 +85,7 @@ func (engine *Context7DEngine) TranslateFromMCPContext(githubContext map[string]
 
 	// Apply compression via ATM trigger if enabled
 	if engine.enableCompression {
-		trigger := tspeak.CreateTrigger(
+		trigger := engine.triggerMatrix.CreateTrigger(
 			"Context7DEngine", "context.compress", "context_translator", "compress context", "atm_trigger", "context_compression", "context.compress", "context", map[string]interface{}{
 				"context": log.FromMap(tnosContext),
 			},
@@ -118,7 +118,7 @@ func (engine *Context7DEngine) TranslateJSONContext(jsonStr string) (map[string]
 	// Apply compression via ATM trigger if enabled
 	result := log.ToMap(cv)
 	if engine.enableCompression {
-		trigger := tspeak.CreateTrigger(
+		trigger := engine.triggerMatrix.CreateTrigger(
 			"Context7DEngine", "context.compress", "context_translator", "compress context", "atm_trigger", "context_compression", "context.compress", "context", map[string]interface{}{
 				"context": cv,
 			},

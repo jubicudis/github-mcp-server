@@ -49,22 +49,6 @@ const (
 
 	APIVersion      = "2022-11-28"
 	MCPVersion      = "3.0"
-	ProtocolVersion = "3.0"
-)
-
-// MCP bridge modes
-const (
-	// WHO: BridgeManager
-	// WHAT: Bridge operation modes
-	// WHEN: During bridge configuration
-	// WHERE: System Layer 6 (Integration)
-	// WHY: To define bridge behaviors
-	// HOW: Using string constants
-	// EXTENT: All bridge operations
-
-	BridgeModeDirect  = "direct"
-	BridgeModeProxied = "proxied"
-	BridgeModeAsync   = "async"
 )
 
 // Resource URI templates

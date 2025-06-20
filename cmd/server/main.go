@@ -28,15 +28,14 @@ import (
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/bridge"
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/common"
 	pkgcontext "github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/context"
+	ghmcp "github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/github"
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log"
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/tranquilspeak"
-	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/translations"
 )
 
 var (
-	// Use correct log import alias
 	logger log.LoggerInterface
-	mainContext translations.ContextVector7D
+	mainContext pkgcontext.ContextVector7D
 	bridgeClient *bridge.Bridge
 	servers []*http.Server
 	serversMtx sync.Mutex
@@ -73,16 +72,16 @@ func main() {
 	}
 
 	// 3. Initialize 7D Context and Memory (ContextVector7D, Helical Memory, etc.)
-	mainContext = translations.NewContextVector7D(map[string]interface{}{
-		"who":    "MCPServer",
-		"what":   "Startup",
-		"when":   time.Now().Unix(),
-		"where":  "Layer6",
-		"why":    "SystemInitialization",
-		"how":    "CanonicalMain",
-		"extent": 1.0,
-		"source": "github_mcp",
-	})
+	mainContext = pkgcontext.ContextVector7D{
+		Who:    "MCPServer",
+		What:   "Startup",
+		When:   time.Now().Unix(),
+		Where:  "Layer6",
+		Why:    "SystemInitialization",
+		How:    "CanonicalMain",
+		Extent: 1.0,
+		Source: "github_mcp",
+	}
 
 	// 4. Configure Canonical Logging and Event Routing (TriggerMatrix, logger)
 	triggerMatrix := tranquilspeak.NewTriggerMatrix()
@@ -102,8 +101,18 @@ func main() {
 		logger.Info("Mobius Collapse/Port Assignment AI initialized (formula registry-driven)")
 	}
 
+	// Canonical: Initialize GitHub MCP Bridge
+	if err := ghmcp.InitializeMCPBridge(true, logger, triggerMatrix); err != nil {
+		logger.Error("Failed to initialize GitHub MCP Bridge: %v", err)
+	}
+	// Canonical: Health check
+	healthy, err := ghmcp.BridgeHealthCheck(triggerMatrix)
+	if err != nil || !healthy {
+		logger.Error("GitHub MCP Bridge health check failed: %v", err)
+	}
+
 	// 7. Start MCP Server (REST + WebSocket)
-	startGitHubMCPServer(config, orchestrator)
+	startGitHubMCPServer(config, orchestrator, triggerMatrix)
 	logger.Info("GitHub MCP Server started (REST + WebSocket)")
 
 	// 8. Start Bridge to TNOS MCP Server (after MCP server is running and ready)
@@ -111,7 +120,7 @@ func main() {
 		bridgeOpts := common.ConnectionOptions{
 			ServerURL:   fmt.Sprintf("ws://%s:%d/bridge", config.Host, config.BridgePort),
 			ServerPort:  config.BridgePort,
-			Context:     mainContext.ToMap(),
+			Context:     log.ToMap(mainContext),
 			Logger:      logger,
 			Timeout:     60 * time.Second,
 			MaxRetries:  5,
@@ -132,7 +141,7 @@ func main() {
 				Timestamp: time.Now().Unix(),
 				Payload: map[string]interface{}{
 					"event":   "startup",
-					"context": mainContext.ToMap(),
+					"context": log.ToMap(mainContext),
 					"message": "GitHub MCP Server startup complete. Bridge client active.",
 				},
 			}
@@ -183,23 +192,23 @@ func registerATMEventTriggers(orchestrator *pkgcontext.ContextOrchestrator) {
 	orchestrator.ProcessContext("startup", map[string]interface{}{
 		"event": "startup",
 		"timestamp": time.Now().Unix(),
-		"context": mainContext.ToMap(),
+		"context": log.ToMap(mainContext),
 	})
 	// Shutdown event
 	orchestrator.ProcessContext("shutdown", map[string]interface{}{
 		"event": "shutdown",
 		"timestamp": time.Now().Unix(),
-		"context": mainContext.ToMap(),
+		"context": log.ToMap(mainContext),
 	})
 	// API event example
 	orchestrator.ProcessContext("api_event", map[string]interface{}{
 		"event": "api_event",
 		"timestamp": time.Now().Unix(),
-		"context": mainContext.ToMap(),
+		"context": log.ToMap(mainContext),
 	})
 }
 
-func startGitHubMCPServer(config Config, orchestrator *pkgcontext.ContextOrchestrator) {
+func startGitHubMCPServer(config Config, orchestrator *pkgcontext.ContextOrchestrator, triggerMatrix *tranquilspeak.TriggerMatrix) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -268,7 +277,7 @@ func startGitHubMCPServer(config Config, orchestrator *pkgcontext.ContextOrchest
 			}
 			var payload map[string]interface{}
 			_ = json.Unmarshal(message, &payload)
-			atmTrigger := tranquilspeak.CreateTrigger(
+			atmTrigger := triggerMatrix.CreateTrigger(
 				"WebSocketClient", "WebSocketMessage", "Layer6", "ClientEvent", "WebSocket", "1.0", tranquilspeak.TriggerTypeDataTransport, "context", payload,
 			)
 			_ = atmTrigger // prevent unused variable warning

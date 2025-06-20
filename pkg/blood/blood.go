@@ -167,8 +167,8 @@ func NewBloodCirculation(logger log.LoggerInterface) *BloodCirculation {
 		},
 	}
 	
-	// Register ATM trigger handlers for circulation management
-	circulation.registerATMHandlers()
+	// DO NOT register ATM handlers during initialization - causes infinite loops
+	// circulation.registerATMHandlers() // DEFERRED until SetOperationalMode() is called
 	
 	// Log circulatory system initialization
 	tranquilspeak.LogWithSymbolCluster("circulatory/blood.tranquilspeak", 
@@ -237,29 +237,16 @@ func (bc *BloodCirculation) StartCirculation() error {
 	// Start circulation goroutine
 	go bc.circulationLoop()
 	
-	// Create ATM trigger for circulation start
-	trigger := tranquilspeak.CreateTrigger(
-		"BloodCirculation",
-		"Circulation_Started",
-		"SystemLayer5_Quantum_Circulatory",
-		"Initialize_System_Wide_ATM_Communication",
-		"Blood_Flow_Activation",
-		"All_Biological_Systems",
-		tranquilspeak.TriggerTypeCirculatoryFlow,
-		"All_Systems",
-		map[string]interface{}{
-			"circulation_status": "ACTIVE",
-			"heart_rate":        bc.heart.beatInterval.String(),
-			"pressure":          bc.heart.pressure,
-		},
-	)
+	// DO NOT create ATM trigger during startup - causes infinite loops
+	// This trigger will be created later when all systems are operational
+	// trigger := tranquilspeak.CreateTrigger(...)
 	
-	// Process the circulation start trigger
-	if err := bc.triggerMatrix.ProcessTrigger(trigger); err != nil {
-		bc.logger.Info("ATM trigger processing during circulation start", map[string]interface{}{
-			"error": err.Error(),
-		})
-	}
+	// Process the circulation start trigger (DEFERRED until operational mode)
+	// if err := bc.triggerMatrix.ProcessTrigger(trigger); err != nil {
+	//     bc.logger.Info("ATM trigger processing during circulation start", map[string]interface{}{
+	//         "error": err.Error(),
+	//     })
+	// }
 	
 	tranquilspeak.LogWithSymbolCluster("circulatory/blood.tranquilspeak", 
 		fmt.Sprintf("Blood circulation started - heartbeat: %v, pressure: %d", 
@@ -502,4 +489,41 @@ func (bc *BloodCirculation) handleErrorRecoveryTrigger(trigger tranquilspeak.ATM
 	default:
 		return fmt.Errorf("platelet circulation channel full - cannot inject recovery platelet")
 	}
+}
+
+// SetOperationalMode enables ATM triggers after all systems are initialized
+func (bc *BloodCirculation) SetOperationalMode() {
+	bc.circulation.Lock()
+	defer bc.circulation.Unlock()
+	
+	// Now register ATM handlers safely
+	bc.registerATMHandlers()
+	
+	// Create the deferred circulation start trigger
+	if bc.isCirculating {
+		trigger := bc.triggerMatrix.CreateTrigger(
+			"BloodCirculation",
+			"Circulation_Operational",
+			"SystemLayer5_Quantum_Circulatory",
+			"Enable_System_Wide_ATM_Communication",
+			"Blood_Flow_Operational_Mode",
+			"All_Biological_Systems",
+			tranquilspeak.TriggerTypeCirculatoryFlow,
+			"All_Systems",
+			map[string]interface{}{
+				"circulation_status": "OPERATIONAL",
+				"heart_rate":        bc.heart.beatInterval.String(),
+				"pressure":          bc.heart.pressure,
+			},
+		)
+		// Process the operational trigger
+		if err := bc.triggerMatrix.ProcessTrigger(trigger); err != nil {
+			bc.logger.Info("ATM trigger processing during operational mode switch", map[string]interface{}{
+				"error": err.Error(),
+			})
+		}
+	}
+	
+	tranquilspeak.LogWithSymbolCluster("circulatory/blood.tranquilspeak", 
+		"Blood circulation switched to OPERATIONAL MODE - ATM triggers enabled")
 }

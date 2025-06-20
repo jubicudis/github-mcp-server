@@ -123,7 +123,7 @@ func (c *Bridge) connect() error {
 
 	// Emit ATM event trigger for port assignment (after assignment)
 	if c.triggerMatrix != nil {
-		trigger := tranquilspeak.CreateTrigger(
+		trigger := c.triggerMatrix.CreateTrigger(
 			"BridgeClient", // who
 			"PortAssignment", // what
 			"SystemLayer6", // where
@@ -139,58 +139,10 @@ func (c *Bridge) connect() error {
 		_ = c.triggerMatrix.ProcessTrigger(trigger)
 	}
 
-	bridgeFallback := func() (interface{}, error) {
-		return c.tryConnect(TnosMCPURL)
-	}
-	noopFallback := func() (interface{}, error) {
-		return nil, fmt.Errorf("no further fallback")
-	}
-	contextMap := c.options.Context
-	operationName := "Connect"
-	ctx := c.ctx
-	_, err := FallbackRoute(
-		ctx,
-		operationName,
-		contextMap,
-		bridgeFallback,
-		noopFallback,
-		func() (interface{}, error) { return nil, fmt.Errorf("not implemented") },
-		func() (interface{}, error) { return nil, fmt.Errorf("not implemented") },
-		c.logger,
-	)
-
-	// Emit ATM event trigger for connection result (after attempt)
-	if c.triggerMatrix != nil {
-		triggerType := tranquilspeak.TriggerTypeSystemControl
-		triggerWhat := "ConnectionSuccess"
-		triggerWhy := "ConnectionEstablished"
-		triggerPayload := map[string]interface{}{
-			"url": TnosMCPURL,
-			"port": tnosMCPPort,
-			"success": true,
-		}
-		if err != nil {
-			triggerWhat = "ConnectionFailure"
-			triggerWhy = "ConnectionFailed"
-			triggerPayload["success"] = false
-			triggerPayload["error"] = err.Error()
-		}
-		trigger := tranquilspeak.CreateTrigger(
-			"BridgeClient",
-			triggerWhat,
-			"SystemLayer6",
-			triggerWhy,
-			"ATMEvent",
-			"1.0",
-			triggerType,
-			"bridge",
-			triggerPayload,
-		)
-		_ = c.triggerMatrix.ProcessTrigger(trigger)
-	}
-
+	// Directly try to connect to the primary URL
+	_, err := c.tryConnect(TnosMCPURL)
 	if err != nil {
-		return err
+		return fmt.Errorf("bridge connection failed: %w", err)
 	}
 	return nil
 }
@@ -336,9 +288,6 @@ func (c *Bridge) Send(msg common.Message) error {
 	// HOW: Using FallbackRoute and FormulaRegistry
 	// EXTENT: All message sends
 
-	contextMap := c.options.Context
-	operationName := "SendMessage"
-	ctx := c.ctx
 	fallbackSend := func() (interface{}, error) {
 		c.mu.Lock()
 		defer c.mu.Unlock()
@@ -371,16 +320,7 @@ func (c *Bridge) Send(msg common.Message) error {
 		c.stats.LastActive = time.Now()
 		return nil, nil
 	}
-	_, err := FallbackRoute(
-		ctx,
-		operationName,
-		contextMap,
-		fallbackSend,
-		func() (interface{}, error) { return nil, fmt.Errorf("Bridge fallback not implemented") },
-		func() (interface{}, error) { return nil, fmt.Errorf("GitHub MCP fallback not implemented") },
-		func() (interface{}, error) { return nil, fmt.Errorf("Copilot fallback not implemented") },
-		c.logger,
-	)
+	_, err := fallbackSend()
 	return err
 }
 
@@ -483,31 +423,19 @@ func (c *Bridge) reconnect() {
 	if retryDelay <= 0 {
 		retryDelay = 2 * time.Second
 	}
-	contextMap := c.options.Context
-	operationName := "Reconnect"
-	ctx := c.ctx
 	for i := 0; i < maxRetries; i++ {
-		_, err := FallbackRoute(
-			ctx,
-			operationName,
-			contextMap,
-			func() (interface{}, error) {
-				c.logger.Info("Attempting to reconnect to bridge (attempt %d)", i+1)
-				err := c.connect()
-				if err == nil {
-					c.logger.Info("Successfully reconnected to bridge")
-					c.stats.ReconnectCount++
-					go c.readPump()
-					return nil, nil
-				}
-				c.logger.Error("Failed to reconnect (attempt %d): %v", i+1, err)
-				return nil, err
-			},
-			func() (interface{}, error) { return nil, fmt.Errorf("Bridge fallback not implemented") },
-			func() (interface{}, error) { return nil, fmt.Errorf("GitHub MCP fallback not implemented") },
-			func() (interface{}, error) { return nil, fmt.Errorf("Copilot fallback not implemented") },
-			c.logger,
-		)
+		_, err := func() (interface{}, error) {
+			c.logger.Info("Attempting to reconnect to bridge (attempt %d)", i+1)
+			err := c.connect()
+			if err == nil {
+				c.logger.Info("Successfully reconnected to bridge")
+				c.stats.ReconnectCount++
+				go c.readPump()
+				return nil, nil
+			}
+			c.logger.Error("Failed to reconnect (attempt %d): %v", i+1, err)
+			return nil, err
+		}()
 		if err == nil {
 			return
 		}

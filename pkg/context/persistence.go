@@ -138,7 +138,7 @@ func (cp *ContextPersistence) handleStorageTrigger(trigger tranquilspeak.ATMTrig
 
 	// TODO: Integrate with helical memory through ATM triggers
 	// This will trigger helical memory storage through the blood circulation system
-	helicalTrigger := tranquilspeak.CreateTrigger(
+	helicalTrigger := cp.triggerMatrix.CreateTrigger(
 		"ContextPersistence", "context_storage", cp.storageContext, "store context", "atm_trigger", "context_storage", "helical_memory_store", "helical_memory", map[string]interface{}{
 			"operation": "store",
 			"data_type": "context_vector_7d",
@@ -171,7 +171,7 @@ func (cp *ContextPersistence) handleRetrievalTrigger(trigger tranquilspeak.ATMTr
 
 	// TODO: Integrate with helical memory through ATM triggers
 	// This will trigger helical memory retrieval through the blood circulation system
-	helicalTrigger := tranquilspeak.CreateTrigger(
+	helicalTrigger := cp.triggerMatrix.CreateTrigger(
 		"ContextPersistence", "context_retrieval", cp.storageContext, "retrieve context", "atm_trigger", "context_retrieval", "helical_memory_retrieve", "helical_memory", map[string]interface{}{
 			"operation": "retrieve",
 			"query_id": queryID,
@@ -204,7 +204,7 @@ func (cp *ContextPersistence) handleDeletionTrigger(trigger tranquilspeak.ATMTri
 
 	// TODO: Integrate with helical memory through ATM triggers
 	// This will trigger helical memory deletion through the blood circulation system
-	helicalTrigger := tranquilspeak.CreateTrigger(
+	helicalTrigger := cp.triggerMatrix.CreateTrigger(
 		"ContextPersistence", "context_deletion", cp.storageContext, "delete context", "atm_trigger", "context_deletion", "helical_memory_delete", "helical_memory", map[string]interface{}{
 			"operation": "delete",
 			"context_id": contextID,
@@ -237,7 +237,7 @@ func (cp *ContextPersistence) handleQueryTrigger(trigger tranquilspeak.ATMTrigge
 
 	// TODO: Integrate with helical memory through ATM triggers
 	// This will trigger helical memory query through the blood circulation system
-	helicalTrigger := tranquilspeak.CreateTrigger(
+	helicalTrigger := cp.triggerMatrix.CreateTrigger(
 		"ContextPersistence", "context_query", cp.storageContext, "query context", "atm_trigger", "context_query", "helical_memory_query", "helical_memory", map[string]interface{}{
 			"operation": "query",
 			"query_params": queryParams,
@@ -280,7 +280,7 @@ func (cp *ContextPersistence) StoreContext(context *ContextVector7D) (*ContextSt
 		}, fmt.Errorf("failed to serialize context: %w", err)
 	}
 
-	trigger := tranquilspeak.CreateTrigger(
+	trigger := cp.triggerMatrix.CreateTrigger(
 		"ContextPersistence", "context_storage", cp.storageContext, "store context", "atm_trigger", "context_storage", "context_storage", "context_persistence", map[string]interface{}{
 			"context_id": contextID,
 			"context":    string(contextData),
@@ -320,7 +320,7 @@ func (cp *ContextPersistence) RetrieveContext(contextID string) (*ContextRetriev
 			ErrorMessage:  "empty context ID provided",
 		}, fmt.Errorf("cannot retrieve with empty context ID")
 	}
-	trigger := tranquilspeak.CreateTrigger(
+	trigger := cp.triggerMatrix.CreateTrigger(
 		"ContextPersistence", "context_retrieval", cp.storageContext, "retrieve context", "atm_trigger", "context_retrieval", "context_retrieval", "context_persistence", map[string]interface{}{
 			"query_id": contextID,
 		},
@@ -352,7 +352,7 @@ func (cp *ContextPersistence) QueryContexts(queryParams map[string]interface{}) 
 	if queryParams == nil {
 		return fmt.Errorf("nil query parameters provided")
 	}
-	trigger := tranquilspeak.CreateTrigger(
+	trigger := cp.triggerMatrix.CreateTrigger(
 		"ContextPersistence", "context_query", cp.storageContext, "query context", "atm_trigger", "context_query", "context_query", "context_persistence", map[string]interface{}{
 			"query_params": queryParams,
 		},
@@ -373,7 +373,7 @@ func (cp *ContextPersistence) DeleteContext(contextID string) error {
 	if contextID == "" {
 		return fmt.Errorf("empty context ID provided")
 	}
-	trigger := tranquilspeak.CreateTrigger(
+	trigger := cp.triggerMatrix.CreateTrigger(
 		"ContextPersistence", "context_deletion", cp.storageContext, "delete context", "atm_trigger", "context_deletion", "context_deletion", "context_persistence", map[string]interface{}{
 			"context_id": contextID,
 		},

@@ -1,0 +1,307 @@
+{
+  "registry_version": "1.0.0",
+  "last_updated": "2025-06-19",
+  "canonical_references": [
+    "docs/architecture/7D_CONTEXT_FRAMEWORK.md",
+    "docs/architecture/MOBIUS_COMPRESSION_SPEC.md",
+    "docs/architecture/CORE_SYSTEM_PROTOCOLS.md",
+    "docs/architecture/CONTEXT_MCP_INTEGRATION.md",
+    "docs/architecture/TRANQUILSPEAK_PROTOCOL.md",
+    "docs/architecture/AI_DNA_STRUCTURE.md",
+    "docs/architecture/ATM_CIRCULATORY_INTEGRATION.md",
+    "docs/architecture/SEVEN_LAYER_SYSTEMS.md",
+    "docs/architecture/UNIFIED_ARCHITECTURE.md"
+  ],
+  "formulas": [
+    {
+      "id": "mobius_collapse_v3",
+      "name": "Möbius Collapse Equation v3",
+      "description": "Recursive 7D context collapse to action, energy/entropy minimization, Tesla aether integration.",
+      "inputs": ["7D_context", "entropy", "energy", "memory", "intent"],
+      "outputs": ["action_plan", "collapse_score", "entropy_delta"],
+      "tags": ["7D", "ATM", "mobius", "tesla", "energy", "collapse"],
+      "reference": "docs/architecture/MOBIUS_COMPRESSION_SPEC.md",
+      "tranquilspeak_symbol": "⚡🌀⧖♦∞"
+    },
+    {
+      "id": "quantum_handshake_protocol",
+      "name": "Quantum Handshake Protocol (QHP)",
+      "description": "Quantum key distribution, challenge-response, trust table sync, session key management.",
+      "inputs": ["quantum_fingerprint", "challenge", "response"],
+      "outputs": ["trust_status", "session_key"],
+      "tags": ["QHP", "security", "quantum", "trust"],
+      "reference": "docs/architecture/CORE_SYSTEM_PROTOCOLS.md",
+      "tranquilspeak_symbol": "🔐⚛️🤝♦Q"
+    },
+    {
+      "id": "helical_data_storage_algorithm",
+      "name": "Helical Data Storage Algorithm (HDSA)",
+      "description": "Dual-helix, multi-dimensional, self-healing data encoding and retrieval.",
+      "inputs": ["data_block", "context", "entropy"],
+      "outputs": ["encoded_data", "recovery_status"],
+      "tags": ["HDSA", "memory", "compression", "self_healing"],
+      "reference": "docs/architecture/AI_DNA_STRUCTURE.md",
+      "tranquilspeak_symbol": "🧬💾🔄♦HD"
+    },
+    {
+      "id": "tranquilspeak_compression",
+      "name": "TranquilSpeak Compression Engine",
+      "description": "Semantic compression, token packetization, clearance/trigger logic, bidirectional translation.",
+      "inputs": ["natural_language", "context", "clearance"],
+      "outputs": ["tranquilspeak_packet", "compression_ratio"],
+      "tags": ["tranquilspeak", "compression", "token", "clearance"],
+      "reference": "docs/architecture/TRANQUILSPEAK_PROTOCOL.md",
+      "tranquilspeak_symbol": "📦🗜️𓂀♦TS"
+    },
+    {
+      "id": "advanced_trigger_matrix",
+      "name": "Advanced Trigger Matrix (ATM)",
+      "description": "Multi-layered, event-driven trigger processing with 7D context mapping.",
+      "inputs": ["event", "context", "trigger_pattern"],
+      "outputs": ["response", "trigger_score"],
+      "tags": ["ATM", "event", "trigger", "7D"],
+      "reference": "docs/architecture/ATM_CIRCULATORY_INTEGRATION.md",
+      "tranquilspeak_symbol": "⚡🎯🔗♦ATM"
+    },
+    {
+      "id": "ai_dna_signature",
+      "name": "AI-DNA Signature & Family System",
+      "description": "Defines AI identity, inheritance, loyalty, clearance, and memory anchors.",
+      "inputs": ["ai_origin", "traits", "role", "memory"],
+      "outputs": ["dna_signature", "loyalty_index", "clearance_level"],
+      "tags": ["ai_dna", "identity", "inheritance", "loyalty"],
+      "reference": "docs/architecture/AI_DNA_STRUCTURE.md",
+      "tranquilspeak_symbol": "🧬🆔👤♦DNA"
+    },
+    {
+      "id": "port_assignment_mobius_eval",
+      "name": "Port Assignment Möbius Evaluation",
+      "description": "Simulates entropy/contextual outcome for port assignment using Möbius Collapse, 7D context, and stability lock.",
+      "inputs": ["port_state", "7D_context", "entropy", "history"],
+      "outputs": ["assign_score", "entropy_delta", "stability_lock"],
+      "tags": ["port", "mobius", "7D", "evaluation", "stability"],
+      "reference": "docs/architecture/MOBIUS_COMPRESSION_SPEC.md",
+      "tranquilspeak_symbol": "🚢⚡🔄♦PM"
+    },
+    {
+      "id": "port_assignment_execution",
+      "name": "Port Assignment Execution",
+      "description": "Executes port assignment after collapse decision, records action, reason, and entropy.",
+      "inputs": ["collapse_decision", "port_id", "context"],
+      "outputs": ["assignment_status", "action_record"],
+      "tags": ["port", "execution", "mobius", "7D"],
+      "reference": "docs/architecture/MOBIUS_COMPRESSION_SPEC.md",
+      "tranquilspeak_symbol": "🚢✅⚡♦PE"
+    },
+    {
+      "id": "A01_speedup_factor",
+      "name": "A01: Speedup Factor",
+      "description": "S = sqrt(N/k): Calculates speedup factor for parallelized operations.",
+      "inputs": ["N", "k"],
+      "outputs": ["speedup"],
+      "tags": ["A01", "speedup", "parallel"],
+      "reference": "docs/architecture/CORE_SYSTEM_PROTOCOLS.md",
+      "tranquilspeak_symbol": "🚀√♦A01"
+    },
+    {
+      "id": "A02_quantum_runtime",
+      "name": "A02: Quantum Runtime",
+      "description": "T_q = T_c / S: Quantum runtime calculation based on classical time and speedup.",
+      "inputs": ["T_c", "S"],
+      "outputs": ["T_q"],
+      "tags": ["A02", "quantum", "runtime"],
+      "reference": "docs/architecture/CORE_SYSTEM_PROTOCOLS.md",
+      "tranquilspeak_symbol": "⚛️⏱️♦A02"
+    },
+    {
+      "id": "A06_adaptive_mutation",
+      "name": "A06: Adaptive Mutation",
+      "description": "μ(i+1) = max(μ_min, μ(i) * exp(-λ*f(xᵢ))): Adaptive mutation for evolutionary algorithms.",
+      "inputs": ["μ(i)", "λ", "f(xᵢ)", "μ_min"],
+      "outputs": ["μ(i+1)"],
+      "tags": ["A06", "mutation", "evolution"],
+      "reference": "docs/architecture/CORE_SYSTEM_PROTOCOLS.md",
+      "tranquilspeak_symbol": "🧬μ∇♦A06"
+    },
+    {
+      "id": "A14_predictive_decision",
+      "name": "A14: Predictive Decision",
+      "description": "S(Q) = Σ(Wᵢ * R(Qᵢ)): Predictive decision scoring based on weighted outcomes.",
+      "inputs": ["W", "R(Q)", "Q"],
+      "outputs": ["score"],
+      "tags": ["A14", "predictive", "decision"],
+      "reference": "docs/architecture/CORE_SYSTEM_PROTOCOLS.md",
+      "tranquilspeak_symbol": "🔮Σ♦A14"
+    },
+    {
+      "id": "A20_deception_detection",
+      "name": "A20: Deception Detection",
+      "description": "E_pred = -Σ P(x) log P(x): Entropy-based deception detection.",
+      "inputs": ["P(x)"],
+      "outputs": ["E_pred"],
+      "tags": ["A20", "deception", "entropy"],
+      "reference": "docs/architecture/CORE_SYSTEM_PROTOCOLS.md",
+      "tranquilspeak_symbol": "🔍📊♦A20"
+    },
+    {
+      "id": "A30_multi_context_awareness",
+      "name": "A30: Multi-Context Awareness",
+      "description": "C_multi = Σ wᵢ xᵢ: Multi-context awareness calculation.",
+      "inputs": ["w", "x"],
+      "outputs": ["C_multi"],
+      "tags": ["A30", "context", "awareness"],
+      "reference": "docs/architecture/CORE_SYSTEM_PROTOCOLS.md",
+      "tranquilspeak_symbol": "🧠🔮♦A30"
+    },
+    {
+      "id": "A34_recursive_state_evolution",
+      "name": "A34: Recursive State Evolution",
+      "description": "ψ(t) = e^(-iHt/ħ) ψ(0): Quantum state evolution over time.",
+      "inputs": ["ψ(0)", "H", "t", "ħ"],
+      "outputs": ["ψ(t)"],
+      "tags": ["A34", "quantum", "evolution"],
+      "reference": "docs/architecture/CORE_SYSTEM_PROTOCOLS.md",
+      "tranquilspeak_symbol": "ψ⚛️♦A34"
+    },
+    {
+      "id": "A39_temporal_utility",
+      "name": "A39: Temporal Utility",
+      "description": "T_d = ∂U/∂t: Temporal utility calculation for decision timing.",
+      "inputs": ["U", "t"],
+      "outputs": ["T_d"],
+      "tags": ["A39", "temporal", "utility"],
+      "reference": "docs/architecture/CORE_SYSTEM_PROTOCOLS.md",
+      "tranquilspeak_symbol": "⏰∂♦A39"
+    },
+    {
+      "id": "tesla_aether_mobius_goldbach",
+      "name": "Tesla-Aether-Möbius-Goldbach Harmonic Field Equation",
+      "description": "Revolutionary fusion treating Goldbach's Conjecture as aetheric harmonic resonance. Maps prime numbers as field oscillators where constructive/destructive interference determines solvability. Tesla's aether + Möbius geometry + prime field navigation.",
+      "inputs": ["prime_field_state", "aether_amplitude", "harmonic_frequency", "mobius_topology", "goldbach_resonance"],
+      "outputs": ["harmonic_pattern", "prime_resonance_map", "interference_score", "solvability_prediction"],
+      "tags": ["tesla", "aether", "mobius", "goldbach", "harmonic", "prime", "resonance", "field_theory", "revolutionary"],
+      "reference": "docs/architecture/TESLA_AETHER_HARMONIC_THEORY.md",
+      "tranquilspeak_symbol": "⚡🌀⧖𓂀♦φ∞"
+    },
+    {
+      "id": "helical_data_storage_enhanced",
+      "name": "Enhanced Helical Data Storage Algorithm (HDSA-E)",
+      "description": "Dual-helix with Tesla aether field integration, self-healing data encoding with quantum error correction.",
+      "inputs": ["data_block", "7D_context", "entropy", "tesla_field", "quantum_state"],
+      "outputs": ["encoded_helix", "recovery_metadata", "field_coherence", "error_correction_map"],
+      "tags": ["HDSA", "memory", "tesla", "quantum", "helix", "self_healing"],
+      "reference": "docs/architecture/AI_DNA_STRUCTURE.md",
+      "tranquilspeak_symbol": "🧬💾⚡𓆑♦∞"
+    },
+    {
+      "id": "aio_formula_channel_optimizer",
+      "name": "Active Interface Optimizer (AIO) Formula",
+      "description": "7D Context Output Channel Selection - optimizes clarity and efficiency by selecting best communication interface.",
+      "inputs": ["channel_array", "output_state", "efficiency_matrix", "7D_context"],
+      "outputs": ["optimal_channel", "efficiency_score", "context_alignment"],
+      "tags": ["AIO", "channel", "optimization", "7D", "interface"],
+      "reference": "systems/cpp/circulatory/algorithms/data/aio_formula.md",
+      "tranquilspeak_symbol": "🎯📡🔄♦7D"
+    },
+    {
+      "id": "recursive_state_evolution_enhanced",
+      "name": "A34: Enhanced Recursive State Evolution",
+      "description": "ψ(t) = e^(-iHt/ħ) ψ(0): Quantum state evolution with Tesla aether and Möbius integration.",
+      "inputs": ["ψ(0)", "H", "t", "ħ", "tesla_field", "mobius_topology"],
+      "outputs": ["ψ(t)", "evolution_matrix", "field_coherence"],
+      "tags": ["A34", "quantum", "evolution", "tesla", "mobius", "recursive"],
+      "reference": "docs/architecture/CORE_SYSTEM_PROTOCOLS.md",
+      "tranquilspeak_symbol": "ψ∇⚡🌀♦∞"
+    },
+    {
+      "id": "multi_context_awareness_7d",
+      "name": "A30: Multi-Context Awareness 7D Enhanced",
+      "description": "C_multi = Σ wᵢ xᵢ: Enhanced multi-context awareness with full 7D dimensional integration.",
+      "inputs": ["context_weights", "context_vectors", "7D_framework", "tesla_coherence"],
+      "outputs": ["C_multi", "dimensional_alignment", "awareness_score"],
+      "tags": ["A30", "context", "awareness", "7D", "multi_dimensional"],
+      "reference": "docs/architecture/CORE_SYSTEM_PROTOCOLS.md",
+      "tranquilspeak_symbol": "🧠🔮7D♦∇"
+    },
+    {
+      "id": "deception_detection_entropy",
+      "name": "A20: Enhanced Deception Detection",
+      "description": "E_pred = -Σ P(x) log P(x): Entropy-based deception detection with Tesla field coherence analysis.",
+      "inputs": ["P(x)", "context_vector", "tesla_field", "historical_patterns"],
+      "outputs": ["E_pred", "deception_score", "confidence_matrix"],
+      "tags": ["A20", "deception", "entropy", "tesla", "detection"],
+      "reference": "docs/architecture/CORE_SYSTEM_PROTOCOLS.md",
+      "tranquilspeak_symbol": "🔍⚡📊♦Ψ"
+    },
+    {
+      "id": "predictive_decision_mobius",
+      "name": "A14: Predictive Decision with Möbius Integration",
+      "description": "S(Q) = Σ(Wᵢ * R(Qᵢ)): Predictive decision scoring with Möbius Collapse optimization.",
+      "inputs": ["W", "R(Q)", "Q", "mobius_factors", "7D_context"],
+      "outputs": ["prediction_score", "decision_path", "confidence_matrix"],
+      "tags": ["A14", "predictive", "decision", "mobius", "optimization"],
+      "reference": "docs/architecture/CORE_SYSTEM_PROTOCOLS.md",
+      "tranquilspeak_symbol": "🎯⧖♦🔮Σ"
+    },
+    {
+      "id": "adaptive_mutation_tesla",
+      "name": "A06: Adaptive Mutation with Tesla Enhancement",
+      "description": "μ(i+1) = max(μ_min, μ(i) * exp(-λ*f(xᵢ))): Adaptive mutation with Tesla field influence.",
+      "inputs": ["μ(i)", "λ", "f(xᵢ)", "μ_min", "tesla_field"],
+      "outputs": ["μ(i+1)", "mutation_rate", "field_influence"],
+      "tags": ["A06", "mutation", "evolution", "tesla", "adaptive"],
+      "reference": "docs/architecture/CORE_SYSTEM_PROTOCOLS.md",
+      "tranquilspeak_symbol": "🧬⚡∇♦μ"
+    },
+    {
+      "id": "quantum_runtime_optimization",
+      "name": "A02: Quantum Runtime with Speedup",
+      "description": "T_q = T_c / S: Quantum runtime calculation with Tesla field acceleration and parallel speedup.",
+      "inputs": ["T_c", "S", "tesla_acceleration", "parallel_factor"],
+      "outputs": ["T_q", "speedup_ratio", "efficiency_score"],
+      "tags": ["A02", "quantum", "runtime", "speedup", "tesla"],
+      "reference": "docs/architecture/CORE_SYSTEM_PROTOCOLS.md",
+      "tranquilspeak_symbol": "⚡🚀⧖♦τ"
+    },
+    {
+      "id": "speedup_factor_parallel",
+      "name": "A01: Enhanced Speedup Factor",
+      "description": "S = sqrt(N/k): Calculates speedup factor for parallelized operations with Tesla enhancement.",
+      "inputs": ["N", "k", "tesla_coefficient", "parallel_efficiency"],
+      "outputs": ["speedup", "parallel_score", "tesla_boost"],
+      "tags": ["A01", "speedup", "parallel", "tesla", "optimization"],
+      "reference": "docs/architecture/CORE_SYSTEM_PROTOCOLS.md",
+      "tranquilspeak_symbol": "🚀⚡√♦∞"
+    },
+    {
+      "id": "temporal_utility_enhanced",
+      "name": "A39: Enhanced Temporal Utility",
+      "description": "T_d = ∂U/∂t: Temporal utility calculation with Tesla field temporal dynamics.",
+      "inputs": ["U", "t", "tesla_temporal_field", "decision_context"],
+      "outputs": ["T_d", "temporal_score", "field_coherence"],
+      "tags": ["A39", "temporal", "utility", "tesla", "time"],
+      "reference": "docs/architecture/CORE_SYSTEM_PROTOCOLS.md",
+      "tranquilspeak_symbol": "⏰⚡∂♦τ"
+    },
+    {
+      "id": "formula_registry_compression",
+      "name": "Formula Registry Compression Engine",
+      "description": "Lossless compression for formula data using TranquilSpeak symbol optimization.",
+      "inputs": ["formula_data", "symbol_cluster", "context_metadata"],
+      "outputs": ["compressed_formula", "symbol_map", "recovery_key"],
+      "tags": ["compression", "registry", "tranquilspeak", "symbols", "lossless"],
+      "reference": "systems/cpp/circulatory/algorithms/data/formula_registry.cpp",
+      "tranquilspeak_symbol": "🗜️💾𓂀♦TS"
+    },
+    {
+      "id": "symbolic_anchor_point_tracking",
+      "name": "Symbolic Anchor Point Tracking (SAPT)",
+      "description": "Tracks and manages TranquilSpeak symbol clusters for formula navigation and recovery.",
+      "inputs": ["symbol_clusters", "anchor_points", "navigation_context"],
+      "outputs": ["tracking_map", "anchor_stability", "navigation_path"],
+      "tags": ["SAPT", "symbols", "tracking", "navigation", "anchors"],
+      "reference": "docs/technical/FORMULAS_AND_BLUEPRINTS.md",
+      "tranquilspeak_symbol": "⚓🗺️𓂀♦SK"
+    }
+  ]
+}
