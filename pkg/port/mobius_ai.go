@@ -13,14 +13,55 @@
 //   - TriggerMatrix: pkg/tranquilspeak/trigger_matrix.go
 //   - AI-DNA: docs/architecture/AI_DNA_STRUCTURE.md
 //   - Port Assignment AI: this file
+//
+// ENHANCED LOGIC (2025):
+//   - Implements stability lock: prevents redundant port assignments unless entropy/instability is detected.
+//   - Logs all assignment decisions, entropy, and 7D context for AI-DNA lineage and traceability.
+//   - Centralized decision engine: only triggers reevaluation on instability, contradiction, or entropy spike.
+//   - Simulation (thought) and execution (action) are strictly separated.
+//   - All logic is event-driven, ATM/TranquilSpeak/AI-DNA/7D compliant.
+//   - See EnhancedPortAssignmentEngine for canonical entry point.
+//
+// [DOCS CROSS-REFERENCE]
+// - See docs/technical/FORMULAS_AND_BLUEPRINTS.md#mobius_collapse_v3
+// - See docs/architecture/7D_CONTEXT_FRAMEWORK.md
+// - See pkg/formularegistry/ for canonical formula registry usage
+// - All simulation/execution is routed through canonical event-driven logic (TriggerMatrix)
+// - No direct assignment or simulation overlap; stability lock and redundancy rules enforced by central engine
+// - AI-DNA/Family/TranquilSpeak compliance
+// - No recoding, renaming, or duplication of canonical logic
+// - All handler registration must be performed in system initialization
+// - This file is the canonical Port Assignment AI for TNOS MCP
+//
+// [END]
+
+// --- Enhanced Möbius Collapse Port Assignment AI ---
+//
+// EnhancedPortAssignmentEngine is the canonical entry point for Möbius-based, non-redundant, context-aware port assignment.
+// - Simulates both action and inaction using Möbius Collapse Equation v3 (formula registry, 7D context)
+// - Logs all decisions for AI-DNA lineage
+// - Uses stability lock to prevent redundant assignments
+// - Only triggers reevaluation on entropy spike, contradiction, or instability
+// - Strictly separates simulation (thought) from execution (action)
+// - Fully event-driven and ATM/TranquilSpeak/AI-DNA/7D compliant
+//
+// PortAssignmentStabilityLock: Tracks stable port assignments and their entropy
+// ShouldReevaluatePort: Determines if reevaluation is needed based on entropy/instability
+// LogPortAssignmentDecision: Logs all assignment decisions for traceability
+//
+// See also: docs/architecture/AI_DNA_STRUCTURE.md, docs/architecture/7D_CONTEXT_FRAMEWORK.md, docs/technical/FORMULAS_AND_BLUEPRINTS.md
 
 package port
 
 import (
 	"fmt"
+	"strconv"
+	"sync"
 	"time"
 
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/formularegistry"
+	helical "github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/helical"
+	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log"
 	tspeak "github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/tranquilspeak"
 )
 
@@ -52,6 +93,8 @@ type PortAssignmentDecision struct {
 }
 
 // PortAssignmentEvaluator simulates Möbius Collapse for both action and inaction
+// Canonical: All formula registry calls must use ExecuteFormulaByName with TranquilSpeak symbol mapping.
+// See: pkg/formularegistry/formula_registry.go, SymbolMapping, and docs/technical/FORMULAS_AND_BLUEPRINTS.md
 func PortAssignmentEvaluator(triggerMatrix *tspeak.TriggerMatrix, portID string, context7d PortAssignmentContext7D) (PortAssignmentDecision, PortAssignmentDecision, error) {
 	// Prepare simulation payloads for both action and inaction
 	evalPayload := func(action string) map[string]interface{} {
@@ -63,16 +106,9 @@ func PortAssignmentEvaluator(triggerMatrix *tspeak.TriggerMatrix, portID string,
 	}
 
 	registry := formularegistry.GetBridgeFormulaRegistry()
-	// Use Möbius Collapse formula (canonical)
-	mobiusSymbol, ok := formularegistry.FORMULA_SYMBOLS["mobius.collapse"]
-	if !ok {
-		return PortAssignmentDecision{}, PortAssignmentDecision{}, fmt.Errorf("mobius.collapse formula symbol not found")
-	}
-
-	// Simulate action path
-	actionResult, errA := registry.ExecuteFormula(mobiusSymbol, evalPayload("assign"))
-	// Simulate inaction path
-	inactionResult, errI := registry.ExecuteFormula(mobiusSymbol, evalPayload("skip"))
+	// Canonical: Use ExecuteFormulaByName to ensure TranquilSpeak symbol compliance
+	actionResult, errA := registry.ExecuteFormulaByName("mobius.collapse", evalPayload("assign"))
+	inactionResult, errI := registry.ExecuteFormulaByName("mobius.collapse", evalPayload("skip"))
 
 	if errA != nil || errI != nil {
 		return PortAssignmentDecision{}, PortAssignmentDecision{}, fmt.Errorf("mobius.collapse simulation failed: %v, %v", errA, errI)
@@ -122,6 +158,130 @@ func PortAssignmentExecutor(triggerMatrix *tspeak.TriggerMatrix, decision PortAs
 	return triggerMatrix.ProcessTrigger(trigger)
 }
 
+// PortAssignmentStabilityLock tracks stable port assignments and their entropy
+var PortAssignmentStabilityLock = make(map[string]PortAssignmentDecision)
+var stabilityLockMtx sync.Mutex
+
+// ShouldReevaluatePort determines if a port should be reevaluated based on entropy/instability
+func ShouldReevaluatePort(portID string, newDecision PortAssignmentDecision) bool {
+	stabilityLockMtx.Lock()
+	defer stabilityLockMtx.Unlock()
+	prev, exists := PortAssignmentStabilityLock[portID]
+	if !exists {
+		return true // No previous record, must evaluate
+	}
+	// If action is the same and entropy is low and stable, do not reevaluate
+	if prev.Action == newDecision.Action && newDecision.Entropy < 0.1 && prev.Entropy < 0.1 {
+		return false // Stable, no spike
+	}
+	// If entropy increased or contradiction detected, reevaluate
+	if newDecision.Entropy > prev.Entropy+0.05 || newDecision.Action != prev.Action {
+		return true
+	}
+	return false
+}
+
+// LogPortAssignmentDecision logs all assignment decisions for AI-DNA lineage
+func LogPortAssignmentDecision(decision PortAssignmentDecision) {
+	// Canonical: Log to Helical Memory Engine (DNA-marked, 7D-contextual, event-driven)
+	helicalEngine := helical.GetGlobalHelicalEngine()
+	if helicalEngine != nil {
+		strandData := map[string]interface{}{
+			"port_id": decision.PortID,
+			"action": decision.Action,
+			"entropy": decision.Entropy,
+			"collapse_score": decision.CollapseScore,
+			"predicted_performance": decision.PredictedPerf,
+			"reason": decision.Reason,
+			"context_7d": decision.Context7D,
+			"timestamp": decision.Timestamp,
+			"ai_dna": helicalEngine.DNA,
+		}
+		// Use the exported CreateDNAStrand and pass the 7D context directly
+		canonical7D := ToContextVector7D(decision.Context7D)
+		helicalEngine.CreateDNAStrand("PortAssignmentDecision", canonical7D, strandData)
+		// Log via ATM trigger (event-driven, DNA-marked)
+		_ = helicalEngine.ProcessMemoryOperation(tspeak.TriggerTypeMemoryStore, map[string]interface{}{
+			"event": "PortAssignmentDecision",
+			"context7d": canonical7D,
+			"data": strandData,
+		})
+	} else {
+		// Fallback: stdout log (should not be primary in production)
+		fmt.Printf("[PORT-AI][%s] Port: %s | Action: %s | Entropy: %.4f | Collapse: %.4f | Perf: %.4f | Reason: %s | 7D: %+v\n",
+			time.Unix(decision.Timestamp, 0).Format(time.RFC3339), decision.PortID, decision.Action, decision.Entropy, decision.CollapseScore, decision.PredictedPerf, decision.Reason, decision.Context7D)
+	}
+}
+
+// EnhancedPortAssignmentEngine is the central cognitive engine for port assignment
+func EnhancedPortAssignmentEngine(triggerMatrix *tspeak.TriggerMatrix, portID string, context7d PortAssignmentContext7D) (PortAssignmentDecision, error) {
+	// Simulate both action and inaction
+	actionDecision, inactionDecision, err := PortAssignmentEvaluator(triggerMatrix, portID, context7d)
+	if err != nil {
+		return PortAssignmentDecision{}, err
+	}
+	// Log both decisions for traceability
+	LogPortAssignmentDecision(actionDecision)
+	LogPortAssignmentDecision(inactionDecision)
+	// Select decision path based on entropy delta, network health, and historical stability
+	var chosen PortAssignmentDecision
+	if actionDecision.Entropy < inactionDecision.Entropy {
+		chosen = actionDecision
+	} else {
+		chosen = inactionDecision
+	}
+	// Check stability lock
+	if !ShouldReevaluatePort(portID, chosen) {
+		return chosen, nil // Do not reassign, stable
+	}
+	// Update stability lock
+	stabilityLockMtx.Lock()
+	PortAssignmentStabilityLock[portID] = chosen
+	stabilityLockMtx.Unlock()
+	// Only assign if action is "assign"
+	if chosen.Action == "assign" {
+		err = PortAssignmentExecutor(triggerMatrix, chosen)
+		if err != nil {
+			return chosen, err
+		}
+	}
+	return chosen, nil
+}
+
+// ToContextVector7D converts a PortAssignmentContext7D to a canonical log.ContextVector7D for DNA/7D compliance
+func ToContextVector7D(ctx PortAssignmentContext7D) log.ContextVector7D {
+	var extentFloat float64
+	if ctx.Extent != "" {
+		e, err := strconv.ParseFloat(ctx.Extent, 64)
+		if err == nil {
+			extentFloat = e
+		}
+	}
+	var metaMap map[string]interface{}
+	if ctx.Meta != nil {
+		switch v := ctx.Meta.(type) {
+		case map[string]interface{}:
+			metaMap = v
+		case map[string]string:
+			metaMap = make(map[string]interface{})
+			for k, val := range v {
+				metaMap[k] = val
+			}
+		}
+	}
+	return log.ContextVector7D{
+		Who:    ctx.Who,
+		What:   ctx.What,
+		When:   ctx.When, // int64 is valid for interface{}
+		Where:  ctx.Where,
+		Why:    ctx.Why,
+		How:    ctx.How,
+		Extent: extentFloat,
+		Meta:   metaMap,
+		Source: "PortAssignmentMobiusAI",
+	}
+}
+
 // getFloat safely extracts a float64 from a map
 func getFloat(m map[string]interface{}, key string) float64 {
 	if v, ok := m[key]; ok {
@@ -161,3 +321,8 @@ func getString(m map[string]interface{}, key string) string {
 // - This file is the canonical Port Assignment AI for TNOS MCP
 //
 // [END]
+//
+// [ENHANCEMENT NOTE]
+// - All port assignment decisions are now DNA-marked, 7D-contextual, and event-driven via the Helical Memory Engine and ATM Trigger Matrix.
+// - Formula registry calls use canonical TranquilSpeak symbols.
+// - See docs/technical/FORMULAS_AND_BLUEPRINTS.md, docs/architecture/7D_CONTEXT_FRAMEWORK.md, docs/architecture/AI_DNA_STRUCTURE.md for full compliance details.
