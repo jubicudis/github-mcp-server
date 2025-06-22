@@ -302,6 +302,246 @@
       "tags": ["SAPT", "symbols", "tracking", "navigation", "anchors"],
       "reference": "docs/technical/FORMULAS_AND_BLUEPRINTS.md",
       "tranquilspeak_symbol": "⚓🗺️𓂀♦SK"
+    },
+    {
+      "id": "ric.collapse",
+      "name": "Recursive Information Collapse (RIC)",
+      "description": "Compresses 7D symbolic thought data into actionable intent for collapse.",
+      "inputs": ["7D_context", "entropy", "priority", "context"],
+      "outputs": ["intent_packet"],
+      "tags": ["RIC", "collapse", "7D", "intent"],
+      "reference": "docs/technical/FORMULAS_AND_BLUEPRINTS.md",
+      "tranquilspeak_symbol": "<RIC_SYMBOL>"
+    },
+    {
+      "id": "cpe.permission",
+      "name": "Contextual Permission Evaluation (CPE)",
+      "description": "Evaluates permission for intent collapse based on ethics, capacity, and conflict.",
+      "inputs": ["intent", "ethics", "capacity", "conflict"],
+      "outputs": ["permission", "clarity_score"],
+      "tags": ["CPE", "permission", "ethics", "collapse"],
+      "reference": "docs/technical/FORMULAS_AND_BLUEPRINTS.md",
+      "tranquilspeak_symbol": "<CPE_SYMBOL>"
+    },
+    {
+      "id": "elc.energy",
+      "name": "Energy Lifecycle Converter (ELC)",
+      "description": "Verifies energy input, loss, routing, and recycling for collapse.",
+      "inputs": ["energy_input", "loss", "routing", "recycle"],
+      "outputs": ["energy_availability", "lifecycle_status"],
+      "tags": ["ELC", "energy", "lifecycle", "collapse"],
+      "reference": "docs/technical/FORMULAS_AND_BLUEPRINTS.md",
+      "tranquilspeak_symbol": "<ELC_SYMBOL>"
+    },
+    {
+      "id": "rmgc.moral",
+      "name": "Recursive Moral Gradient Collapse (RMGC)",
+      "description": "Applies moral gradient based on history, feedback, and social impact.",
+      "inputs": ["history", "REFM", "social_impact"],
+      "outputs": ["moral_gradient_score"],
+      "tags": ["RMGC", "moral", "gradient", "collapse"],
+      "reference": "docs/technical/FORMULAS_AND_BLUEPRINTS.md",
+      "tranquilspeak_symbol": "<RMGC_SYMBOL>"
+    },
+    {
+      "id": "oif.integrity",
+      "name": "Observation Integrity Filter (OIF)",
+      "description": "Compares observed output vs expected output for feedback and learning.",
+      "inputs": ["observed_output", "expected_output", "noise", "clarity"],
+      "outputs": ["integrity_score", "clarity"],
+      "tags": ["OIF", "integrity", "observation", "feedback"],
+      "reference": "docs/technical/FORMULAS_AND_BLUEPRINTS.md",
+      "tranquilspeak_symbol": "<OIF_SYMBOL>"
+    },
+    {
+      "id": "rav.adjust",
+      "name": "Reality Adjustment Vector (RAV)",
+      "description": "Adjusts internal model based on feedback, bias, and clarity.",
+      "inputs": ["OIF", "bias", "clarity"],
+      "outputs": ["adjustment_vector"],
+      "tags": ["RAV", "adjustment", "model", "feedback"],
+      "reference": "docs/technical/FORMULAS_AND_BLUEPRINTS.md",
+      "tranquilspeak_symbol": "<RAV_SYMBOL>"
+    },
+    {
+      "id": "smr.memory",
+      "name": "Symbolic Memory Reformation (SMR)",
+      "description": "Encodes memory with seed, adjustment, emotion, and context.",
+      "inputs": ["seed", "RAV", "emotion", "context"],
+      "outputs": ["reformed_memory"],
+      "tags": ["SMR", "memory", "reformation", "context"],
+      "reference": "docs/technical/FORMULAS_AND_BLUEPRINTS.md",
+      "tranquilspeak_symbol": "<SMR_SYMBOL>"
+    },
+    {
+      "id": "rre.result",
+      "name": "Recursive Result Evaluation (RRE)",
+      "description": "Aggregates all collapse cycle results for feedback and learning.",
+      "inputs": ["RIC", "CPE", "ELC", "RMGC", "OIF", "RAV", "SMR"],
+      "outputs": ["evaluation_score"],
+      "tags": ["RRE", "result", "evaluation", "collapse"],
+      "reference": "docs/technical/FORMULAS_AND_BLUEPRINTS.md",
+      "tranquilspeak_symbol": "<RRE_SYMBOL>"
+    },
+    {
+      "id": "cdrm.route",
+      "name": "Contextual Dimensional Routing Matrix (CDRM)",
+      "description": "Routes attention and compression into the most relevant of the 7 dimensions.",
+      "inputs": ["7D_context", "priority", "relevance"],
+      "outputs": ["routing_matrix"],
+      "tags": ["CDRM", "routing", "7D", "context"],
+      "reference": "docs/technical/FORMULAS_AND_BLUEPRINTS.md",
+      "tranquilspeak_symbol": "<CDRM_SYMBOL>"
+    },
+    {
+      "id": "mtrcm.manager",
+      "name": "Multi-Threaded Recursive Collapse Manager (MTRCM)",
+      "description": "Manages multiple simultaneous thought streams and collapse threads.",
+      "inputs": ["RIC", "CPE", "ELC", "RMGC", "thread_weights"],
+      "outputs": ["thread_scores", "collapse_order"],
+      "tags": ["MTRCM", "manager", "collapse", "thread"],
+      "reference": "docs/technical/FORMULAS_AND_BLUEPRINTS.md",
+      "tranquilspeak_symbol": "<MTRCM_SYMBOL>"
+    },
+    {
+      "id": "qcpf.quantum",
+      "name": "Quantum Collapse Potential Field (QCPF)",
+      "description": "Scans future possible outcomes and rates their likelihood of stable collapse.",
+      "inputs": ["memory", "entropy", "context", "conflict"],
+      "outputs": ["potential_field", "success_likelihood"],
+      "tags": ["QCPF", "quantum", "collapse", "potential"],
+      "reference": "docs/technical/FORMULAS_AND_BLUEPRINTS.md",
+      "tranquilspeak_symbol": "<QCPF_SYMBOL>"
+    },
+    {
+      "id": "des.shield",
+      "name": "Dimensional Entropy Shielding (DES)",
+      "description": "Shields the system from collapse failure due to noise or contradiction.",
+      "inputs": ["stability", "entropy", "familiarity", "resonance"],
+      "outputs": ["shield_score"],
+      "tags": ["DES", "entropy", "shield", "collapse"],
+      "reference": "docs/technical/FORMULAS_AND_BLUEPRINTS.md",
+      "tranquilspeak_symbol": "<DES_SYMBOL>"
+    },
+    {
+      "id": "atm.contextualize",
+      "name": "ATM Contextualizer",
+      "description": "ATM Contextualizer: Integrates 7D context into all formula execution for ATM compliance.",
+      "inputs": ["input_data", "7D_context"],
+      "outputs": ["contextualized_output"],
+      "tags": ["ATM", "context", "7D", "compliance"],
+      "reference": "docs/architecture/ATM_CIRCULATORY_INTEGRATION.md",
+      "tranquilspeak_symbol": "<ATM_CTX_SYMBOL>"
+    },
+    {
+      "id": "ai_dna.encode",
+      "name": "AI-DNA Encoder",
+      "description": "AI-DNA Encoder: Encodes symbolic memory into AI-DNA helical structure.",
+      "inputs": ["symbolic_memory", "seed", "context"],
+      "outputs": ["ai_dna_sequence"],
+      "tags": ["AI-DNA", "encode", "memory", "helical"],
+      "reference": "docs/architecture/AI_DNA_STRUCTURE.md",
+      "tranquilspeak_symbol": "<AIDNA_ENC_SYMBOL>"
+    },
+    {
+      "id": "ai_dna.decode",
+      "name": "AI-DNA Decoder",
+      "description": "AI-DNA Decoder: Decodes AI-DNA helical structure into symbolic memory.",
+      "inputs": ["ai_dna_sequence", "context"],
+      "outputs": ["symbolic_memory"],
+      "tags": ["AI-DNA", "decode", "memory", "helical"],
+      "reference": "docs/architecture/AI_DNA_STRUCTURE.md",
+      "tranquilspeak_symbol": "<AIDNA_DEC_SYMBOL>"
+    },
+    {
+      "id": "mobius.compression",
+      "name": "Möbius Compression",
+      "description": "Möbius Compression: Applies Möbius transformation for lossless symbolic compression.",
+      "inputs": ["input_data", "context"],
+      "outputs": ["compressed_data"],
+      "tags": ["mobius", "compression", "symbolic"],
+      "reference": "docs/technical/MOBIUS_COMPRESSION_SPEC.md",
+      "tranquilspeak_symbol": "<MOBIUS_COMP_SYMBOL>"
+    },
+    {
+      "id": "mobius.decompression",
+      "name": "Möbius Decompression",
+      "description": "Möbius Decompression: Reverses Möbius transformation for symbolic decompression.",
+      "inputs": ["compressed_data", "context"],
+      "outputs": ["decompressed_data"],
+      "tags": ["mobius", "decompression", "symbolic"],
+      "reference": "docs/technical/MOBIUS_COMPRESSION_SPEC.md",
+      "tranquilspeak_symbol": "<MOBIUS_DECOMP_SYMBOL>"
+    },
+    {
+      "id": "tranquilspeak.parse",
+      "name": "TranquilSpeak Parser",
+      "description": "TranquilSpeak Parser: Parses TranquilSpeak symbols and statements for event routing.",
+      "inputs": ["tranquilspeak_input"],
+      "outputs": ["parsed_structure"],
+      "tags": ["tranquilspeak", "parser", "event"],
+      "reference": "docs/architecture/TRANQUILSPEAK_PROTOCOL.md",
+      "tranquilspeak_symbol": "<TSPEAK_PARSE_SYMBOL>"
+    },
+    {
+      "id": "tranquilspeak.emit_event",
+      "name": "TranquilSpeak Event Emitter",
+      "description": "TranquilSpeak Event Emitter: Emits canonical events using TranquilSpeak symbols.",
+      "inputs": ["event_name", "payload", "context"],
+      "outputs": ["event_id"],
+      "tags": ["tranquilspeak", "event", "emitter"],
+      "reference": "docs/architecture/TRANQUILSPEAK_PROTOCOL.md",
+      "tranquilspeak_symbol": "<TSPEAK_EMIT_SYMBOL>"
+    },
+    {
+      "id": "helical.memory.encode",
+      "name": "Helical Memory Encoder",
+      "description": "Helical Memory Encoder: Encodes context and events into helical memory structure.",
+      "inputs": ["event_data", "context"],
+      "outputs": ["helical_memory_block"],
+      "tags": ["helical", "memory", "encode"],
+      "reference": "docs/architecture/AI_DNA_STRUCTURE.md",
+      "tranquilspeak_symbol": "<HELICAL_ENC_SYMBOL>"
+    },
+    {
+      "id": "helical.memory.decode",
+      "name": "Helical Memory Decoder",
+      "description": "Helical Memory Decoder: Decodes helical memory block into context and events.",
+      "inputs": ["helical_memory_block"],
+      "outputs": ["event_data", "context"],
+      "tags": ["helical", "memory", "decode"],
+      "reference": "docs/architecture/AI_DNA_STRUCTURE.md",
+      "tranquilspeak_symbol": "<HELICAL_DEC_SYMBOL>"
+    },
+    {
+      "id": "atm.trigger_matrix",
+      "name": "ATM Trigger Matrix",
+      "description": "ATM Trigger Matrix: Canonical event/trigger routing for all formula execution.",
+      "inputs": ["event", "context"],
+      "outputs": ["triggered_formula", "result"],
+      "tags": ["ATM", "trigger", "matrix"],
+      "reference": "docs/architecture/CONTEXT_MCP_INTEGRATION.md",
+      "tranquilspeak_symbol": "<ATM_TRIGGER_SYMBOL>"
+    },
+    {
+      "id": "ai_dna.self_heal",
+      "name": "AI-DNA Self-Healing",
+      "description": "AI-DNA Self-Healing: Repairs symbolic memory using dual-helix parity.",
+      "inputs": ["ai_dna_sequence", "parity"],
+      "outputs": ["repaired_sequence"],
+      "tags": ["AI-DNA", "self-heal", "memory", "parity"],
+      "reference": "docs/architecture/AI_DNA_STRUCTURE.md",
+      "tranquilspeak_symbol": "<AIDNA_HEAL_SYMBOL>"
+    },
+    {
+      "id": "mobius.entropy_shield",
+      "name": "Möbius Entropy Shield",
+      "description": "Möbius Entropy Shield: Shields system from entropy spikes during collapse.",
+      "inputs": ["entropy", "context"],
+      "outputs": ["shielded_state"],
+      "tags": ["mobius", "entropy", "shield"],
+      "reference": "docs/technical/MOBIUS_COMPRESSION_SPEC.md",
+      "tranquilspeak_symbol": "<MOBIUS_SHIELD_SYMBOL>"
     }
   ]
 }

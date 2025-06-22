@@ -1,11 +1,10 @@
 {
   "recommendations": [
     "golang.go",
-    "formulahendry.code-runner",
-    "neonxp.gotools",
-    "shivamkumar.go-extras",
+    "ms-vscode.cpptools",
+    "ms-vscode.go-tools",
     "esbenp.prettier-vscode",
-    "redhat.vscode-yaml",
-    "harperkdavis.tranquility-language-support"
-  ]
+    "streetsidesoftware.code-spell-checker"
+  ],
+  "unwantedRecommendations": []
 }

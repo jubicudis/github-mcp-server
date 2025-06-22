@@ -61,6 +61,34 @@ func LoadSymbolRegistry(path string) error {
 			}
 			symbolRegistry[component] = entry
 		}
+		// Manual aliasing for ATM AI deduplication and metadata logging clusters
+		// Use actual ATM entries from the registry
+		if atmEntry, ok := symbolRegistry["atm/trigger_matrix.tranquilspeak"]; ok {
+			symbolRegistry["atm/ai.dedup"] = atmEntry
+			symbolRegistry["atm/ai.meta"] = atmEntry
+			symbolRegistry["advanced_trigger_matrix"] = atmEntry
+		}
+		// Ensure circulatory blood entry exists, create manual alias if missing
+		if _, ok := symbolRegistry["circulatory/blood.tranquilspeak"]; !ok {
+			if atmEntry, ok := symbolRegistry["atm/trigger_matrix.tranquilspeak"]; ok {
+				symbolRegistry["circulatory/blood.tranquilspeak"] = atmEntry
+			}
+		}
+		
+		// Manual aliases for Quantum Handshake Protocol and Tesla-Aether-Mobius-Goldbach operations
+		// QHP uses operational ATM entry
+		if atmOperationalEntry, ok := symbolRegistry["atm/operational.tranquilspeak"]; ok {
+			qhpEntry := atmOperationalEntry
+			qhpEntry.Cluster = "🔐⚛️🤝♦Q"
+			symbolRegistry["quantum_handshake_protocol"] = qhpEntry
+		}
+		
+		// Tesla-Aether-Mobius-Goldbach uses helical store ATM entry  
+		if atmHelicalEntry, ok := symbolRegistry["atm/helical_store.tranquilspeak"]; ok {
+			teslaEntry := atmHelicalEntry
+			teslaEntry.Cluster = "⚡🌀⧖𓂀♦φ∞"
+			symbolRegistry["tesla_aether_mobius_goldbach"] = teslaEntry
+		}
 	})
 	return err
 }
@@ -81,7 +109,7 @@ func GetSymbolCluster(component string) string {
 // or events with the correct TranquilSpeak symbol cluster for a given component/file.
 //
 // Usage:
-//   LogWithSymbolCluster("circulatory/blood.tranquilspeak", "Blood event occurred")
+//   // LogWithSymbolCluster("circulatory/blood.tranquilspeak", "Blood event occurred")
 //
 // This will prepend the correct symbol cluster to the log message.
 

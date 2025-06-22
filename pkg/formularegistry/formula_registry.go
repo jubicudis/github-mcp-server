@@ -14,7 +14,6 @@ package formularegistry
 
 import (
 	"bufio"
-	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -329,14 +328,308 @@ func addDefaultTNOSMCPFormulas(registry *BridgeFormulaRegistry) {
 		Parameters: map[string]interface{}{ "logLevel": "info" },
 		Metadata: map[string]interface{}{ "category": "tranquilspeak", "canonical_path": "/systems/tranquilspeak/logger/initialize" },
 	})
+	
+	// Canonical: Add missing formulas from FORMULAS_AND_BLUEPRINTS.md (fixed struct fields)
+    registry.AddFormula(BridgeFormula{
+        ID:          "ric.collapse",
+        Description: "Recursive Information Collapse (RIC): Compresses 7D symbolic thought data into actionable intent for collapse.",
+        Parameters: map[string]interface{}{
+            "inputs": []string{"7D_context", "entropy", "priority", "context"},
+            "outputs": []string{"intent_packet"},
+            "tranquilspeak_symbol": "<RIC_SYMBOL>",
+        },
+        Metadata: map[string]interface{}{
+            "reference": "docs/technical/FORMULAS_AND_BLUEPRINTS.md",
+        },
+    })
+    registry.AddFormula(BridgeFormula{
+        ID:          "cpe.permission",
+        Description: "Contextual Permission Evaluation (CPE): Evaluates permission for intent collapse based on ethics, capacity, and conflict.",
+        Parameters: map[string]interface{}{
+            "inputs": []string{"intent", "ethics", "capacity", "conflict"},
+            "outputs": []string{"permission", "clarity_score"},
+            "tranquilspeak_symbol": "<CPE_SYMBOL>",
+        },
+        Metadata: map[string]interface{}{
+            "reference": "docs/technical/FORMULAS_AND_BLUEPRINTS.md",
+        },
+    })
+    registry.AddFormula(BridgeFormula{
+        ID:          "elc.energy",
+        Description: "Energy Lifecycle Converter (ELC): Verifies energy input, loss, routing, and recycling for collapse.",
+        Parameters: map[string]interface{}{
+            "inputs": []string{"energy_input", "loss", "routing", "recycle"},
+            "outputs": []string{"energy_availability", "lifecycle_status"},
+            "tranquilspeak_symbol": "<ELC_SYMBOL>",
+        },
+        Metadata: map[string]interface{}{
+            "reference": "docs/technical/FORMULAS_AND_BLUEPRINTS.md",
+        },
+    })
+    registry.AddFormula(BridgeFormula{
+        ID:          "rmgc.moral",
+        Description: "Recursive Moral Gradient Collapse (RMGC): Applies moral gradient based on history, feedback, and social impact.",
+        Parameters: map[string]interface{}{
+            "inputs": []string{"history", "REFM", "social_impact"},
+            "outputs": []string{"moral_gradient_score"},
+            "tranquilspeak_symbol": "<RMGC_SYMBOL>",
+        },
+        Metadata: map[string]interface{}{
+            "reference": "docs/technical/FORMULAS_AND_BLUEPRINTS.md",
+        },
+    })
+    registry.AddFormula(BridgeFormula{
+        ID:          "oif.integrity",
+        Description: "Observation Integrity Filter (OIF): Compares observed output vs expected output for feedback and learning.",
+        Parameters: map[string]interface{}{
+            "inputs": []string{"observed_output", "expected_output", "noise", "clarity"},
+            "outputs": []string{"integrity_score", "clarity"},
+            "tranquilspeak_symbol": "<OIF_SYMBOL>",
+        },
+        Metadata: map[string]interface{}{
+            "reference": "docs/technical/FORMULAS_AND_BLUEPRINTS.md",
+        },
+    })
+    registry.AddFormula(BridgeFormula{
+        ID:          "rav.adjust",
+        Description: "Reality Adjustment Vector (RAV): Adjusts internal model based on feedback, bias, and clarity.",
+        Parameters: map[string]interface{}{
+            "inputs": []string{"OIF", "bias", "clarity"},
+            "outputs": []string{"adjustment_vector"},
+            "tranquilspeak_symbol": "<RAV_SYMBOL>",
+        },
+        Metadata: map[string]interface{}{
+            "reference": "docs/technical/FORMULAS_AND_BLUEPRINTS.md",
+        },
+    })
+    registry.AddFormula(BridgeFormula{
+        ID:          "smr.memory",
+        Description: "Symbolic Memory Reformation (SMR): Encodes memory with seed, adjustment, emotion, and context.",
+        Parameters: map[string]interface{}{
+            "inputs": []string{"seed", "RAV", "emotion", "context"},
+            "outputs": []string{"reformed_memory"},
+            "tranquilspeak_symbol": "<SMR_SYMBOL>",
+        },
+        Metadata: map[string]interface{}{
+            "reference": "docs/technical/FORMULAS_AND_BLUEPRINTS.md",
+        },
+    })
+    registry.AddFormula(BridgeFormula{
+        ID:          "rre.result",
+        Description: "Recursive Result Evaluation (RRE): Aggregates all collapse cycle results for feedback and learning.",
+        Parameters: map[string]interface{}{
+            "inputs": []string{"RIC", "CPE", "ELC", "RMGC", "OIF", "RAV", "SMR"},
+            "outputs": []string{"evaluation_score"},
+            "tranquilspeak_symbol": "<RRE_SYMBOL>",
+        },
+        Metadata: map[string]interface{}{
+            "reference": "docs/technical/FORMULAS_AND_BLUEPRINTS.md",
+        },
+    })
+    registry.AddFormula(BridgeFormula{
+        ID:          "cdrm.route",
+        Description: "Contextual Dimensional Routing Matrix (CDRM): Routes attention and compression into the most relevant of the 7 dimensions.",
+        Parameters: map[string]interface{}{
+            "inputs": []string{"7D_context", "priority", "relevance"},
+            "outputs": []string{"routing_matrix"},
+            "tranquilspeak_symbol": "<CDRM_SYMBOL>",
+        },
+        Metadata: map[string]interface{}{
+            "reference": "docs/technical/FORMULAS_AND_BLUEPRINTS.md",
+        },
+    })
+    registry.AddFormula(BridgeFormula{
+        ID:          "mtrcm.manager",
+        Description: "Multi-Threaded Recursive Collapse Manager (MTRCM): Manages multiple simultaneous thought streams and collapse threads.",
+        Parameters: map[string]interface{}{
+            "inputs": []string{"RIC", "CPE", "ELC", "RMGC", "thread_weights"},
+            "outputs": []string{"thread_scores", "collapse_order"},
+            "tranquilspeak_symbol": "<MTRCM_SYMBOL>",
+        },
+        Metadata: map[string]interface{}{
+            "reference": "docs/technical/FORMULAS_AND_BLUEPRINTS.md",
+        },
+    })
+    registry.AddFormula(BridgeFormula{
+        ID:          "qcpf.quantum",
+        Description: "Quantum Collapse Potential Field (QCPF): Scans future possible outcomes and rates their likelihood of stable collapse.",
+        Parameters: map[string]interface{}{
+            "inputs": []string{"memory", "entropy", "context", "conflict"},
+            "outputs": []string{"potential_field", "success_likelihood"},
+            "tranquilspeak_symbol": "<QCPF_SYMBOL>",
+        },
+        Metadata: map[string]interface{}{
+            "reference": "docs/technical/FORMULAS_AND_BLUEPRINTS.md",
+        },
+    })
+    registry.AddFormula(BridgeFormula{
+        ID:          "des.shield",
+        Description: "Dimensional Entropy Shielding (DES): Shields the system from collapse failure due to noise or contradiction.",
+        Parameters: map[string]interface{}{
+            "inputs": []string{"stability", "entropy", "familiarity", "resonance"},
+            "outputs": []string{"shield_score"},
+            "tranquilspeak_symbol": "<DES_SYMBOL>",
+        },
+        Metadata: map[string]interface{}{
+            "reference": "docs/technical/FORMULAS_AND_BLUEPRINTS.md",
+        },
+    })
+    // Canonical: Add additional missing formulas from FORMULAS_AND_BLUEPRINTS.md and related docs (fixed struct fields)
+    registry.AddFormula(BridgeFormula{
+        ID:          "atm.contextualize",
+        Description: "ATM Contextualizer: Integrates 7D context into all formula execution for ATM compliance.",
+        Parameters: map[string]interface{}{
+            "inputs": []string{"input_data", "7D_context"},
+            "outputs": []string{"contextualized_output"},
+            "tranquilspeak_symbol": "<ATM_CTX_SYMBOL>",
+        },
+        Metadata: map[string]interface{}{
+            "reference": "docs/architecture/ATM_CIRCULATORY_INTEGRATION.md",
+        },
+    })
+    registry.AddFormula(BridgeFormula{
+        ID:          "ai_dna.encode",
+        Description: "AI-DNA Encoder: Encodes symbolic memory into AI-DNA helical structure.",
+        Parameters: map[string]interface{}{
+            "inputs": []string{"symbolic_memory", "seed", "context"},
+            "outputs": []string{"ai_dna_sequence"},
+            "tranquilspeak_symbol": "<AIDNA_ENC_SYMBOL>",
+        },
+        Metadata: map[string]interface{}{
+            "reference": "docs/architecture/AI_DNA_STRUCTURE.md",
+        },
+    })
+    registry.AddFormula(BridgeFormula{
+        ID:          "ai_dna.decode",
+        Description: "AI-DNA Decoder: Decodes AI-DNA helical structure into symbolic memory.",
+        Parameters: map[string]interface{}{
+            "inputs": []string{"ai_dna_sequence", "context"},
+            "outputs": []string{"symbolic_memory"},
+            "tranquilspeak_symbol": "<AIDNA_DEC_SYMBOL>",
+        },
+        Metadata: map[string]interface{}{
+            "reference": "docs/architecture/AI_DNA_STRUCTURE.md",
+        },
+    })
+    registry.AddFormula(BridgeFormula{
+        ID:          "mobius.compression",
+        Description: "Möbius Compression: Applies Möbius transformation for lossless symbolic compression.",
+        Parameters: map[string]interface{}{
+            "inputs": []string{"input_data", "context"},
+            "outputs": []string{"compressed_data"},
+            "tranquilspeak_symbol": "<MOBIUS_COMP_SYMBOL>",
+        },
+        Metadata: map[string]interface{}{
+            "reference": "docs/technical/MOBIUS_COMPRESSION_SPEC.md",
+        },
+    })
+    registry.AddFormula(BridgeFormula{
+        ID:          "mobius.decompression",
+        Description: "Möbius Decompression: Reverses Möbius transformation for symbolic decompression.",
+        Parameters: map[string]interface{}{
+            "inputs": []string{"compressed_data", "context"},
+            "outputs": []string{"decompressed_data"},
+            "tranquilspeak_symbol": "<MOBIUS_DECOMP_SYMBOL>",
+        },
+        Metadata: map[string]interface{}{
+            "reference": "docs/technical/MOBIUS_COMPRESSION_SPEC.md",
+        },
+    })
+    registry.AddFormula(BridgeFormula{
+        ID:          "tranquilspeak.parse",
+        Description: "TranquilSpeak Parser: Parses TranquilSpeak symbols and statements for event routing.",
+        Parameters: map[string]interface{}{
+            "inputs": []string{"tranquilspeak_input"},
+            "outputs": []string{"parsed_structure"},
+            "tranquilspeak_symbol": "<TSPEAK_PARSE_SYMBOL>",
+        },
+        Metadata: map[string]interface{}{
+            "reference": "docs/architecture/TRANQUILSPEAK_PROTOCOL.md",
+        },
+    })
+    registry.AddFormula(BridgeFormula{
+        ID:          "tranquilspeak.emit_event",
+        Description: "TranquilSpeak Event Emitter: Emits canonical events using TranquilSpeak symbols.",
+        Parameters: map[string]interface{}{
+            "inputs": []string{"event_name", "payload", "context"},
+            "outputs": []string{"event_id"},
+            "tranquilspeak_symbol": "<TSPEAK_EMIT_SYMBOL>",
+        },
+        Metadata: map[string]interface{}{
+            "reference": "docs/architecture/TRANQUILSPEAK_PROTOCOL.md",
+        },
+    })
+    registry.AddFormula(BridgeFormula{
+        ID:          "helical.memory.encode",
+        Description: "Helical Memory Encoder: Encodes context and events into helical memory structure.",
+        Parameters: map[string]interface{}{
+            "inputs": []string{"event_data", "context"},
+            "outputs": []string{"helical_memory_block"},
+            "tranquilspeak_symbol": "<HELICAL_ENC_SYMBOL>",
+        },
+        Metadata: map[string]interface{}{
+            "reference": "docs/architecture/AI_DNA_STRUCTURE.md",
+        },
+    })
+    registry.AddFormula(BridgeFormula{
+        ID:          "helical.memory.decode",
+        Description: "Helical Memory Decoder: Decodes helical memory block into context and events.",
+        Parameters: map[string]interface{}{
+            "inputs": []string{"helical_memory_block"},
+            "outputs": []string{"event_data", "context"},
+            "tranquilspeak_symbol": "<HELICAL_DEC_SYMBOL>",
+        },
+        Metadata: map[string]interface{}{
+            "reference": "docs/architecture/AI_DNA_STRUCTURE.md",
+        },
+    })
+    registry.AddFormula(BridgeFormula{
+        ID:          "atm.trigger_matrix",
+        Description: "ATM Trigger Matrix: Canonical event/trigger routing for all formula execution.",
+        Parameters: map[string]interface{}{
+            "inputs": []string{"event", "context"},
+            "outputs": []string{"triggered_formula", "result"},
+            "tranquilspeak_symbol": "<ATM_TRIGGER_SYMBOL>",
+        },
+        Metadata: map[string]interface{}{
+            "reference": "docs/architecture/CONTEXT_MCP_INTEGRATION.md",
+        },
+    })
+    registry.AddFormula(BridgeFormula{
+        ID:          "ai_dna.self_heal",
+        Description: "AI-DNA Self-Healing: Repairs symbolic memory using dual-helix parity.",
+        Parameters: map[string]interface{}{
+            "inputs": []string{"ai_dna_sequence", "parity"},
+            "outputs": []string{"repaired_sequence"},
+            "tranquilspeak_symbol": "<AIDNA_HEAL_SYMBOL>",
+        },
+        Metadata: map[string]interface{}{
+            "reference": "docs/architecture/AI_DNA_STRUCTURE.md",
+        },
+    })
+    registry.AddFormula(BridgeFormula{
+        ID:          "mobius.entropy_shield",
+        Description: "Möbius Entropy Shield: Shields system from entropy spikes during collapse.",
+        Parameters: map[string]interface{}{
+            "inputs": []string{"entropy", "context"},
+            "outputs": []string{"shielded_state"},
+            "tranquilspeak_symbol": "<MOBIUS_SHIELD_SYMBOL>",
+        },
+        Metadata: map[string]interface{}{
+            "reference": "docs/technical/MOBIUS_COMPRESSION_SPEC.md",
+        },
+    })
+}
+
+// Remove registry/symbol mapping loading from init(). Only register formula functions if mapping is already loaded.
+func init() {
+	// Only register formula functions if SymbolMapping is already loaded (by main.go)
+	// (No computation functions are registered here; registration is external.)
 }
 
 // GetBridgeFormulaRegistry returns the singleton registry instance
+// NOTE: The registry must be initialized by main.go before use.
 func GetBridgeFormulaRegistry() *BridgeFormulaRegistry {
-	if bridgeRegistryInstance == nil {
-		// Initialize if it doesn't exist
-		_ = LoadBridgeFormulaRegistry("")
-	}
 	return bridgeRegistryInstance
 }
 
@@ -524,77 +817,3 @@ func (r *BridgeFormulaRegistry) GetFormulasByType(formulaType string) []BridgeFo
 	}
 	return matching
 }
-
-// Canonical: Helical Parity and Recovery Functions
-// Implements dual-helix parity and self-healing logic per HDSA/AI-DNA/7D/ATM spec
-
-func helicalParityFunc(params map[string]interface{}) (map[string]interface{}, error) {
-	primaryBytesRaw, ok := params["primary"]
-	if !ok {
-		return nil, fmt.Errorf("missing 'primary' parameter for helical.parity")
-	}
-	var primaryBytes []byte
-	switch v := primaryBytesRaw.(type) {
-	case []byte:
-		primaryBytes = v
-	case string:
-		primaryBytes = []byte(v)
-	default:
-		return nil, fmt.Errorf("invalid type for 'primary' parameter")
-	}
-	// Canonical: Parity is SHA256 of primary, for deterministic self-healing
-	parity := sha256.Sum256(primaryBytes)
-	return map[string]interface{}{"parity": parity[:]}, nil
-}
-
-func helicalRecoverPrimaryFunc(params map[string]interface{}) (map[string]interface{}, error) {
-	parityBytesRaw, ok := params["parity"]
-	if !ok {
-		return nil, fmt.Errorf("missing 'parity' parameter for helical.recover_primary")
-	}
-	var parityBytes []byte
-	switch v := parityBytesRaw.(type) {
-	case []byte:
-		parityBytes = v
-	case string:
-		parityBytes = []byte(v)
-	default:
-		return nil, fmt.Errorf("invalid type for 'parity' parameter")
-	}
-	// Canonical: In real HDSA, this would use dual-helix error correction; here, just return the hash as a stand-in
-	return map[string]interface{}{"primary": parityBytes}, nil
-}
-
-func init() {
-	// Load canonical symbol mapping if not already loaded
-	if len(SymbolMapping) == 0 {
-		// Try to load from formulas.json first (preferred)
-		if err := LoadSymbolMappingFromJSON("config/formulas.json"); err != nil {
-			// Fallback to legacy .tsq file
-			_ = LoadSymbolMapping("/Users/Jubicudis/Tranquility-Neuro-OS/systems/tranquilspeak/circulatory/github-mcp-server/symbolic_mapping_registry_autogen_20250603.tsq")
-		}
-	}
-	// Register canonical formula functions using the correct symbols
-	if sym, ok := SymbolMapping["helical.parity"]; ok {
-		RegisterFormulaFunc(sym, helicalParityFunc)
-	}
-	if sym, ok := SymbolMapping["helical.recover_primary"]; ok {
-		RegisterFormulaFunc(sym, helicalRecoverPrimaryFunc)
-	}
-}
-
-// [TNOS] All formula registration and execution must use TranquilSpeak symbols as canonical keys.
-// See: ../../../../systems/cpp/circulatory/algorithms/data/tranquilspeak_symbol_key.md for the authoritative mapping.
-// Example: {"helical.parity": "ⓗ"} (replace with actual symbol from mapping)
-//
-// Usage: Always pass the symbol, not a hardcoded name, to AddFormula/ExecuteFormula.
-
-// Example symbol mapping (should be auto-generated or imported in production)
-var FORMULA_SYMBOLS = map[string]string{
-	"helical.parity": "ⓗ", // TODO: Replace with actual symbol from mapping
-	"helical.recover_primary": "ⓡ", // TODO: Replace with actual symbol from mapping
-	// ...add more as needed
-}
-
-// In all usages, replace calls like GetFormula("helical.parity") with GetFormula(FORMULA_SYMBOLS["helical.parity"])
-// and ExecuteFormula("helical.parity", ...) with ExecuteFormula(FORMULA_SYMBOLS["helical.parity"], ...)

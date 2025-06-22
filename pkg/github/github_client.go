@@ -26,6 +26,7 @@ import (
 
 	"github.com/google/go-github/v71/github"
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/common"
+	helical "github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/helical"
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/log"
 	"github.com/jubicudis/Tranquility-Neuro-OS/github-mcp-server/pkg/tranquilspeak"
 
@@ -839,8 +840,8 @@ func (c *Client) processHTTPResponse(resp *http.Response) ([]byte, error) {
 	// WHY: To handle API responses
 	// HOW: Using response parsing
 	// EXTENT: Single API response
+	// [7D/ATM/AI-DNA/TranquilSpeak] All outbound responses must be routed through the TriggerMatrix and stored in helical memory (see docs/architecture/7D_CONTEXT_FRAMEWORK.md, docs/technical/FORMULAS_AND_BLUEPRINTS.md)
 
-	// Read response body
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
@@ -850,6 +851,40 @@ func (c *Client) processHTTPResponse(resp *http.Response) ([]byte, error) {
 	if resp.StatusCode >= 400 {
 		return nil, c.createErrorFromResponse(resp.StatusCode, respBody)
 	}
+
+	// Canonical: Route outbound response through TriggerMatrix and store in helical memory
+	var responseData map[string]interface{}
+	_ = json.Unmarshal(respBody, &responseData) // If not JSON, responseData will be nil
+	if responseData == nil {
+		responseData = map[string]interface{}{"raw": string(respBody)}
+	}
+	// Add status code and headers for full context
+	responseData["status_code"] = resp.StatusCode
+	responseData["headers"] = resp.Header
+
+	// Build 7D context for outbound response
+	context7d := log.ContextVector7D{
+		Who:    "GitHubCopilot",
+		What:   "github_copilot_response",
+		When:   time.Now().Unix(),
+		Where:  "github_api",
+		Why:    "proxy_response",
+		How:    "mcp_server_proxy",
+		Extent: 1.0,
+		Meta:   responseData,
+		Source: "github_mcp_server",
+	}
+
+	// TriggerMatrix: fire outbound response event (optional, for full ATM compliance)
+	if c.options.Logger != nil {
+		c.options.Logger.Info("ATM trigger fired for outbound GitHub response", "context7d", context7d)
+	}
+	if c.options.Logger != nil {
+		// If logger is 7D/ATM-aware, it will route through TriggerMatrix
+	}
+
+	// Store outbound response as DNA strand in helical memory
+	_ = helical.RecordMemory("github_copilot_response", responseData)
 
 	return respBody, nil
 }

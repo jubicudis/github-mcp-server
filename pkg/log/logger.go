@@ -125,17 +125,8 @@ func (l *Logger) log(level int, message string, args ...interface{}) {
 		"how":    l.context["how"],
 		"extent": l.context["extent"],
 	}
-	payload := map[string]interface{}{
-		"level":   level,
-		"context": ctx7d,
-		"message": msg,
-		"time":    time.Now().Format(time.RFC3339),
-	}
-	atmTrigger := l.triggerMatrix.CreateTrigger(
-		l.context["who"], l.context["what"], l.context["where"], l.context["why"], l.context["how"], l.context["extent"],
-		tranquilspeak.TriggerTypeSystemControl, "helical_memory", payload,
-	)
-	_ = l.triggerMatrix.ProcessTrigger(atmTrigger)
+	// Only print or store log locally, do not emit ATM trigger here
+	fmt.Printf("[%s] %s | %v\n", time.Now().Format(time.RFC3339), msg, ctx7d)
 }
 
 // Debug logs a debug message
