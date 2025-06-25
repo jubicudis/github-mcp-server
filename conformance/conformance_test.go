@@ -1,6 +1,6 @@
 //go:build conformance
 
-package conformance_test
+package conformance
 
 import (
 	"bufio"
