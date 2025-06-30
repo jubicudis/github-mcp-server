@@ -1,7 +1,13 @@
 {
+  // WHO: ConfigurationManager
+  // WHAT: VS Code extension recommendations for Go MCP Server biosystem
+  // WHEN: During IDE initialization and onboarding
+  // WHERE: /github-mcp-server/.vscode/extensions.json
+  // WHY: To ensure all developers use canonical Go and TNOS tools
+  // HOW: VS Code reads this file and prompts for recommended extensions
+  // EXTENT: All Go and TNOS development for github-mcp-server
   "recommendations": [
     "golang.go",
-    "ms-vscode.cpptools",
     "ms-vscode.go-tools",
     "esbenp.prettier-vscode",
     "streetsidesoftware.code-spell-checker"

@@ -155,7 +155,7 @@ func loadConfig() Config {
 	flag.StringVar(&config.LogLevel, "loglevel", "info", "Log level")
 	flag.StringVar(&config.LogFile, "logfile", "github-mcp-server.log", "Log file")
 	flag.StringVar(&config.GitHubToken, "token", os.Getenv("GITHUB_TOKEN"), "GitHub token")
-	flag.BoolVar(&config.BridgeEnabled, "bridge", true, "Enable MCP bridge")
+	flag.BoolVar(&config.BridgeEnabled, "bridge", false, "Enable MCP bridge (disabled by default)")
 	flag.IntVar(&config.BridgePort, "bridgeport", 10619, "Bridge port")
 	flag.StringVar(&config.FormulaRegistryPath, "formulas", "", "Formula registry path")
 	flag.Parse()

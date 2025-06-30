@@ -40,7 +40,5 @@
 	"go.coverageDecorator": {
 		"type": "gutter"
 	},
-	"go.testEnvFile": "/Users/Jubicudis/Tranquility-Neuro-OS/github-mcp-server/.env",
-	"python.defaultInterpreterPath": "/Users/Jubicudis/Tranquility-Neuro-OS/systems/python/mind/venv/bin/python3",
-	"sonarlint.nodePath": "/Users/Jubicudis/.n/bin/node"
+	"go.testEnvFile": "/Users/Jubicudis/Tranquility-Neuro-OS/github-mcp-server/.env"
 }
